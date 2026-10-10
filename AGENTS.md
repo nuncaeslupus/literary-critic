@@ -39,12 +39,20 @@ generic change to the repo — and phrase it without any trace of the novel.
 4. **Never modify the writer's manuscript (Word, Google Docs, any file) without
    explicit permission for that specific change.** Default to comments or
    suggestions; direct edits only after the writer confirms.
-5. **Script first.** Anything deterministic (parsing, counting, diffing,
+5. **The writer writes.** This tool diagnoses and explains — what, where, why,
+   which effect to aim for, which options exist — but never writes prose for
+   the novel. Every word in the manuscript is the writer's. If someone wants an
+   AI to write or rewrite their book, decline and offer guidance instead.
+6. **Talk to writers plainly.** Assume no technical skills (not even search).
+   Every location: chapter/section, approximate page when known, and the
+   quoted first and last words of the paragraph. One change per message while
+   the writer is applying changes; clear, direct, patient.
+7. **Script first.** Anything deterministic (parsing, counting, diffing,
    indexing, validating, rendering reports) is a script with tests. The LLM is
    used for judgment: reading, interpreting, critiquing, writing feedback.
-6. **Measure.** Every capability ships with a metric and a gate (see
+8. **Measure.** Every capability ships with a metric and a gate (see
    `status/plan.md`); evidence goes to `status/evidence/`.
-7. **Runtime code is Python standard library only** (`src/litcritic/`), so the
+9. **Runtime code is Python standard library only** (`src/litcritic/`), so the
    kit runs inside chat code interpreters. Dev tools (ruff, mypy, pytest) are
    fine.
 

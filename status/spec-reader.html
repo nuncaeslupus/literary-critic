@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="1277b4fc6a3b8169a34ecae32d5f56976e743e00c6e4dfc3a1c864256936411f">
+<meta name="arsenal-source-sha256" content="b9cae91f2e5241b3cfcd723a19cbfd57e2c5173e7a727e0abdef432a925c77c0">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -130,7 +130,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 13 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -160,6 +160,10 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-option-c-full-nlp-rag-stack-spac">Option C: Full NLP/RAG stack (spaCy, embeddings, vector DB)</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-cli-contracts-lc-stdlib-only">CLI contracts (lc, stdlib only)</a></li>
+<li><a href="#s-spec-data-contracts-workspace-files-s">Data contracts (workspace files, schema_version = 1)</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -169,10 +173,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-10
 <strong>Ticket / PR</strong>: bootstrap
 <strong>Author</strong>: imarcos + Claude
-<strong>Revision</strong>: 1
-<strong>Status</strong>: draft
+<strong>Revision</strong>: 2
+<strong>Status</strong>: approved (2026-10-10, revision 2) — option B; notes given in conversation
 <strong>Revision log</strong>:
-- r1 — first draft</p></div>
+- r1 — first draft
+- r2 — applied conversation notes: conversational guidance, writer-friendly locators, writer authorship rule, two working modes chosen at start</p></div>
 <div class="note" data-for="s-spec-intro"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></div><textarea class="note-ta" data-key="s-spec-intro" data-label="Preamble &amp; scope" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-spec-1">
@@ -202,6 +207,8 @@ working-novel content ever entering the repo.</p>
 <li>[ ] <code>runtime_third_party_imports == 0</code> in <code>src/litcritic/</code>.</li>
 <li>[ ] <code>guard_false_negatives == 0</code> on the guard test suite (guarded terms, accented variants, manuscript files).</li>
 <li>[ ] <code>ingest_paragraph_fidelity &gt;= 0.999</code> — normalised paragraphs match the source <code>.docx</code>/<code>.odt</code>/<code>.md</code>/<code>.txt</code> text after whitespace normalisation, on corpus fixtures.</li>
+<li>[ ] <code>writer_locators_complete == 1.0</code> — every writer-facing action carries chapter/section, approximate page when known, and quoted paragraph opening and closing words that occur exactly once in the current draft.</li>
+<li>[ ] <code>generated_manuscript_prose_in_actions == 0</code> — action texts contain no replacement prose for the novel (checked by script: no quoted passage longer than the locator snippets unless copied verbatim from the manuscript).</li>
 <li>[ ] Usability judged on the first working novel: the writer can complete one full round (index → analysis → letter → revised draft → re-index → verification) and rates the actions concrete and actionable; recorded in a generic retrospective with no novel content.</li>
 </ul></div>
 <div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
@@ -382,17 +389,21 @@ working-novel content ever entering the repo.</p>
 <li><strong>Layered index</strong> (load only what is needed): L0 novel profile &amp; synopsis · L1 chapter summaries · L2 scene cards (summary, POV, characters, place, story time, events, setups/payoffs, open threads) · L3 raw text by anchor. Derived registers built by script: characters (aliases), relationships (evidence anchors), timeline (story vs discourse order), locations, motifs, setup/payoff ledger.</li>
 <li><strong>Checklist</strong>: catalogue of checks grouped by level (editorial order: developmental → scene → line). Each check: id, area, question, method (script | llm | hybrid), required index layers, evidence rule, severity rubric, output schema. After the first pass, a per-novel profile (in the workspace) enables, disables and weights checks.</li>
 <li><strong>Findings → actions</strong>: findings (check id, anchors, evidence, severity, confidence, effort) are prioritised by script into revision rounds: R1 structural (move/cut/merge/add), R2 scene &amp; character, R3 prose &amp; dialogue. Each round yields a writer-facing letter in the novel's language and a machine-readable backlog (accepted / rejected / done / deferred). A round closes when no open high-severity finding remains or the writer closes it; a new draft is re-indexed and the backlog verified against the diff, with metric deltas.</li>
-<li><strong>Audience</strong>: <code>writer</code> (default; revision letter) and later <code>reader-report</code> (agency/editor assessment: strengths, market fit, verdict) from the same findings.</li>
+<li><strong>Modes, chosen at the start by asking the user</strong>: <code>revision</code> (default — a writer improving their own novel) and <code>reader-report</code> (an agency/editor assessing a manuscript: strengths, market fit, verdict). Both run on the same index and findings.</li>
 <li><strong>Documents</strong>: read <code>.docx</code>/<code>.odt</code>/<code>.md</code>/<code>.txt</code> (Google Docs via export). Write-back only with explicit permission: <code>.docx</code> with anchored comments and tracked changes (<code>w:ins</code>/<code>w:del</code>), which Google Docs imports as comments/suggestions; direct Docs API edits only for confirmed changes.</li>
 <li><strong>Persistence</strong>: workspace folder outside the repo (Drive preferred); <code>lc pack</code>/<code>lc unpack</code> zip round-trip with checksummed manifest for chat and cloud sessions.</li>
 <li><strong>Guarding</strong>: <code>lc guard</code> + pre-commit + CI; per-workspace <code>guard-terms.txt</code>.</li>
 <li><strong>Language</strong>: repo in English; prompts language-agnostic; metrics language-aware (es, en first: Fernández-Huerta / Szigriszt-INFLESZ, Flesch, MTLD, -mente/-ly density, dialogue ratio, sentence-length variance, repetition).</li>
+<li><strong>Conversational guidance</strong>: like a guided interview, the assistant drives the session one step at a time — what we are looking at, why, what to change — waits for the writer, records decisions in the workspace, and resumes where the last session stopped.</li>
+<li><strong>Writer-friendly locators</strong>: every location given to a writer is self-sufficient without search skills: chapter/section title, approximate page (from the writer's own file when available), and the first and last words of the paragraph (quoted, a few words each), plus a short unique phrase to search for when the writer can. One change per message when the writer is applying changes; plain, direct, patient language.</li>
+<li><strong>The writer writes</strong>: the tool diagnoses and explains (what, where, why, which effect to aim for, which options exist) but never writes replacement prose for the novel. Every word in the manuscript is the writer's. Requests to ghost-write are declined and redirected to guidance.</li>
 </ol>
 <p><strong>Immediate next action</strong>: Build part 2 first — the check catalogue (<code>checklist/*.toml</code>) with its schema and validator — from <code>docs/research/analysis-frameworks.md</code> plus the user-supplied external list (used as input only, not committed).</p>
 <p><strong>Open questions</strong>:
 - [ ] Python version available in each chatbot sandbox (confirm ≥3.12 or lower the floor).
 - [ ] Whether Claude.ai / ChatGPT Drive connectors can write arbitrary files (JSON/zip) reliably enough to skip the zip round-trip.
-- [ ] <code>reader-report</code> audience: scope and when (after the first full writer round).</p>
+- [ ] <code>reader-report</code> mode: scope and when (after the first full revision round).
+- [ ] Final license (D-13).</p>
 <p><strong>Decisions log</strong>:</p>
 <table>
 <thead>
@@ -442,7 +453,7 @@ working-novel content ever entering the repo.</p>
 </tr>
 <tr>
 <td>D-7</td>
-<td>Default audience is the writer; agency/editor reader report later</td>
+<td>Two modes, chosen at the start by asking: <code>revision</code> (writer, default) and <code>reader-report</code> (agency/editor)</td>
 <td>agreed</td>
 <td>2026-10-10</td>
 </tr>
@@ -458,12 +469,218 @@ working-novel content ever entering the repo.</p>
 <td>agreed</td>
 <td>2026-10-10</td>
 </tr>
+<tr>
+<td>D-10</td>
+<td>Conversational, guided sessions (integral-job-search style)</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-11</td>
+<td>Locators for writers: chapter + approx. page + paragraph first/last words + search phrase; one change per message; plain language</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-12</td>
+<td>The writer writes: never produce replacement prose for the novel; diagnose and explain only</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-13</td>
+<td>License to be chosen deliberately (MIT was a placeholder)</td>
+<td>open</td>
+<td>2026-10-10</td>
+</tr>
 </tbody>
 </table>
 <blockquote>
 <p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
 </blockquote></div>
 <div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="note" data-for="s-spec-5"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></div><textarea class="note-ta" data-key="s-spec-5" data-label="§5 Contracts" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-cli-contracts-lc-stdlib-only">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI contracts (<code>lc</code>, stdlib only)</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Input</th>
+<th>Output</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lc init &lt;slug&gt; --title --language</code></td>
+<td>—</td>
+<td>workspace skeleton (<code>docs/workspace.md</code>)</td>
+<td>done</td>
+</tr>
+<tr>
+<td><code>lc guard [--all]</code></td>
+<td>staged diff / tracked files + guard terms</td>
+<td>exit 1 on violation</td>
+<td>done</td>
+</tr>
+<tr>
+<td><code>lc checklist validate\|stats\|plan [--profile]</code></td>
+<td><code>checklist/</code>, workspace <code>analysis/profile.toml</code></td>
+<td>errors / counts / ordered checks</td>
+<td>T2</td>
+</tr>
+<tr>
+<td><code>lc ingest &lt;file&gt;</code></td>
+<td><code>.txt .md .docx .odt</code></td>
+<td><code>text/vNNN.txt</code>, <code>manuscript/vNNN.*</code> snapshot</td>
+<td>T4</td>
+</tr>
+<tr>
+<td><code>lc anchor</code></td>
+<td><code>text/vNNN.txt</code></td>
+<td><code>index/vNNN/structure.json</code> (parts, chapters, scenes, paragraph anchors + fingerprints)</td>
+<td>T5</td>
+</tr>
+<tr>
+<td><code>lc diff vA vB</code></td>
+<td>two structures</td>
+<td><code>index/vB/alignment.json</code> (old→new anchors, changed/moved/new/deleted, stale scenes)</td>
+<td>T6</td>
+</tr>
+<tr>
+<td><code>lc metrics</code></td>
+<td>text + structure</td>
+<td><code>metrics/vNNN.json</code> (ids from <code>checklist/metrics.toml</code>)</td>
+<td>T7</td>
+</tr>
+<tr>
+<td><code>lc validate &lt;kind&gt; &lt;file&gt;</code></td>
+<td>scene card, register, finding, action</td>
+<td>schema errors</td>
+<td>T8</td>
+</tr>
+<tr>
+<td><code>lc show / find / context --budget N</code></td>
+<td>index</td>
+<td>bounded text for the LLM</td>
+<td>T9</td>
+</tr>
+<tr>
+<td><code>lc locate &lt;anchor&gt;</code></td>
+<td>anchor + draft</td>
+<td>writer locator (chapter, ≈page, first/last words, search phrase)</td>
+<td>T11</td>
+</tr>
+<tr>
+<td><code>lc round build\|status\|letter</code></td>
+<td>findings + profile</td>
+<td><code>revisions/round-NN/{actions.json,letter.md}</code></td>
+<td>T11</td>
+</tr>
+<tr>
+<td><code>lc docx-comments</code></td>
+<td>actions + <code>.docx</code></td>
+<td>copy of the <code>.docx</code> with anchored comments (never the original)</td>
+<td>T12</td>
+</tr>
+<tr>
+<td><code>lc pack / unpack</code></td>
+<td>workspace</td>
+<td>zip + checksummed manifest; refuses stale overwrite</td>
+<td>T13</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-cli-contracts-lc-stdlib-only"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI contracts (lc, stdlib only)</span></div><textarea class="note-ta" data-key="s-spec-cli-contracts-lc-stdlib-only" data-label="CLI contracts (lc, stdlib only)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-data-contracts-workspace-files-s">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data contracts (workspace files, <code>schema_version = 1</code>)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Anchor</strong>: <code>c&lt;NN&gt;.s&lt;N&gt;.p&lt;N&gt;</code> readable id + <code>fp</code> (normalised-text SHA-1, 12 hex) per paragraph; part prefix <code>p&lt;N&gt;.</code> when parts exist.</li>
+<li><strong>Scene card</strong> (LLM-written, schema-validated): <code>anchor</code>, <code>summary</code> (≤80 words), <code>pov</code>, <code>characters[]</code>, <code>location</code>, <code>story_time</code>, <code>events[]</code>, <code>setups[]</code>, <code>payoffs[]</code>, <code>open_threads[]</code>, <code>notes</code>.</li>
+<li><strong>Finding</strong>: <code>id</code>, <code>check_id</code>, <code>anchors[]</code> (≥1), <code>evidence</code> (quotes ≤25 words each), <code>severity</code>, <code>confidence</code> (0–1), <code>effort</code> (S/M/L), <code>kind</code> (problem/strength), <code>status</code>.</li>
+<li><strong>Action</strong>: <code>id</code>, <code>finding_ids[]</code>, <code>level</code> (structural/scene/line), <code>round</code>, <code>what</code>, <code>why</code>, <code>where</code> (writer locator), <code>options[]</code>, <code>status</code> (pending/accepted/rejected/done/deferred), <code>verified_in</code> (draft id). No replacement prose (D-12).</li>
+<li><strong>Profile</strong> (<code>analysis/profile.toml</code>): <code>mode</code>, <code>traits[]</code>, <code>disabled[]</code>, <code>weights{}</code>, <code>language</code>.</li>
+</ul></div>
+<div class="note" data-for="s-spec-data-contracts-workspace-files-s"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Data contracts (workspace files, schema_version = 1)</span></div><textarea class="note-ta" data-key="s-spec-data-contracts-workspace-files-s" data-label="Data contracts (workspace files, schema_version = 1)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Novel content leaks into the repo</td>
+<td>Med</td>
+<td>High</td>
+<td><code>lc guard</code> pre-commit + CI; local and per-workspace term lists</td>
+<td>unit tests; CI <code>guard --all</code></td>
+</tr>
+<tr>
+<td>Anchors drift after heavy rewrites</td>
+<td>Med</td>
+<td>High</td>
+<td>fingerprint + fuzzy + order-aware alignment; stale-scene re-analysis</td>
+<td>synthetic edit suite (T6 gate)</td>
+</tr>
+<tr>
+<td>LLM output off-schema or hallucinated anchors</td>
+<td>High</td>
+<td>Med</td>
+<td>schemas + <code>lc validate</code>; anchors checked against structure</td>
+<td>schema-validity gates (T8, T11)</td>
+</tr>
+<tr>
+<td>Chat sandboxes lack Python ≥3.12 or file persistence</td>
+<td>Med</td>
+<td>Med</td>
+<td>stdlib only; zip round-trip; reduced no-code mode</td>
+<td>manual check per platform (T14)</td>
+</tr>
+<tr>
+<td>Feedback too generic / not actionable</td>
+<td>Med</td>
+<td>High</td>
+<td>evidence rule; actions need what/why/where/options; rounds with exit criteria</td>
+<td>usability criterion on first working novel</td>
+</tr>
+<tr>
+<td>Tool drifts into writing the novel</td>
+<td>Low</td>
+<td>High</td>
+<td>D-12 rule in AGENTS + prompts; prose detector on actions</td>
+<td><code>generated_manuscript_prose_in_actions == 0</code></td>
+</tr>
+<tr>
+<td>Writer cannot find the location</td>
+<td>Med</td>
+<td>High</td>
+<td>locator with first/last words verified unique</td>
+<td><code>writer_locators_complete == 1.0</code></td>
+</tr>
+<tr>
+<td>Stdlib-only metrics too crude for Spanish/English</td>
+<td>Med</td>
+<td>Low</td>
+<td>language word lists; metrics as pointers, LLM judges</td>
+<td>golden tests on corpus</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></div><textarea class="note-ta" data-key="s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 </section>
 </div>
@@ -585,7 +802,7 @@ working-novel content ever entering the repo.</p>
   document.getElementById('btn-export').addEventListener('click',function(){
     var r=buildExport();
     if(r.n===0){toast('No notes yet — add some first.');return;}
-    var name='literary-critic-spec-notes-'+today()+'-r1.md';
+    var name='literary-critic-spec-notes-'+today()+'-r2.md';
     var saved=download(name,r.text);openModal(r.text);
     try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
     if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
@@ -607,7 +824,7 @@ working-novel content ever entering the repo.</p>
     if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
     else{report(false);}
   });
-  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
   document.getElementById('modal-close').addEventListener('click',closeModal);
   modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
 

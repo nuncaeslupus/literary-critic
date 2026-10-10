@@ -11,10 +11,11 @@
 **Date**: 2026-10-10
 **Ticket / PR**: bootstrap
 **Author**: imarcos + Claude
-**Revision**: 1
-**Status**: draft
+**Revision**: 2
+**Status**: approved (2026-10-10, revision 2) — option B; notes given in conversation
 **Revision log**:
 - r1 — first draft
+- r2 — applied conversation notes: conversational guidance, writer-friendly locators, writer authorship rule, two working modes chosen at start
 
 <!-- -->
 
@@ -49,6 +50,8 @@ working-novel content ever entering the repo.
 - [ ] `runtime_third_party_imports == 0` in `src/litcritic/`.
 - [ ] `guard_false_negatives == 0` on the guard test suite (guarded terms, accented variants, manuscript files).
 - [ ] `ingest_paragraph_fidelity >= 0.999` — normalised paragraphs match the source `.docx`/`.odt`/`.md`/`.txt` text after whitespace normalisation, on corpus fixtures.
+- [ ] `writer_locators_complete == 1.0` — every writer-facing action carries chapter/section, approximate page when known, and quoted paragraph opening and closing words that occur exactly once in the current draft.
+- [ ] `generated_manuscript_prose_in_actions == 0` — action texts contain no replacement prose for the novel (checked by script: no quoted passage longer than the locator snippets unless copied verbatim from the manuscript).
 - [ ] Usability judged on the first working novel: the writer can complete one full round (index → analysis → letter → revised draft → re-index → verification) and rates the actions concrete and actionable; recorded in a generic retrospective with no novel content.
 
 <!-- -->
@@ -150,18 +153,22 @@ Key design points carried into `design`:
 3. **Layered index** (load only what is needed): L0 novel profile & synopsis · L1 chapter summaries · L2 scene cards (summary, POV, characters, place, story time, events, setups/payoffs, open threads) · L3 raw text by anchor. Derived registers built by script: characters (aliases), relationships (evidence anchors), timeline (story vs discourse order), locations, motifs, setup/payoff ledger.
 4. **Checklist**: catalogue of checks grouped by level (editorial order: developmental → scene → line). Each check: id, area, question, method (script | llm | hybrid), required index layers, evidence rule, severity rubric, output schema. After the first pass, a per-novel profile (in the workspace) enables, disables and weights checks.
 5. **Findings → actions**: findings (check id, anchors, evidence, severity, confidence, effort) are prioritised by script into revision rounds: R1 structural (move/cut/merge/add), R2 scene & character, R3 prose & dialogue. Each round yields a writer-facing letter in the novel's language and a machine-readable backlog (accepted / rejected / done / deferred). A round closes when no open high-severity finding remains or the writer closes it; a new draft is re-indexed and the backlog verified against the diff, with metric deltas.
-6. **Audience**: `writer` (default; revision letter) and later `reader-report` (agency/editor assessment: strengths, market fit, verdict) from the same findings.
+6. **Modes, chosen at the start by asking the user**: `revision` (default — a writer improving their own novel) and `reader-report` (an agency/editor assessing a manuscript: strengths, market fit, verdict). Both run on the same index and findings.
 7. **Documents**: read `.docx`/`.odt`/`.md`/`.txt` (Google Docs via export). Write-back only with explicit permission: `.docx` with anchored comments and tracked changes (`w:ins`/`w:del`), which Google Docs imports as comments/suggestions; direct Docs API edits only for confirmed changes.
 8. **Persistence**: workspace folder outside the repo (Drive preferred); `lc pack`/`lc unpack` zip round-trip with checksummed manifest for chat and cloud sessions.
 9. **Guarding**: `lc guard` + pre-commit + CI; per-workspace `guard-terms.txt`.
 10. **Language**: repo in English; prompts language-agnostic; metrics language-aware (es, en first: Fernández-Huerta / Szigriszt-INFLESZ, Flesch, MTLD, -mente/-ly density, dialogue ratio, sentence-length variance, repetition).
+11. **Conversational guidance**: like a guided interview, the assistant drives the session one step at a time — what we are looking at, why, what to change — waits for the writer, records decisions in the workspace, and resumes where the last session stopped.
+12. **Writer-friendly locators**: every location given to a writer is self-sufficient without search skills: chapter/section title, approximate page (from the writer's own file when available), and the first and last words of the paragraph (quoted, a few words each), plus a short unique phrase to search for when the writer can. One change per message when the writer is applying changes; plain, direct, patient language.
+13. **The writer writes**: the tool diagnoses and explains (what, where, why, which effect to aim for, which options exist) but never writes replacement prose for the novel. Every word in the manuscript is the writer's. Requests to ghost-write are declined and redirected to guidance.
 
 **Immediate next action**: Build part 2 first — the check catalogue (`checklist/*.toml`) with its schema and validator — from `docs/research/analysis-frameworks.md` plus the user-supplied external list (used as input only, not committed).
 
 **Open questions**:
 - [ ] Python version available in each chatbot sandbox (confirm ≥3.12 or lower the floor).
 - [ ] Whether Claude.ai / ChatGPT Drive connectors can write arbitrary files (JSON/zip) reliably enough to skip the zip round-trip.
-- [ ] `reader-report` audience: scope and when (after the first full writer round).
+- [ ] `reader-report` mode: scope and when (after the first full revision round).
+- [ ] Final license (D-13).
 
 **Decisions log**:
 
@@ -173,9 +180,13 @@ Key design points carried into `design`:
 | D-4 | Workspaces live outside the repo; Drive folder preferred, zip round-trip as portable fallback | agreed | 2026-10-10 |
 | D-5 | Public-domain novels (en, es) allowed under `corpus/` for tests and examples | agreed | 2026-10-10 |
 | D-6 | Build order: part 2 (checklist) → part 1 (index) → part 3 (feedback) → chat kit | agreed | 2026-10-10 |
-| D-7 | Default audience is the writer; agency/editor reader report later | agreed | 2026-10-10 |
+| D-7 | Two modes, chosen at the start by asking: `revision` (writer, default) and `reader-report` (agency/editor) | agreed | 2026-10-10 |
 | D-8 | Work language follows the writer/novel; repo artefacts in English | agreed | 2026-10-10 |
 | D-9 | Manuscript edits only with explicit per-change permission; comments/suggestions first | agreed | 2026-10-10 |
+| D-10 | Conversational, guided sessions (integral-job-search style) | agreed | 2026-10-10 |
+| D-11 | Locators for writers: chapter + approx. page + paragraph first/last words + search phrase; one change per message; plain language | agreed | 2026-10-10 |
+| D-12 | The writer writes: never produce replacement prose for the novel; diagnose and explain only | agreed | 2026-10-10 |
+| D-13 | License to be chosen deliberately (MIT was a placeholder) | open | 2026-10-10 |
 
 
 > Sections 5–6 (contracts, risks) are appended by `design`.
@@ -183,5 +194,68 @@ Key design points carried into `design`:
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §5`
+> _(your notes here — replace this line)_
+
+### CLI contracts (lc, stdlib only)
+
+| Command | Input | Output | Status |
+|---------|-------|--------|--------|
+| `lc init <slug> --title --language` | — | workspace skeleton (`docs/workspace.md`) | done |
+| `lc guard [--all]` | staged diff / tracked files + guard terms | exit 1 on violation | done |
+| `lc checklist validate\|stats\|plan [--profile]` | `checklist/`, workspace `analysis/profile.toml` | errors / counts / ordered checks | T2 |
+| `lc ingest <file>` | `.txt .md .docx .odt` | `text/vNNN.txt`, `manuscript/vNNN.*` snapshot | T4 |
+| `lc anchor` | `text/vNNN.txt` | `index/vNNN/structure.json` (parts, chapters, scenes, paragraph anchors + fingerprints) | T5 |
+| `lc diff vA vB` | two structures | `index/vB/alignment.json` (old→new anchors, changed/moved/new/deleted, stale scenes) | T6 |
+| `lc metrics` | text + structure | `metrics/vNNN.json` (ids from `checklist/metrics.toml`) | T7 |
+| `lc validate <kind> <file>` | scene card, register, finding, action | schema errors | T8 |
+| `lc show / find / context --budget N` | index | bounded text for the LLM | T9 |
+| `lc locate <anchor>` | anchor + draft | writer locator (chapter, ≈page, first/last words, search phrase) | T11 |
+| `lc round build\|status\|letter` | findings + profile | `revisions/round-NN/{actions.json,letter.md}` | T11 |
+| `lc docx-comments` | actions + `.docx` | copy of the `.docx` with anchored comments (never the original) | T12 |
+| `lc pack / unpack` | workspace | zip + checksummed manifest; refuses stale overwrite | T13 |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › CLI contracts (lc, stdlib only)`
+> _(your notes here — replace this line)_
+
+### Data contracts (workspace files, schema_version = 1)
+
+- **Anchor**: `c<NN>.s<N>.p<N>` readable id + `fp` (normalised-text SHA-1, 12 hex) per paragraph; part prefix `p<N>.` when parts exist.
+- **Scene card** (LLM-written, schema-validated): `anchor`, `summary` (≤80 words), `pov`, `characters[]`, `location`, `story_time`, `events[]`, `setups[]`, `payoffs[]`, `open_threads[]`, `notes`.
+- **Finding**: `id`, `check_id`, `anchors[]` (≥1), `evidence` (quotes ≤25 words each), `severity`, `confidence` (0–1), `effort` (S/M/L), `kind` (problem/strength), `status`.
+- **Action**: `id`, `finding_ids[]`, `level` (structural/scene/line), `round`, `what`, `why`, `where` (writer locator), `options[]`, `status` (pending/accepted/rejected/done/deferred), `verified_in` (draft id). No replacement prose (D-12).
+- **Profile** (`analysis/profile.toml`): `mode`, `traits[]`, `disabled[]`, `weights{}`, `language`.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Data contracts (workspace files, schema_version = 1)`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| Novel content leaks into the repo | Med | High | `lc guard` pre-commit + CI; local and per-workspace term lists | unit tests; CI `guard --all` |
+| Anchors drift after heavy rewrites | Med | High | fingerprint + fuzzy + order-aware alignment; stale-scene re-analysis | synthetic edit suite (T6 gate) |
+| LLM output off-schema or hallucinated anchors | High | Med | schemas + `lc validate`; anchors checked against structure | schema-validity gates (T8, T11) |
+| Chat sandboxes lack Python ≥3.12 or file persistence | Med | Med | stdlib only; zip round-trip; reduced no-code mode | manual check per platform (T14) |
+| Feedback too generic / not actionable | Med | High | evidence rule; actions need what/why/where/options; rounds with exit criteria | usability criterion on first working novel |
+| Tool drifts into writing the novel | Low | High | D-12 rule in AGENTS + prompts; prose detector on actions | `generated_manuscript_prose_in_actions == 0` |
+| Writer cannot find the location | Med | High | locator with first/last words verified unique | `writer_locators_complete == 1.0` |
+| Stdlib-only metrics too crude for Spanish/English | Med | Low | language word lists; metrics as pointers, LLM judges | golden tests on corpus |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 
