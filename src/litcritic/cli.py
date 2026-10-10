@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+import tomllib
 from pathlib import Path
 
-from litcritic import __version__, guard, workspace
+from litcritic import __version__, checklist, guard, workspace
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -32,6 +34,37 @@ def _cmd_guard(args: argparse.Namespace) -> int:
     return 1 if violations else 0
 
 
+def _cmd_checklist(args: argparse.Namespace) -> int:
+    root = args.root or workspace.repo_root() / "checklist"
+    cat = checklist.load(root)
+    if args.action == "validate":
+        for err in cat.errors:
+            print(f"ERROR {err}", file=sys.stderr)
+        print(
+            f"checklist: {len(cat.areas)} areas, {len(cat.checks)} checks, {len(cat.errors)} errors"
+        )
+        return 1 if cat.errors else 0
+    if args.action == "stats":
+        print(json.dumps(checklist.stats(cat), indent=2))
+        return 0
+    # plan: select checks for a novel profile
+    traits: set[str] = set()
+    mode = "revision"
+    disabled: set[str] = set()
+    if args.profile:
+        prof = tomllib.loads(Path(args.profile).read_text(encoding="utf-8"))
+        traits = set(prof.get("traits", []))
+        mode = str(prof.get("mode", mode))
+        disabled = set(prof.get("disabled", []))
+        unknown = traits - set(cat.traits)
+        if unknown:
+            print(f"error: unknown traits {sorted(unknown)}", file=sys.stderr)
+            return 2
+    for c in checklist.select(cat, traits, mode, disabled):
+        print(f"{c.stage:<13} {c.id:<40} {c.method:<6} {c.title}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lc", description="literary-critic toolkit")
     parser.add_argument("--version", action="version", version=__version__)
@@ -48,6 +81,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_guard.add_argument("--all", action="store_true", help="scan all tracked files")
     p_guard.add_argument("--terms", action="append", default=[], help="extra terms file")
     p_guard.set_defaults(func=_cmd_guard)
+
+    p_check = sub.add_parser("checklist", help="validate or plan the analysis catalogue")
+    p_check.add_argument("action", choices=["validate", "stats", "plan"])
+    p_check.add_argument("--root", type=Path, default=None, help="catalogue directory")
+    p_check.add_argument("--profile", help="novel profile TOML (traits, mode, disabled)")
+    p_check.set_defaults(func=_cmd_checklist)
     return parser
 
 
