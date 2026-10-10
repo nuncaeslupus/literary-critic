@@ -1,0 +1,80 @@
+# Novel traits. A check with `applies_when = ["x"]` runs only if the novel's
+# profile declares at least one of the listed traits.
+
+[trait.first_person]
+description = "Narrated by an 'I' who is a character in the story."
+
+[trait.retrospective_narrator]
+description = "An older self (or a witness after the events) narrates earlier events, so narrator-now and character-then are distinct."
+
+[trait.multiple_pov]
+description = "Two or more viewpoint characters or narrating voices alternate."
+
+[trait.omniscient_narration]
+description = "A narrator who knows more than any character and may enter several minds or comment from above."
+
+[trait.nested_narration]
+description = "Stories, memories or accounts inside other stories: frame narratives, a character telling a tale, a narrator quoting or reconstructing others' testimony."
+
+[trait.nonlinear_time]
+description = "Telling order differs from story order (flashbacks, flash-forwards, fragmented or circular chronology)."
+
+[trait.dual_timeline]
+description = "Two or more time strands run in parallel (e.g. past and present) and are expected to illuminate each other."
+
+[trait.historical_setting]
+description = "Set in a real past period whose facts, customs and language must be credible."
+
+[trait.real_places]
+description = "Uses real, checkable geography (cities, regions, buildings, routes)."
+
+[trait.speculative_world]
+description = "Fantasy, science fiction or other invented-world fiction with its own rules for magic, technology, society or nature."
+
+[trait.ensemble_cast]
+description = "Many characters of comparable weight rather than one dominant protagonist."
+
+[trait.essayistic]
+description = "Narration alternates with reflection, argument or essay-like passages carrying ideas directly."
+
+[trait.mystery_plot]
+description = "Built on a puzzle: clues, red herrings, concealed information, a reveal that should be derivable."
+
+[trait.romance_plot]
+description = "A central love or courtship line whose development is part of the reader's promise."
+
+[trait.series_installment]
+description = "Part of a series: must work as a volume while serving earlier and later books."
+
+[trait.epistolary_or_documents]
+description = "Told wholly or partly through letters, diaries, reports, transcripts or other in-world documents."
+
+[trait.young_readers]
+description = "Aimed at children, middle-grade or young-adult readers."
+
+[trait.literary_fiction]
+description = "Prioritises voice, language, interiority and meaning over plot-driven conventions; ambiguity is tolerated."
+
+[trait.genre_fiction]
+description = "Works within a codified genre (thriller, romance, crime, fantasy...) whose conventions the reader expects."
+
+[trait.institutional_world]
+description = "A religious, political, scientific, military, legal or similar institution is central to plot or setting."
+
+[trait.dialect_or_period_language]
+description = "Dialogue or narration rendered in dialect, regional speech, archaic or period language."
+
+[trait.unreliable_narrator]
+description = "The narrator may mislead, misremember or misjudge, and the reader is meant to notice."
+
+[trait.present_tense]
+description = "Narrated mainly in the present tense."
+
+[trait.second_person]
+description = "Addresses the reader or a character as 'you' as a sustained technique."
+
+[trait.translated_or_multilingual]
+description = "Contains several languages, or reads as a translation, so register and foreign terms need handling."
+
+[trait.short_chapters_or_fragments]
+description = "Built from very short chapters, vignettes or fragments rather than conventional scenes."

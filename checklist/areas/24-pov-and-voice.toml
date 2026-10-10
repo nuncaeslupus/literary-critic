@@ -1,0 +1,170 @@
+id = "pov-and-voice"
+title = "Point of view and voice"
+stage = "developmental"
+order = 24
+purpose = "Check who tells, from where, and whether the reader can trust and follow that position. Viewpoint consistency, psychic distance, access to other minds, narrator intrusion and the clarity of who speaks at each narrative level are all judged against what the book is trying to do."
+
+[[check]]
+id = "pov-and-voice.narrator-identity"
+title = "Narrator identity and position"
+question = "Who narrates, with what relation to the events, and does the book make that clear and keep to it?"
+look_for = ["narrator whose identity is unclear", "narrator changing between chapters without sign", "narrator revealing a position then forgetting it"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "L2", "L3"]
+evidence = "Statement of narrator type and position with first signalling passages and any conflicts quoted."
+severity = { high = "The narrator's identity or position is contradictory in ways that confuse meaning.", medium = "Position is clear in places and blurred elsewhere.", low = "Slight drift." }
+
+[[check]]
+id = "pov-and-voice.pov-map"
+title = "Focalization per scene"
+question = "Through whose perception is each scene given, and how is that shown?"
+look_for = ["scenes with no clear perceiver", "sudden shift of perceiver", "POV characters with uneven share"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L2", "structure", "metrics"]
+metrics = ["pov_distribution"]
+applies_when = ["multiple_pov", "omniscient_narration", "ensemble_cast"]
+evidence = "POV tag per scene (L2) with distribution and anomalies listed."
+
+[[check]]
+id = "pov-and-voice.head-hopping"
+title = "Head-hopping and breaches of focalization"
+question = "Does the text enter more minds than the chosen viewpoint allows, or report what the viewpoint character cannot perceive?"
+look_for = ["thoughts of two characters in one paragraph", "perceiving characters seeing their own face", "knowing what happens elsewhere without a cue"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["pov_distribution"]
+evidence = "Quoted breach with the viewpoint in force and who is accessed; deliberate omniscience is noted separately."
+severity = { high = "Breaches confuse whose experience the reader shares in key scenes.", medium = "Frequent breaches that blur tension.", low = "Occasional slips." }
+
+[[check]]
+id = "pov-and-voice.psychic-distance"
+title = "Psychic distance"
+question = "How close is the narration to a character's inner life at each point, and does the distance change on purpose?"
+look_for = ["distance jumping within a paragraph", "remote summary in emotional peaks", "interior closeness where distance would serve"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["filter_word_density"]
+evidence = "Passages at distinct distances with the effect; filter-word metric as a pointer to distance."
+severity = { high = "Distance is wrong at key emotional moments or unstable throughout.", medium = "Distance wavers in several scenes.", low = "Few lapses." }
+
+[[check]]
+id = "pov-and-voice.access-minds"
+title = "Access to other minds"
+question = "How does the narrator know what other characters think and feel, and is that access justified?"
+look_for = ["a first-person narrator reporting another's inner thoughts as fact", "unexplained certainty about motives", "reading minds without a signal of inference"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+applies_when = ["first_person", "retrospective_narrator", "unreliable_narrator", "nested_narration"]
+evidence = "Passages stating other minds, with the narrator's possible source and any hedging."
+severity = { high = "Access is impossible for the narrator and unsignalled in important scenes.", medium = "Access frequently asserted without a source.", low = "Occasional ungrounded inference." }
+
+[[check]]
+id = "pov-and-voice.reconstructed-dialogue"
+title = "Reconstructed dialogue and scenes"
+question = "When the narrator could not have witnessed a scene, is its status as reconstruction or invention marked?"
+look_for = ["scenes in full detail from absent narrators", "verbatim speech long after", "no marker that a scene is imagined"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+applies_when = ["retrospective_narrator", "first_person", "nested_narration"]
+evidence = "Scenes with the claimed source and the marker (or lack) quoted."
+severity = { high = "Reconstruction presented as fact in a key scene, harming credibility.", medium = "Marking inconsistent.", low = "Convention accepted but not signalled once." }
+
+[[check]]
+id = "pov-and-voice.omniscience-justification"
+title = "Apparent omniscience and its justification"
+question = "Where the narrator seems to know everything, is that a declared device, and does it hold throughout?"
+look_for = ["omniscience appearing in some chapters only", "a narrator claiming limits then breaking them", "god-like commentary unlinked to any voice"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+applies_when = ["omniscient_narration", "first_person", "retrospective_narrator"]
+evidence = "Passages of narrator overview with whether they are justified by the narrator's stated nature."
+severity = { high = "Omniscience contradicts the narrator's stated limits at important points.", medium = "Justification unclear or intermittent.", low = "Minor looseness." }
+
+[[check]]
+id = "pov-and-voice.intrusions"
+title = "Metanarrative intrusions"
+question = "Where does the narrator speak about the telling, the reader or the book itself, and what does it add?"
+look_for = ["asides that interrupt tension", "intrusions repeating earlier ones", "comment that explains what the scene showed"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["long_paragraph_rate"]
+evidence = "Quoted intrusions, count and distribution, and judgement of purpose."
+severity = { high = "Intrusions break the spell in key scenes or constantly explain.", medium = "Several redundant intrusions.", low = "A few that could be pruned." }
+
+[[check]]
+id = "pov-and-voice.irony-distance"
+title = "Irony and retrospective distance"
+question = "Does the narrator's distance from the events produce irony, judgement or sentiment that the book earns?"
+look_for = ["hindsight judgement flattening suspense", "irony the reader cannot detect", "narrator's commentary at odds with the scene"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+applies_when = ["retrospective_narrator", "unreliable_narrator", "first_person"]
+evidence = "Quoted passages with the apparent stance and whether the scene supports it."
+severity = { high = "Retrospective stance contradicts or empties the scenes it narrates.", medium = "Stance sometimes undermines tension.", low = "Mild overuse." }
+
+[[check]]
+id = "pov-and-voice.credibility"
+title = "Credibility and markers of uncertainty or invention"
+question = "Does the narrator signal what is certain, inferred or invented, and is the pattern consistent?"
+look_for = ["claims made with no hedge then contradicted", "hedges everywhere so nothing is firm", "uncertainty used for effect only once"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+evidence = "Hedge markers and certainty claims quoted with locations."
+severity = { high = "The reader cannot tell what is asserted and what is invented in a way that matters.", medium = "Pattern is inconsistent.", low = "Rare slips." }
+
+[[check]]
+id = "pov-and-voice.level-voices"
+title = "Clarity of who speaks at each level"
+question = "In nested or reported passages, can the reader always tell whose voice is speaking?"
+look_for = ["quoted accounts slipping into the narrator's diction", "two speakers merging in one paragraph", "a quoted voice whose register is not distinct"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+applies_when = ["nested_narration", "multiple_pov", "epistolary_or_documents"]
+evidence = "Passages where attribution of voice is unclear, with levels and quotes."
+severity = { high = "Voices merge so that the reader misattributes events or ideas.", medium = "Attribution takes effort in several places.", low = "Occasional ambiguity." }
+
+[[check]]
+id = "pov-and-voice.voice-consistency"
+title = "Voice consistency"
+question = "Does the voice stay recognisable from start to finish, and are shifts motivated?"
+look_for = ["register drifting between chapters", "voice lost in plot-heavy passages", "different diction when the author's information takes over"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["sentence_length_mean", "mtld"]
+evidence = "Sample passages from distant parts compared with metrics as pointers (sentence length, lexical variety)."
+severity = { high = "Voice changes enough to feel like another author or narrator without cause.", medium = "Noticeable drift in some blocks.", low = "Small variation." }
+
+[[check]]
+id = "pov-and-voice.voice-strength"
+title = "Voice strengths"
+question = "What is distinctive and valuable about the voice, and what should revision not flatten?"
+look_for = ["a recognisable cadence", "a distinctive stance", "humour or tenderness only this voice can carry"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3", "metrics"]
+evidence = "Quoted passages showing the voice at its best and a description of the features that make it work."

@@ -1,0 +1,117 @@
+id = "density-and-pruning"
+title = "Density and pruning"
+stage = "scene"
+order = 42
+purpose = "Find redundancy, not simply length. A cut earns itself: it must name the redundancy it removes, the effect it preserves, and what else it touches (motifs, setups, relationships). Nothing is flagged for density alone; slow passages that carry meaning are kept and recorded as such."
+
+[[check]]
+id = "density-and-pruning.repeated-information"
+title = "Repeated information"
+question = "Where is the same fact or event told more than once without adding?"
+look_for = ["a revelation re-explained", "recaps of earlier chapters", "two characters telling each other what the reader knows"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "ledger", "metrics"]
+metrics = ["repeated_ngram_rate"]
+evidence = "The two (or more) passages quoted with what each adds; n-gram or echo metrics point to candidates."
+severity = { high = "Systematic recap or duplicate telling inflates large parts of the book.", medium = "Several duplicates in nearby chapters.", low = "Single duplicate." }
+
+[[check]]
+id = "density-and-pruning.conceptual-reiteration"
+title = "Conceptual reiteration"
+question = "Where does the text restate the same idea in new words?"
+look_for = ["three sentences making one point", "reflection circling back", "thesis repeated in different scenes"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "motifs"]
+evidence = "Quoted passages with the single idea they share and the best-expressed version."
+severity = { high = "The same idea recurs so often that it dulls the book's argument.", medium = "Reiteration in several chapters.", low = "Occasional doubling." }
+
+[[check]]
+id = "density-and-pruning.image-pileup"
+title = "Piled images and comparisons"
+question = "Where do metaphors and similes accumulate so that none registers?"
+look_for = ["three similes in a sentence", "mixed metaphors", "images from the same stock repeated"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["repeated_ngram_rate", "word_echo_count"]
+evidence = "Clusters quoted with the strongest image identified; script finds candidate clusters by marker words."
+severity = { high = "Image density is so high it reduces clarity throughout.", medium = "Clusters at several key points.", low = "Occasional cluster." }
+
+[[check]]
+id = "density-and-pruning.digressions"
+title = "Digressions"
+question = "Which digressions are necessary and which can be shortened, and what does each give the book?"
+look_for = ["tangent not connected to anything", "digression longer than the scene around it", "an aside that becomes the point"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "motifs", "metrics"]
+metrics = ["long_paragraph_rate", "scene_summary_ratio"]
+evidence = "Digressions with length, position, links to motifs or themes, and verdict (keep, shorten, cut) with reasons."
+severity = { high = "A long digression halts a key sequence without payoff.", medium = "Digressions repeatedly slow scenes.", low = "Short aside of marginal value." }
+
+[[check]]
+id = "density-and-pruning.explain-duplicates-show"
+title = "Explanation duplicating what is shown"
+question = "Where does narration explain what the scene has just made clear?"
+look_for = ["a gesture followed by its meaning", "a line of dialogue then 'meaning that...'", "closing sentence summarising the scene"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+evidence = "Pairs of showing and explaining sentences quoted."
+severity = { high = "Explanation systematically undercuts scenes.", medium = "Explanation follows many key beats.", low = "Single instance." }
+
+[[check]]
+id = "density-and-pruning.info-dumps"
+title = "Information dumps"
+question = "Where does a block of information interrupt story to inform the reader?"
+look_for = ["paragraph of history before an event", "character lecturing", "background delivered in one paragraph"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L3", "metrics"]
+metrics = ["long_paragraph_rate", "new_term_density"]
+evidence = "Blocks with length, location, information given and where it could be fed in."
+severity = { high = "Large blocks stop the story at critical points.", medium = "Several noticeable blocks.", low = "Short block." }
+
+[[check]]
+id = "density-and-pruning.cut-candidates"
+title = "Local cut candidates with consequences"
+question = "For each candidate cut, which redundancy does it remove, which effect survives, and what else is touched?"
+look_for = ["cut that would remove a motif's only appearance", "cut that breaks a setup", "cut that leaves a dangling reference"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "motifs", "ledger", "relationships", "findings"]
+evidence = "Candidate table: location, what is removed, redundancy it resolves, effect preserved, links affected (motifs, ledger, relationships), and confidence."
+severity = { high = "Cut would remove a large block with no loss, or is needed to fix pacing.", medium = "Cut saves space but touches other elements.", low = "Marginal saving." }
+
+[[check]]
+id = "density-and-pruning.keep-slow"
+title = "Slow elements to keep"
+question = "Which slow or apparently redundant passages do necessary work and should be kept?"
+look_for = ["slow passage carrying atmosphere or characterization", "repetition acting as ritual or motif", "digression feeding the theme"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3", "motifs"]
+evidence = "Passages with the work they do and a note that density alone is not grounds for cutting."
+
+[[check]]
+id = "density-and-pruning.verbosity-measure"
+title = "Verbosity signals"
+question = "Do metrics suggest overall density problems that deserve a closer look (long sentences, repeated n-grams, echo)?"
+look_for = ["chapters far above the book's baseline sentence length", "high n-gram repetition", "many word echoes"]
+method = "script"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["metrics"]
+metrics = ["sentence_length_mean", "long_sentence_rate", "repeated_ngram_rate", "word_echo_count", "paragraph_length_mean"]
+evidence = "Per-chapter figures against the book's own baseline; findings to be confirmed by reading."
+severity = { high = "Several chapters sit far from the baseline in density metrics and reading confirms it.", medium = "Some chapters deviate.", low = "Only mild deviation." }

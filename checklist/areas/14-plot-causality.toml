@@ -1,0 +1,114 @@
+id = "plot-causality"
+title = "Plot and causality"
+stage = "developmental"
+order = 14
+purpose = "Check that events follow from one another (therefore/but rather than and-then), that stakes and agency are real, that coincidence is not doing the work of cause, and that subplots earn their place. Where the book deliberately does not use a causal plot, check instead for coherence and escalation of meaning."
+
+[[check]]
+id = "plot-causality.causal-chain"
+title = "Cause and effect chain"
+question = "Does each major event follow from earlier events or choices, or does it just occur next?"
+look_for = ["events linked only by 'then'", "effects that appear without causes", "causes with no visible consequence"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "ledger", "timeline"]
+evidence = "A chain of key events with the stated cause of each; the breaks cited with chapters."
+severity = { high = "A main-line event has no adequate cause, or a consequential cause is dropped.", medium = "Several links are thin or implied.", low = "Isolated link needing a sentence." }
+
+[[check]]
+id = "plot-causality.stakes"
+title = "Stakes and escalation"
+question = "What can be lost, by whom, and does the pressure rise across the book?"
+look_for = ["stakes asserted but never felt", "the same level of threat repeated", "the cost of failure unclear until late"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "structure"]
+evidence = "For each block, the stakes and their level; scenes where stakes are stated versus shown."
+severity = { high = "Reader cannot tell what depends on the outcome, or pressure falls over long stretches.", medium = "Stakes present but static or late.", low = "Occasional flat stretch." }
+
+[[check]]
+id = "plot-causality.agency"
+title = "Protagonist agency"
+question = "Do the protagonist's choices drive the turning points, or do things merely happen to them?"
+look_for = ["decisive events caused by others or chance", "protagonist reacting throughout", "decisions with no cost"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "characters"]
+evidence = "Turning points listed with who caused each. Passive protagonists that are deliberate (observer, witness, victim) are judged on that design."
+severity = { high = "Central turning points happen without the protagonist's choice and the design does not justify it.", medium = "Agency is thin in the middle or the ending.", low = "Agency present but small choices." }
+
+[[check]]
+id = "plot-causality.coincidence"
+title = "Coincidence and convenience"
+question = "Where do chance, convenient arrivals or lucky discoveries move the plot, and do they help or hinder the protagonist?"
+look_for = ["a rescue by chance", "information arriving exactly when needed", "a meeting that solves a problem"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "ledger"]
+evidence = "Each coincidence with chapter, direction (helps or harms) and what the plot would need instead."
+severity = { high = "A climax or resolution depends on a helping coincidence.", medium = "Coincidences ease mid-story problems.", low = "Harmless or thematically motivated chance." }
+
+[[check]]
+id = "plot-causality.subplots"
+title = "Subplots and convergence"
+question = "Does each subplot have its own want and outcome, touch the main line, and resolve or converge?"
+look_for = ["a thread that vanishes", "a subplot that only delays", "a thread present for a long span then dropped"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "structure", "ledger", "metrics"]
+metrics = ["open_thread_count", "character_presence_matrix"]
+evidence = "Thread table: first and last appearance, gaps, relation to the main line, outcome; unresolved threads flagged."
+severity = { high = "A major thread vanishes or a subplot contradicts the main line.", medium = "Thread is thin or resolved offstage.", low = "Small thread lacking closure." }
+
+[[check]]
+id = "plot-causality.reversals"
+title = "Reversals and surprises"
+question = "Do the surprises change what the reader understood, and are they prepared so that they feel inevitable afterwards?"
+look_for = ["a twist the text did not prepare", "a reveal that changes nothing", "reversal explained by a character in a speech"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "ledger"]
+evidence = "Each reversal with the preparation passages and the effect on earlier chapters."
+severity = { high = "A key reversal is unprepared or invalidates earlier events.", medium = "A reversal is predictable or weakly prepared.", low = "Minor surprise lacking impact." }
+
+[[check]]
+id = "plot-causality.plausibility"
+title = "Plausibility of events and decisions"
+question = "Given what characters know and want, are their actions credible, and are events physically and socially possible in the book's terms?"
+look_for = ["a character acting stupid for the plot's sake", "an action requiring knowledge the character lacks", "logistics that do not work"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "characters", "relationships", "timeline"]
+evidence = "Each case with what the character knows at that point (from the knowledge register), what they do, and why it strains belief."
+severity = { high = "A pivotal decision or event is not credible.", medium = "A noticeable but repairable lapse.", low = "Small implausibility that a reader will forgive." }
+
+[[check]]
+id = "plot-causality.mystery-fairness"
+title = "Clues, fair play and reveal"
+question = "Are the clues present before the reveal, are red herrings deliberate, and could an attentive reader derive the solution?"
+look_for = ["solution using an unmentioned fact", "clues buried or too obvious", "red herrings that are never closed"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "ledger", "timeline"]
+applies_when = ["mystery_plot"]
+evidence = "Clue ledger with chapter of each clue, red herring, and the reveal; unplanted facts listed."
+severity = { high = "The solution is not derivable or contradicts earlier facts.", medium = "Clues are unevenly planted or one red herring is unresolved.", low = "Reveal is guessable early." }
+
+[[check]]
+id = "plot-causality.plot-strength"
+title = "Plot strengths"
+question = "Which causal links, reversals or convergences are particularly strong and must survive revision?"
+look_for = ["a convergence that pays off several threads", "a choice with unavoidable consequence", "a reversal that deepens the theme"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L1", "L2"]
+evidence = "Named strengths with chapters and why they work."

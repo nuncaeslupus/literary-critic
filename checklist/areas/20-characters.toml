@@ -1,0 +1,126 @@
+id = "characters"
+title = "Characters"
+stage = "developmental"
+order = 20
+purpose = "Check that characters function in the story, want things, contradict themselves, change (or deliberately do not) and act on their own account. Also check the economy of the cast: who is needed, who overlaps, and who exists only to carry the author's ideas."
+
+[[check]]
+id = "characters.cast-register"
+title = "Character register"
+question = "Who are the named and unnamed characters, with aliases, roles, first and last chapter present, and their weight?"
+look_for = ["the same person under several names", "named characters who appear once", "a crowd of names introduced in one chapter"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L1", "L2", "characters", "metrics"]
+metrics = ["character_presence_matrix", "character_first_appearance"]
+evidence = "Register rows: name, aliases, role, first appearance, presence span; sourced from the index and the presence matrix."
+
+[[check]]
+id = "characters.function"
+title = "Function in the story"
+question = "What does each significant character do for the book (drive, oppose, mirror, inform, embody an idea)?"
+look_for = ["a character whose function is only to explain", "two characters with the same function", "a function the plot needs that nobody fills"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["characters", "L1", "L2"]
+evidence = "Per character: function stated in a sentence with the scenes in which it is exercised."
+severity = { high = "A major character has no function or a needed function is unfilled.", medium = "Function present but overlapping or thin.", low = "Minor redundancy." }
+
+[[check]]
+id = "characters.want-need"
+title = "Want, need and contradiction"
+question = "What does the character consciously want, what do they lack, and where do these conflict? Is there inner contradiction that produces choices?"
+look_for = ["traits listed but not in conflict", "goals that vanish", "a want only stated by others"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["characters", "L1", "L2"]
+evidence = "For main characters: want, need or lack (only where the book uses them), contradictions, and the scenes where these are visible in action."
+severity = { high = "The protagonist has no discernible desire or inner conflict driving choices.", medium = "Desire or contradiction is vague or arrives late.", low = "Present but underused." }
+
+[[check]]
+id = "characters.arcs"
+title = "Arcs, including flat arcs"
+question = "Does each major character change, or hold firm while the world changes, in a way the book designs and delivers?"
+look_for = ["change that happens offstage or by speech", "arc started and not finished", "a flat character who is simply static"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["characters", "L1", "L2", "timeline"]
+evidence = "Arc type per character (positive, negative, flat, static), the scenes marking the stages, and how the ending reflects it."
+severity = { high = "A main arc is missing, contradictory or unearned.", medium = "Arc exists but beats are missing or rushed.", low = "Arc is sound; some steps could be stronger." }
+
+[[check]]
+id = "characters.psychological-plausibility"
+title = "Psychological plausibility and consistency"
+question = "Do reactions and choices fit what the character is, knows and has been through, and are departures motivated?"
+look_for = ["sudden change of temperament", "emotions not matching events", "inconsistency across chapters"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "L2", "relationships"]
+evidence = "Scenes where behaviour strains consistency, with the earlier scene that sets the expectation."
+severity = { high = "A decisive action contradicts the character with no cause.", medium = "Behaviour jumps in a notable scene.", low = "Small inconsistencies." }
+
+[[check]]
+id = "characters.distinctiveness"
+title = "Distinctiveness"
+question = "Could each main character be recognised by action, speech and manner without a name?"
+look_for = ["characters interchangeable in dialogue", "shared tics across the cast", "types instead of individuals"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "L2", "L3", "metrics"]
+metrics = ["dialogue_ratio", "name_similarity_pairs"]
+evidence = "Comparison of characters' speech and habits with quotes; metrics used only as a pointer."
+severity = { high = "Several main characters are indistinguishable.", medium = "Distinctions blur in some scenes.", low = "Slight overlap among minor roles." }
+
+[[check]]
+id = "characters.secondary-cast"
+title = "Secondary characters and cast economy"
+question = "Does each secondary character justify their place, and could any be merged or cut?"
+look_for = ["near-identical names or initials", "walk-on characters with long introductions", "characters appearing in a block and never again"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["characters", "relationships", "L1", "metrics"]
+metrics = ["character_first_appearance", "name_similarity_pairs", "character_presence_matrix"]
+evidence = "Candidates for merge or cut with the functions they carry and what their removal would affect."
+severity = { high = "Cast size or name similarity confuses the reader in main scenes.", medium = "Several characters could be merged without loss.", low = "Minor surplus." }
+
+[[check]]
+id = "characters.too-perfect"
+title = "Exemplary, infallible or one-note characters"
+question = "Is any character too good, too wise, too right or too uniform to feel alive?"
+look_for = ["a figure who is never wrong", "flaws mentioned but never costly", "characters who exist to be admired or condemned"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "L2", "L3"]
+evidence = "Scenes where the character is tested and what it costs them; passages of narrator endorsement quoted."
+severity = { high = "A central character is flawless or one-note so the story loses tension or credibility.", medium = "Flaws are told but not costly.", low = "Tendency in a secondary figure." }
+
+[[check]]
+id = "characters.autonomy"
+title = "Autonomy from narrator and author ideas"
+question = "Do characters ever act, speak or think against the narrator's or the author's preferred view, or do they only illustrate it?"
+look_for = ["characters echoing the narrator's phrasing", "opponents who lose every argument", "characters who never surprise"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "L2", "L3"]
+evidence = "Argument or conflict scenes with the strength given to each side, and quotes showing narrator steering."
+severity = { high = "Characters act as mouthpieces and the cast has no independent life.", medium = "Some characters or opponents are strawmen.", low = "Occasional narrator steering." }
+
+[[check]]
+id = "characters.character-strength"
+title = "Character strengths"
+question = "Which characters or moments are vivid and must be protected in revision?"
+look_for = ["a gesture that reveals a person", "a contradiction handled well", "a minor character who sticks"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["characters", "L2", "L3"]
+evidence = "Named characters or scenes with quotes and what makes them work."

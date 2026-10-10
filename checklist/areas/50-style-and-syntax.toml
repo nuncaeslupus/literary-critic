@@ -1,0 +1,155 @@
+id = "style-and-syntax"
+title = "Style and syntax"
+stage = "line"
+order = 50
+purpose = "Judge prose at sentence level against the voice the book is aiming for: construction, length, rhythm, clarity of reference, habits that weaken (filter words, weak verbs, adverbs, clichés, labelled emotion) and the special power of passages that work. Deliberate style is protected, not normalised."
+
+[[check]]
+id = "style-and-syntax.sentence-construction"
+title = "Sentence construction"
+question = "Are sentences well built: subject and action clear, parts balanced, structure suited to meaning?"
+look_for = ["main verb buried", "overloaded subordinate chains", "sentence ending on a weak word"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["sentence_length_mean", "long_sentence_rate"]
+evidence = "Quoted sentences with the structural problem; patterns across chapters, not isolated cases."
+severity = { high = "Constructions regularly impede comprehension.", medium = "Recurrent heaviness or looseness.", low = "Occasional awkward sentence." }
+
+[[check]]
+id = "style-and-syntax.length-rhythm"
+title = "Length, complexity and rhythm"
+question = "Is sentence length varied and fitted to the content, or monotonous?"
+look_for = ["long runs of equal length", "all sentences long in a tense scene", "staccato everywhere"]
+method = "script"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["metrics", "L3"]
+metrics = ["sentence_length_mean", "sentence_length_sd", "long_sentence_rate", "sentence_opener_repetition", "paragraph_length_mean"]
+evidence = "Per-chapter figures with outliers against the book's baseline; confirmed by reading."
+severity = { high = "Rhythm is monotonous or mismatched across large blocks.", medium = "Some chapters deviate and read differently.", low = "Minor drift." }
+
+[[check]]
+id = "style-and-syntax.coordination"
+title = "Coordination and subordination"
+question = "Does the relation between clauses (and, but, because, although) match the logic of the thought?"
+look_for = ["chains of and", "relations implied that the grammar does not carry", "subordination that hides the main point"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3"]
+evidence = "Passages with the logical relation intended and the one shown."
+severity = { high = "Logic of thought is lost in key passages.", medium = "Recurrent vagueness of relation.", low = "Occasional looseness." }
+
+[[check]]
+id = "style-and-syntax.punctuation-breath"
+title = "Punctuation and breath"
+question = "Does punctuation guide the reader and give the sentence a breath consistent with the voice?"
+look_for = ["comma splices unintended", "missing commas that cause misreading", "dashes and semicolons overused"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["exclamation_ellipsis_density"]
+evidence = "Examples with punctuation counts; exclamation and ellipsis density as signals."
+severity = { high = "Punctuation causes misreading across passages.", medium = "Frequent odd punctuation.", low = "Occasional slip." }
+
+[[check]]
+id = "style-and-syntax.referent-clarity"
+title = "Referent clarity"
+question = "Is it always clear who or what a pronoun, article or description refers to?"
+look_for = ["he/she ambiguity", "'this' with no antecedent", "name changes mid-paragraph"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "characters"]
+evidence = "Sentences with the competing referents."
+severity = { high = "Reference confusion obscures action or attribution.", medium = "Several unclear references.", low = "Occasional pronoun problem." }
+
+[[check]]
+id = "style-and-syntax.ambiguity"
+title = "Productive versus accidental ambiguity"
+question = "Which ambiguities are designed and which are slips?"
+look_for = ["a double meaning that works", "phrase readable two ways to the book's detriment", "imprecision where precision matters"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3"]
+evidence = "Cases sorted into productive and accidental with reasons."
+severity = { high = "Accidental ambiguity changes the sense of key events.", medium = "Accidental ambiguity in several places.", low = "Minor." }
+
+[[check]]
+id = "style-and-syntax.syntactic-repetition"
+title = "Syntactic repetition"
+question = "Is repeated syntax rhetoric or reflex?"
+look_for = ["every paragraph starting alike", "triplets everywhere", "anaphora used without escalation"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["sentence_opener_repetition", "repeated_ngram_rate"]
+evidence = "Runs of identical openers or structures with positions; the LLM decides if deliberate."
+severity = { high = "Repetition tires the reader across much of the book.", medium = "Noticeable in some chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.narration-reflection"
+title = "Transitions between narration and reflection"
+question = "Do shifts from event to thought to essay feel integrated and signalled?"
+look_for = ["abrupt lurch into reflection", "reflection that repeats the event", "voice changing at the switch"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+applies_when = ["essayistic", "retrospective_narrator", "literary_fiction"]
+evidence = "Transitions quoted with what changes."
+severity = { high = "Shifts disorient or break the voice.", medium = "Often abrupt.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.filter-words"
+title = "Filter words and weak verbs"
+question = "How much do perception words and weak verbs (saw, felt, noticed, was) place a layer between reader and experience?"
+look_for = ["clusters of perception verbs", "'there was' constructions", "state verbs where action would serve"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["filter_word_density", "crutch_word_frequency"]
+evidence = "Density per chapter against baseline and quoted clusters; deliberate distance excepted."
+severity = { high = "Filtering and weak verbs dominate and flatten key scenes.", medium = "Noticeable in many chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.adverbs"
+title = "Adverbs"
+question = "Do adverbs add something or prop up weak verbs?"
+look_for = ["-mente/-ly clusters", "adverb doubling the verb's meaning", "adverb in tags"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["adverb_density"]
+evidence = "Chapters above baseline and quoted examples."
+severity = { high = "Adverbs weaken the prose across the book.", medium = "Clusters in several chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.cliches-telling"
+title = "Clichés and labelled emotion"
+question = "Where do stock phrases and emotion names replace specific rendering?"
+look_for = ["worn idioms", "'she felt sad'", "body-reaction clichés"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3"]
+evidence = "Quoted instances with the likely specific alternative described (not written)."
+severity = { high = "Clichés or emotion labels pervade pivotal scenes.", medium = "Noticeable across chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.style-strength"
+title = "Passages of special power"
+question = "Where is the prose at its strongest, and which stylistic choices must not be normalised?"
+look_for = ["a sentence of unusual force", "deliberate long periods that work", "distinctive rhythm"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L3", "metrics"]
+evidence = "Quoted passages and a note on what makes them work and why they should be protected."

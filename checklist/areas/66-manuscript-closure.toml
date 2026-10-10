@@ -1,0 +1,138 @@
+id = "manuscript-closure"
+title = "Manuscript closure"
+stage = "verification"
+order = 66
+purpose = "Close the revision loop: record every proposed intervention with its location and status, confirm what the writer accepted, separate editorial notes from literary text, and re-check continuity, level signalling, orthotypography, title, opening and ending after changes. The writer decides and edits; this area tracks and verifies."
+
+[[check]]
+id = "manuscript-closure.intervention-registry"
+title = "Intervention registry"
+question = "Is every proposed change recorded with exact location and status (pending, decided, applied, discarded)?"
+look_for = ["proposals without location", "status not updated", "duplicate or contradictory proposals"]
+method = "llm"
+kind = "inventory"
+action_level = "none"
+inputs = ["findings", "backlog"]
+modes = ["revision"]
+evidence = "Registry rows: id, location, description, area, status, date."
+
+[[check]]
+id = "manuscript-closure.writer-confirmation"
+title = "Changes confirmed by the writer"
+question = "Has the writer explicitly confirmed each change that touches the manuscript?"
+look_for = ["applied changes without a recorded decision", "assumed approval", "discarded items reappearing"]
+method = "llm"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["findings", "backlog"]
+modes = ["revision"]
+evidence = "Each applied change with the writer's recorded confirmation; none are applied without it."
+severity = { high = "A change was made without the writer's confirmation.", medium = "Confirmation not recorded.", low = "Record incomplete." }
+
+[[check]]
+id = "manuscript-closure.notes-separation"
+title = "Editorial notes versus literary text"
+question = "Are editorial notes, comments and tracked suggestions kept apart from the literary text?"
+look_for = ["notes in the running text", "comments pasted into paragraphs", "tracked changes mixed with clean text"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["author_note_markers"]
+modes = ["revision"]
+evidence = "Marker scan results and manual confirmation."
+severity = { high = "Editorial notes sit inside literary text.", medium = "Notes in surrounding material.", low = "Formatting residue." }
+
+[[check]]
+id = "manuscript-closure.post-change-structure"
+title = "Chapter, paragraph and transition checks after changes"
+question = "After changes, do the edited chapters, paragraphs and joins still work?"
+look_for = ["orphan reference after a cut", "broken transition", "paragraph left incomplete"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "backlog"]
+modes = ["revision"]
+evidence = "Each changed location with before and after context read and the verdict."
+severity = { high = "A change breaks sense or flow.", medium = "Seams visible.", low = "Cosmetic." }
+
+[[check]]
+id = "manuscript-closure.post-change-continuity"
+title = "Continuity re-check after changes"
+question = "Do changes introduce new contradictions in time, space, knowledge or details?"
+look_for = ["a removed scene whose consequences remain", "a character referring to a deleted event", "a ledger entry orphaned"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["timeline", "ledger", "L2", "metrics"]
+metrics = ["timeline_gap_count", "setup_payoff_distance"]
+modes = ["revision"]
+evidence = "Re-run of continuity checks on affected chapters with new conflicts listed."
+severity = { high = "New contradiction in plot-relevant matters.", medium = "New contradiction in details.", low = "Minor." }
+
+[[check]]
+id = "manuscript-closure.post-change-levels"
+title = "Narrative-level signalling re-check"
+question = "After changes, are time and level markers still correct?"
+look_for = ["a flashback cue removed", "a tense mismatch", "a level opening without close"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["tense_consistency"]
+applies_when = ["nested_narration", "nonlinear_time", "dual_timeline", "retrospective_narrator"]
+modes = ["revision"]
+evidence = "Level changes in affected chapters with markers present."
+severity = { high = "A level or time shift is unsignalled after changes.", medium = "Marker inconsistent.", low = "Cosmetic." }
+
+[[check]]
+id = "manuscript-closure.orthotypography"
+title = "Orthotypographic final pass"
+question = "Are punctuation, quotation and dialogue conventions applied consistently for the language (e.g. Spanish raya, quotes « » “ ” ‘ ’, spacing, ellipsis, apostrophes)?"
+look_for = ["mixed dialogue markers", "inconsistent quote styles", "spacing around dashes and ellipses", "hyphen used as dash"]
+method = "script"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["quote_style_consistency", "exclamation_ellipsis_density", "author_note_markers"]
+evidence = "Counts of each convention with locations of the minority forms; the chosen convention is confirmed with the writer."
+severity = { high = "Several conventions are mixed across the manuscript.", medium = "A minority convention in some chapters.", low = "Isolated deviations." }
+
+[[check]]
+id = "manuscript-closure.title-opening-ending"
+title = "Title, opening and ending verification"
+question = "After all changes, do the title, opening and ending still work together?"
+look_for = ["opening changed without checking its echo", "ending revised leaving an orphan motif", "title no longer connected"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L3", "motifs"]
+modes = ["revision"]
+evidence = "Reading of the three together with relations noted."
+severity = { high = "The three no longer agree.", medium = "Echoes weaker.", low = "Fine tuning." }
+
+[[check]]
+id = "manuscript-closure.version-control"
+title = "Version control and master file"
+question = "Is there a single master file, with versions dated and differences traceable?"
+look_for = ["multiple divergent copies", "unclear latest version", "changes not logged"]
+method = "llm"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["findings", "backlog"]
+modes = ["revision"]
+evidence = "Version list with dates, master file identified, and the diff between the last two drafts."
+severity = { high = "No clear master and divergent copies exist.", medium = "Versions poorly tracked.", low = "Log incomplete." }
+
+[[check]]
+id = "manuscript-closure.final-read"
+title = "Final clean read"
+question = "Does a final read-through of the clean text raise any remaining problems?"
+look_for = ["residual typos", "stray notes", "awkward join after edits"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "findings"]
+modes = ["revision"]
+evidence = "Findings from the final read with locations; empty result recorded as such."
+severity = { high = "Remaining problem would embarrass in print.", medium = "Small blemishes.", low = "Cosmetic." }

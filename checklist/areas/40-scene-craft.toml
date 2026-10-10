@@ -1,0 +1,127 @@
+id = "scene-craft"
+title = "Scene craft"
+stage = "scene"
+order = 40
+purpose = "Examine each scene as a unit: what it is for, what changes in it, how it enters and leaves, and how it joins its neighbours. Scene frameworks (goal-conflict-outcome, scene and sequel) are lenses; quiet or accumulative scenes may change things subtly and are judged on their own terms."
+
+[[check]]
+id = "scene-craft.scene-inventory"
+title = "Scene inventory"
+question = "What are the scenes, with place, time, viewpoint, characters, goal, outcome and value shift?"
+look_for = ["scenes with no clear boundary", "scene cards missing for some chapters", "scenes combining unrelated events"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L1", "L2", "metrics"]
+metrics = ["words_per_scene", "scene_count_per_chapter"]
+evidence = "L2 scene card per scene; the script checks completeness and length."
+
+[[check]]
+id = "scene-craft.purpose"
+title = "Purpose of each scene"
+question = "What does this scene do that no other scene does?"
+look_for = ["scene with no discernible job", "two scenes doing the same job", "scene whose job is only to explain"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L1"]
+evidence = "Scene cards with stated purpose; weak ones flagged with the neighbouring scene that duplicates or replaces them."
+severity = { high = "A scene has no purpose and removing it changes nothing.", medium = "Purpose is thin or duplicated nearby.", low = "Purpose is clear but could be sharper." }
+
+[[check]]
+id = "scene-craft.value-shift"
+title = "Change within the scene"
+question = "What is different for the reader or a character at the end of the scene compared with the start?"
+look_for = ["same situation before and after", "change announced rather than enacted", "a scene that is entirely static"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2"]
+evidence = "Start state and end state per flagged scene, with quotes."
+severity = { high = "Many scenes end where they began, with no gain in information, relationship or feeling.", medium = "Change is slight or told.", low = "Quiet scene deserving a small turn." }
+
+[[check]]
+id = "scene-craft.goal-conflict"
+title = "Goal, conflict and outcome"
+question = "Where the book uses scenes with goals, whose goal drives the scene, what opposes it, and how does it end?"
+look_for = ["no one wants anything", "conflict without obstacle", "outcome by chance or by speech"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2"]
+evidence = "Scene cards with goal, obstacle and outcome; scenes without any flagged."
+severity = { high = "Key scenes lack drive and the book depends on them.", medium = "Drive is vague in several scenes.", low = "Occasional scene lacking friction." }
+
+[[check]]
+id = "scene-craft.scene-sequel"
+title = "Scene and sequel"
+question = "Do high-pressure scenes get time for reaction, decision and processing where the book needs them?"
+look_for = ["decisions made with no time to feel", "reaction passages that repeat the event", "back-to-back crisis scenes with no breath"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "metrics"]
+metrics = ["scene_summary_ratio", "words_per_scene"]
+evidence = "Pairs of scene and aftermath with their lengths; omissions and padded sequels noted."
+severity = { high = "Missing aftermath makes a turning point feel unearned.", medium = "Reaction is uneven or repetitive.", low = "Slight imbalance." }
+
+[[check]]
+id = "scene-craft.entry-exit"
+title = "Entering late and leaving early"
+question = "Does each scene begin as close as possible to its point and end when its work is done?"
+look_for = ["arrival and greeting padding", "scene continuing after the turn", "waking-up or travel openings"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["words_per_scene"]
+evidence = "Opening and closing paragraphs of flagged scenes quoted and the proposed trim point described (no rewrite)."
+severity = { high = "Padding at scene edges is systematic and slows the whole book.", medium = "Several scenes with slack edges.", low = "Occasional slack." }
+
+[[check]]
+id = "scene-craft.transitions"
+title = "Transitions between scenes"
+question = "Do scene joins orient the reader in time, place and viewpoint, and carry momentum?"
+look_for = ["jumps with no orientation", "repeated transition formula", "abrupt viewpoint change at the break"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+evidence = "Transitions quoted (end of scene, start of next) with what is missing."
+severity = { high = "Transitions regularly lose the reader.", medium = "Orientation is late in several scenes.", low = "Formulaic joins." }
+
+[[check]]
+id = "scene-craft.multi-job"
+title = "Scenes doing several jobs"
+question = "Which scenes carry multiple functions (plot, relationship, motif), and are they best left intact?"
+look_for = ["a scene that moves plot and theme at once", "a scene that seems minor but feeds several threads", "apparent redundancy that hides a second job"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "ledger", "motifs"]
+evidence = "Scenes with the list of jobs; recommended to keep when more than one."
+
+[[check]]
+id = "scene-craft.redundant-scenes"
+title = "Redundant scenes"
+question = "Which scenes repeat the function of another scene without adding?"
+look_for = ["same confrontation twice", "a second journey with the same beats", "scenes confirming what is already known"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "ledger", "motifs", "relationships"]
+evidence = "Pairs of scenes with the shared function, the difference (if any) and the effect of cutting or merging each, including motifs and relationships touched."
+severity = { high = "Several redundant scenes slow the book or drain a later scene's force.", medium = "One redundant pair.", low = "Redundancy that provides a useful echo." }
+
+[[check]]
+id = "scene-craft.show-tell"
+title = "Show versus tell at scene level"
+question = "Where does summary or statement replace dramatisation in a way that costs the reader?"
+look_for = ["emotions named instead of enacted", "key moment in summary", "characters explaining their feelings"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["scene_summary_ratio", "filter_word_density"]
+evidence = "Passages with the labelled emotion or summary and what dramatisation would carry; summary that is a deliberate choice is noted."
+severity = { high = "Pivotal moments are told rather than shown.", medium = "Telling dominates several scenes.", low = "Telling in passing." }

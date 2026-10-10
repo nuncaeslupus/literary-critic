@@ -21,4 +21,5 @@ guard:
 	uv run lc guard
 
 ci: lint typecheck test
+	uv run lc checklist validate
 	uv run lc guard --all

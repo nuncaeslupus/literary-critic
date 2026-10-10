@@ -1,0 +1,119 @@
+id = "world-coherence"
+title = "World coherence"
+stage = "developmental"
+order = 28
+purpose = "Check that the world of the book holds together: historical, social, political, religious, scientific and technical facts, institutions and hierarchies, and (for invented worlds) the consistency of the rules. Separate factual error from literary licence from a character's mistaken belief, and flag where outside context is needed."
+
+[[check]]
+id = "world-coherence.world-register"
+title = "World facts and rules register"
+question = "What facts, institutions, customs and rules does the book establish, and where?"
+look_for = ["rules stated in different places that disagree", "terms used before being established", "facts the reader must already know"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L2", "ledger", "locations", "metrics"]
+metrics = ["new_term_density"]
+evidence = "Register of established facts and rules with first mention and later uses; script lists term first uses."
+
+[[check]]
+id = "world-coherence.historical-accuracy"
+title = "Historical and social coherence"
+question = "Do customs, laws, technology, attitudes and events fit the period and place, as far as the text claims?"
+look_for = ["objects or institutions from another era", "social behaviour at odds with period norms", "real events misdated"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "timeline", "locations"]
+applies_when = ["historical_setting", "real_places"]
+evidence = "Each doubtful item with the claim in the text and what needs external verification; marked as error, licence or a character's belief."
+severity = { high = "A fact central to plot or setting is wrong and would be noticed by informed readers.", medium = "Several visible inaccuracies.", low = "Peripheral detail to verify." }
+
+[[check]]
+id = "world-coherence.institutions"
+title = "Institutions and hierarchies"
+question = "Are institutions (church, state, army, school, guild, laboratory, court) drawn with consistent structure, ranks and procedures?"
+look_for = ["ranks or roles that change", "procedures that serve the plot rather than the institution", "institution as a vague menace"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "relationships", "ledger"]
+applies_when = ["institutional_world"]
+evidence = "Institution structure as stated, with scenes where it operates and conflicts quoted."
+severity = { high = "The institution's workings contradict each other in the central plot.", medium = "Procedures or ranks unclear in several scenes.", low = "Minor imprecision." }
+
+[[check]]
+id = "world-coherence.anachronism"
+title = "Anachronism and language of the period"
+question = "Does vocabulary, idiom and attitude fit the period and place of speech and narration?"
+look_for = ["modern idioms in historical dialogue", "terms used before they existed", "a character with knowledge impossible for their time"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["crutch_word_frequency"]
+applies_when = ["historical_setting", "dialect_or_period_language"]
+evidence = "Word or phrase with the claimed date and the expected period usage; script can pick candidates against a word list if supplied."
+severity = { high = "Anachronisms are frequent enough to break period illusion.", medium = "Several in prominent places.", low = "Isolated term." }
+
+[[check]]
+id = "world-coherence.error-or-licence"
+title = "Factual error, literary licence or character belief"
+question = "For each questionable fact, is it a mistake, an intentional liberty, or what a character wrongly believes?"
+look_for = ["the narrator correcting no one", "the same error repeated by several voices", "licence undeclared in a book that claims accuracy"]
+method = "llm"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["L2", "L3", "findings"]
+evidence = "Each item sorted into the three categories with reasons and, where relevant, a note for the writer on how to signal intent."
+severity = { high = "An unintentional error damages credibility of the book's premise.", medium = "An undeclared licence readers will question.", low = "A harmless choice." }
+
+[[check]]
+id = "world-coherence.external-context"
+title = "Need for external context"
+question = "What does the reader need to know from outside the book, and does the book supply it at the right moment?"
+look_for = ["unexplained references", "assumed cultural knowledge", "a glossary the book would need"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "ledger"]
+evidence = "List of items needing context with the point of first use and how the text handles them."
+severity = { high = "Understanding of a main event depends on knowledge the text never gives.", medium = "Several unexplained items.", low = "Peripheral reference." }
+
+[[check]]
+id = "world-coherence.rule-consistency"
+title = "Consistency of invented rules"
+question = "Do the world's rules (magic, technology, biology, politics) stay consistent and carry costs and limits?"
+look_for = ["a power used without cost", "a rule broken for plot convenience", "rules introduced after they are needed"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L2", "ledger", "timeline"]
+applies_when = ["speculative_world"]
+evidence = "Rule register with first statement, uses, and each break cited with chapters."
+severity = { high = "A broken rule resolves a main conflict or invalidates earlier stakes.", medium = "Rules shift in secondary scenes.", low = "Loose detail." }
+
+[[check]]
+id = "world-coherence.worldbuilding-delivery"
+title = "Delivery of worldbuilding"
+question = "Is the world delivered through story and perception or through lectures and lists of invented terms?"
+look_for = ["pages of explanation", "invented words piling up", "exposition in dialogue"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L3", "metrics"]
+metrics = ["new_term_density", "long_paragraph_rate"]
+applies_when = ["speculative_world", "historical_setting"]
+evidence = "Passages of exposition with length and term density per chapter."
+severity = { high = "Exposition blocks stall major chapters or term density overwhelms comprehension.", medium = "Several heavy passages.", low = "Single block." }
+
+[[check]]
+id = "world-coherence.world-strength"
+title = "World strengths"
+question = "What parts of the world feel lived-in and original and should be kept?"
+look_for = ["a detail that implies a larger life", "a custom that shapes plot", "a believable institution"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3"]
+evidence = "Named details with quotes."

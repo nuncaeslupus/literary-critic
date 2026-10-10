@@ -1,0 +1,127 @@
+id = "setting-and-space"
+title = "Setting and space"
+stage = "developmental"
+order = 26
+purpose = "Check whether places are concrete and work in the story: their geography, differing functions and meanings, how they change, and how they relate to character change and to the ending. Also check that setting is grounded in the senses and not delivered as blocks of description."
+
+[[check]]
+id = "setting-and-space.location-register"
+title = "Narrative geography"
+question = "Which places exist, how do they relate to each other, and can the reader build a spatial picture?"
+look_for = ["distances and directions that do not agree", "places named once and forgotten", "a map the reader would need"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["locations", "L2", "timeline", "metrics"]
+metrics = ["new_term_density"]
+evidence = "Location register with first appearance, relation to other places, and conflicts in layout."
+
+[[check]]
+id = "setting-and-space.functional-difference"
+title = "Functional differences between places"
+question = "Does each place do something different for the story, or are they interchangeable backdrops?"
+look_for = ["places that could be swapped", "a place whose function is only décor", "two settings serving the same purpose"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2"]
+evidence = "Per place: what happens there that happens nowhere else; swappable pairs flagged."
+severity = { high = "Main settings are interchangeable and add nothing.", medium = "Several places are thin.", low = "A minor setting lacks specificity." }
+
+[[check]]
+id = "setting-and-space.domestic-public"
+title = "Domestic and public space"
+question = "How are private and public spaces contrasted, and what is allowed or forbidden in each?"
+look_for = ["private matters happening in public with no cost", "public spaces with no social pressure", "the home as only a backdrop"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2"]
+evidence = "Scenes contrasting the two kinds of space with the rules in force."
+severity = { high = "Spatial rules are broken so scenes lose credibility or tension.", medium = "The contrast is underused.", low = "Minor lapse." }
+
+[[check]]
+id = "setting-and-space.control-spaces"
+title = "Spaces of authority and control"
+question = "Which spaces embody power, surveillance, confinement or protection, and are those meanings enacted in scenes?"
+look_for = ["authority spaces described but not used", "control with no consequences", "confinement without sensory pressure"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2", "relationships"]
+applies_when = ["institutional_world"]
+evidence = "Spaces with the power relation they carry and the scenes that dramatise it."
+severity = { high = "A space meant to carry power or constraint has no dramatised effect in a key scene.", medium = "Effect is stated more than shown.", low = "Underused detail." }
+
+[[check]]
+id = "setting-and-space.space-meaning"
+title = "Space as promise, refuge or impossibility"
+question = "What does each important place mean to characters (hope, shelter, exile, trap), and how does that meaning change?"
+look_for = ["a place with fixed meaning throughout", "meaning changing without a scene that causes it", "symbolic place with no concrete features"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2", "L1", "motifs"]
+evidence = "For each key place, its meaning at start, turning scene and meaning at end."
+severity = { high = "A pivotal place changes meaning without cause or has contradictory meaning.", medium = "Transformation is told, not shown.", low = "Underdeveloped secondary place." }
+
+[[check]]
+id = "setting-and-space.space-character"
+title = "Correspondence between space and character change"
+question = "Do changes of place track changes in characters, and are they motivated?"
+look_for = ["moves without inner effect", "a character stuck in a place with no pressure", "arrival used as arc"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "characters", "L1", "L2"]
+evidence = "Place changes aligned with arc stages, noting mismatches."
+severity = { high = "Movement and arc contradict each other in the main line.", medium = "Link exists but loose.", low = "Minor mismatch." }
+
+[[check]]
+id = "setting-and-space.space-ending"
+title = "Space in the ending"
+question = "Is the final place or movement a meaningful answer to the book's spatial logic?"
+look_for = ["final location arbitrary", "return to the opening place without change", "closing space unprepared"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L1", "L2"]
+evidence = "Opening and closing spaces compared with quotes and their meaning in the intervening chapters."
+severity = { high = "The ending's place contradicts what the book built.", medium = "Place is weakly prepared.", low = "Opportunity to echo the beginning left open." }
+
+[[check]]
+id = "setting-and-space.sensory-grounding"
+title = "Sensory grounding"
+question = "Are places and moments grounded in specific sensory detail across more than sight?"
+look_for = ["only visual description", "generic nouns instead of particulars", "scenes in a white room"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["paragraph_length_mean"]
+evidence = "Scenes lacking grounding quoted, with a count of sensory modalities used; metrics as a pointer only."
+severity = { high = "Key scenes have no physical anchoring so the reader cannot place them.", medium = "Many scenes thinly grounded.", low = "Occasional thin scene." }
+
+[[check]]
+id = "setting-and-space.setting-dumps"
+title = "Setting dumps"
+question = "Is description delivered in lumps that stall the story, or woven into action and perception?"
+look_for = ["a paragraph of description at scene start", "description unrelated to the viewpoint", "list-like inventory of a room or landscape"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L3", "metrics"]
+metrics = ["long_paragraph_rate", "paragraph_length_mean"]
+evidence = "Long description paragraphs with length, position in the scene and their narrative job."
+severity = { high = "Description blocks stall major scenes or repeat throughout.", medium = "Several overlong blocks.", low = "Single block." }
+
+[[check]]
+id = "setting-and-space.space-strength"
+title = "Setting strengths"
+question = "Which places or spatial effects are most alive and should be protected?"
+look_for = ["a place that acts on the characters", "a sensory passage that places the reader", "a transformation of a familiar space"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["locations", "L2", "L3"]
+evidence = "Named passages with quotes."

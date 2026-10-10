@@ -1,0 +1,144 @@
+id = "continuity"
+title = "Continuity"
+stage = "verification"
+order = 60
+purpose = "Verify that facts stay consistent: time, space, people, relationships, ages, dates, objects, information sources, and name spelling. Also find the traces authors leave in manuscripts (notes, brackets, placeholders). Contradictions that are deliberate are noted as such."
+
+[[check]]
+id = "continuity.time-continuity"
+title = "Time continuity"
+question = "Do dates, seasons, days of the week, durations and sequences agree across the book?"
+look_for = ["season mismatch", "travel time that does not fit", "a weekday that cannot be right"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["timeline", "L2", "metrics"]
+metrics = ["timeline_gap_count"]
+evidence = "Timeline register comparison; the script lists conflicts and the LLM judges them."
+severity = { high = "Timeline contradictions affect plot logic.", medium = "Visible inconsistencies.", low = "Minor date slip." }
+
+[[check]]
+id = "continuity.space-continuity"
+title = "Space continuity"
+question = "Do places, layouts, distances and who-is-where stay consistent?"
+look_for = ["a door changing sides", "a journey of different length each time", "a character in two places"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2", "timeline"]
+evidence = "Contradicting passages quoted."
+severity = { high = "Spatial contradictions undermine key scenes.", medium = "Visible inconsistencies.", low = "Minor." }
+
+[[check]]
+id = "continuity.character-continuity"
+title = "Characters and relationships"
+question = "Do names, appearance, abilities, history and relationships stay consistent?"
+look_for = ["eye colour changing", "a sibling becoming a cousin", "skill appearing from nowhere"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "relationships", "L2", "metrics"]
+metrics = ["character_presence_matrix"]
+evidence = "Facts about each character from the register compared across chapters; contradictions quoted."
+severity = { high = "Contradiction touches plot or identity.", medium = "Visible inconsistency.", low = "Minor detail." }
+
+[[check]]
+id = "continuity.ages-dates"
+title = "Ages and dates"
+question = "Do ages and dates add up for all characters?"
+look_for = ["age not matching events", "birth year inconsistent", "an event predating its cause"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["timeline", "characters"]
+metrics = ["timeline_gap_count"]
+evidence = "Ages computed from the timeline with the conflicts listed."
+severity = { high = "Arithmetic breaks the plot.", medium = "Several conflicts.", low = "One error." }
+
+[[check]]
+id = "continuity.objects-details"
+title = "Objects and details"
+question = "Do objects and small facts persist and change only when the story changes them?"
+look_for = ["an item reappearing after being lost", "clothing changing", "wounds healing instantly"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["ledger", "L2", "L3"]
+evidence = "Contradicting mentions quoted."
+severity = { high = "Contradictions affect clues or plot.", medium = "Visible contradictions.", low = "Minor detail." }
+
+[[check]]
+id = "continuity.setup-continuity"
+title = "Motifs and foreshadowing continuity"
+question = "Do foreshadowing and motif details agree with their later payoff?"
+look_for = ["a foreshadowed detail contradicted", "motif form changing without reason", "setup for something later dropped"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["ledger", "motifs", "L2", "metrics"]
+metrics = ["setup_payoff_distance"]
+evidence = "Ledger entries whose payoff disagrees with setup."
+severity = { high = "Payoff contradicts setup at key points.", medium = "Some disagreements.", low = "Minor." }
+
+[[check]]
+id = "continuity.sources-continuity"
+title = "Information sources"
+question = "Does every piece of information trace to a source consistent with the book's rules?"
+look_for = ["info with no source", "source contradicting itself", "knowledge from a scene the person missed"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["ledger", "L2", "relationships"]
+evidence = "Ledger entries with source mismatches."
+severity = { high = "Source contradictions affect plot or credibility.", medium = "Visible mismatches.", low = "Minor." }
+
+[[check]]
+id = "continuity.apparent-contradictions"
+title = "Apparent contradictions"
+question = "Which contradictions look like errors but may be deliberate (unreliable narrator, shifting views, different accounts)?"
+look_for = ["two accounts of one event", "a character's belief contradicting fact", "narrator changing a story"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["ledger", "L2", "L3"]
+evidence = "Each contradiction sorted into error or design with reasons and signals."
+severity = { high = "Unsignalled contradictions that look like errors in major matters.", medium = "Several ambiguous cases.", low = "Minor." }
+
+[[check]]
+id = "continuity.gaps-jumps"
+title = "Involuntary gaps and jumps"
+question = "Are there stretches where something is missing: an unexplained arrival, a missing scene, a gap in logic?"
+look_for = ["a character appearing without arrival", "a decision with no scene", "time passing unreported"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["timeline", "L2", "metrics"]
+metrics = ["timeline_gap_count", "character_presence_matrix"]
+evidence = "Candidates from timeline or presence gaps; LLM confirms by reading around them."
+severity = { high = "Gaps leave the reader lost on plot events.", medium = "Visible gaps.", low = "Minor." }
+
+[[check]]
+id = "continuity.name-consistency"
+title = "Names and spelling consistency"
+question = "Are names, places and terms spelled and formed consistently?"
+look_for = ["variant spellings of one name", "similar names confused", "inconsistent accent or capitalisation"]
+method = "script"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["characters", "locations", "metrics"]
+metrics = ["name_variant_count", "name_similarity_pairs"]
+evidence = "Variants with counts and locations from the index."
+severity = { high = "Variants confuse identity of a character or place.", medium = "Several inconsistent forms.", low = "Occasional typographic variant." }
+
+[[check]]
+id = "continuity.author-notes"
+title = "Leftover author notes"
+question = "Do any notes, brackets, placeholders, highlights or comments remain in the manuscript text?"
+look_for = ["[TODO] markers", "bracketed alternatives", "double headings"]
+method = "script"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["author_note_markers"]
+evidence = "Each marker with exact location and content."
+severity = { high = "Markers inside narrative that would appear in print.", medium = "Notes in margins or between chapters.", low = "Formatting leftovers." }

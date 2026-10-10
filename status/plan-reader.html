@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="8a31c2dcb2f98c49b2a848ebedf6c99e1db07fbe430395459d74e5d76cd6ad20">
+<meta name="arsenal-source-sha256" content="9300bf6e1b8edf19c34cf7d55841813dd126d832f9d8ba994e0fa8e20d6b3d5f">
 <title>Literary Critic — Plan (annotatable)</title>
 <style>
 :root{
@@ -418,7 +418,7 @@ rounds → re-index and verify. All novel state lives in a workspace outside the
 </tbody>
 </table>
 <p><strong>Status legend</strong>: ☐ not started · ◐ in progress · ☑ merged</p>
-<p>T1 ◐ · T2 ◐ · others ☐</p>
+<p>T1 ◐ · T2 ◐ (in PR #1) · others ☐</p>
 <p><strong>Merge order</strong>: T1 → T2 → T3 → T4 → T5 → (T6, T7, T8) → T9 → T10 → T11 → (T12, T13) → T14 → T15
 <strong>Branch pattern</strong>: <code>claude/&lt;slug&gt;</code> per task PR</p></div>
 <div class="note" data-for="s-plan-implementation-tasks"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Implementation tasks</span></div><textarea class="note-ta" data-key="s-plan-implementation-tasks" data-label="Implementation tasks" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
@@ -439,13 +439,22 @@ rounds → re-index and verify. All novel state lives in a workspace outside the
 </thead>
 <tbody>
 <tr>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
-<td></td>
+<td>T1</td>
+<td><code>guard_false_negatives == 0</code></td>
+<td>0</td>
+<td><code>uv run pytest tests/test_guard.py</code></td>
+<td>9e6cf92</td>
+<td>[HERE]</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>T2</td>
+<td><code>checklist_errors == 0</code></td>
+<td>0 (23 areas, 229 checks)</td>
+<td><code>uv run lc checklist validate</code></td>
+<td>9e6cf92</td>
+<td>[HERE]</td>
+<td>2026-10-10</td>
 </tr>
 </tbody>
 </table></div>

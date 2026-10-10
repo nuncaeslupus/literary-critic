@@ -120,7 +120,7 @@ manuscript (.docx/.odt/.md/.txt)
 
 **Status legend**: ☐ not started · ◐ in progress · ☑ merged
 
-T1 ◐ · T2 ◐ · others ☐
+T1 ◐ · T2 ◐ (in PR #1) · others ☐
 
 **Merge order**: T1 → T2 → T3 → T4 → T5 → (T6, T7, T8) → T9 → T10 → T11 → (T12, T13) → T14 → T15
 **Branch pattern**: `claude/<slug>` per task PR
@@ -134,6 +134,8 @@ T1 ◐ · T2 ◐ · others ☐
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
+| T1 | `guard_false_negatives == 0` | 0 | `uv run pytest tests/test_guard.py` | 9e6cf92 | [HERE] | 2026-10-10 |
+| T2 | `checklist_errors == 0` | 0 (23 areas, 229 checks) | `uv run lc checklist validate` | 9e6cf92 | [HERE] | 2026-10-10 |
 
 <!-- -->
 
