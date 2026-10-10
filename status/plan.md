@@ -79,7 +79,7 @@ manuscript (.docx/.odt/.md/.txt)
 
 **Status legend**: ☐ not started · ◐ in progress · ☑ merged
 
-T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T4–T15 ☐ (queued as `arsenal/tasks/`, issues #3–#14)
+T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T8 ◐ · other T4–T15 ☐ (queued as `arsenal/tasks/`, issues #3–#14)
 
 **Merge order**: T1 → T2 → T3 → T4 → T5 → (T6, T7, T8) → T9 → T10 → T11 → (T12, T13) → T14 → T15
 **Branch pattern**: `claude/<slug>` per task PR
