@@ -1,0 +1,170 @@
+id = "style-and-syntax"
+title = "Style and syntax"
+stage = "line"
+order = 50
+purpose = "Judge prose at sentence and paragraph level against the voice the book is aiming for: construction, rhythm, paragraphing, clarity, tense control, habits that weaken (filter words, weak verbs, propping adverbs, clichés, labelled emotion, piled images) and the passages that work. Line work starts from a script-built hotspot map so the LLM reads chosen passages, not the whole book. The tool points at the passage and explains the issue; the writer rewrites. Deliberate style is protected, not normalised."
+
+[[check]]
+id = "style-and-syntax.hotspot-map"
+title = "Line-level hotspot map"
+question = "Which chapters and passages deviate most from the book's own baseline on line-level metrics, and so deserve close reading first?"
+look_for = ["chapters far above the book's sentence-length or long-sentence baseline", "clusters of echoes, crutch words or filter words", "passages where several signals coincide"]
+method = "script"
+kind = "inventory"
+action_level = "none"
+inputs = ["metrics"]
+metrics = ["sentence_length_mean", "sentence_length_sd", "long_sentence_rate", "paragraph_length_mean", "word_echo_count", "crutch_word_frequency", "filter_word_density", "adverb_density", "repeated_ngram_rate"]
+evidence = "Ranked list of chapters and passage anchors with the metrics that flag them, as z-scores against the book's own median; the line checks below read these first. Metrics point, they do not judge."
+
+[[check]]
+id = "style-and-syntax.sentence-construction"
+title = "Sentence construction and clause logic"
+question = "Are sentences well built: subject and action clear, main point in the main clause, and the links between clauses (and, but, because, although) matching the logic of the thought?"
+look_for = ["main verb buried under subordinate clauses", "chains of 'and' carrying unrelated actions", "a cause or contrast implied that the grammar does not carry", "a sentence ending on a weak word"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["long_sentence_rate"]
+evidence = "Hotspot passages read; quoted sentences with the structural problem named and recurring patterns counted across chapters. Options described, never rewritten."
+severity = { high = "Constructions regularly impede comprehension.", medium = "Recurrent heaviness or looseness in several chapters.", low = "An occasional awkward sentence." }
+
+[[check]]
+id = "style-and-syntax.length-rhythm"
+title = "Sentence length and rhythm"
+question = "Is sentence length varied and matched to content (tension, reflection, action), or monotonous?"
+look_for = ["long runs of sentences of equal length", "long winding sentences in a fast action scene", "staccato everywhere"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["metrics", "L3"]
+metrics = ["sentence_length_mean", "sentence_length_sd", "long_sentence_rate"]
+evidence = "Per-chapter figures against the book's baseline (low spread suggests monotony); outlier passages read and confirmed or dismissed as deliberate."
+severity = { high = "Rhythm is monotonous or mismatched to content across large blocks.", medium = "Some chapters deviate and read differently.", low = "Minor drift." }
+
+[[check]]
+id = "style-and-syntax.paragraphing"
+title = "Paragraphing and white space"
+question = "Do paragraph breaks follow shifts of speaker, focus, time or action, and does the page give the reader air where the scene needs it?"
+look_for = ["walls of text in action or dialogue scenes", "two speakers in one paragraph", "one-line paragraphs used so often they lose force", "a break that splits one beat in two"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["paragraph_length_mean", "long_paragraph_rate"]
+evidence = "Paragraph-length distribution per chapter, with the longest and most fragmented stretches read; quoted openings of flagged paragraphs and the shift that should (or should not) start a new one."
+severity = { high = "Paragraphing makes large stretches hard to follow or exhausting to read.", medium = "Noticeable in several chapters.", low = "Occasional misplaced break." }
+
+[[check]]
+id = "style-and-syntax.punctuation-breath"
+title = "Punctuation and breath"
+question = "Does narrative punctuation guide the reader and give sentences a breath consistent with the voice?"
+look_for = ["unintended comma splices", "a missing comma that causes misreading", "dashes, semicolons, exclamations or ellipses used as a tic"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["exclamation_ellipsis_density"]
+evidence = "Quoted examples with the misreading they cause; exclamation and ellipsis density per chapter as pointers. Judged by the language's norms and the book's voice; dialogue marking is dialogue.punctuation-conventions."
+severity = { high = "Punctuation causes misreading across passages.", medium = "Frequent odd or habitual punctuation.", low = "An occasional slip." }
+
+[[check]]
+id = "style-and-syntax.clarity"
+title = "Reference and accidental ambiguity"
+question = "Is it always clear who or what a pronoun, article or description refers to, and is every ambiguity designed rather than accidental?"
+look_for = ["'he' or 'she' with two possible antecedents", "'this' or 'it' with no clear antecedent", "an epithet the reader cannot attach to a character", "a phrase readable two ways to the book's detriment"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "characters"]
+evidence = "Sentences quoted with the competing readings; read first in scenes with two or more same-gender or same-type characters (from L2). Productive ambiguity recorded as such and not flagged."
+severity = { high = "Confusion obscures who acts or what happens at key events.", medium = "Several unclear references.", low = "An occasional pronoun problem." }
+
+[[check]]
+id = "style-and-syntax.tense-slips"
+title = "Tense and person control"
+question = "Does the narration hold its tense and person, shifting only when a deliberate move (flashback, generalisation, level change) calls for it?"
+look_for = ["present-tense verbs slipping into a past-tense narrative or the reverse", "a pluperfect flashback that never returns to simple past", "person sliding between 'I', 'you' and 'one'"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["tense_consistency"]
+evidence = "Scenes where the tense mix departs from the book's norm, with the shifting sentences quoted and classified as slip or deliberate."
+severity = { high = "Tense or person slips are frequent enough to confuse time or viewpoint.", medium = "Several slips in some chapters.", low = "Isolated slips." }
+
+[[check]]
+id = "style-and-syntax.syntactic-repetition"
+title = "Syntactic repetition"
+question = "Is repeated syntax rhetoric or reflex?"
+look_for = ["paragraph after paragraph starting with the same word or name", "triplets everywhere", "the same sentence template in a run", "anaphora without escalation"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["sentence_opener_repetition"]
+evidence = "Runs of identical openers or structures with positions from the script; the LLM reads them and decides whether each is deliberate."
+severity = { high = "Repetition tires the reader across much of the book.", medium = "Noticeable in some chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.narration-reflection"
+title = "Shifts between narration and reflection"
+question = "Do shifts from event to thought or commentary feel integrated and signalled?"
+look_for = ["an abrupt lurch into reflection mid-action", "reflection that re-tells the event", "the voice changing at the switch"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+applies_when = ["essayistic", "retrospective_narrator", "omniscient_narration"]
+evidence = "Switch points (from L2 tags) quoted with what changes and whether the reader is carried across."
+severity = { high = "Shifts disorient the reader or break the voice.", medium = "Shifts are often abrupt.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.filter-words"
+title = "Filter words, weak verbs and propping adverbs"
+question = "Where do perception filters (saw, felt, noticed), weak or state verbs and adverbs propping a verb put a layer between the reader and the experience?"
+look_for = ["clusters of perception verbs in a tense scene", "'there was' and 'began to' constructions", "an adverb repeating the verb's meaning", "state verbs where an action would serve"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["filter_word_density", "adverb_density", "crutch_word_frequency"]
+evidence = "Density per chapter against the book's baseline and the densest passages quoted; deliberate distance (a detached narrator, a retrospective frame) excepted. Adverbs in dialogue tags are dialogue.tags-beats."
+severity = { high = "Filtering and weak verbs dominate and flatten key scenes.", medium = "Noticeable in many chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.cliches-telling"
+title = "Clichés and labelled emotion"
+question = "Where do stock phrases, stock body reactions and named emotions replace specific rendering?"
+look_for = ["worn idioms", "'she felt sad' at a moment that should be felt", "stock body reactions (held breath, pounding heart) on repeat"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["cliche_list_hits"]
+evidence = "List hits per chapter and the quoted instances judged in context, with a description of what kind of specific detail would serve (never the replacement text). Clichés in a character's speech may be characterisation."
+severity = { high = "Clichés or emotion labels pervade pivotal scenes.", medium = "Noticeable across chapters.", low = "Occasional." }
+
+[[check]]
+id = "style-and-syntax.figurative-language"
+title = "Figurative language"
+question = "Are images and comparisons fresh, apt to the viewpoint and period, and spaced so each registers?"
+look_for = ["two or three similes in one sentence", "mixed metaphors", "images from the same stock repeated", "an image no viewpoint character could think of"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["comparison_marker_density"]
+evidence = "Clusters located by comparison-marker density, read and quoted, with the strongest image identified and the problem named (pile-up, mix, stock, out of viewpoint)."
+severity = { high = "Image density or confusion reduces clarity throughout.", medium = "Clusters or mixed images at several key points.", low = "An occasional cluster." }
+
+[[check]]
+id = "style-and-syntax.style-strength"
+title = "Passages of special power"
+question = "Where is the prose at its strongest, and which stylistic choices must not be normalised?"
+look_for = ["a sentence of unusual force", "deliberate long periods that work", "a distinctive rhythm or syntax"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L3", "findings"]
+evidence = "Quoted passages with what makes them work, so line fixes elsewhere do not erase them."

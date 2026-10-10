@@ -1,0 +1,131 @@
+id = "dialogue"
+title = "Dialogue"
+stage = "scene"
+order = 44
+purpose = "Check what speech does: advance the scene, reveal character through subtext, give each speaker a distinct voice and register, read as speech without becoming transcript, and follow the language's punctuation conventions consistently. Dialect needs particular care. Reconstructed or remembered dialogue is judged in time-and-narrative-levels.knowledge-source; period fit of idiom in world-coherence.anachronism. Dialogue-heavy scenes are located with dialogue_ratio so raw text is read only where speech is."
+
+[[check]]
+id = "dialogue.dialogue-purpose"
+title = "Purpose of dialogue"
+question = "What does each exchange accomplish beyond passing information: conflict, character, relationship, tension?"
+look_for = ["small talk with no function", "dialogue restating the narration", "an exchange that ends where it began"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["dialogue_ratio"]
+evidence = "Exchanges in the most dialogue-heavy scenes with their function; those with none flagged with scene id and quoted opening and closing lines."
+severity = { high = "Large stretches of dialogue serve no purpose.", medium = "Several exchanges lack function.", low = "One exchange." }
+
+[[check]]
+id = "dialogue.subtext"
+title = "Subtext"
+question = "Do speakers want things they do not say, and do they evade, deflect, interrupt or lie?"
+look_for = ["characters stating their feelings plainly", "nobody withholds anything", "conflict resolved by explicit statement"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+evidence = "Exchanges from emotionally charged scenes (from L2) quoted with what is said versus what is meant."
+severity = { high = "Dialogue is on the nose throughout the important scenes.", medium = "Subtext is sparse.", low = "A few scenes could carry more implicit meaning." }
+
+[[check]]
+id = "dialogue.exposition-dialogue"
+title = "Exposition in dialogue"
+question = "Do characters tell each other what both already know, for the reader's sake?"
+look_for = ["'as you know' constructions", "names and relationships spelled out unnaturally", "complete explanations in speech"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "relationships"]
+evidence = "Quoted lines with what both speakers already know, from the relationships and knowledge registers."
+severity = { high = "Major information reaches the reader through implausible exchanges.", medium = "Several noticeable instances.", low = "A single instance." }
+
+[[check]]
+id = "dialogue.voices"
+title = "Distinct voices and registers"
+question = "Can the main speakers be told apart by diction, rhythm, vocabulary and turn length, and does each one's register fit their age, background and situation?"
+look_for = ["the same sentence rhythm in every mouth", "the narrator's vocabulary in a child's speech", "register not matching education, class or role", "a voice that drifts without cause"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["characters", "L3"]
+evidence = "Short samples of several lines per main speaker from different chapters, compared side by side; for each blur, the speakers and what makes them indistinct. Distinctness in action and manner is characters.distinctiveness; narrators' voices are pov-and-voice.voice-differentiation."
+severity = { high = "Several main speakers sound the same or speak against who they are.", medium = "Distinctions blur in some scenes.", low = "Slight similarity among minor speakers." }
+
+[[check]]
+id = "dialogue.tags-beats"
+title = "Tags, beats and attribution"
+question = "Is it always clear who speaks, and are tags and action beats unobtrusive and not repetitive?"
+look_for = ["lines with unclear speaker in a long run", "tags propped by adverbs", "showy verbs replacing the neutral tag", "a beat on every line"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["dialogue_tag_distribution", "dialogue_run_length", "adverb_density"]
+evidence = "Tag-verb distribution and adverb-modified tag counts per chapter; the longest untagged runs located and checked for lost attribution; examples quoted. Conventions vary by language and genre and are judged accordingly."
+severity = { high = "Speakers are unclear in long stretches, or tags interfere with reading throughout.", medium = "Tags are habitually adorned or repetitive.", low = "An occasional showy tag." }
+
+[[check]]
+id = "dialogue.realism-readability"
+title = "Realism versus readability"
+question = "Does speech sound spoken while staying easy to read, without transcribing every hesitation?"
+look_for = ["transcript-like repetition and filler", "perfectly formed sentences in tense moments", "ellipses or stammers on every line"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["dialogue_ratio", "exclamation_ellipsis_density"]
+evidence = "Lines quoted at both extremes from dialogue-heavy chapters, with ellipsis and exclamation density as pointers."
+severity = { high = "Speech is either hard to read or implausibly polished across the book.", medium = "Imbalance in several scenes.", low = "Mild stiffness." }
+
+[[check]]
+id = "dialogue.dialogue-length"
+title = "Speeches and talking heads"
+question = "Are long speeches earned, and does dialogue alternate with action, setting and interiority?"
+look_for = ["monologues that lecture", "long exchanges with no physical anchoring", "dialogue lines too clipped to carry content"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L3", "metrics"]
+metrics = ["long_speech_count", "dialogue_run_length", "dialogue_ratio"]
+evidence = "Long speeches and the longest runs without narration, located by the script; each read and judged (earned, trim, break up) with its scene id."
+severity = { high = "Long speeches or unanchored exchanges dominate key chapters.", medium = "Several overlong speeches or talking-head runs.", low = "A single instance." }
+
+[[check]]
+id = "dialogue.punctuation-conventions"
+title = "Dialogue punctuation and layout"
+question = "Are speech, quoted text and thought marked following the conventions of the manuscript's language and applied consistently?"
+look_for = ["dialogue marked two ways in one book (e.g. dash in one chapter, quotation marks in another)", "tag punctuation against the language's convention (e.g. Spanish raya rules for incises; English comma before a closing quote)", "a new speaker not given a new paragraph", "thought rendered in italics in some places and unmarked in others"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["quote_style_consistency", "dialogue_punctuation_anomalies"]
+evidence = "The book's dominant convention (confirmed with the writer, never imposed), counts of each form, and the locations of deviations; deliberate unconventional choices (no marks, run-in dialogue) recorded as style, not error."
+severity = { high = "Conventions are mixed or broken so often that speakers or speech boundaries become unclear.", medium = "Recurrent deviations from the book's own convention.", low = "Isolated slips." }
+
+[[check]]
+id = "dialogue.dialect-handling"
+title = "Dialect and non-standard speech"
+question = "Are dialect, slang, accent and foreign words in speech rendered consistently and readably, without caricature?"
+look_for = ["phonetic spelling changing between lines", "a stereotype carried by the accent", "dialect dropped under pressure", "heavy phonetic spelling that slows reading"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "characters", "metrics"]
+metrics = ["name_variant_count"]
+applies_when = ["dialect_or_period_language", "translated_or_multilingual"]
+evidence = "Non-standard forms registered as terms, with their variants and counts; judgement of consistency, readability and respect, with quoted examples. Whether an idiom fits the period is world-coherence.anachronism; the narration's own language variety is lexicon-and-sound.language-variety."
+severity = { high = "Rendering is inconsistent or caricatured in a way that harms reading or fairness.", medium = "Some inconsistency or heavy going.", low = "Minor variation." }
+
+[[check]]
+id = "dialogue.dialogue-strength"
+title = "Dialogue strengths"
+question = "Where does speech crackle, and what must revision protect?"
+look_for = ["an exchange where the subtext leaps", "a character's verbal signature", "humour in speech"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L3", "characters"]
+evidence = "Quoted exchanges and why they work."

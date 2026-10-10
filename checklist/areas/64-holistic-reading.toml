@@ -1,0 +1,64 @@
+id = "holistic-reading"
+title = "Holistic reading"
+stage = "verification"
+order = 64
+purpose = "After the analytical work, judge what only the whole shows: the reading experience, originality, demonstrable strengths and the few root problems behind many symptoms. Engagement with the characters is judged in characters.reader-investment, the voice in pov-and-voice, ideas against experience in premise-theme.stated-enacted. It ends in a verdict: in revision mode, the priorities for the next draft; in reader-report mode, a recommendation an agent or publisher can act on."
+
+[[check]]
+id = "holistic-reading.whole-experience"
+title = "Reading as a whole"
+question = "What is the experience of the book from start to end, and where does the whole differ from the sum of its parts?"
+look_for = ["an effect that builds across the book", "fatigue in the last third", "strong parts that do not add up"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "findings"]
+evidence = "A short account of the whole-book experience supported by anchors from several blocks."
+severity = { high = "The whole fails to cohere despite good parts.", medium = "Some parts unbalance the whole.", low = "Small unevenness." }
+
+[[check]]
+id = "holistic-reading.originality"
+title = "Originality and distinctiveness"
+question = "What does this book do that others in its territory do not: in premise, construction, characters or voice, and does the novelty serve the book?"
+look_for = ["a fresh angle on a familiar subject", "an unusual architecture that works", "generic characters in a distinctive world", "novelty without function"]
+method = "llm"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["L0", "L1", "structure", "characters", "findings"]
+evidence = "Distinctive features with their effect; comparisons stated as impressions, not claims."
+severity = { high = "Nothing distinguishes the book from many others like it.", medium = "Distinctiveness is present but uneven or underexploited.", low = "Minor." }
+
+[[check]]
+id = "holistic-reading.demonstrable-strengths"
+title = "Demonstrable strengths"
+question = "Which strengths can be shown with evidence, and which must every revision protect?"
+look_for = ["a strength recorded in several areas", "a unique feature", "a reliable pleasure for the reader"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["findings"]
+evidence = "Consolidated list of strength findings across areas, each with its anchors and the revisions that could endanger it."
+
+[[check]]
+id = "holistic-reading.global-problems"
+title = "Root problems and priorities"
+question = "Which few problems affect the whole book, which local findings are symptoms of them, and in what order should they be addressed?"
+look_for = ["one cause behind many symptoms", "a structural problem producing local ones", "a pattern of excess or closure recurring across areas"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["findings", "backlog"]
+evidence = "Ranked list of root problems with the findings each explains (ids and counts), and the order of work so that structural fixes precede line work."
+severity = { high = "The problem decides the book's success or failure.", medium = "The problem affects several blocks.", low = "The problem is limited." }
+
+[[check]]
+id = "holistic-reading.verdict"
+title = "Verdict and recommendation"
+question = "What is the overall judgement, and what should happen next?"
+look_for = ["no clear verdict", "a verdict contradicting the findings", "praise or critique without evidence", "a recommendation with no next step"]
+method = "llm"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["findings", "L0"]
+evidence = "A few lines weighing the strongest evidence on each side. Revision mode: scope of the next draft and its top priorities. Reader-report mode: a clear recommendation (e.g. pass, consider with revisions, recommend) with the main reasons, risks and a confidence level."
+severity = { high = "The verdict is missing or unsupported by the findings.", medium = "The verdict lacks specifics or balance.", low = "Wording could be sharper." }

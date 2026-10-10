@@ -1,0 +1,91 @@
+id = "opening"
+title = "Opening"
+stage = "developmental"
+order = 34
+purpose = "The opening carries a disproportionate share of the reader's decision to continue. Check whether the first pages pull the reader in, orient them enough, introduce the cast at a followable pace, start in the right place, control what is withheld, and make a promise (tone, kind of story, central question) that the rest of the book keeps. Pull can come from voice, situation, mystery or image as well as conflict."
+
+[[check]]
+id = "opening.first-pages"
+title = "Pull of the first pages"
+question = "Do the first pages give the reader a person or presence, a situation and a reason to read on (a question, tension, disruption or a voice that compels), early enough for the book's own promise?"
+look_for = ["many paragraphs of orientation before any question arises", "a first scene with nothing at stake and no compelling voice", "a hook that does not belong to the book's real subject", "pull that depends on a trick the book then drops"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "L3", "metrics"]
+metrics = ["opening_hook_span"]
+evidence = "Word count to the first candidate hook (script), the candidate sentence quoted, the LLM's confirmation of what actually pulls (question, tension, voice, image), and what the reader knows and wants at the end of the first scene. L3 is read only for the opening span."
+severity = { high = "Nothing in the opening chapter gives the reader a reason to continue.", medium = "The pull is present but late or generic for the book's promise.", low = "Strong opening with minor drag." }
+
+[[check]]
+id = "opening.orientation"
+title = "Orientation in story, narrator and world"
+question = "By the end of the opening, can the reader tell whose story this is, who is telling it, and roughly where and when it happens, without a flood of explanation?"
+look_for = ["no sense of when or where after several pages", "the narrator or viewpoint still unclear", "the first pages spent on exposition or backstory", "unfamiliar terms and places crowding the first paragraphs"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["new_term_density", "long_paragraph_rate"]
+evidence = "The orienting facts (protagonist, narrator, place, time, situation) with the anchor where each becomes clear or a note that it never does; term density and paragraph length of the opening as pointers. Deliberate disorientation is recorded as a choice, with the point where it resolves."
+severity = { high = "The reader cannot orient, or is overwhelmed, in the first chapter.", medium = "Orientation is slow or heavy.", low = "A small clarity gap." }
+
+[[check]]
+id = "opening.introductions"
+title = "Introduction of main characters"
+question = "Are the main characters introduced at a pace the reader can follow, each with something that makes them distinct and memorable?"
+look_for = ["many names in the first chapter", "the protagonist absent or indistinct in the opening", "introduction by a list of traits or a mirror description", "a key character first named long after their role matters"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "L2", "metrics"]
+metrics = ["character_first_appearance", "new_term_density"]
+evidence = "Names introduced in the opening span with their first-appearance anchors and the manner of each introduction; counts of new names per chapter."
+severity = { high = "The reader cannot tell who matters or confuses main characters.", medium = "The cast arrives too fast or too slowly.", low = "Introductions are generic." }
+
+[[check]]
+id = "opening.false-starts"
+title = "Starting point"
+question = "Does the book begin where its story begins, or earlier or elsewhere (a prologue that duplicates, a preamble, front-loaded backstory, throat-clearing)?"
+look_for = ["a prologue repeated later in the book", "several beginnings in sequence", "chapters of setup before anything changes", "backstory delivered before the reader cares"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2"]
+evidence = "Candidate true starting point with anchor, the preceding material, and what each part of it contributes that the book needs (tone, frame, a promise) or does not. A frame or prologue that does work later is recorded as such."
+severity = { high = "Several chapters precede the real beginning.", medium = "A few pages of preamble.", low = "A paragraph or two." }
+
+[[check]]
+id = "opening.information-control"
+title = "What the opening reveals and withholds"
+question = "What does the opening reveal and conceal, and is the withholding purposeful (creating curiosity the reader can feel) or confusing?"
+look_for = ["unexplained references with no payoff in sight", "too much given too early, spending later surprises", "secrets the viewpoint character knows but the narration coyly hides", "withholding so dense the reader cannot form a question"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "ledger"]
+evidence = "Facts given and withheld in the opening, each with anchor, and the anchor where withheld facts arrive."
+severity = { high = "Withholding makes the opening unintelligible, or early disclosure spoils the book's later effect.", medium = "Withholding is clumsy or coy.", low = "Slight imbalance." }
+
+[[check]]
+id = "opening.opening-promise"
+title = "Tonal contract of the opening"
+question = "What tone, register and kind of story does the opening establish, which seeds does it plant, and does the rest of the book keep, develop or knowingly transform that contract?"
+look_for = ["an opening register or genre signal the book abandons", "the book's real subject absent from the opening", "a tonal contract (comic, menacing, lyrical, documentary) broken later without preparation", "an opening that seeds nothing the book later grows"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "motifs", "ledger"]
+evidence = "The promise stated in one or two lines with opening anchors, the seeds planted (linked to motif register and ledger rows), and the later chapters that keep, transform or break each. Whether the premise's implied situations are delivered is premise-theme.premise-delivery; the central question's fate is premise-theme.central-question; genre conventions are genre-and-reader.genre-conventions."
+severity = { high = "The opening sets a tone or kind of story the book then abandons without design.", medium = "The contract is only partly kept or the opening seeds little.", low = "Slight tonal mismatch." }
+
+[[check]]
+id = "opening.opening-strength"
+title = "Opening strengths"
+question = "What works in the opening and must be preserved when revising it?"
+look_for = ["a first sentence with pull", "a voice established at once", "an image that returns later", "a situation that raises a question immediately"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3", "motifs"]
+evidence = "Quoted lines with anchors and what they do."

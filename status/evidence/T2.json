@@ -1,0 +1,24 @@
+{
+  "areas": 23,
+  "checks": 201,
+  "traits": 26,
+  "metrics": 52,
+  "by_stage": {
+    "developmental": 116,
+    "line": 21,
+    "orientation": 9,
+    "scene": 28,
+    "verification": 27
+  },
+  "by_method": {
+    "hybrid": 73,
+    "llm": 124,
+    "script": 4
+  },
+  "by_kind": {
+    "diagnostic": 158,
+    "inventory": 23,
+    "strength": 20
+  },
+  "errors": 0
+}

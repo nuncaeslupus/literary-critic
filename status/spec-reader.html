@@ -1,0 +1,881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="b9cae91f2e5241b3cfcd723a19cbfd57e2c5173e7a727e0abdef432a925c77c0">
+<title>Literary Critic — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#6b6862;--line:#e6e2da;
+  --card:#ffffff;--accent:#0f766e;--accent2:#b45309;--chip:#eef2f1;
+  --note:#fff8ec;--note-line:#f0cf94;--code:#f3f1ec;--link:#0f766e;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#e9e7e2;--muted:#a09c95;--line:#2e2c33;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#26313055;
+    --note:#251f10;--note-line:#6b531c;--code:#26242b;--link:#5eead4;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+a{color:var(--link)}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#b45309}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:22px 0 6px}
+.hero h1{font-size:25px;line-height:1.2;margin:.1em 0 .3em}
+.hero p{color:var(--muted);margin:.3em 0}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:26px 0}
+.part-title{font-size:21px;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 8px;position:sticky;top:54px;background:var(--bg);z-index:10}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+.sec{padding:6px 0 2px;border-bottom:1px solid var(--line);scroll-margin-top:100px}
+.sec:last-child{border-bottom:none}
+.sec-h{margin:10px 0 6px;line-height:1.3;position:sticky;top:94px;background:var(--bg);z-index:5;padding-top:6px}
+h3.sec-h{font-size:18.5px}
+h4.sec-h{font-size:16.5px;color:var(--fg)}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p{margin:.55em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent2);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;width:100%;font-size:13.5px;margin:.6em 0;display:block;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+.note{background:var(--note);border:1px solid var(--note-line);border-radius:10px;
+  padding:8px 11px;margin:10px 0 16px}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.note-ico{color:var(--accent2);font-weight:800}
+.note-label{font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted)}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:15.5px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:.8}
+.note.filled{box-shadow:0 0 0 2px var(--note-line) inset}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Specification<small>annotatable reader · 2026-10-10</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 13 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Specification</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-pure-prompt-kit-conserv">Option A: Pure prompt kit (Conservative)</a></li>
+<li><a href="#s-spec-option-b-stdlib-python-core-port">Option B: Stdlib Python core + portable prompts + layered index (Recommended)</a></li>
+<li><a href="#s-spec-option-c-full-nlp-rag-stack-spac">Option C: Full NLP/RAG stack (spaCy, embeddings, vector DB)</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-cli-contracts-lc-stdlib-only">CLI contracts (lc, stdlib only)</a></li>
+<li><a href="#s-spec-data-contracts-workspace-files-s">Data contracts (workspace files, schema_version = 1)</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Specification</h2>
+<article class="sec" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-10
+<strong>Ticket / PR</strong>: bootstrap
+<strong>Author</strong>: imarcos + Claude
+<strong>Revision</strong>: 2
+<strong>Status</strong>: approved (2026-10-10, revision 2) — option B; notes given in conversation
+<strong>Revision log</strong>:
+- r1 — first draft
+- r2 — applied conversation notes: conversational guidance, writer-friendly locators, writer authorship rule, two working modes chosen at start</p></div>
+<div class="note" data-for="s-spec-intro"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></div><textarea class="note-ta" data-key="s-spec-intro" data-label="Preamble &amp; scope" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>A novel manuscript (80k–200k words) does not fit usefully in an LLM's working
+context, has no stable addresses (page numbers change with every edit and many
+drafts have no chapter marks), and changes between drafts. An LLM asked to
+critique it therefore forgets details, cannot relate distant events or track
+characters and timelines, gives vague feedback, and loses all state between chat
+sessions. Writers need an editor-like process instead: a reliable map of the
+book, a systematic analysis at every level (structure → scene → line) backed by
+evidence from the text, and a finite, prioritised list of concrete revision
+actions that is re-checked against each new draft. The process must run in
+Claude Code (local and cloud) and, in reduced form, in ordinary chatbots
+(ChatGPT, Claude.ai, Gemini) used by non-technical writers, with working files
+persisted outside the tool repo (a Drive folder by preference) and with no
+working-novel content ever entering the repo.</p>
+<p><strong>Success criteria (measurable)</strong>:</p>
+<ul>
+<li>[ ] <code>anchor_stability_after_synthetic_edits &gt;= 0.99</code> — share of unchanged paragraphs keeping their anchor after scripted insert/delete/move/edit operations on corpus novels.</li>
+<li>[ ] <code>changed_paragraph_detection_recall &gt;= 0.98</code> and <code>precision &gt;= 0.95</code> on the same synthetic edit suite.</li>
+<li>[ ] <code>index_query_tokens_p95 &lt;= 2500</code> — tokens returned by any <code>lc</code> query command at default budget, measured on a 150k-word corpus novel.</li>
+<li>[ ] <code>l0_plus_l1_tokens &lt;= 8000</code> — whole-novel orientation (synopsis + chapter summaries) for a 150k-word novel.</li>
+<li>[ ] <code>scene_card_schema_validity == 1.0</code> and <code>findings_schema_validity == 1.0</code> on generated artefacts.</li>
+<li>[ ] <code>findings_with_anchor_evidence == 1.0</code> — every finding cites at least one valid anchor.</li>
+<li>[ ] <code>checklist_coverage == 1.0</code> — every check area in the catalogue has ≥1 check with method, inputs, evidence rule and severity rubric.</li>
+<li>[ ] <code>runtime_third_party_imports == 0</code> in <code>src/litcritic/</code>.</li>
+<li>[ ] <code>guard_false_negatives == 0</code> on the guard test suite (guarded terms, accented variants, manuscript files).</li>
+<li>[ ] <code>ingest_paragraph_fidelity &gt;= 0.999</code> — normalised paragraphs match the source <code>.docx</code>/<code>.odt</code>/<code>.md</code>/<code>.txt</code> text after whitespace normalisation, on corpus fixtures.</li>
+<li>[ ] <code>writer_locators_complete == 1.0</code> — every writer-facing action carries chapter/section, approximate page when known, and quoted paragraph opening and closing words that occur exactly once in the current draft.</li>
+<li>[ ] <code>generated_manuscript_prose_in_actions == 0</code> — action texts contain no replacement prose for the novel (checked by script: no quoted passage longer than the locator snippets unless copied verbatim from the manuscript).</li>
+<li>[ ] Usability judged on the first working novel: the writer can complete one full round (index → analysis → letter → revised draft → re-index → verification) and rates the actions concrete and actionable; recorded in a generic retrospective with no novel content.</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/litcritic/</code> (<code>lc</code> CLI)</td>
+<td>Primary</td>
+<td>Deterministic work: ingest, anchor, diff, index build, metrics, query, validate, pack/unpack, render, guard</td>
+<td>Yes (new)</td>
+<td>All scriptable steps; stdlib only so it runs in chat code interpreters</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>checklist/</code></td>
+<td>Primary</td>
+<td>Generic catalogue of analysis checks (TOML)</td>
+<td>Yes (new)</td>
+<td>Drives part 2; adapted per novel via a profile kept in the workspace</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>schemas/</code></td>
+<td>Shared resource</td>
+<td>JSON schemas: anchors, structure, scene card, character, timeline event, finding, action</td>
+<td>Yes (new)</td>
+<td>Contract between LLM output and scripts; validation gates</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>prompts/</code> + <code>.claude/skills/</code></td>
+<td>UI</td>
+<td>LLM procedures: scene-card extraction, check execution, letter writing; skills wrap prompts + scripts for Claude Code</td>
+<td>Yes (new)</td>
+<td>Same prompts usable from any chatbot</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Workspace folder (outside repo)</td>
+<td>Shared resource</td>
+<td>Per-novel state: snapshots, normalised text, index, metrics, findings, rounds, log</td>
+<td>Yes (format)</td>
+<td>Persistence across sessions/surfaces; Drive-friendly plain files</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Manuscript sources (.docx, Google Docs)</td>
+<td>Dependent</td>
+<td>Input; optional comment/suggestion output</td>
+<td>Yes (adapters)</td>
+<td>Read always; write only with explicit permission, comments/suggestions first</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Content guard + CI</td>
+<td>Infrastructure</td>
+<td>Keeps novel content out of the repo; runs lint/type/tests/gates</td>
+<td>Yes (done in bootstrap)</td>
+<td>Enforces the hard rule mechanically</td>
+<td>High</td>
+</tr>
+<tr>
+<td>claude-arsenal bundle</td>
+<td>Infrastructure</td>
+<td>Task queue, gates, spec/plan workflow</td>
+<td>No</td>
+<td>Process only</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<p>Impact dimensions: <strong>Data</strong> — workspace format is a long-lived contract (versioned <code>schema_version</code>). <strong>Performance</strong> — token cost per query is a first-class metric. <strong>User-facing</strong> — non-technical writers in plain chat. <strong>Risk of inaction</strong> — feedback stays generic and unrepeatable.</p></div>
+<div class="note" data-for="s-spec-2"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></div><textarea class="note-ta" data-key="s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+<div class="note" data-for="s-spec-3"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></div><textarea class="note-ta" data-key="s-spec-3" data-label="§3 Options" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-a-pure-prompt-kit-conserv">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Pure prompt kit (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: A set of Markdown prompts and a folder convention; the LLM does all chunking, indexing and tracking by itself.</li>
+<li><strong>Scope</strong>: <code>prompts/</code>, docs.</li>
+<li><strong>Effort</strong>: Small</li>
+<li><strong>Tradeoffs</strong>: Works in any chatbot, but non-deterministic anchors, no reliable diff between drafts, no metrics, high token use, results not reproducible.</li>
+<li><strong>Compatibility</strong>: Universal.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-pure-prompt-kit-conserv"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Pure prompt kit (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-pure-prompt-kit-conserv" data-label="Option A: Pure prompt kit (Conservative)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-b-stdlib-python-core-port">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Stdlib Python core + portable prompts + layered index (Recommended)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Deterministic <code>lc</code> CLI (stdlib only) does ingest, content-addressed paragraph anchors, scene segmentation, draft-to-draft alignment, metrics, index assembly, query-with-budget, validation, rendering and zip pack/unpack. The LLM fills judgment slots defined by JSON schemas (scene cards, check results, letters), one bounded unit at a time. Three surfaces: Claude Code (full), chat with code execution (kit zip + workspace zip), chat without code (prompts only, reduced, says so).</li>
+<li><strong>Scope</strong>: All systems in §2.</li>
+<li><strong>Effort</strong>: Large (phased)</li>
+<li><strong>Tradeoffs</strong>: More to build; stdlib-only limits NLP (no POS tagger — use language word lists and heuristics; optional extras later).</li>
+<li><strong>Compatibility</strong>: Runs wherever Python ≥3.12 runs, including ChatGPT/Claude.ai sandboxes (verify Python version per platform; fall back to 3.10-compatible syntax if needed).</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-stdlib-python-core-port"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Stdlib Python core + portable prompts + layered index (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-stdlib-python-core-port" data-label="Option B: Stdlib Python core + portable prompts + layered index (Recommended)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-c-full-nlp-rag-stack-spac">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Full NLP/RAG stack (spaCy, embeddings, vector DB)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Heavy NLP for coreference, entity linking, semantic search.</li>
+<li><strong>Scope</strong>: As B plus models and services.</li>
+<li><strong>Effort</strong>: Large</li>
+<li><strong>Tradeoffs</strong>: Better entity resolution, but cannot run in chat sandboxes or for non-technical users, adds cost and setup; embeddings add little over a well-built structured index for a single book.</li>
+<li><strong>Compatibility</strong>: Local/cloud dev only.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-full-nlp-rag-stack-spac"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Full NLP/RAG stack (spaCy, embeddings, vector DB)</span></div><textarea class="note-ta" data-key="s-spec-option-c-full-nlp-rag-stack-spac" data-label="Option C: Full NLP/RAG stack (spaCy, embeddings, vector DB)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Small</td>
+<td>Large (phased)</td>
+<td>Large</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>High (unreliable)</td>
+<td>Medium</td>
+<td>High (setup)</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Low</td>
+<td>High</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>Universal</td>
+<td>Broad</td>
+<td>Narrow</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Low</td>
+<td>Medium</td>
+<td>High</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></div><textarea class="note-ta" data-key="s-spec-comparison" data-label="Comparison" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B — the only option that is deterministic, measurable, cheap in tokens and still usable from ordinary chatbots.</p>
+<p>Key design points carried into <code>design</code>:</p>
+<ol>
+<li><strong>Anchors</strong>: hierarchy Part › Chapter › Scene › Paragraph with readable ids (<code>c03.s2.p14</code>) plus a content fingerprint per paragraph. Draft alignment = exact-hash match, then fuzzy match for edited paragraphs, then order-aware resolution for moves; output an old→new anchor map and a list of stale scenes. Pages are never used as addresses (only reported, when the source has them, as a convenience).</li>
+<li><strong>Segmentation</strong>: scripts detect headings and scene breaks; when absent, the LLM proposes scene boundaries over numbered paragraph windows and a script validates them.</li>
+<li><strong>Layered index</strong> (load only what is needed): L0 novel profile &amp; synopsis · L1 chapter summaries · L2 scene cards (summary, POV, characters, place, story time, events, setups/payoffs, open threads) · L3 raw text by anchor. Derived registers built by script: characters (aliases), relationships (evidence anchors), timeline (story vs discourse order), locations, motifs, setup/payoff ledger.</li>
+<li><strong>Checklist</strong>: catalogue of checks grouped by level (editorial order: developmental → scene → line). Each check: id, area, question, method (script | llm | hybrid), required index layers, evidence rule, severity rubric, output schema. After the first pass, a per-novel profile (in the workspace) enables, disables and weights checks.</li>
+<li><strong>Findings → actions</strong>: findings (check id, anchors, evidence, severity, confidence, effort) are prioritised by script into revision rounds: R1 structural (move/cut/merge/add), R2 scene &amp; character, R3 prose &amp; dialogue. Each round yields a writer-facing letter in the novel's language and a machine-readable backlog (accepted / rejected / done / deferred). A round closes when no open high-severity finding remains or the writer closes it; a new draft is re-indexed and the backlog verified against the diff, with metric deltas.</li>
+<li><strong>Modes, chosen at the start by asking the user</strong>: <code>revision</code> (default — a writer improving their own novel) and <code>reader-report</code> (an agency/editor assessing a manuscript: strengths, market fit, verdict). Both run on the same index and findings.</li>
+<li><strong>Documents</strong>: read <code>.docx</code>/<code>.odt</code>/<code>.md</code>/<code>.txt</code> (Google Docs via export). Write-back only with explicit permission: <code>.docx</code> with anchored comments and tracked changes (<code>w:ins</code>/<code>w:del</code>), which Google Docs imports as comments/suggestions; direct Docs API edits only for confirmed changes.</li>
+<li><strong>Persistence</strong>: workspace folder outside the repo (Drive preferred); <code>lc pack</code>/<code>lc unpack</code> zip round-trip with checksummed manifest for chat and cloud sessions.</li>
+<li><strong>Guarding</strong>: <code>lc guard</code> + pre-commit + CI; per-workspace <code>guard-terms.txt</code>.</li>
+<li><strong>Language</strong>: repo in English; prompts language-agnostic; metrics language-aware (es, en first: Fernández-Huerta / Szigriszt-INFLESZ, Flesch, MTLD, -mente/-ly density, dialogue ratio, sentence-length variance, repetition).</li>
+<li><strong>Conversational guidance</strong>: like a guided interview, the assistant drives the session one step at a time — what we are looking at, why, what to change — waits for the writer, records decisions in the workspace, and resumes where the last session stopped.</li>
+<li><strong>Writer-friendly locators</strong>: every location given to a writer is self-sufficient without search skills: chapter/section title, approximate page (from the writer's own file when available), and the first and last words of the paragraph (quoted, a few words each), plus a short unique phrase to search for when the writer can. One change per message when the writer is applying changes; plain, direct, patient language.</li>
+<li><strong>The writer writes</strong>: the tool diagnoses and explains (what, where, why, which effect to aim for, which options exist) but never writes replacement prose for the novel. Every word in the manuscript is the writer's. Requests to ghost-write are declined and redirected to guidance.</li>
+</ol>
+<p><strong>Immediate next action</strong>: Build part 2 first — the check catalogue (<code>checklist/*.toml</code>) with its schema and validator — from <code>docs/research/analysis-frameworks.md</code> plus the user-supplied external list (used as input only, not committed).</p>
+<p><strong>Open questions</strong>:
+- [ ] Python version available in each chatbot sandbox (confirm ≥3.12 or lower the floor).
+- [ ] Whether Claude.ai / ChatGPT Drive connectors can write arbitrary files (JSON/zip) reliably enough to skip the zip round-trip.
+- [ ] <code>reader-report</code> mode: scope and when (after the first full revision round).
+- [ ] Final license (D-13).</p>
+<p><strong>Decisions log</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Decision</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-1</td>
+<td>Never add anything about specific working novels to the repo; enforced by <code>lc guard</code></td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td><code>[[...]]</code> = repo talk; plain messages = working novel; generic learnings go to the repo unprompted</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>Runtime is Python stdlib only, while possible</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>Workspaces live outside the repo; Drive folder preferred, zip round-trip as portable fallback</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>Public-domain novels (en, es) allowed under <code>corpus/</code> for tests and examples</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-6</td>
+<td>Build order: part 2 (checklist) → part 1 (index) → part 3 (feedback) → chat kit</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-7</td>
+<td>Two modes, chosen at the start by asking: <code>revision</code> (writer, default) and <code>reader-report</code> (agency/editor)</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-8</td>
+<td>Work language follows the writer/novel; repo artefacts in English</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-9</td>
+<td>Manuscript edits only with explicit per-change permission; comments/suggestions first</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-10</td>
+<td>Conversational, guided sessions (integral-job-search style)</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-11</td>
+<td>Locators for writers: chapter + approx. page + paragraph first/last words + search phrase; one change per message; plain language</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-12</td>
+<td>The writer writes: never produce replacement prose for the novel; diagnose and explain only</td>
+<td>agreed</td>
+<td>2026-10-10</td>
+</tr>
+<tr>
+<td>D-13</td>
+<td>License to be chosen deliberately (MIT was a placeholder)</td>
+<td>open</td>
+<td>2026-10-10</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="note" data-for="s-spec-5"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></div><textarea class="note-ta" data-key="s-spec-5" data-label="§5 Contracts" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-cli-contracts-lc-stdlib-only">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI contracts (<code>lc</code>, stdlib only)</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Input</th>
+<th>Output</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lc init &lt;slug&gt; --title --language</code></td>
+<td>—</td>
+<td>workspace skeleton (<code>docs/workspace.md</code>)</td>
+<td>done</td>
+</tr>
+<tr>
+<td><code>lc guard [--all]</code></td>
+<td>staged diff / tracked files + guard terms</td>
+<td>exit 1 on violation</td>
+<td>done</td>
+</tr>
+<tr>
+<td><code>lc checklist validate\|stats\|plan [--profile]</code></td>
+<td><code>checklist/</code>, workspace <code>analysis/profile.toml</code></td>
+<td>errors / counts / ordered checks</td>
+<td>T2</td>
+</tr>
+<tr>
+<td><code>lc ingest &lt;file&gt;</code></td>
+<td><code>.txt .md .docx .odt</code></td>
+<td><code>text/vNNN.txt</code>, <code>manuscript/vNNN.*</code> snapshot</td>
+<td>T4</td>
+</tr>
+<tr>
+<td><code>lc anchor</code></td>
+<td><code>text/vNNN.txt</code></td>
+<td><code>index/vNNN/structure.json</code> (parts, chapters, scenes, paragraph anchors + fingerprints)</td>
+<td>T5</td>
+</tr>
+<tr>
+<td><code>lc diff vA vB</code></td>
+<td>two structures</td>
+<td><code>index/vB/alignment.json</code> (old→new anchors, changed/moved/new/deleted, stale scenes)</td>
+<td>T6</td>
+</tr>
+<tr>
+<td><code>lc metrics</code></td>
+<td>text + structure</td>
+<td><code>metrics/vNNN.json</code> (ids from <code>checklist/metrics.toml</code>)</td>
+<td>T7</td>
+</tr>
+<tr>
+<td><code>lc validate &lt;kind&gt; &lt;file&gt;</code></td>
+<td>scene card, register, finding, action</td>
+<td>schema errors</td>
+<td>T8</td>
+</tr>
+<tr>
+<td><code>lc show / find / context --budget N</code></td>
+<td>index</td>
+<td>bounded text for the LLM</td>
+<td>T9</td>
+</tr>
+<tr>
+<td><code>lc locate &lt;anchor&gt;</code></td>
+<td>anchor + draft</td>
+<td>writer locator (chapter, ≈page, first/last words, search phrase)</td>
+<td>T11</td>
+</tr>
+<tr>
+<td><code>lc round build\|status\|letter</code></td>
+<td>findings + profile</td>
+<td><code>revisions/round-NN/{actions.json,letter.md}</code></td>
+<td>T11</td>
+</tr>
+<tr>
+<td><code>lc docx-comments</code></td>
+<td>actions + <code>.docx</code></td>
+<td>copy of the <code>.docx</code> with anchored comments (never the original)</td>
+<td>T12</td>
+</tr>
+<tr>
+<td><code>lc pack / unpack</code></td>
+<td>workspace</td>
+<td>zip + checksummed manifest; refuses stale overwrite</td>
+<td>T13</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-cli-contracts-lc-stdlib-only"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI contracts (lc, stdlib only)</span></div><textarea class="note-ta" data-key="s-spec-cli-contracts-lc-stdlib-only" data-label="CLI contracts (lc, stdlib only)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-data-contracts-workspace-files-s">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data contracts (workspace files, <code>schema_version = 1</code>)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Anchor</strong>: <code>c&lt;NN&gt;.s&lt;N&gt;.p&lt;N&gt;</code> readable id + <code>fp</code> (normalised-text SHA-1, 12 hex) per paragraph; part prefix <code>p&lt;N&gt;.</code> when parts exist.</li>
+<li><strong>Scene card</strong> (LLM-written, schema-validated): <code>anchor</code>, <code>summary</code> (≤80 words), <code>pov</code>, <code>characters[]</code>, <code>location</code>, <code>story_time</code>, <code>events[]</code>, <code>setups[]</code>, <code>payoffs[]</code>, <code>open_threads[]</code>, <code>notes</code>.</li>
+<li><strong>Finding</strong>: <code>id</code>, <code>check_id</code>, <code>anchors[]</code> (≥1), <code>evidence</code> (quotes ≤25 words each), <code>severity</code>, <code>confidence</code> (0–1), <code>effort</code> (S/M/L), <code>kind</code> (problem/strength), <code>status</code>.</li>
+<li><strong>Action</strong>: <code>id</code>, <code>finding_ids[]</code>, <code>level</code> (structural/scene/line), <code>round</code>, <code>what</code>, <code>why</code>, <code>where</code> (writer locator), <code>options[]</code>, <code>status</code> (pending/accepted/rejected/done/deferred), <code>verified_in</code> (draft id). No replacement prose (D-12).</li>
+<li><strong>Profile</strong> (<code>analysis/profile.toml</code>): <code>mode</code>, <code>traits[]</code>, <code>disabled[]</code>, <code>weights{}</code>, <code>language</code>.</li>
+</ul></div>
+<div class="note" data-for="s-spec-data-contracts-workspace-files-s"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Data contracts (workspace files, schema_version = 1)</span></div><textarea class="note-ta" data-key="s-spec-data-contracts-workspace-files-s" data-label="Data contracts (workspace files, schema_version = 1)" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Novel content leaks into the repo</td>
+<td>Med</td>
+<td>High</td>
+<td><code>lc guard</code> pre-commit + CI; local and per-workspace term lists</td>
+<td>unit tests; CI <code>guard --all</code></td>
+</tr>
+<tr>
+<td>Anchors drift after heavy rewrites</td>
+<td>Med</td>
+<td>High</td>
+<td>fingerprint + fuzzy + order-aware alignment; stale-scene re-analysis</td>
+<td>synthetic edit suite (T6 gate)</td>
+</tr>
+<tr>
+<td>LLM output off-schema or hallucinated anchors</td>
+<td>High</td>
+<td>Med</td>
+<td>schemas + <code>lc validate</code>; anchors checked against structure</td>
+<td>schema-validity gates (T8, T11)</td>
+</tr>
+<tr>
+<td>Chat sandboxes lack Python ≥3.12 or file persistence</td>
+<td>Med</td>
+<td>Med</td>
+<td>stdlib only; zip round-trip; reduced no-code mode</td>
+<td>manual check per platform (T14)</td>
+</tr>
+<tr>
+<td>Feedback too generic / not actionable</td>
+<td>Med</td>
+<td>High</td>
+<td>evidence rule; actions need what/why/where/options; rounds with exit criteria</td>
+<td>usability criterion on first working novel</td>
+</tr>
+<tr>
+<td>Tool drifts into writing the novel</td>
+<td>Low</td>
+<td>High</td>
+<td>D-12 rule in AGENTS + prompts; prose detector on actions</td>
+<td><code>generated_manuscript_prose_in_actions == 0</code></td>
+</tr>
+<tr>
+<td>Writer cannot find the location</td>
+<td>Med</td>
+<td>High</td>
+<td>locator with first/last words verified unique</td>
+<td><code>writer_locators_complete == 1.0</code></td>
+</tr>
+<tr>
+<td>Stdlib-only metrics too crude for Spanish/English</td>
+<td>Med</td>
+<td>Low</td>
+<td>language word lists; metrics as pointers, LLM judges</td>
+<td>golden tests on corpus</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></div><textarea class="note-ta" data-key="s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Specification" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var name='literary-critic-spec-notes-'+today()+'-r2.md';
+    var saved=download(name,r.text);openModal(r.text);
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    dirty=false;setState('✓ Backup saved '+nowStamp(),'ok');
+    toast('Exported '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>

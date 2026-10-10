@@ -1,0 +1,321 @@
+# Script-measured metrics consumed by checks. status: planned | implemented
+
+[metric.words_per_chapter]
+description = "Word count of each chapter."
+unit = "words"
+status = "planned"
+languages = ["any"]
+
+[metric.words_per_scene]
+description = "Word count of each scene (scene = text between scene breaks)."
+unit = "words"
+status = "planned"
+languages = ["any"]
+
+[metric.scene_count_per_chapter]
+description = "Number of scenes in each chapter."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.scene_length_cv]
+description = "Coefficient of variation of scene length, whole book and per part."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+formula = "sd(words_per_scene) / mean(words_per_scene)"
+
+[metric.chapter_length_cv]
+description = "Coefficient of variation of chapter length."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+formula = "sd(words_per_chapter) / mean(words_per_chapter)"
+
+[metric.dialogue_ratio]
+description = "Share of words inside dialogue, per scene and chapter. Dialogue markers are configurable (quotes, guillemets, dash-led lines)."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+formula = "dialogue_words / total_words"
+
+[metric.sentence_length_mean]
+description = "Mean sentence length in words, per chapter and book."
+unit = "words"
+status = "planned"
+languages = ["any"]
+
+[metric.sentence_length_sd]
+description = "Standard deviation of sentence length, per chapter; low values suggest monotony."
+unit = "words"
+status = "planned"
+languages = ["any"]
+
+[metric.long_sentence_rate]
+description = "Share of sentences above a language-specific length threshold (default 40 words, 50 for Spanish)."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+formula = "sentences_over_threshold / sentences"
+
+[metric.paragraph_length_mean]
+description = "Mean and distribution of paragraph length in words; also share of paragraphs above 250 words."
+unit = "words"
+status = "planned"
+languages = ["any"]
+
+[metric.readability_fernandez_huerta]
+description = "Fernandez-Huerta readability, per chapter. A relative gauge only; ignores vocabulary and syntax depth."
+unit = "score"
+status = "planned"
+languages = ["es"]
+formula = "206.84 - 0.60*P - 1.02*F  (P = syllables per 100 words, F = sentences per 100 words)"
+
+[metric.readability_szigriszt_inflesz]
+description = "Szigriszt-Pazos perspicuity score with INFLESZ band, per chapter. Designed for non-fiction; use for relative comparison between chapters."
+unit = "score"
+status = "planned"
+languages = ["es"]
+formula = "206.835 - 62.3*(syllables/words) - (words/sentences)"
+
+[metric.readability_flesch]
+description = "Flesch Reading Ease, per chapter. Weakly informative for fiction; compare chapters with each other."
+unit = "score"
+status = "planned"
+languages = ["en"]
+formula = "206.835 - 1.015*(words/sentences) - 84.6*(syllables/words)"
+
+[metric.mtld]
+description = "Measure of Textual Lexical Diversity (threshold 0.72, forward and backward average), per chapter, on lemmas where a lemmatiser exists."
+unit = "score"
+status = "planned"
+languages = ["any"]
+formula = "tokens / factors (McCarthy & Jarvis)"
+
+[metric.adverb_density]
+description = "Adverbs in -mente (Spanish) or -ly (English) per 1,000 words, with dialogue-tag clusters flagged."
+unit = "per_1000_words"
+status = "planned"
+languages = ["es", "en"]
+
+[metric.filter_word_density]
+description = "Perception and cognition filter words (saw, felt, noticed, seemed / vio, sintio, noto, parecio) per 1,000 words; word lists per language."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.repeated_ngram_rate]
+description = "Share of 3- to 6-grams occurring more than once in the book (stopword-only n-grams excluded), with locations."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.word_echo_count]
+description = "Occurrences of the same content word (lemma where available) within a short window (default 50 words), listed with positions."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.crutch_word_frequency]
+description = "Frequency of a per-language list of crutch and vague words (just, very, suddenly, began to / de repente, empezar a, muy, algo, cosa), plus the book's own top repeated words."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.dialogue_tag_distribution]
+description = "Distribution of dialogue tag verbs (said-type vs other) and share of tags modified by adverbs."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.exclamation_ellipsis_density]
+description = "Exclamation marks, ellipses and question marks per 1,000 words, per chapter."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.character_presence_matrix]
+description = "Matrix of registered characters (and aliases) by chapter or scene: mention counts and first/last chapter present."
+unit = "matrix"
+status = "planned"
+languages = ["any"]
+
+[metric.pov_distribution]
+description = "Words and scenes per viewpoint character or narrating voice, once POV is tagged in L2."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.character_first_appearance]
+description = "Position (chapter and percent of book) of each named character's first mention; counts of new names per chapter."
+unit = "percent"
+status = "planned"
+languages = ["any"]
+
+[metric.motif_occurrences]
+description = "Occurrences of each motif-register entry by chapter, from its declared search terms."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.setup_payoff_distance]
+description = "Distance in chapters and percent of text between each ledger setup and its payoff; unpaid and unplanted entries listed."
+unit = "percent"
+status = "planned"
+languages = ["any"]
+
+[metric.timeline_gap_count]
+description = "Number of gaps, overlaps or impossible orderings found in the timeline register by rule-based comparison of dates, ages and durations."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.open_thread_count]
+description = "Number of registered threads (questions, subplots, promises) open at each chapter; threads with no mention for a long span are flagged."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.author_note_markers]
+description = "Leftover author notes: square or curly brackets, TODO/XXX/NOTA/?? markers, highlighted or commented passages, duplicated headings."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.opening_hook_span]
+description = "Words before the first conflict, question or disruption in the opening. The script proposes a candidate position, the LLM confirms."
+unit = "words"
+status = "planned"
+languages = ["any"]
+
+[metric.chapter_ending_types]
+description = "Classification of how each chapter ends (cliffhanger, reflection, dialogue, action, summary...). The LLM labels, the script tallies runs and variety."
+unit = "categorical"
+status = "planned"
+languages = ["any"]
+
+[metric.scene_summary_ratio]
+description = "Share of text in scene mode versus summary mode, per chapter. The LLM tags passages, the script aggregates."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.sentence_opener_repetition]
+description = "Share of sentences opening with the same word, pronoun or name; runs of identical openers."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.long_paragraph_rate]
+description = "Share of paragraphs above 250 words with no dialogue."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.new_term_density]
+description = "Proper nouns and rare or invented terms introduced per chapter, per 1,000 words."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.name_similarity_pairs]
+description = "Pairs of character names with the same initial or small edit distance, with co-occurrence counts."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.name_variant_count]
+description = "Spelling and form variants of each registered name or term across the book."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.tense_consistency]
+description = "Share of past, present and other tense verbs per scene; accidental shifts flagged. Needs a tagger or language rules."
+unit = "ratio"
+status = "planned"
+languages = ["any"]
+
+[metric.long_speech_count]
+description = "Dialogue turns above 150 words, per chapter."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.denouement_share]
+description = "Share of the text after the climax scene (climax position supplied by the LLM)."
+unit = "percent"
+status = "planned"
+languages = ["any"]
+
+[metric.quote_style_consistency]
+description = "Counts of each dialogue and quotation convention in use (dash, guillemets, straight or curly quotes, apostrophes, spacing around dashes and ellipses)."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.sensory_word_density]
+description = "Words from per-language sensory lexicons (sight, sound, smell, touch, taste, temperature) per 1,000 words, per scene, split by modality. A pointer to thin or single-sense grounding, not a quality score."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.knowledge_order_violations]
+description = "Candidate knowledge slips from the knowledge ledger: a character using or reacting to a fact in a scene earlier than the chapter recorded as when they learned it, listed with both locations."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.scene_break_markers]
+description = "Scene-break markers in use (blank lines, ornaments such as *** or #) with counts per style and locations of minority styles or suspected lost breaks."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.dialogue_run_length]
+description = "Runs of consecutive dialogue paragraphs with no narration or attribution, per scene: longest run and runs above a threshold (default 8 lines)."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.dialogue_punctuation_anomalies]
+description = "Dialogue lines breaking the configured per-language rule set (e.g. punctuation before or after a tag, capital after a tag, closing mark missing, two speakers in one paragraph), with locations."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.cliche_list_hits]
+description = "Matches against a per-language list of stock phrases and stock body reactions, per 1,000 words, with locations."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.comparison_marker_density]
+description = "Simile and comparison markers (like, as if, as though / como, como si, igual que) per 1,000 words, with clusters of two or more in one sentence or short window located; word lists per language."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.suffix_echo_count]
+description = "Clusters of words sharing the same ending (configurable suffixes or last syllable) within a short window, as a proxy for accidental rhyme and jingles."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.spelling_variety_mix]
+description = "Counts of each form of known spelling-variety pairs (per-language lists, e.g. colour/color, -ise/-ize, video/vídeo) with locations of the minority form."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.heading_sequence]
+description = "Chapter and part numbering gaps or duplicates, and heading format variants, from the structure register."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.typo_signals]
+description = "Mechanical proofreading signals: doubled words, unmatched quotes or brackets, double spaces, space before punctuation, lowercase after sentence end, with locations."
+unit = "count"
+status = "planned"
+languages = ["any"]

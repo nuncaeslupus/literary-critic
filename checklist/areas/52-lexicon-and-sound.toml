@@ -1,0 +1,103 @@
+id = "lexicon-and-sound"
+title = "Lexicon and sound"
+stage = "line"
+order = 52
+purpose = "Look at word choice and sound: the book's characteristic vocabulary, precision, wordplay, cadence and phonic patterns, register in the narration, consistency of language variety, and words that echo or turn into tics. Speakers' registers are judged in dialogue.voices. This area also protects distinctive features that a generic editor would flatten, including deliberate verbal returns tracked in the motif register."
+
+[[check]]
+id = "lexicon-and-sound.characteristic-vocabulary"
+title = "Characteristic vocabulary"
+question = "Which words, semantic fields and registers make this book sound like itself?"
+look_for = ["a distinctive semantic field", "favourite words", "terms from a specialist domain"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L3", "metrics"]
+metrics = ["mtld", "crutch_word_frequency"]
+evidence = "The book's most frequent and distinctive content words from the metrics, grouped by field and judged for effect; the list feeds the echo and protect checks below."
+
+[[check]]
+id = "lexicon-and-sound.precision"
+title = "Semantic precision"
+question = "Do words mean exactly what they need to?"
+look_for = ["near-synonyms used loosely", "a wrong word that sounds like the right one", "vague nouns (thing, aspect, something)", "false friends in a translated or multilingual text"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3"]
+evidence = "Quoted words with the sense intended and the sense conveyed, read in hotspot passages and pivotal scenes."
+severity = { high = "Imprecision alters meaning at important points.", medium = "Loose wording recurs.", low = "Occasional." }
+
+[[check]]
+id = "lexicon-and-sound.echoes-crutch-words"
+title = "Echoes and crutch words"
+question = "Which words repeat too close together, and which favourite words or tics recur across the book until they wear thin?"
+look_for = ["the same content word twice in a sentence or paragraph", "a favourite adjective or verb in every chapter", "'suddenly' or 'something' as a reflex", "a repeated gesture (nodding, sighing, smiling)"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "motifs", "metrics"]
+metrics = ["word_echo_count", "crutch_word_frequency", "repeated_ngram_rate"]
+evidence = "Echo pairs and top tics with counts and positions from the script; the LLM reads each hotspot and drops deliberate returns (motif-register words, anaphora, refrains) before flagging."
+severity = { high = "A tic recurs so often that readers will notice it as a flaw of the book.", medium = "Recurrent echoes or tics in many chapters.", low = "A few close echoes." }
+
+[[check]]
+id = "lexicon-and-sound.sound-cadence"
+title = "Sound and cadence"
+question = "Does the prose read well aloud, free of accidental rhyme, jingles and stumbling stress patterns?"
+look_for = ["unintended rhyme or repeated word endings in prose (e.g. -tion/-ción, -ing, -mente)", "alliteration drawing attention to itself", "sentences that stumble when read aloud", "sing-song regularity"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["suffix_echo_count", "sentence_length_sd"]
+evidence = "Clusters of repeated endings located by the script and read aloud in imagination, with the passages that stumble quoted and a verdict on intent."
+severity = { high = "Accidental sound patterns distract in important passages.", medium = "Repeated in several places.", low = "Occasional." }
+
+[[check]]
+id = "lexicon-and-sound.polysemy-wordplay"
+title = "Wordplay and humour"
+question = "Where do double meanings, puns or verbal humour work, and where do they confuse or break tone?"
+look_for = ["a pun interrupting a serious scene", "humour that depends on unexplained context", "an unintended double meaning"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3"]
+evidence = "Instances quoted with the effect, success or failure, and any dependence on knowledge of one language or culture."
+severity = { high = "Wordplay undermines tone or comprehension at key points.", medium = "Some wordplay misfires.", low = "Minor." }
+
+[[check]]
+id = "lexicon-and-sound.registers"
+title = "Narrative register"
+question = "Within passages, does the narration hold a register suited to its voice, and are shifts between registers (colloquial, literary, technical, institutional) motivated?"
+look_for = ["register shifts without cause", "technical jargon without help for the reader", "institutional language leaking into private scenes", "a literary word dropped into a plain voice, or the reverse"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "characters"]
+evidence = "Passages quoted at the shift with the two registers named and whether the shift is motivated by viewpoint, irony or scene. Words from the wrong period or world are world-coherence.anachronism; drift across the whole book is pov-and-voice.voice-consistency."
+severity = { high = "Register mismatch undermines credibility or voice in key scenes.", medium = "Several mismatches.", low = "Occasional." }
+
+[[check]]
+id = "lexicon-and-sound.language-variety"
+title = "Language variety and foreign words"
+question = "Does the narration keep one spelling and vocabulary variety (e.g. British or American English, peninsular or American Spanish), and are foreign words handled consistently?"
+look_for = ["both spellings of a variant pair (e.g. colour/color)", "regional vocabulary from two varieties in the narration", "a foreign word italicised in one place and roman in another", "foreign words glossed inconsistently"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["spelling_variety_mix", "name_variant_count"]
+evidence = "Variant pairs with counts of each form and locations of the minority form; the chosen variety confirmed with the writer. Characters' speech in another variety is characterisation, not error."
+severity = { high = "Varieties are mixed throughout the narration.", medium = "A minority form recurs in several chapters.", low = "Isolated cases." }
+
+[[check]]
+id = "lexicon-and-sound.protect-features"
+title = "Stylistic features not to normalise"
+question = "Which unusual features (spellings, syntax, repetitions, refrains, register jumps, key words that return transformed) are deliberate and must be protected?"
+look_for = ["idiosyncratic word order used consistently", "unconventional punctuation applied systematically", "archaic or regional forms used on purpose", "a key word whose meaning shifts across the book"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L3", "motifs", "findings"]
+evidence = "Features quoted with evidence they are deliberate (consistency, effect, link to motifs) and an explicit note that line fixes must not normalise them."

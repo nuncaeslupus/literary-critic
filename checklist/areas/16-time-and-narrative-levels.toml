@@ -1,0 +1,144 @@
+id = "time-and-narrative-levels"
+title = "Time and narrative levels"
+stage = "developmental"
+order = 16
+purpose = "Make sure the reader always knows when and from where something is being told: story chronology versus order of telling, flashbacks and flash-forwards, time jumps, the narrator's position, and levels nested inside one another. Source of knowledge and memory reliability are checked here because they determine how much the telling can be trusted. Date and age arithmetic belongs to continuity."
+
+[[check]]
+id = "time-and-narrative-levels.chronology-map"
+title = "Story chronology versus telling order"
+question = "What is the real order of events in the story, and how does the order of telling differ?"
+look_for = ["telling order that obscures cause and effect", "events placed out of order without effect", "a timeline that cannot be reconstructed"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L1", "timeline", "metrics"]
+metrics = ["timeline_gap_count"]
+evidence = "Two sequences side by side (story order and chapter order) with dates or relative markers; gaps and impossible orderings from the metric listed for the LLM to confirm."
+
+[[check]]
+id = "time-and-narrative-levels.analepsis-prolepsis"
+title = "Flashbacks and flash-forwards"
+question = "Where does the telling leave the main time, how far does it go, and why does the reader need it at that moment?"
+look_for = ["a flash-forward that spoils a later effect", "a flashback that tells what the reader already knows or could infer", "an excursion whose reach (how far back or ahead) is never made clear", "an excursion so long the main time is forgotten"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "timeline"]
+evidence = "Each excursion with location, reach (how far it goes), length and what it does for the present scene; options to move, shorten or split it. Timing against the present scene's tension is pacing.suspension; entry and exit markers are level-signalling."
+severity = { high = "A time excursion confuses the order of events or spoils a later effect.", medium = "An excursion adds little or runs too long.", low = "Excursion works but could be tighter." }
+
+[[check]]
+id = "time-and-narrative-levels.time-jumps"
+title = "Time jumps and ellipses"
+question = "Are jumps in time signalled, proportionate and consequential, and is the passage of time felt?"
+look_for = ["unmarked leap of years", "a gap in which characters change without acknowledgement", "the passage of time not felt: nothing in people or world registers a long gap"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "timeline", "metrics"]
+metrics = ["timeline_gap_count"]
+evidence = "Jump locations with the stated or inferred interval, the marker that signals it (or its absence), and what is lost or changed across it. Date, season and age arithmetic across the gap is continuity.time-continuity."
+severity = { high = "A jump leaves the reader lost or hides a change essential to the story.", medium = "Signalled late or vaguely.", low = "Works but could be clearer." }
+
+[[check]]
+id = "time-and-narrative-levels.age-fit"
+title = "Age-appropriate perception and behaviour"
+question = "At each episode, do key characters' behaviour, knowledge, perception and vocabulary fit their age at that time?"
+look_for = ["a child who reasons as an adult without that being the point", "an adult episode narrated with a child's limits or the reverse", "no visible change in a character across decades"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "timeline", "L2"]
+evidence = "Age per episode from the timeline register, with the scenes where behaviour or language and age conflict. A retrospective narrator lending adult words to a child's experience is noted as a design choice if consistent. Whether ages add up is continuity.time-continuity."
+severity = { high = "A character's age-behaviour mismatch undermines a pivotal scene or relationship.", medium = "Behaviour does not match age in a notable scene.", low = "A small slip in vocabulary or reasoning." }
+
+[[check]]
+id = "time-and-narrative-levels.narrator-position"
+title = "Narrator's position when telling"
+question = "From what moment, place and situation does the narrator tell (the narrating now), and do the narration's tenses, deictics and references keep to that position?"
+look_for = ["deictics (now, here, today) mixing the narrating moment with the story moment", "the narrating moment drifting (narrator's age, place or situation) without the narration marking it", "narrator-now and character-then blurred so the reader cannot tell which is speaking", "a narrating position stated early and contradicted later"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "L3"]
+applies_when = ["retrospective_narrator", "first_person"]
+evidence = "Passages revealing the telling position and passages that conflict with it, located by scene; L3 only for the cited passages. Who narrates and in which person is pov-and-voice.narrator-identity; the irony or judgement the gap produces is pov-and-voice.irony-distance."
+severity = { high = "The telling position is unstable so knowledge or judgement is confused.", medium = "Position is clear but inconsistently used.", low = "A slip in a single sentence." }
+
+[[check]]
+id = "time-and-narrative-levels.nested-levels"
+title = "Nested narrative levels"
+question = "What levels exist (frame, story, memory within story, account by another character, document) and how do they relate?"
+look_for = ["a story told by one character containing details only another knew", "levels that merge without notice", "a frame that is set up and never returned to"]
+method = "llm"
+kind = "inventory"
+action_level = "none"
+inputs = ["L1", "L2", "structure"]
+applies_when = ["nested_narration", "epistolary_or_documents"]
+evidence = "Level map: each level, its narrator, its time, and the passages where it begins and ends."
+
+[[check]]
+id = "time-and-narrative-levels.level-signalling"
+title = "Signalling of level and time changes"
+question = "At each change of narrative level or time strand (entering or leaving a flashback, frame, embedded account or parallel strand), does the reader know where they now are and who is narrating?"
+look_for = ["no marker at the change", "markers that are inconsistent between levels", "tense or voice shifting without cue"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "metrics", "L3"]
+metrics = ["tense_consistency"]
+applies_when = ["nested_narration", "nonlinear_time", "dual_timeline", "retrospective_narrator"]
+evidence = "Each level or strand change with its marker (or absence) quoted; tense shifts from the metric used to find candidates. Deliberate disorientation is judged by whether the reader is re-oriented in time. Ordinary joins between scenes in the same strand are scene-craft.transitions."
+severity = { high = "The reader loses the level or time in a way that damages comprehension.", medium = "Markers missing or inconsistent at several points.", low = "A marker exists but could be more consistent." }
+
+[[check]]
+id = "time-and-narrative-levels.strand-interplay"
+title = "Interplay of time strands"
+question = "Do the parallel time strands illuminate each other, and does each hold its own momentum?"
+look_for = ["one strand clearly weaker so the reader skims it", "strands that never touch in meaning or event", "a switch that cuts away at the same kind of moment every time"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "structure", "metrics"]
+metrics = ["words_per_chapter"]
+applies_when = ["dual_timeline"]
+evidence = "Share of text per strand, the points where strands echo or collide, and the stretches where one strand stalls."
+severity = { high = "One strand fails to earn its place or the strands never connect.", medium = "Uneven strands or mechanical alternation.", low = "Connections could be sharper." }
+
+[[check]]
+id = "time-and-narrative-levels.knowledge-source"
+title = "Source of knowledge and reliability of memory"
+question = "For each important fact, scene or thought the narrator reports, how does the narrator come to know it (experience, testimony, documents, deduction, invention), and is memory treated as fallible where it matters?"
+look_for = ["private scenes or another character's inner life narrated by a first-person narrator without a source", "precise detail or verbatim dialogue from a distant witness or long-past memory", "knowledge appearing before the narrator could have learned it", "uncertainty claimed once and then ignored"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "relationships", "L3"]
+applies_when = ["first_person", "retrospective_narrator", "nested_narration", "unreliable_narrator"]
+evidence = "Passages with the apparent source and claimed certainty, the plausible source, and the gap; contradictions between accounts quoted. What characters (not the narrator) know is relationships-and-knowledge; whether a deliberate unreliability is detectable is pov-and-voice.unreliability-design."
+severity = { high = "Narration relies on knowledge impossible for its source in key scenes, without design.", medium = "Source or certainty plausible but unsignalled in several places.", low = "An occasional unsignalled inference." }
+
+[[check]]
+id = "time-and-narrative-levels.duration-space"
+title = "Story duration versus text space"
+question = "Across the story's timeline, how much story time does each period cover against how much text it receives (scene, summary, ellipsis), and does that time economy fit what each period means to the book?"
+look_for = ["years in a paragraph and an hour in chapters with no reason", "a formative period of the characters' lives reduced to summary", "an uneventful period dramatised at length"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "timeline", "metrics"]
+metrics = ["scene_summary_ratio", "words_per_scene"]
+evidence = "Table of story duration against words, per period or block, and the periods where scene and summary seem misallocated. Build-up and space for individual decisive events are pacing.peak-handling; scene or summary for single moments is scene-craft.show-tell."
+severity = { high = "A period the book depends on is starved or a trivial one takes a large share.", medium = "Allocation is uneven in places.", low = "Mild imbalance." }
+
+[[check]]
+id = "time-and-narrative-levels.time-strength"
+title = "Time-handling strengths"
+question = "Where does the handling of time or levels create an effect worth preserving?"
+look_for = ["a time shift that adds meaning", "two periods that illuminate each other", "a smooth entry into memory"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L1", "L2", "timeline"]
+evidence = "Named passages with the effect produced."

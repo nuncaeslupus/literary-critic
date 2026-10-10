@@ -1,0 +1,102 @@
+id = "architecture"
+title = "Global architecture"
+stage = "developmental"
+order = 10
+purpose = "Judge how the whole is built: the parts or blocks, their order and proportions, what each contributes, and the shape of the reader's experience across them. Structural frameworks are lenses used only where they fit the book's own design; a deliberate unconventional structure is not a defect, but its effect must be demonstrable."
+
+[[check]]
+id = "architecture.block-map"
+title = "Block map"
+question = "What are the parts, blocks or movements of the book, where do they begin and end, and what is each one for?"
+look_for = ["parts with no discernible function", "boundaries drawn by the text that do not match shifts in the story", "chapters that could belong to several blocks"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L1", "structure", "metrics"]
+metrics = ["words_per_chapter"]
+evidence = "Table of blocks with chapter ranges, word counts and share of the book, one-line function and the evidence for each boundary."
+
+[[check]]
+id = "architecture.order"
+title = "Order and placement of blocks"
+question = "Is the sequence of blocks the best available for what the reader needs to know, feel and wonder at each point, and does any chapter or block sit in an arbitrary, early or late position?"
+look_for = ["a block that depends on information given later", "a revelation placed before the reader can feel its weight", "the strongest material buried or spent too early", "a chapter that interrupts momentum where it stands", "material repeated because it sits in the wrong place"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "structure", "timeline", "ledger"]
+evidence = "Name the blocks or chapters, say what the reader must already know for each to work and cite where that knowledge arrives; for each misplaced block, its current effect and at least one alternative position with what that move would touch. State first whether the current order is a deliberate effect that works."
+severity = { high = "Current order blocks comprehension or spends a key effect before it can land.", medium = "Order works, but a specific move would clearly improve clarity or effect.", low = "Alternative orders are arguable; offered as an option." }
+
+[[check]]
+id = "architecture.proportion"
+title = "Proportion between parts"
+question = "Does each part get space in proportion to its weight in the story and its payoff for the reader?"
+look_for = ["a pivotal block much shorter than preparatory ones", "one block several times longer than comparable ones", "the final movement compressed against the rest"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "structure", "metrics"]
+metrics = ["words_per_chapter", "chapter_length_cv"]
+evidence = "Word counts and percentages per block next to the judged weight of each block; each deviation marked as deliberate (with its effect) or not."
+severity = { high = "Imbalance distorts the book's meaning or loses the reader (a key movement is starved or a minor one dominates).", medium = "A noticeable imbalance in one block whose fix is contained.", low = "Mild unevenness consistent with the book's design." }
+
+[[check]]
+id = "architecture.block-function"
+title = "Function of each block"
+question = "If this block were removed or shortened, what would the book lose?"
+look_for = ["block whose loss would change nothing", "function duplicated by another block", "function the writer intends but the text does not deliver"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "structure", "ledger"]
+evidence = "For each block, the loss on removal stated concretely with references to the chapters it feeds later (setups, relationships, knowledge). A block whose function is atmosphere or rest is judged on that function."
+severity = { high = "A whole block has no demonstrable function or only duplicates another.", medium = "A block works only partly or overlaps with another.", low = "Function present but could be sharper." }
+
+[[check]]
+id = "architecture.unity-discontinuity"
+title = "Structural unity and discontinuities"
+question = "Do the parts read as one book, and are the seams (shifts of mode, voice, time, tone) deliberate and prepared?"
+look_for = ["sudden change of mode without preparation", "parts that read like separate works", "a late shift in what the book is about"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "structure"]
+evidence = "Seam locations (chapter or scene) with what changes on each side (voice, tense, scope, tone), short quotes only where the change is in the prose, and a judgement whether the seam is designed and prepared."
+severity = { high = "The shift makes the book feel like two books or breaks the reader's contract.", medium = "Seam is noticeable and unprepared but bridgeable.", low = "Seam is visible but plausibly intentional." }
+
+[[check]]
+id = "architecture.turning-points"
+title = "Turning points (lens)"
+question = "Where does the situation change irreversibly, do those changes escalate or deepen, and which structural model (three-act, five-part, kishotenketsu, episodic, cyclic, mosaic, other) fits the book best?"
+look_for = ["no point after which the situation cannot return", "turning points clustered at one end", "two turns that change the same thing", "a model imposed that the book does not follow"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "structure", "metrics"]
+metrics = ["words_per_chapter"]
+evidence = "Turning points with chapter and percent position (from word counts), what changes irreversibly, and the lens chosen with reason. In non-causal designs the 'turn' may be a shift of understanding or juxtaposition. Absence of a beat under a lens the book does not use is not a finding. This map feeds pacing: stretches with no change are pacing.stalls, build-up and space for each turn are pacing.peak-handling."
+severity = { high = "The book never changes state, or the decisive change is missing.", medium = "Turning points exist but are clustered, weak or redundant.", low = "A turn sits slightly early or late for the book's design." }
+
+[[check]]
+id = "architecture.emotional-shape"
+title = "Emotional and tonal shape"
+question = "Which feelings and tones does the reader pass through across the blocks (grief, comedy, dread, tenderness), in what succession, and does that succession build toward what the ending needs?"
+look_for = ["the same emotional register sustained for many chapters", "the strongest emotional charge spent well before the end, with nothing comparable after", "tonal swings with no bridge", "an ending whose emotional charge the book has not built"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "structure"]
+evidence = "Per block, the dominant emotion or tone with one anchor scene, and the overall succession; flagged stretches cited by chapter range. Monotony that is the book's deliberate effect is recorded as such. This check judges the kind of feeling; the intensity of pull (suspense, curiosity) over the book is pacing.tension-curve."
+severity = { high = "The emotional arc peaks or exhausts itself far from the end, or never builds, so the whole lands flat.", medium = "One block is tonally monotonous or a swing is unprepared.", low = "The curve works; one transition could be smoother." }
+
+[[check]]
+id = "architecture.shape-strength"
+title = "Structural strengths"
+question = "What about the book's construction is distinctive, effective or worth protecting from revision?"
+look_for = ["an unusual arrangement that creates meaning", "symmetry or echo between blocks", "a structural idea the reader can feel"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L1", "structure"]
+evidence = "Named structural features with anchors and the effect they produce."

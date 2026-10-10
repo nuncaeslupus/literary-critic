@@ -1,0 +1,101 @@
+id = "relationships-and-knowledge"
+title = "Relationships and knowledge"
+stage = "developmental"
+order = 22
+purpose = "Trace how people stand to one another (power, dependence, affection, kinship, obligation) and how those relationships evolve, then audit who knows what and when, because information asymmetry, secrets and dramatic irony only work if knowledge is consistent."
+
+[[check]]
+id = "relationships-and-knowledge.relationship-register"
+title = "Relationship register"
+question = "Which pairs and groups matter, what is the nature of each bond, and where does it change?"
+look_for = ["important bond with no scene of its own", "bond changing between chapters without cause", "relationships stated by narration only"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["relationships", "characters", "L2", "metrics"]
+metrics = ["character_presence_matrix"]
+evidence = "Register rows: pair or group, type of bond, key scenes, state at start and end; co-presence from the matrix used to find bonds with no shared scene."
+
+[[check]]
+id = "relationships-and-knowledge.bonds-enacted"
+title = "Bonds enacted: power, dependency, affection, kinship"
+question = "Who holds power over whom, who depends on whom, who loves or owes whom, and does the text show it in choices and conflict rather than assert it?"
+look_for = ["power relations contradicting behaviour", "affection told but not shown", "a family member drawn as a role rather than a person", "a debt or obligation that never shapes a choice"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["relationships", "characters", "L2"]
+evidence = "Per central bond, the scenes where it shapes a decision and the passages where the text asserts it without showing. Contradictory kinship facts are continuity.character-continuity."
+severity = { high = "A central bond is asserted but never enacted, or contradicts its own scenes.", medium = "A bond is shown unevenly or drawn as a type.", low = "A minor bond lacking a scene." }
+
+[[check]]
+id = "relationships-and-knowledge.evolution"
+title = "Evolution of relationships"
+question = "Do relationships change through scenes that cause the change, and do changes coincide with the plot's turns?"
+look_for = ["sudden love or hatred", "reversals by announcement", "a relationship static across the book without design"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["relationships", "L1", "L2", "timeline"]
+evidence = "For each major relationship: stages, the scenes that cause each, and any jump."
+severity = { high = "A central relationship changes without causal scenes.", medium = "Some stages are skipped or told.", low = "Transitions could be better prepared." }
+
+[[check]]
+id = "relationships-and-knowledge.romance-line"
+title = "Central love line"
+question = "Does the love or courtship line build through specific attraction, a credible obstacle and earned turns, and does it deliver the emotional beats its readers expect?"
+look_for = ["attraction asserted with no specific cause", "an obstacle that a single honest conversation would remove", "the couple apart for long stretches with nothing between them", "a resolution that skips the reckoning the line set up"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["relationships", "L1", "L2"]
+applies_when = ["romance_plot"]
+evidence = "Stages of the line with the scene that causes each, the main obstacle and its source, and gaps where the line stalls, by chapter."
+severity = { high = "The love line is unconvincing or its resolution unearned, so the central promise fails.", medium = "A stage is rushed, skipped or rests on an artificial obstacle.", low = "A beat could be sharper." }
+
+[[check]]
+id = "relationships-and-knowledge.knowledge-ledger"
+title = "Knowledge ledger"
+question = "Who knows which key facts, from which chapter, and how did they learn them?"
+look_for = ["facts known by characters who never learned them", "facts the reader knows and characters do not (or inverse) without effect", "secrets with no learner"]
+method = "llm"
+kind = "inventory"
+action_level = "none"
+inputs = ["L2", "ledger", "characters", "timeline"]
+evidence = "Ledger rows: fact, who knows it, chapter learned, source; built from L2 cards so a script can check its order."
+
+[[check]]
+id = "relationships-and-knowledge.asymmetry"
+title = "Information asymmetry, secrets and dramatic irony"
+question = "Where do the reader and characters know different things, and is the gap used for tension or meaning?"
+look_for = ["a secret kept for no reason", "irony available but unexploited", "asymmetry that makes characters seem foolish"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["ledger", "L2", "relationships"]
+evidence = "Each asymmetry with the scenes where it is used, wasted or abused, and whether the reader or the character is ahead."
+severity = { high = "A key secret or gap is incoherent or runs the plot by hiding what a character would plainly say.", medium = "Asymmetry is weakly used.", low = "Opportunity left unused." }
+
+[[check]]
+id = "relationships-and-knowledge.knowledge-consistency"
+title = "Consistency of knowledge"
+question = "Does any character act on information they do not yet have, or forget what they have learned?"
+look_for = ["a reaction before the news", "a secret everyone seems to know", "a lesson learned and then ignored"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["ledger", "L2", "timeline", "characters", "metrics"]
+metrics = ["knowledge_order_violations"]
+evidence = "Each case with the scene of learning and the scene of use; the script lists candidates from the knowledge ledger, the LLM confirms and discards those explained offstage or by inference."
+severity = { high = "Plot-critical knowledge is inconsistent.", medium = "Visible inconsistency in a notable scene.", low = "A small slip." }
+
+[[check]]
+id = "relationships-and-knowledge.bond-strength"
+title = "Relationship strengths"
+question = "Which relationships crackle with specific tension, tenderness or conflict?"
+look_for = ["an exchange where subtext carries the bond", "a relationship changed by a single act", "a bond that makes the theme personal"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["relationships", "L2"]
+evidence = "Named relationships with scene anchors and what makes them work."

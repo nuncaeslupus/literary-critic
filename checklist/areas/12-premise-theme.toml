@@ -1,0 +1,100 @@
+id = "premise-theme"
+title = "Premise and theme"
+stage = "developmental"
+order = 12
+purpose = "Identify what the book is fundamentally about and whether the story actually carries it: the central question or organising problem, whether the premise's potential is used, the governing idea, how meaning is stated versus enacted, and whether the ending is consistent with that meaning."
+
+[[check]]
+id = "premise-theme.central-question"
+title = "Central question or organising problem"
+question = "What is the book's central conflict, dramatic question or organising problem (which may be a situation, a mystery of character or a pattern rather than a conflict), and when is it posed?"
+look_for = ["no question or concern the reader can name", "question posed late or shifts mid-book", "several competing questions with no hierarchy"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "structure"]
+evidence = "The question or organising problem stated in one sentence, with the chapters where it is posed, renewed and answered or deliberately left open."
+severity = { high = "The reader cannot tell what the book is driving at.", medium = "The question is clear but vague, late or unstable.", low = "Clear question with minor competing threads." }
+
+[[check]]
+id = "premise-theme.premise-delivery"
+title = "Premise potential delivered"
+question = "Does the book exploit what its premise promises — the situations, confrontations or explorations a reader expects from it — or does it sidestep them?"
+look_for = ["the scene the premise most clearly promises never happens or happens offstage", "the premise's most interesting implication left unexplored", "a premise set up and then replaced by a different book"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1"]
+evidence = "The premise in a sentence, the 2-5 situations it implies, and for each the chapter where the book delivers, transforms or omits it. A deliberate refusal of the expected scene is judged by what it achieves instead."
+severity = { high = "The book's central promise is not delivered and nothing of equal force replaces it.", medium = "An important implication of the premise is underused.", low = "A secondary possibility is left unexplored." }
+
+[[check]]
+id = "premise-theme.governing-idea"
+title = "Governing idea"
+question = "What idea, concern or question does the book advance or interrogate, and does it develop coherently (holding, deepening or deliberately turning) from start to end?"
+look_for = ["idea changes without development", "idea asserted rather than explored", "idea contradicted by events with no awareness"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "motifs"]
+evidence = "Governing idea in a sentence; the scenes where it is most clearly carried; events that support or contradict it, by chapter."
+severity = { high = "The book's meaning is incoherent or self-defeating.", medium = "The idea is present but blurred or inconsistently pursued.", low = "Minor wobble around the idea." }
+
+[[check]]
+id = "premise-theme.stated-enacted"
+title = "Stated versus enacted meaning (didacticism)"
+question = "Which ideas does the text state outright (narration, essay, a character's speech) and which does it enact through events and images, where does stating replace enacting, and does the share of reflection to story suit the book?"
+look_for = ["narrator or character delivering the moral of a scene the reader already understood", "an idea that matters in the plot but is only ever explained", "events staged as arguments, or reflection floating free of any scene", "essay-like stretches overwhelming the story"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "L3"]
+evidence = "Two lists, explicit statements (located, quoted briefly) and enactments (events, images), the share of reflective passages per block, then the passages where statement replaces enactment and what in the scene already carries the idea. In essayistic or openly philosophical designs, statement is the mode: judge only whether the essay earns its place. The same point restated again is density-and-pruning.conceptual-reiteration."
+severity = { high = "Preaching dominates several chapters or the theme exists only as statement.", medium = "Repeated moralising passages that duplicate what scenes show.", low = "An isolated explanatory sentence." }
+
+[[check]]
+id = "premise-theme.open-contradictions"
+title = "Contradictions kept open"
+question = "Which tensions or contradictions does the book leave unresolved, and is the refusal visible as a choice rather than an oversight?"
+look_for = ["an ambiguity that reads as indecision", "a contradiction nobody in the text acknowledges", "a tension resolved by one side quietly winning"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "motifs"]
+evidence = "Each tension with the scenes on both sides and the textual signal (or lack) that it is deliberate."
+severity = { high = "An unintended contradiction undermines the book's argument or a central character.", medium = "A tension is open but poorly signalled and may read as a mistake.", low = "Open tension works; only its signalling could improve." }
+
+[[check]]
+id = "premise-theme.scales"
+title = "Scales of meaning"
+question = "At which scales does the book work (person, relationship, family or group, community, society, cosmos), and where it promises more than one, are they connected or merely adjacent?"
+look_for = ["a scale announced but never dramatised", "layers that never touch", "a collective theme carried only by speeches"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "relationships"]
+evidence = "Scales identified with scenes where each is enacted and the scenes where they connect. A deliberately single-scale book is not a finding."
+severity = { high = "A promised scale is missing or disconnected so the theme does not land.", medium = "Scales connect weakly.", low = "Connection could be reinforced." }
+
+[[check]]
+id = "premise-theme.ending-meaning"
+title = "Ending and governing idea"
+question = "Is what the ending does (resolution, refusal, reversal) consistent with the meaning the book has built, or does it change the book's meaning without awareness?"
+look_for = ["ending contradicts the book's argument without signalling it", "a resolution that rewards what the book has shown to be false, or the reverse, without design", "a last-minute idea the book never explored"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "L2"]
+evidence = "The governing idea, the final chapters' events, and the scenes showing consistency or conflict. Whether the plot question is resolved is ending.conflict-resolution; a closing line that states the moral is ending.last-image-voice."
+severity = { high = "The ending betrays or abandons what the book meant, unintentionally.", medium = "The ending's meaning is blurred.", low = "Slight mismatch of emphasis." }
+
+[[check]]
+id = "premise-theme.theme-strength"
+title = "Thematic strengths"
+question = "Where do idea and story fuse best, so that meaning is felt without being stated?"
+look_for = ["an image or scene that carries the theme", "a character whose arc is the theme", "a question that deepens as the book proceeds"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L1", "L2", "motifs"]
+evidence = "Named moments with anchors and why they work."

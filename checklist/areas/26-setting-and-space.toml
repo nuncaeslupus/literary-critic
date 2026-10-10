@@ -1,0 +1,88 @@
+id = "setting-and-space"
+title = "Setting and space"
+stage = "developmental"
+order = 26
+purpose = "Check whether places are concrete and do work in the story: a geography the reader can hold, places with distinct functions, setting that acts on characters, social rules that spaces impose, meanings that change with the characters, and sensory grounding. Staging within a scene belongs to scene-craft.staging; descriptive blocks that stall the story to density-and-pruning.info-dumps; consistency of layouts and who-is-where to continuity; invented-world rules to world-coherence."
+
+[[check]]
+id = "setting-and-space.location-register"
+title = "Narrative geography"
+question = "Which places matter, how do they relate to one another, and can the reader build the spatial picture the story needs?"
+look_for = ["places named once and never used", "relations between key places (distance, direction, travel time) never given though the plot depends on them", "a layout the reader would need a map to follow", "two names that seem to refer to one place"]
+method = "llm"
+kind = "inventory"
+action_level = "none"
+inputs = ["locations", "L2", "timeline"]
+evidence = "Location register rows: place, first appearance anchor, scenes set there, relation to other key places, and the plot moments that depend on spatial facts."
+
+[[check]]
+id = "setting-and-space.functional-difference"
+title = "Functional difference between places"
+question = "Does each important place do something for the story that no other place does, or are some interchangeable backdrops?"
+look_for = ["two settings that could be swapped with no loss", "a place that is only décor", "scenes set in a neutral place when a charged one was available", "several settings serving the same purpose"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2"]
+evidence = "Per key place: what happens there that happens nowhere else; swappable pairs and neutral settings listed with scene anchors and a candidate place the scene could use instead."
+severity = { high = "The main settings are interchangeable and add nothing to what the story means or feels like.", medium = "Several places are thin or redundant.", low = "A minor setting lacks specificity." }
+
+[[check]]
+id = "setting-and-space.setting-agency"
+title = "Setting as an active force"
+question = "Does the setting act on the story (climate, terrain, city, building, season, economy constraining, endangering or shaping people and mood), or does it only sit behind it?"
+look_for = ["weather or season that never affects anyone", "a harsh or crowded environment the characters move through without friction", "atmosphere at odds with the book's tone with no intended contrast", "a setting announced as important that never presses on a decision"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L1", "L2"]
+evidence = "Key places and environmental conditions with the scene anchors where they do (or should) constrain action, choices or mood. Settings deliberately kept muted are recorded as such."
+severity = { high = "A setting the book's premise depends on never shapes events or feeling.", medium = "Setting acts in some scenes but is inert where it should press.", low = "Missed opportunity in a secondary scene." }
+
+[[check]]
+id = "setting-and-space.spatial-rules"
+title = "Social rules of spaces"
+question = "What does each important space allow, forbid or cost (private or public, sacred, institutional, gendered, guarded, confining), and do scenes respect and exploit those rules?"
+look_for = ["private matters aired in a watched space with no consequence", "a space of authority or confinement described but never felt", "a character crossing a threshold that should cost them, at no cost", "rules of a space that change to suit the plot"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "L2", "relationships"]
+evidence = "Each key space with the rules the book itself establishes for it, and the scene anchors where they are enacted, ignored or broken; judged by the book's own culture, not the reader's."
+severity = { high = "A space's rules are broken in a key scene so that it loses credibility or tension.", medium = "The rules of an important space are stated more than dramatised, or underused.", low = "A minor lapse." }
+
+[[check]]
+id = "setting-and-space.space-change"
+title = "Meaning of places and character change"
+question = "Do key places change meaning for characters (refuge, trap, exile, home, return) through scenes that cause the change, and do movements between places track the characters' inner movement, up to the final place?"
+look_for = ["a place whose meaning changes with no scene that causes it", "a move or journey with no inner effect", "a return to an earlier place that registers no change", "a final location that is arbitrary or unprepared", "a symbolic place with no concrete features"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["locations", "characters", "L1", "L2"]
+evidence = "For each key place: its meaning at first appearance, the turning scene anchor, and its meaning at the end; place changes aligned with arc stages; mismatches cited."
+severity = { high = "A pivotal place or the final place contradicts or ignores the arc the book built.", medium = "The link between place and change is loose or told rather than shown.", low = "Underdeveloped secondary place." }
+
+[[check]]
+id = "setting-and-space.sensory-grounding"
+title = "Sensory grounding"
+question = "Are scenes anchored in specific physical detail, across more senses than sight where that helps, so the reader knows where they are?"
+look_for = ["scenes in a 'white room' with no physical anchor", "only visual description throughout", "generic nouns where a particular would place the reader", "physical detail that never passes through the viewpoint character's senses"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["sensory_word_density"]
+evidence = "Scenes with low or single-modality sensory density as pointers; for each flagged scene, the opening lines quoted and what anchors (or fails to anchor) the reader. Deliberately spare or abstract writing is recorded before flagging."
+severity = { high = "Key scenes have no physical anchoring, so the reader cannot picture where or when they happen.", medium = "Many scenes are thinly grounded.", low = "An occasional thin scene." }
+
+[[check]]
+id = "setting-and-space.space-strength"
+title = "Setting strengths"
+question = "Which places, atmospheres or spatial effects are most alive and should be protected in revision?"
+look_for = ["a place that acts on the characters", "a sensory passage that places the reader at once", "a familiar space transformed by events", "an atmosphere that carries the book's tone"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["locations", "L2", "L3"]
+evidence = "Named places or passages with anchors and short quotes, and what they do."

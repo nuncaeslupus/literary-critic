@@ -1,0 +1,158 @@
+id = "pov-and-voice"
+title = "Point of view and voice"
+stage = "developmental"
+order = 24
+purpose = "Check who tells, through whose perception, and from how close, and whether the reader can follow and trust that arrangement. Viewpoint discipline, psychic distance, omniscient control, narrator intrusion, unreliability and the distinctness and stability of voice are judged against what the book is trying to do. How the narrator knows what they tell (sources, memory, reconstruction) and the signalling of narrative levels belong to time-and-narrative-levels."
+
+[[check]]
+id = "pov-and-voice.narrator-identity"
+title = "Narrative stance"
+question = "What is the narrative stance (person, tense, narrator's relation to the events, limited or omniscient), and does the book establish it clearly and keep to it or change it on purpose?"
+look_for = ["a narrator whose identity or relation to the events stays unclear without that being the point", "person or stance changing between chapters with no signal or design", "a 'you' or 'we' narration whose referent drifts", "a stance declared early and quietly abandoned"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "L2"]
+evidence = "One-line statement of the stance from L0/L2, the passages where it is first signalled, and each departure cited by scene anchor with a short quote. The narrating moment and place are time-and-narrative-levels.narrator-position."
+severity = { high = "The stance is contradictory or unreadable in ways that change what the reader understands of the whole book.", medium = "The stance is clear in most of the book but blurs in whole chapters or blocks.", low = "Isolated drift in a few passages." }
+
+[[check]]
+id = "pov-and-voice.pov-map"
+title = "Viewpoint map"
+question = "Through whose perception is each scene given, and how is the viewpoint share distributed across the book?"
+look_for = ["scenes with no identifiable perceiver", "a viewpoint character who vanishes for long stretches", "one viewpoint dominating a book presented as shared", "viewpoint changes inside a scene"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L2", "structure", "metrics"]
+metrics = ["pov_distribution"]
+applies_when = ["multiple_pov", "omniscient_narration", "ensemble_cast"]
+evidence = "POV tag per scene from L2, the distribution table, and the scene anchors of anomalies (untagged, mixed, long absences)."
+
+[[check]]
+id = "pov-and-voice.pov-choice"
+title = "Choice of viewpoint per scene"
+question = "Is each scene told through the viewpoint that gives it the most at stake, and does each viewpoint character earn their share of the book?"
+look_for = ["a scene told by a bystander while the person most affected is present", "a viewpoint character with no arc, secret or stake of their own", "a viewpoint used once to deliver information", "two viewpoints that cover the same ground"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L2", "characters", "metrics"]
+metrics = ["pov_distribution"]
+applies_when = ["multiple_pov", "ensemble_cast"]
+evidence = "For each questioned scene or viewpoint: the scene anchor, the current viewpoint, the alternative, and what each would gain or lose; for each viewpoint character, their share and what only they contribute."
+severity = { high = "A viewpoint strand or a key scene is told from a position that drains its stakes, or a whole strand contributes nothing the others do not.", medium = "Several scenes would gain from another viewpoint, or one viewpoint is thin.", low = "An isolated scene where another viewpoint would be sharper." }
+
+[[check]]
+id = "pov-and-voice.head-hopping"
+title = "Viewpoint breaches and head-hopping"
+question = "Does the text enter more minds, or report more than the viewpoint in force can perceive or know, without a deliberate omniscient design?"
+look_for = ["thoughts of two characters within one scene or paragraph under a limited viewpoint", "the viewpoint character describing their own face or expression from outside", "knowledge of events elsewhere with no cue", "slips into the author's knowledge for a sentence"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+evidence = "Each breach quoted with scene anchor, the viewpoint in force (from L2), and whose mind or what knowledge is accessed. Read L3 only for scenes L2 marks as mixed or for samples; deliberate omniscience is recorded under omniscient-control, and a first-person narrator's access to what they could not witness is time-and-narrative-levels.knowledge-source."
+severity = { high = "Breaches in key scenes leave the reader unsure whose experience they share, or leak information that spoils a later effect.", medium = "Recurring breaches that blur tension or intimacy across several scenes.", low = "Occasional single-sentence slips." }
+
+[[check]]
+id = "pov-and-voice.omniscient-control"
+title = "Control of omniscient narration"
+question = "Where the narration moves between minds or speaks from above, is that movement governed by a consistent narrating voice, with clear and purposeful transitions?"
+look_for = ["moves between minds with no narrating presence to carry them", "omniscience appearing in some chapters only", "a narrator who claims limits and then breaks them", "panoramic summary that never settles in any mind at key moments"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+applies_when = ["omniscient_narration"]
+evidence = "Scene anchors of mind-to-mind transitions with the transition quoted; passages where omniscience lapses or overreaches; a note on whether the variation forms a pattern the book uses."
+severity = { high = "The narrating intelligence is inconsistent enough that the reader cannot tell what kind of telling this is, in central scenes.", medium = "Transitions are abrupt or the overview voice comes and goes in several chapters.", low = "A few unmanaged transitions." }
+
+[[check]]
+id = "pov-and-voice.psychic-distance"
+title = "Psychic distance"
+question = "How close is the narration to a character's inner life at each point, and do changes in that distance happen on purpose and at the right moments?"
+look_for = ["distance jumping from remote to deep interiority within a paragraph without effect", "remote summary at emotional peaks", "relentless closeness where distance would give perspective or relief", "one fixed distance across scenes that call for different ones"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["filter_word_density"]
+evidence = "Scene anchors of the emotional peaks (from L2) with the distance used quoted; chapters with unusual filter-word density as pointers only. Before flagging, state whether a sustained distance is the book's deliberate register. Sentence-level filter words are style-and-syntax.filter-words."
+severity = { high = "Distance is wrong at the book's key emotional moments or unstable throughout, so the reader cannot settle into the characters.", medium = "Distance wavers or misfires in several scenes.", low = "A few lapses." }
+
+[[check]]
+id = "pov-and-voice.intrusions"
+title = "Narrator intrusions and commentary"
+question = "Where does the narrator step outside the story to comment, generalise, address the reader or discuss the telling, and does each intrusion add something the scene cannot?"
+look_for = ["asides that interrupt tension at its height", "intrusions repeating the same move", "a commenting presence that appears in some chapters only, with no pattern", "metafictional remarks with no pattern or payoff"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+evidence = "Intrusions quoted with anchors, a count by chapter, and for each the job it does (irony, judgement, framing, explanation). A commenting narrator who is part of the book's design is recorded as such before any flag. Narration explaining a gesture or line the reader already understood is density-and-pruning.explain-duplicates-show."
+severity = { high = "Intrusions break key scenes or keep explaining what the reader has understood, across the book.", medium = "Several redundant or badly placed intrusions.", low = "A few that could be trimmed." }
+
+[[check]]
+id = "pov-and-voice.irony-distance"
+title = "Retrospective distance and irony"
+question = "Does the gap between the narrating self and the experiencing self produce irony, judgement or feeling that the scenes earn, without draining suspense?"
+look_for = ["hindsight announcing outcomes and flattening suspense", "judgement of the younger self that the scene does not support", "irony the reader cannot detect", "the narrating self disappearing in some blocks and dominating others"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3"]
+applies_when = ["retrospective_narrator", "unreliable_narrator"]
+evidence = "Passages of hindsight comment quoted with anchors, the scene they frame, and whether the scene supports the stance; any foreknowledge that pre-empts a later reveal."
+severity = { high = "Hindsight empties the central tension or contradicts the scenes it narrates.", medium = "Stance sometimes undercuts tension or is unearned.", low = "Mild overuse." }
+
+[[check]]
+id = "pov-and-voice.unreliability-design"
+title = "Calibration of unreliability"
+question = "Can the reader detect the narrator's unreliability through the text itself, and is it calibrated so the reader is neither lost nor simply cheated?"
+look_for = ["no textual crack through which the reader could sense the gap", "unreliability so heavy that nothing can be inferred", "a late twist that depends on the narrator withholding what they knew in scenes told from inside their head", "other characters' reactions that never register the gap"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "ledger"]
+applies_when = ["unreliable_narrator"]
+evidence = "The signals of unreliability by scene anchor (contradictions, others' reactions, gaps), the point where an attentive reader can first suspect it, and any reveal that relies on unfair concealment."
+severity = { high = "The unreliability is undetectable until a reveal that feels like a trick, or so total that the story is unreadable.", medium = "Signals are too sparse or too heavy in parts of the book.", low = "One signal could be placed better." }
+
+[[check]]
+id = "pov-and-voice.voice-differentiation"
+title = "Distinct voices of narrators and viewpoints"
+question = "When several narrators, viewpoint characters or document writers carry the telling, could a reader tell them apart without the chapter label?"
+look_for = ["first-person narrators with the same diction and rhythm", "documents by different writers in one style", "a quoted narrator slipping into the frame narrator's diction", "a viewpoint whose perceptions reveal nothing of who they are"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["pov_distribution", "sentence_length_mean", "mtld"]
+applies_when = ["multiple_pov", "nested_narration", "epistolary_or_documents"]
+evidence = "Short paired quotes from different narrators or viewpoints with the features that do or do not separate them; per-voice sentence length and lexical diversity as pointers, split by POV tag."
+severity = { high = "Voices are interchangeable, so readers misattribute events or ideas or lose track of whose section they are in.", medium = "Two or more voices are hard to tell apart in places.", low = "Distinct overall, with occasional convergence." }
+
+[[check]]
+id = "pov-and-voice.voice-consistency"
+title = "Voice consistency and fit"
+question = "Does the voice stay recognisable from start to finish, fit the narrator who carries it, and change only where change is motivated?"
+look_for = ["register drifting between chapters or drafts", "voice flattening in plot-heavy or expository passages", "diction or insight beyond what the narrator could plausibly have, without the book licensing it", "different vocabulary when the author's research takes over"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["sentence_length_mean", "sentence_length_sd", "mtld"]
+evidence = "Sample passages from distant parts compared, with chapters that are metric outliers as pointers; each lapse quoted with anchor. A voice that evolves with the narrator (growing up, breaking down) is recorded as motivated before flagging."
+severity = { high = "The voice changes enough to read like another narrator or author without cause, or does not fit its narrator throughout.", medium = "Noticeable drift in some blocks.", low = "Small variation." }
+
+[[check]]
+id = "pov-and-voice.voice-strength"
+title = "Voice strengths"
+question = "What is distinctive and valuable about the voice, how much of the book does it carry, and what must revision not flatten?"
+look_for = ["a recognisable cadence or syntax", "a distinctive stance towards the world", "humour, tenderness or menace only this voice can carry", "a voice strong enough to carry a slight plot", "a productive oddity a cautious editor might smooth away"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3"]
+evidence = "Quoted passages with anchors from the start, middle and end showing the voice at its best, what it achieves in each, and the features that make it work and that revision must keep."

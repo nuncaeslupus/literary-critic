@@ -1,0 +1,91 @@
+id = "density-and-pruning"
+title = "Density and pruning"
+stage = "scene"
+order = 42
+purpose = "Find redundancy, not simply length: repeated facts, restated ideas, explanation of what was shown, blocks that halt the story. A cut earns itself: it names the redundancy it removes, the effect it preserves, and what else it touches (motifs, setups, relationships). Nothing is flagged for density alone; slow passages that carry meaning are kept and recorded as such. Word- and phrase-level repetition is handled in lexicon-and-sound and style-and-syntax."
+
+[[check]]
+id = "density-and-pruning.repeated-information"
+title = "Repeated information"
+question = "Where is the same fact or event told to the reader more than once without adding?"
+look_for = ["a revelation re-explained later", "recaps of earlier chapters", "characters telling each other what the reader already saw"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "ledger", "metrics"]
+metrics = ["repeated_ngram_rate"]
+evidence = "Ledger or scene-card facts that appear more than once, plus verbatim recaps found by long repeated n-grams; each pair quoted with what the second telling adds. Deliberate reminders in a long or complex book noted."
+severity = { high = "Systematic recap or duplicate telling inflates large parts of the book.", medium = "Several duplicates in nearby chapters.", low = "A single duplicate." }
+
+[[check]]
+id = "density-and-pruning.conceptual-reiteration"
+title = "Restated ideas"
+question = "Where does the text make the same point again in new words, within a passage or across chapters?"
+look_for = ["three sentences making one point", "a reflection circling back to its start", "the book's thesis restated in several scenes"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "motifs"]
+evidence = "Quoted passages with the single idea they share and which occurrence carries it best; L3 read only in reflective passages flagged in L2. Whether an idea is stated instead of enacted at all is premise-theme.stated-enacted."
+severity = { high = "The same idea recurs so often that it dulls the book's argument.", medium = "Reiteration in several chapters.", low = "Occasional doubling." }
+
+[[check]]
+id = "density-and-pruning.explain-duplicates-show"
+title = "Explaining what was shown"
+question = "Where does narration explain a gesture, line or scene the reader has already understood?"
+look_for = ["a gesture followed by its meaning", "a line of dialogue then 'meaning that...'", "a closing sentence summarising the scene"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+evidence = "Pairs of showing and explaining sentences quoted, read at scene ends and after key dialogue beats; the tool points and explains, the writer decides what to remove."
+severity = { high = "Explanation systematically undercuts scenes and talks down to the reader.", medium = "Explanation follows many key beats.", low = "A single instance." }
+
+[[check]]
+id = "density-and-pruning.info-dumps"
+title = "Exposition, backstory and description blocks"
+question = "Where does a block of backstory, explanation, description or lore stop the story to inform the reader, and could it be cut or woven into action and perception at the point of need?"
+look_for = ["a paragraph of history or lore before an event can happen", "a long descriptive paragraph before anything happens, or a list-like inventory of a room or landscape", "description or explanation that does not pass through the viewpoint character", "a character lecturing"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["long_paragraph_rate", "paragraph_length_mean", "new_term_density"]
+evidence = "Blocks located by long dialogue-free paragraphs and term density, then read: anchor, length, kind (backstory, explanation, description, lore), what the reader learns, and where it is first needed. Description that is itself the book's pleasure (a deliberate slow register) is recorded before flagging. Front-loaded backstory in the opening is opening.false-starts; when a needed pause falls is pacing.suspension."
+severity = { high = "Large blocks stop the story at critical points or recur throughout.", medium = "Several noticeable blocks.", low = "A short block." }
+
+[[check]]
+id = "density-and-pruning.digressions"
+title = "Digressions"
+question = "Which digressions earn their place, and which could be shortened or cut?"
+look_for = ["a tangent connected to nothing", "a digression longer than the scene around it", "a digression that repeats a point another one already made"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "motifs", "metrics"]
+metrics = ["long_paragraph_rate", "scene_summary_ratio"]
+evidence = "Each digression with length, position, links to motifs or themes, and verdict (keep, shorten, cut) with reasons. Whether it falls at a bad moment is pacing.suspension."
+severity = { high = "Long digressions with no link to the book's concerns take a large share of chapters.", medium = "Several digressions earn less than their length.", low = "A short aside of marginal value." }
+
+[[check]]
+id = "density-and-pruning.cut-candidates"
+title = "Cut candidates with consequences"
+question = "For each proposed cut, which redundancy does it remove, which effect survives, and what else does it touch?"
+look_for = ["a cut that would remove a motif's only appearance", "a cut that breaks a setup", "a cut that leaves a dangling reference"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "motifs", "ledger", "relationships", "findings"]
+evidence = "Candidate table built from the other density findings: location, what is removed, redundancy resolved, effect preserved, links affected (motifs, ledger, relationships), estimated words saved, confidence."
+severity = { high = "The cut removes a large block with no loss, or is needed to fix pacing.", medium = "The cut saves space but touches other elements.", low = "A marginal saving." }
+
+[[check]]
+id = "density-and-pruning.keep-slow"
+title = "Slow passages to keep"
+question = "Which slow or apparently redundant passages do necessary work and should be kept?"
+look_for = ["a slow passage carrying atmosphere or character", "repetition working as ritual or motif", "a digression that feeds the theme"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3", "motifs"]
+evidence = "Passages with the work they do, recorded so later cut proposals respect them."

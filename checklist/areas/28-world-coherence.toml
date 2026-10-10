@@ -1,0 +1,117 @@
+id = "world-coherence"
+title = "World coherence"
+stage = "developmental"
+order = 28
+purpose = "Check that the world of the book holds together: real-world facts it relies on, the period and its language, institutions and hierarchies, the depth of the social world, and (for invented worlds) the consistency and cost of its rules, plus how all this reaches the reader. For every doubtful item, separate factual error from deliberate licence from a character's mistaken belief, and say where outside verification or context is needed."
+
+[[check]]
+id = "world-coherence.world-register"
+title = "World facts and rules register"
+question = "What facts, institutions, customs and rules does the book establish, and where is each first stated and later used?"
+look_for = ["the same rule stated differently in two places", "terms used before they are established", "facts the reader is assumed to know already", "rules that exist only in one scene"]
+method = "hybrid"
+kind = "inventory"
+action_level = "none"
+inputs = ["L2", "ledger", "locations", "metrics"]
+metrics = ["new_term_density", "name_variant_count"]
+evidence = "Register rows: fact or rule, first-statement anchor, later uses, variants. The script lists first uses and spelling variants of terms; the LLM groups them into facts and rules."
+
+[[check]]
+id = "world-coherence.factual-accuracy"
+title = "Real-world facts: error, licence or belief"
+question = "Are the checkable real-world facts the story relies on (history, geography, law, medicine, technology, professional procedure, customs and attitudes of a time and place) credible, and for each doubtful one, is it an error, a deliberate licence, or a character's mistaken belief?"
+look_for = ["an object, institution or procedure from another time or place", "a legal, medical or technical outcome a specialist would dispute", "a real event or place misdated or misplaced", "social behaviour at odds with the norms of the depicted community, with no comment", "a licence the book never signals in a story that otherwise claims accuracy"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "timeline", "locations", "ledger"]
+evidence = "Each doubtful item with anchor, the claim quoted from the text, what needs external verification (never asserted from memory as certain), and its category: error, licence or belief. For licences, a note on how the text could signal intent; for beliefs, the evidence that the book knows the character is wrong. Contradictions internal to the book are continuity.error-or-design."
+severity = { high = "A fact central to plot or premise is wrong and would be noticed by informed readers, undermining trust.", medium = "Several visible inaccuracies or unsignalled licences.", low = "A peripheral detail to verify." }
+
+[[check]]
+id = "world-coherence.anachronism"
+title = "Anachronism and out-of-world language"
+question = "Do vocabulary, idiom, references and attitudes fit the period and world of the speakers and the narration?"
+look_for = ["modern idioms or psychology-speak in period dialogue", "terms or concepts used before they existed", "a character with knowledge impossible for their time", "idioms tied to our world's places, religions or history in an invented world"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L2", "L3"]
+applies_when = ["historical_setting", "dialect_or_period_language", "speculative_world"]
+evidence = "Each word or phrase quoted with anchor, the period or world it should fit, and why it jars; dating claims marked for external verification. Deliberate anachronism (a modern narrating voice, a stylised register) is recorded as a licence before flagging. Consistency of dialect spelling is dialogue.dialect-handling; register shifts that are not about period are lexicon-and-sound.registers."
+severity = { high = "Anachronisms are frequent or prominent enough to break the illusion of the period or world.", medium = "Several in prominent places.", low = "An isolated term." }
+
+[[check]]
+id = "world-coherence.institutions"
+title = "Institutions and hierarchies"
+question = "Are the institutions that matter (religious, political, military, legal, scientific, educational, familial or clan structures) drawn with consistent structure, ranks and procedures?"
+look_for = ["ranks, titles or roles that change without cause", "procedures that bend to serve the plot", "an institution that is only a vague menace", "people inside an institution who never feel its constraints"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "relationships", "ledger"]
+applies_when = ["institutional_world"]
+evidence = "Institution structure as the book states it, the scene anchors where it operates, and each inconsistency quoted."
+severity = { high = "The institution's workings contradict each other in the central plot.", medium = "Procedures or ranks unclear in several scenes.", low = "Minor imprecision." }
+
+[[check]]
+id = "world-coherence.world-depth"
+title = "Depth of the social world"
+question = "Does the world extend beyond what the plot needs (how people earn, eat, believe, travel, govern and grieve), enough that the story seems to happen in a place that would exist without it?"
+look_for = ["a society that exists only where the plot looks", "no economy, labour or daily routine behind the main characters' lives", "crowds and minor characters with no life of their own", "large events that leave the wider society unchanged"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L1", "L2", "locations", "characters"]
+evidence = "Areas of the world the story touches, with the scene anchors where they are rendered or conspicuously absent, and the plot moments where the absence matters. Deliberately narrow or stylised worlds (fable, chamber piece) are recorded before flagging."
+severity = { high = "The world is so thin that the central events lose plausibility or consequence.", medium = "Several aspects of the world feel like props.", low = "A small gap a detail would fill." }
+
+[[check]]
+id = "world-coherence.rule-consistency"
+title = "Consistency and cost of invented rules"
+question = "Do the world's invented rules (magic, technology, biology, society) stay consistent, carry costs and limits, and stay out of the way of easy solutions?"
+look_for = ["a power used without cost or limit", "a rule bent or broken for plot convenience", "a rule introduced just before it is needed", "characters reacting to the extraordinary in ways the world's own history makes implausible"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L2", "ledger", "timeline"]
+applies_when = ["speculative_world"]
+evidence = "Rule register entries with first statement anchor, each use, and each break cited with chapter and scene; for each break, whether the book frames it as an exception with consequences."
+severity = { high = "A broken or late-introduced rule resolves a main conflict or invalidates earlier stakes.", medium = "Rules shift in secondary scenes.", low = "Loose detail." }
+
+[[check]]
+id = "world-coherence.worldbuilding-delivery"
+title = "Teaching the world's terms and concepts"
+question = "Can the reader learn the book's invented, period or foreign terms and concepts from context at the pace they arrive, and is each one made clear by the moment the story needs it?"
+look_for = ["invented or untranslated terms piling up faster than context can teach them", "a term the reader needs that is never made clear from context", "a concept explained only after the scene that depends on it", "a glossary-style definition in prose where context would teach it"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L2", "L3", "metrics"]
+metrics = ["new_term_density"]
+applies_when = ["speculative_world", "historical_setting", "institutional_world", "translated_or_multilingual"]
+evidence = "Chapters with high term density as pointers; each unclear or overloaded term with its first-use anchor, the anchor where context makes it clear (or none), and the moment it is first needed. Blocks of lore or history that stop the story are density-and-pruning.info-dumps; characters telling each other what both know is dialogue.exposition-dialogue; real-world background is external-context."
+severity = { high = "Term density or unexplained concepts block comprehension of the opening or key events.", medium = "Several terms are taught late or not at all.", low = "A single unclear term." }
+
+[[check]]
+id = "world-coherence.external-context"
+title = "Need for external context"
+question = "What does the reader need to know from outside the book (history, culture, religion, language, specialist knowledge), and does the book supply it, or let it be inferred, at the right moment for the intended reader?"
+look_for = ["references whose meaning a reader outside the culture would miss", "a main event that depends on unstated background", "context supplied long after it was needed", "explanation a reader inside the culture would find patronising"]
+method = "llm"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["L0", "L1", "L2", "ledger"]
+evidence = "Items needing context with the anchor of first use, who the intended reader is (from L0), and how the text handles each (supplies, implies, ignores). Whether to add apparatus (note, glossary, map) is offered as an option, not prescribed. The book's overall demand on its reader is genre-and-reader.reader-fit."
+severity = { high = "Understanding of a main event depends on knowledge the intended reader lacks and the text never gives.", medium = "Several items unexplained or explained too late.", low = "A peripheral reference." }
+
+[[check]]
+id = "world-coherence.world-strength"
+title = "World strengths"
+question = "Which parts of the world feel lived-in and original and must be kept?"
+look_for = ["a detail that implies a larger life off the page", "a custom or rule that shapes the plot", "a believable institution", "an everyday texture particular to this world"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L2", "L3"]
+evidence = "Named details with anchors and short quotes."

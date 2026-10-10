@@ -1,0 +1,103 @@
+id = "ending"
+title = "Ending"
+stage = "developmental"
+order = 36
+purpose = "Check that the ending delivers on what the book set up: the central question or movement resolved, transformed or knowingly left open; an outcome that follows from the characters' choices; fates and open threads accounted for; closure in proportion to the promise; space for the climax and its aftermath; and a last image and voice that close the book's movement. Distinguish ambiguity that serves the book from loose ends left by accident. Title and opening echoes are checked under motifs-and-setups; chance and agency at the climax under plot-causality; build-up and space for the climax itself under pacing.peak-handling; the ending's thematic meaning under premise-theme.ending-meaning."
+
+[[check]]
+id = "ending.conflict-resolution"
+title = "Resolution of the central question"
+question = "Is the book's central question, conflict or movement resolved, transformed or consciously left open by the end?"
+look_for = ["a main conflict or question never addressed", "resolution announced rather than enacted", "a new major conflict opened in the last pages", "a structure without central conflict whose final turn or revelation does not reframe what came before"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "L2", "ledger"]
+evidence = "The central question (from L0 and premise-theme.central-question) with its status at the end and the anchor of the scene that settles or reframes it. Secondary threads are ending.open-threads; whether the outcome fits the book's meaning is premise-theme.ending-meaning."
+severity = { high = "The central question is neither resolved nor knowingly left open.", medium = "The central question is resolved thinly or by announcement.", low = "Resolution is clear but could be more fully enacted." }
+
+[[check]]
+id = "ending.earned-ending"
+title = "Earned ending"
+question = "Does the ending honour what came before — the costs of earlier actions, the world's logic, earlier setups — and release the emotion the book has built, rather than arriving from outside?"
+look_for = ["consequences of earlier actions erased or ignored", "a resolution that the world's own rules would not allow", "an emotional beat the story has not prepared", "the cause explained only after the fact"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "ledger", "characters"]
+evidence = "The final act's chain of events and choices with anchors, the setups (ledger rows) that make it possible, and the costs it honours or erases. Chance and protagonist passivity at the climax are recorded under plot-causality.coincidence and plot-causality.agency and cited here, not re-diagnosed. A deliberately arbitrary or fatalistic ending that the book has prepared as its worldview is recorded as a choice before flagging."
+severity = { high = "The resolution erases the cost of what came before or rests on something unprepared.", medium = "The causal or emotional link is thin.", low = "A beat could land harder." }
+
+[[check]]
+id = "ending.fates"
+title = "Characters' end states"
+question = "Does every significant character reach an end state, or a deliberately open one, that the book earns and the reader can perceive?"
+look_for = ["a major character who disappears without notice", "a fate delivered in a line of summary", "an end state that contradicts the character's logic", "a character whose last appearance is long before the end with no closure"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["characters", "L2", "metrics"]
+metrics = ["character_presence_matrix"]
+evidence = "Per significant character: last-appearance anchor (from the presence matrix), final state, and how it is conveyed (scene, summary, implication)."
+severity = { high = "A main character's fate is missing or contradicts the story.", medium = "Several fates are summarised or vague.", low = "A minor character left hanging." }
+
+[[check]]
+id = "ending.open-threads"
+title = "Open threads at the end: designed or accidental"
+question = "Which setups, motifs, subplots and questions are still open at the end, and which of them are deliberately left open (with a textual signal) rather than forgotten?"
+look_for = ["a subplot that simply stops", "a question the text invites and never addresses", "ambiguity with no signal that it is intended", "a thread closed offstage in a line of summary"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "scene"
+inputs = ["ledger", "motifs", "L1", "metrics"]
+metrics = ["open_thread_count", "setup_payoff_distance"]
+evidence = "Threads and ledger entries open at the end (from the metric), each sorted into deliberate (with the anchor of the signal) or accidental, and for accidental ones where closure or a signal could go."
+severity = { high = "Accidental loose ends in major lines undermine the ending's meaning.", medium = "Several threads dropped or openness unsignalled.", low = "A fine ambiguity that needs a small anchor." }
+
+[[check]]
+id = "ending.closure-degree"
+title = "Degree of closure"
+question = "Is the overall amount of closure right for the book's promise and its kind?"
+look_for = ["unearned neatness that ties every thread", "a trailing ending in a book that promised resolution", "an epilogue that re-explains or over-settles"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1"]
+evidence = "The book's promise (from L0 and orientation.genre-promise), the closure delivered, and the gap, with anchors of the passages that create it. For a series volume, standing alone is genre-and-reader.series-function."
+severity = { high = "The degree of closure contradicts the book's promise or logic.", medium = "Too neat or too loose for the book.", low = "Slight tuning." }
+
+[[check]]
+id = "ending.ending-proportion"
+title = "Aftermath and length of the final movement"
+question = "After the climax, is the aftermath long enough to let it land but not trailing on after the story is over?"
+look_for = ["the last chapters told in summary", "a sudden cut from climax to final line", "several false endings or codas", "an aftermath much longer than its new content justifies"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "metrics"]
+metrics = ["denouement_share", "scene_summary_ratio", "words_per_chapter"]
+evidence = "Climax anchor, share of text after it, summary share in the final chapters, and the passages where the ending hurries or lingers. An abrupt ending used as a deliberate effect is recorded before flagging. Build-up and space for the climax itself are pacing.peak-handling."
+severity = { high = "The aftermath is missing or drags long enough to dissipate the climax.", medium = "The ending is brisk or stretched.", low = "Slight rushing or lingering." }
+
+[[check]]
+id = "ending.last-image-voice"
+title = "Last image and last voice"
+question = "What are the last image and the last voice, and do they close the book's movement without explaining it?"
+look_for = ["a last line that states the moral or theme", "a final image unrelated to anything before", "the narrator stepping out to conclude in a new voice", "a final paragraph that weakens the scene before it"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L1", "L3", "motifs"]
+evidence = "Final paragraph quoted with its relation to the book's central motifs and question; L3 is read only for the last pages."
+severity = { high = "The last image or voice contradicts or undoes what came before.", medium = "The last line is generic or over-explained.", low = "Could be sharper." }
+
+[[check]]
+id = "ending.ending-strength"
+title = "Ending strengths"
+question = "What in the ending lands and should be left alone?"
+look_for = ["a final gesture that completes an arc", "an echo that closes a motif", "restraint at the right moment", "an ambiguity that keeps the book alive after the last page"]
+method = "llm"
+kind = "strength"
+action_level = "none"
+inputs = ["L1", "L3", "motifs"]
+evidence = "Quoted passages with anchors and the reason they work."
