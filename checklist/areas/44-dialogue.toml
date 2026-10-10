@@ -2,7 +2,7 @@ id = "dialogue"
 title = "Dialogue"
 stage = "scene"
 order = 44
-purpose = "Check what speech does: advance the scene, reveal character through subtext, give each speaker a distinct voice and register, read as speech without becoming transcript, and follow the language's punctuation conventions consistently. Dialect needs particular care. Reconstructed or remembered dialogue is judged in pov-and-voice. Dialogue-heavy scenes are located with dialogue_ratio so raw text is read only where speech is."
+purpose = "Check what speech does: advance the scene, reveal character through subtext, give each speaker a distinct voice and register, read as speech without becoming transcript, and follow the language's punctuation conventions consistently. Dialect needs particular care. Reconstructed or remembered dialogue is judged in time-and-narrative-levels.knowledge-source; period fit of idiom in world-coherence.anachronism. Dialogue-heavy scenes are located with dialogue_ratio so raw text is read only where speech is."
 
 [[check]]
 id = "dialogue.dialogue-purpose"
@@ -50,7 +50,7 @@ method = "llm"
 kind = "diagnostic"
 action_level = "line"
 inputs = ["characters", "L3"]
-evidence = "Short samples of several lines per main speaker from different chapters, compared side by side; for each blur, the speakers and what makes them indistinct."
+evidence = "Short samples of several lines per main speaker from different chapters, compared side by side; for each blur, the speakers and what makes them indistinct. Distinctness in action and manner is characters.distinctiveness; narrators' voices are pov-and-voice.voice-differentiation."
 severity = { high = "Several main speakers sound the same or speak against who they are.", medium = "Distinctions blur in some scenes.", low = "Slight similarity among minor speakers." }
 
 [[check]]
@@ -116,7 +116,7 @@ action_level = "line"
 inputs = ["L3", "characters", "metrics"]
 metrics = ["name_variant_count"]
 applies_when = ["dialect_or_period_language", "translated_or_multilingual"]
-evidence = "Non-standard forms registered as terms, with their variants and counts; judgement of consistency, readability and respect, with quoted examples."
+evidence = "Non-standard forms registered as terms, with their variants and counts; judgement of consistency, readability and respect, with quoted examples. Whether an idiom fits the period is world-coherence.anachronism; the narration's own language variety is lexicon-and-sound.language-variety."
 severity = { high = "Rendering is inconsistent or caricatured in a way that harms reading or fairness.", medium = "Some inconsistency or heavy going.", low = "Minor variation." }
 
 [[check]]

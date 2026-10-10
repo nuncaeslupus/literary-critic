@@ -89,7 +89,7 @@ T1 ◐ · T2 ◐ (in PR #1) · others ☐
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
 | T1 | `guard_false_negatives == 0` | 0 | `uv run pytest tests/test_guard.py` | 9e6cf92 | [HERE] | 2026-10-10 |
-| T2 | `checklist_errors == 0` | 0 (23 areas, 229 checks) | `uv run lc checklist validate` | 9e6cf92 | [HERE] | 2026-10-10 |
+| T2 | `checklist_errors == 0` | 0 (23 areas, 201 checks after critical pass) | `uv run lc checklist validate` | 9e6cf92 | [HERE] | 2026-10-10 |
 
 ### Dependency graph
 

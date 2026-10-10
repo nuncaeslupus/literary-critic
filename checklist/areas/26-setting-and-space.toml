@@ -2,7 +2,7 @@ id = "setting-and-space"
 title = "Setting and space"
 stage = "developmental"
 order = 26
-purpose = "Check whether places are concrete and do work in the story: a geography the reader can hold, places with distinct functions, setting that acts on characters, social rules that spaces impose, meanings that change with the characters, sensory grounding, followable staging, and description woven in rather than dumped. Consistency of layouts and who-is-where belongs to continuity; invented-world rules to world-coherence."
+purpose = "Check whether places are concrete and do work in the story: a geography the reader can hold, places with distinct functions, setting that acts on characters, social rules that spaces impose, meanings that change with the characters, and sensory grounding. Staging within a scene belongs to scene-craft.staging; descriptive blocks that stall the story to density-and-pruning.info-dumps; consistency of layouts and who-is-where to continuity; invented-world rules to world-coherence."
 
 [[check]]
 id = "setting-and-space.location-register"
@@ -67,7 +67,7 @@ severity = { high = "A pivotal place or the final place contradicts or ignores t
 id = "setting-and-space.sensory-grounding"
 title = "Sensory grounding"
 question = "Are scenes anchored in specific physical detail, across more senses than sight where that helps, so the reader knows where they are?"
-look_for = ["scenes in a 'white room' with no physical anchor", "only visual description throughout", "generic nouns where a particular would place the reader", "grounding arriving late in the scene"]
+look_for = ["scenes in a 'white room' with no physical anchor", "only visual description throughout", "generic nouns where a particular would place the reader", "physical detail that never passes through the viewpoint character's senses"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
@@ -75,31 +75,6 @@ inputs = ["L2", "L3", "metrics"]
 metrics = ["sensory_word_density"]
 evidence = "Scenes with low or single-modality sensory density as pointers; for each flagged scene, the opening lines quoted and what anchors (or fails to anchor) the reader. Deliberately spare or abstract writing is recorded before flagging."
 severity = { high = "Key scenes have no physical anchoring, so the reader cannot picture where or when they happen.", medium = "Many scenes are thinly grounded.", low = "An occasional thin scene." }
-
-[[check]]
-id = "setting-and-space.staging"
-title = "Staging and spatial clarity in action"
-question = "In scenes of movement, action, crowds or several characters, can the reader follow who is where, who moves, and what each can see or reach?"
-look_for = ["characters appearing in a scene without having entered", "a fight or chase whose geography cannot be followed", "objects within reach that should not be", "group scenes where the reader loses track of who is present"]
-method = "llm"
-kind = "diagnostic"
-action_level = "line"
-inputs = ["L2", "L3"]
-evidence = "Action and group scenes selected from L2; each confusing moment quoted with anchor and the spatial fact the reader lacks."
-severity = { high = "The reader cannot follow a climactic or decisive action scene.", medium = "Staging is unclear in several scenes.", low = "Momentary confusion." }
-
-[[check]]
-id = "setting-and-space.setting-dumps"
-title = "Description dumps"
-question = "Is physical description delivered in blocks that stall the scene, or woven into action and the viewpoint character's perception?"
-look_for = ["a long descriptive paragraph before anything happens", "description that does not pass through the viewpoint character", "a list-like inventory of a room or landscape", "description repeating what the reader already has"]
-method = "hybrid"
-kind = "diagnostic"
-action_level = "scene"
-inputs = ["L2", "L3", "metrics"]
-metrics = ["long_paragraph_rate", "paragraph_length_mean"]
-evidence = "Long non-dialogue paragraphs found by the metric, filtered to description; each with anchor, length, position in the scene and the job it does. Description that is itself the book's pleasure (a deliberate slow register) is recorded before flagging. Exposition of facts and lore is checked under density-and-pruning and world-coherence."
-severity = { high = "Description blocks stall major scenes or recur throughout.", medium = "Several overlong blocks.", low = "A single block." }
 
 [[check]]
 id = "setting-and-space.space-strength"

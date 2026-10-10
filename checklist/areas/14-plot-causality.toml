@@ -49,7 +49,7 @@ method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "characters"]
-evidence = "Turning points listed with who or what caused each. Choice includes refusal, endurance and inner decisions. A deliberately passive protagonist (observer, witness, someone constrained by circumstance) is judged on that design."
+evidence = "Turning points listed with who or what caused each, including the climax. Choice includes refusal, endurance and inner decisions. A deliberately passive protagonist (observer, witness, someone constrained by circumstance) is judged on that design."
 severity = { high = "Central turning points happen without the protagonist's choice and the design does not justify it.", medium = "Agency is thin in the middle or the ending.", low = "Agency present but limited to small choices." }
 
 [[check]]
@@ -61,21 +61,21 @@ method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "ledger"]
-evidence = "Each coincidence with chapter, direction (helps or harms) and what cause could replace it. Chance that starts a story or that the book thematises is noted, not flagged."
+evidence = "Each coincidence with chapter, direction (helps or harms) and what cause could replace it, including at the climax and resolution. Chance that starts a story or that the book thematises is noted, not flagged."
 severity = { high = "A climax or resolution depends on a helping coincidence.", medium = "Coincidences ease mid-story problems.", low = "Harmless or thematically motivated chance." }
 
 [[check]]
 id = "plot-causality.subplots"
 title = "Subplots and convergence"
-question = "Does each subplot have its own movement and outcome, touch the main line, and resolve or converge?"
-look_for = ["a thread that vanishes", "a subplot that only delays", "a thread present for a long span then dropped"]
+question = "Does each subplot have its own movement, touch the main line, and converge with it rather than run beside it?"
+look_for = ["a thread that vanishes mid-book", "a subplot that only delays the main line", "a subplot that never touches the main line in event or meaning"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "structure", "ledger", "metrics"]
 metrics = ["open_thread_count", "character_presence_matrix"]
-evidence = "Thread table: first and last appearance, gaps, relation to the main line, outcome; unresolved threads flagged from the metrics and confirmed by the LLM."
-severity = { high = "A major thread vanishes or a subplot contradicts the main line.", medium = "A thread is thin or resolved offstage.", low = "A small thread lacking closure." }
+evidence = "Thread table: first and last appearance, gaps, relation to the main line; threads flagged from the metrics and confirmed by the LLM. Whether threads still open at the end are designed or accidental is ending.open-threads."
+severity = { high = "A major thread vanishes or a subplot contradicts the main line.", medium = "A thread is thin or runs parallel without converging.", low = "A small thread loosely tied to the main line." }
 
 [[check]]
 id = "plot-causality.reversals"
@@ -86,7 +86,7 @@ method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "ledger"]
-evidence = "Each reversal with its preparation (ledger setups by chapter) and its effect on the reading of earlier chapters."
+evidence = "Each reversal with its preparation (ledger setups by chapter) and its effect on the reading of earlier chapters. Ledger completeness (every payoff has a setup) is motifs-and-setups.setups-payoffs; here the reversal's effect and fairness."
 severity = { high = "A key reversal is unprepared or invalidates earlier events.", medium = "A reversal is predictable or weakly prepared.", low = "A minor surprise lacking impact." }
 
 [[check]]

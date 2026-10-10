@@ -21,7 +21,7 @@ severity = { high = "Nothing in the opening chapter gives the reader a reason to
 id = "opening.orientation"
 title = "Orientation in story, narrator and world"
 question = "By the end of the opening, can the reader tell whose story this is, who is telling it, and roughly where and when it happens, without a flood of explanation?"
-look_for = ["no sense of when or where after several pages", "the narrator or viewpoint still unclear", "the first pages spent on exposition or backstory", "unfamiliar names and terms crowding the first paragraphs"]
+look_for = ["no sense of when or where after several pages", "the narrator or viewpoint still unclear", "the first pages spent on exposition or backstory", "unfamiliar terms and places crowding the first paragraphs"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
@@ -69,15 +69,15 @@ severity = { high = "Withholding makes the opening unintelligible, or early disc
 
 [[check]]
 id = "opening.opening-promise"
-title = "Promise of the opening and its delivery"
-question = "What does the opening promise (tone, kind of story, central question, stakes, seeded motifs), and does the rest of the book keep and develop that promise?"
-look_for = ["an opening register or genre signal the book abandons", "a central question raised and then forgotten", "the book's real subject absent from the opening", "stakes set up early that disappear"]
+title = "Tonal contract of the opening"
+question = "What tone, register and kind of story does the opening establish, which seeds does it plant, and does the rest of the book keep, develop or knowingly transform that contract?"
+look_for = ["an opening register or genre signal the book abandons", "the book's real subject absent from the opening", "a tonal contract (comic, menacing, lyrical, documentary) broken later without preparation", "an opening that seeds nothing the book later grows"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L0", "L1", "motifs", "ledger"]
-evidence = "The promise stated in one or two lines with opening anchors, the seeds planted (linked to motif register and ledger rows), and the later chapters that keep, transform or break each."
-severity = { high = "The opening promises a different book from the one delivered, or plants nothing of the central question.", medium = "The promise is only partly kept or few seeds are planted.", low = "Slight tonal mismatch." }
+evidence = "The promise stated in one or two lines with opening anchors, the seeds planted (linked to motif register and ledger rows), and the later chapters that keep, transform or break each. Whether the premise's implied situations are delivered is premise-theme.premise-delivery; the central question's fate is premise-theme.central-question; genre conventions are genre-and-reader.genre-conventions."
+severity = { high = "The opening sets a tone or kind of story the book then abandons without design.", medium = "The contract is only partly kept or the opening seeds little.", low = "Slight tonal mismatch." }
 
 [[check]]
 id = "opening.opening-strength"

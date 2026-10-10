@@ -43,13 +43,13 @@ severity = { high = "The book's meaning is incoherent or self-defeating.", mediu
 [[check]]
 id = "premise-theme.stated-enacted"
 title = "Stated versus enacted meaning (didacticism)"
-question = "Which ideas does the text state outright (narration, essay, a character's speech) and which does it enact through events and images, and where does stating replace or duplicate enacting?"
-look_for = ["narrator or character delivering the moral of a scene the reader already understood", "the same lesson restated in successive scenes", "an idea that matters in the plot but is only ever explained"]
+question = "Which ideas does the text state outright (narration, essay, a character's speech) and which does it enact through events and images, where does stating replace enacting, and does the share of reflection to story suit the book?"
+look_for = ["narrator or character delivering the moral of a scene the reader already understood", "an idea that matters in the plot but is only ever explained", "events staged as arguments, or reflection floating free of any scene", "essay-like stretches overwhelming the story"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "L3"]
-evidence = "Two lists, explicit statements (located, quoted briefly) and enactments (events, images), then the passages where statement duplicates or replaces enactment and what in the scene already carries the idea. In essayistic or openly philosophical designs, statement is the mode: judge only redundancy and whether the essay earns its place."
+evidence = "Two lists, explicit statements (located, quoted briefly) and enactments (events, images), the share of reflective passages per block, then the passages where statement replaces enactment and what in the scene already carries the idea. In essayistic or openly philosophical designs, statement is the mode: judge only whether the essay earns its place. The same point restated again is density-and-pruning.conceptual-reiteration."
 severity = { high = "Preaching dominates several chapters or the theme exists only as statement.", medium = "Repeated moralising passages that duplicate what scenes show.", low = "An isolated explanatory sentence." }
 
 [[check]]
@@ -80,13 +80,13 @@ severity = { high = "A promised scale is missing or disconnected so the theme do
 id = "premise-theme.ending-meaning"
 title = "Ending and governing idea"
 question = "Is what the ending does (resolution, refusal, reversal) consistent with the meaning the book has built, or does it change the book's meaning without awareness?"
-look_for = ["ending contradicts the book's argument without signalling it", "meaning delivered by a closing statement instead of by events", "a last-minute idea the book never explored"]
+look_for = ["ending contradicts the book's argument without signalling it", "a resolution that rewards what the book has shown to be false, or the reverse, without design", "a last-minute idea the book never explored"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L0", "L1", "L2"]
-evidence = "The governing idea, the final chapters' events, and the scenes showing consistency or conflict. Whether the plot question is resolved belongs to the ending area."
-severity = { high = "The ending betrays or abandons what the book meant, unintentionally.", medium = "The ending's meaning is blurred or rests on statement.", low = "Slight mismatch of emphasis." }
+evidence = "The governing idea, the final chapters' events, and the scenes showing consistency or conflict. Whether the plot question is resolved is ending.conflict-resolution; a closing line that states the moral is ending.last-image-voice."
+severity = { high = "The ending betrays or abandons what the book meant, unintentionally.", medium = "The ending's meaning is blurred.", low = "Slight mismatch of emphasis." }
 
 [[check]]
 id = "premise-theme.theme-strength"

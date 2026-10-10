@@ -19,13 +19,13 @@ evidence = "Register rows: name, aliases, role, first appearance, presence span;
 [[check]]
 id = "characters.reader-investment"
 title = "Reason to follow the protagonist"
-question = "What makes the reader want to stay with the protagonist (or central figures) — sympathy, fascination, curiosity, recognition, dread — and is it established early and sustained?"
-look_for = ["a protagonist with no visible desire, wound, quality or mystery in the first chapters", "investment built and then dissipated", "a deliberately unlikeable figure with nothing compelling in its place"]
+question = "What makes the reader want to stay with the protagonist (or central figures) and care what is at stake for them — sympathy, fascination, curiosity, recognition, dread — and is it established early and held to the end?"
+look_for = ["a protagonist with no visible desire, wound, quality or mystery in the first chapters", "a protagonist the reader observes but does not care about", "investment built and then dissipated, or peaking early and fading", "a deliberately unlikeable figure with nothing compelling in its place"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["characters", "L1", "L2"]
-evidence = "The source(s) of investment named with the scenes that create them, by chapter, and the stretches where it fades. Likeability is not required; an absence of any hook is the finding."
+evidence = "The source(s) of investment named with the scenes that build it, by chapter, and the stretches where it drains, through to the ending. Likeability is not required; an absence of any hook is the finding."
 severity = { high = "The reader has no reason to care what happens to the central figure(s) for a large part of the book.", medium = "Investment arrives late or wanes over a block.", low = "Investment is present but could be sharpened early." }
 
 [[check]]
@@ -92,14 +92,14 @@ severity = { high = "Several main characters are indistinguishable.", medium = "
 id = "characters.secondary-cast"
 title = "Secondary characters and cast economy"
 question = "Does each secondary character justify their place, and could any be merged or cut without loss?"
-look_for = ["two characters with the same function", "near-identical names or initials", "walk-on characters with long introductions", "characters appearing in one block and never again"]
+look_for = ["two characters with the same function", "walk-on characters with long introductions", "characters appearing in one block and never again"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["characters", "relationships", "L1", "metrics"]
-metrics = ["character_first_appearance", "name_similarity_pairs", "character_presence_matrix"]
-evidence = "Candidates for merge or cut with the functions they carry, the scenes they appear in, and what their removal would affect (relationships, setups, knowledge)."
-severity = { high = "Cast size or name similarity confuses the reader in main scenes.", medium = "Several characters could be merged without loss.", low = "Minor surplus." }
+metrics = ["character_first_appearance", "character_presence_matrix"]
+evidence = "Candidates for merge or cut with the functions they carry, the scenes they appear in, and what their removal would affect (relationships, setups, knowledge). Look-alike names are continuity.name-consistency."
+severity = { high = "Cast size confuses the reader in main scenes.", medium = "Several characters could be merged without loss.", low = "Minor surplus." }
 
 [[check]]
 id = "characters.too-perfect"

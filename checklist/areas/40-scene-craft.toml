@@ -69,51 +69,51 @@ severity = { high = "Missing aftermath makes a turning point feel unearned or a 
 id = "scene-craft.staging"
 title = "Staging and physical clarity"
 question = "Can the reader follow who is where, who is doing what and in which order, especially in action, crowd and fight scenes?"
-look_for = ["characters who are suddenly elsewhere in the room", "objects in hand that were never picked up", "simultaneous actions blurred into one", "a group scene where speakers or actors cannot be placed"]
+look_for = ["characters who are suddenly elsewhere in the room, or present without having entered", "objects in hand that were never picked up, or within reach when they should not be", "a fight or chase whose geography cannot be followed", "simultaneous actions blurred into one", "a group scene where speakers or actors cannot be placed"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3", "locations"]
-evidence = "Flagged scenes (action, many characters, complex space) with the quoted lines where the reader loses the position or sequence and what is unclear."
+evidence = "Flagged scenes (action, many characters, complex space, selected from L2) with the quoted lines where the reader loses the position or sequence and the spatial fact the reader lacks. Contradictions of layout across scenes are continuity.space-continuity."
 severity = { high = "The reader cannot follow the physical action of a pivotal scene.", medium = "Positions or sequence blur in several scenes.", low = "A momentary lapse in staging." }
 
 [[check]]
 id = "scene-craft.entry-exit"
 title = "Entering late and leaving early"
 question = "Does each scene begin close to its point and end once its work is done?"
-look_for = ["arrival, greeting or waking-up openings", "travel to the scene narrated in full", "scene continuing after its turn", "closing lines that summarise what just happened"]
+look_for = ["arrival, greeting or waking-up openings", "travel to the scene narrated in full", "scene continuing after its turn", "a chapter's last scene running on past its natural ending"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3"]
-evidence = "Only the first and last paragraphs of each scene are read; for flagged scenes, the paragraphs quoted and the point where the scene's work starts or ends described (the writer decides the trim)."
+evidence = "Only the first and last paragraphs of each scene are read; for flagged scenes, the paragraphs quoted and the point where the scene's work starts or ends described (the writer decides the trim). Closing lines that explain the scene are density-and-pruning.explain-duplicates-show; the pattern of chapter endings is pacing.chapter-endings."
 severity = { high = "Slack scene edges are systematic and slow the whole book.", medium = "Several scenes start early or end late.", low = "Occasional slack edge." }
 
 [[check]]
 id = "scene-craft.transitions"
 title = "Scene breaks and transitions"
-question = "Do scene and chapter joins orient the reader in time, place and viewpoint quickly, are breaks placed and marked consistently, and do joins keep momentum?"
+question = "Within the same time strand, do scene and chapter joins orient the reader in time, place and viewpoint quickly, are breaks placed and marked consistently, and do joins keep momentum?"
 look_for = ["a new scene with no orientation for several paragraphs", "the same transition formula every time", "viewpoint change hidden mid-scene instead of at a break", "break markers (blank line, ornament) inconsistent or lost"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3", "metrics"]
 metrics = ["scene_break_markers"]
-evidence = "For each flagged join: last paragraph of one scene and first of the next, quoted, with what the reader lacks (when, where, whose eyes). Break-marker counts and inconsistent locations from the script."
+evidence = "For each flagged join: last paragraph of one scene and first of the next, quoted, with what the reader lacks (when, where, whose eyes). Break-marker counts and inconsistent locations from the script. Changes of narrative level or time strand are time-and-narrative-levels.level-signalling."
 severity = { high = "Transitions regularly leave the reader unsure when, where or with whom they are.", medium = "Orientation arrives late in several scenes, or break marking is inconsistent.", low = "Joins are clear but formulaic." }
 
 [[check]]
 id = "scene-craft.show-tell"
 title = "Dramatised versus summarised moments"
-question = "Are the moments the reader most needs to witness rendered as scene, and is summary used where it saves time without costing effect?"
-look_for = ["a turning point given in summary", "a confrontation reported after the fact", "minor transit dramatised at length while a key event is summarised"]
+question = "Within scenes, are the moments the reader most needs to witness (confrontations, revelations, emotional beats) rendered as scene, and is summary used where it saves time without costing effect?"
+look_for = ["a confrontation reported after the fact", "a revelation or emotional beat summarised in a line", "minor transit dramatised at length while a key moment is summarised"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "metrics"]
 metrics = ["scene_summary_ratio"]
-evidence = "Key moments from L1/L2 with their mode (scene or summary) and length; mismatches named with what the reader misses. Deliberate summary (pace, distance, retrospection) noted and not flagged. Sentence-level labelled emotion belongs to style-and-syntax.cliches-telling."
-severity = { high = "Pivotal moments are summarised and the book loses its emotional peaks.", medium = "Several important moments are summarised, or minor ones over-dramatised.", low = "One moment could be dramatised." }
+evidence = "Key moments from L1/L2 with their mode (scene or summary) and length; mismatches named with what the reader misses. Deliberate summary (pace, distance, retrospection) noted and not flagged. The book's decisive turns and climax are pacing.peak-handling; sentence-level labelled emotion is style-and-syntax.cliches-telling."
+severity = { high = "Many emotionally important moments are summarised and the scenes lose their force.", medium = "Several important moments are summarised, or minor ones over-dramatised.", low = "One moment could be dramatised." }
 
 [[check]]
 id = "scene-craft.redundant-scenes"

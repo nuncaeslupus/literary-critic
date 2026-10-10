@@ -69,13 +69,13 @@ severity = { high = "Wordplay undermines tone or comprehension at key points.", 
 [[check]]
 id = "lexicon-and-sound.registers"
 title = "Narrative register"
-question = "Does the narration hold a register suited to its voice, and are shifts between registers (colloquial, literary, technical, institutional) motivated?"
-look_for = ["register shifts without cause", "technical jargon without help for the reader", "institutional language leaking into private scenes", "a word from the wrong period or setting"]
+question = "Within passages, does the narration hold a register suited to its voice, and are shifts between registers (colloquial, literary, technical, institutional) motivated?"
+look_for = ["register shifts without cause", "technical jargon without help for the reader", "institutional language leaking into private scenes", "a literary word dropped into a plain voice, or the reverse"]
 method = "llm"
 kind = "diagnostic"
 action_level = "line"
 inputs = ["L3", "characters"]
-evidence = "Passages quoted at the shift with the two registers named and whether the shift is motivated by viewpoint, irony or scene."
+evidence = "Passages quoted at the shift with the two registers named and whether the shift is motivated by viewpoint, irony or scene. Words from the wrong period or world are world-coherence.anachronism; drift across the whole book is pov-and-voice.voice-consistency."
 severity = { high = "Register mismatch undermines credibility or voice in key scenes.", medium = "Several mismatches.", low = "Occasional." }
 
 [[check]]

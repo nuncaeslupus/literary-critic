@@ -20,13 +20,13 @@ evidence = "Per-chapter table of the metrics with outliers marked against the bo
 id = "pacing.mode-alternation"
 title = "Alternation of modes"
 question = "Does the book alternate action, dialogue, memory and reflection in a way that keeps the reader engaged, or does it run long in one mode where that costs attention?"
-look_for = ["many consecutive chapters of reflection or memory", "long dialogue with no grounding or action", "action with no pause to absorb it", "the same chapter pattern repeated block after block"]
+look_for = ["many consecutive chapters of reflection or memory", "chapter after chapter of summary with few dramatised scenes", "a long run of action chapters with no pause to absorb them", "the same chapter pattern repeated block after block"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "metrics"]
 metrics = ["dialogue_ratio", "scene_summary_ratio"]
-evidence = "Runs of chapters by dominant mode (from L2 tags and the metrics) with their length and position; the LLM records whether each run is deliberate and whether it works."
+evidence = "Runs of chapters by dominant mode (from L2 tags and the metrics) with their length and position; the LLM records whether each run is deliberate and whether it works. Balance of speech and narration inside a scene is dialogue.dialogue-length."
 severity = { high = "A long run in one mode loses the reader or drains energy at a key point.", medium = "Runs recur in several blocks.", low = "A single mild run." }
 
 [[check]]
@@ -39,58 +39,58 @@ kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "structure", "metrics"]
 metrics = ["words_per_chapter", "dialogue_ratio", "scene_summary_ratio"]
-evidence = "Engagement curve per chapter or block estimated from L1/L2, with the scene anchors responsible for peaks and troughs; smoothed metrics as a secondary pointer. The structural model in use (from architecture) is named so the curve is judged against it, not against a default arc."
+evidence = "Engagement curve per chapter or block estimated from L1/L2, with the scene anchors responsible for peaks and troughs; smoothed metrics as a secondary pointer. The structural model in use (from architecture.turning-points) is named so the curve is judged against it, not against a default arc. Which feelings the reader passes through is architecture.emotional-shape; this check judges intensity of pull."
 severity = { high = "The curve is flat, or collapses before the climax, across most of the book.", medium = "Peaks are poorly spaced or releases are missing in places.", low = "Troughs slightly too deep or too brief." }
 
 [[check]]
 id = "pacing.stalls"
 title = "Stalls and repetition of situation"
-question = "Are there stretches (most often in the middle) where the situation, the relationships or the reader's understanding stop changing?"
-look_for = ["the same kind of scene or confrontation repeated with no escalation or variation", "no change of state across several chapters", "subplots that only delay", "waiting presented as plot"]
+question = "Are there stretches of chapters (most often in the middle) where the situation, the relationships or the reader's understanding stop changing?"
+look_for = ["no change of state across several chapters between turning points", "a block whose chapters could be reordered without loss", "waiting presented as plot", "a middle that marks time until the next turning point"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "structure"]
-evidence = "Chapter range with what changes (or not) in each, from L1/L2, and repeated scene types listed with anchors. Episodic, cyclical or meditative designs where recurrence is the point are recorded before flagging; the test is whether each recurrence adds something."
+evidence = "Chapter range with what changes (or not) in each, from L1/L2, set against the turning-point map from architecture.turning-points. Episodic, cyclical or meditative designs where recurrence is the point are recorded before flagging; the test is whether each recurrence adds something. Pairs of scenes doing the same job are scene-craft.redundant-scenes; subplots that only delay are plot-causality.subplots."
 severity = { high = "A long stretch changes nothing for the reader and is where readers would stop.", medium = "A stretch repeats patterns with only small differences.", low = "One slow chapter." }
 
 [[check]]
 id = "pacing.suspension"
 title = "Timing of pauses"
 question = "Where the story stops for backstory, explanation, memory or reflection, does the pause fall at a moment it serves (deepening, delaying usefully), or at one it deflates?"
-look_for = ["reflection inserted at the height of danger or decision", "backstory postponing a scene the reader is waiting for", "pauses that repeat information already given", "a pause well placed but too long"]
+look_for = ["reflection inserted at the height of danger or decision", "backstory or a flashback postponing a scene the reader is waiting for", "a pause placed just after a peak where the reader needs momentum", "a pause that would deepen a later moment if moved there"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3", "metrics"]
 metrics = ["long_paragraph_rate", "scene_summary_ratio"]
-evidence = "Each pause with anchor, length, its position relative to the nearest peak, and its function. Whether the content of the pause is needed at all is judged under density-and-pruning; here the question is timing."
+evidence = "Each pause with anchor, length, its position relative to the nearest peak, and its function. Whether the content of the pause is needed at all, and how long it should be, is judged under density-and-pruning; here the question is timing."
 severity = { high = "A pause at a crucial moment drains a key scene.", medium = "Several badly timed pauses slow a block.", low = "A single mistimed digression." }
 
 [[check]]
 id = "pacing.peak-handling"
 title = "Space and build-up for decisive moments"
-question = "Are the book's decisive events and climactic sequences prepared by build-up and given space proportional to their weight, neither rushed into summary nor diluted by padding?"
+question = "Are the book's decisive events and climactic sequences (from the turning-point map) prepared by build-up and given space proportional to their weight, neither rushed nor diluted by padding?"
 look_for = ["a decisive event arriving with no pressure before it", "a climax narrated in summary or a few lines", "a peak scene bloated with logistics or repetition", "an off-page climax with no deliberate reason"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "structure", "metrics"]
 metrics = ["words_per_scene", "scene_summary_ratio"]
-evidence = "Each decisive event (from structure or L1) with its anchor, its length and scene/summary share, and the build-up in the preceding chapters. Understatement or ellipsis used deliberately for effect is recorded before flagging."
+evidence = "Each decisive event (from architecture.turning-points or L1) with its anchor, its length and scene/summary share, and the build-up in the preceding chapters. Understatement or ellipsis used deliberately for effect is recorded before flagging. Where the turns sit is architecture; time economy across periods is time-and-narrative-levels.duration-space; the aftermath after the climax is ending.ending-proportion."
 severity = { high = "The climax or a turning point is under-prepared or too brief for its weight, so it does not land.", medium = "Preparation or space is thin for a major event.", low = "Could be reinforced." }
 
 [[check]]
 id = "pacing.chapter-endings"
 title = "Chapter endings"
-question = "Do chapters end in varied ways that carry the reader forward, or in the same way every time?"
-look_for = ["every chapter ending on a reflection or summary", "hook endings used mechanically and resolved on the next page", "endings that deflate the chapter's energy", "chapters that run past their natural ending"]
+question = "Across the book, do chapter endings vary and carry the reader forward, or end the same way every time?"
+look_for = ["every chapter ending on a reflection or summary", "hook endings used mechanically and resolved on the next page", "endings that deflate the chapter's energy", "a run of chapters ending at the same kind of moment"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "metrics"]
 metrics = ["chapter_ending_types"]
-evidence = "Ending type per chapter with runs of identical types; the last lines of the weakest endings quoted with anchors."
+evidence = "Ending type per chapter with runs of identical types; the last lines of the weakest endings quoted with anchors. Trimming a scene that runs past its turn is scene-craft.entry-exit."
 severity = { high = "Endings are monotonous or deflating across much of the book.", medium = "A repeated type in a block.", low = "A few weak endings." }
 
 [[check]]

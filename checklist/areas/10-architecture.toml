@@ -69,25 +69,25 @@ severity = { high = "The shift makes the book feel like two books or breaks the 
 id = "architecture.turning-points"
 title = "Turning points (lens)"
 question = "Where does the situation change irreversibly, do those changes escalate or deepen, and which structural model (three-act, five-part, kishotenketsu, episodic, cyclic, mosaic, other) fits the book best?"
-look_for = ["no point after which the situation cannot return", "turning points clustered at one end", "a long stretch with no change of state", "a model imposed that the book does not follow"]
+look_for = ["no point after which the situation cannot return", "turning points clustered at one end", "two turns that change the same thing", "a model imposed that the book does not follow"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "structure", "metrics"]
 metrics = ["words_per_chapter"]
-evidence = "Turning points with chapter and percent position (from word counts), what changes irreversibly, and the lens chosen with reason. In non-causal designs the 'turn' may be a shift of understanding or juxtaposition. Absence of a beat under a lens the book does not use is not a finding."
-severity = { high = "The book never changes state, or the decisive change is missing or unprepared.", medium = "Turning points exist but are weak, late or redundant.", low = "A turn is present but could land harder or sit better." }
+evidence = "Turning points with chapter and percent position (from word counts), what changes irreversibly, and the lens chosen with reason. In non-causal designs the 'turn' may be a shift of understanding or juxtaposition. Absence of a beat under a lens the book does not use is not a finding. This map feeds pacing: stretches with no change are pacing.stalls, build-up and space for each turn are pacing.peak-handling."
+severity = { high = "The book never changes state, or the decisive change is missing.", medium = "Turning points exist but are clustered, weak or redundant.", low = "A turn sits slightly early or late for the book's design." }
 
 [[check]]
 id = "architecture.emotional-shape"
 title = "Emotional and tonal shape"
-question = "What is the shape of the reader's emotional experience across the blocks (rise, fall, alternation, accumulation), and does it build toward what the ending needs?"
-look_for = ["the same emotional register sustained for many chapters", "the strongest emotional peak well before the end, with nothing comparable after", "tonal swings with no bridge", "an ending whose emotional charge the book has not built"]
+question = "Which feelings and tones does the reader pass through across the blocks (grief, comedy, dread, tenderness), in what succession, and does that succession build toward what the ending needs?"
+look_for = ["the same emotional register sustained for many chapters", "the strongest emotional charge spent well before the end, with nothing comparable after", "tonal swings with no bridge", "an ending whose emotional charge the book has not built"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "structure"]
-evidence = "Per block, the dominant emotion or tone with one anchor scene, and the overall curve; flagged stretches cited by chapter range. Monotony or a flat curve that is the book's deliberate effect is recorded as such. Tension and release at scene level belong to pacing."
+evidence = "Per block, the dominant emotion or tone with one anchor scene, and the overall succession; flagged stretches cited by chapter range. Monotony that is the book's deliberate effect is recorded as such. This check judges the kind of feeling; the intensity of pull (suspense, curiosity) over the book is pacing.tension-curve."
 severity = { high = "The emotional arc peaks or exhausts itself far from the end, or never builds, so the whole lands flat.", medium = "One block is tonally monotonous or a swing is unprepared.", low = "The curve works; one transition could be smoother." }
 
 [[check]]

@@ -26,7 +26,7 @@ method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3", "motifs"]
-evidence = "Quoted passages with the single idea they share and which occurrence carries it best; L3 read only in reflective passages flagged in L2."
+evidence = "Quoted passages with the single idea they share and which occurrence carries it best; L3 read only in reflective passages flagged in L2. Whether an idea is stated instead of enacted at all is premise-theme.stated-enacted."
 severity = { high = "The same idea recurs so often that it dulls the book's argument.", medium = "Reiteration in several chapters.", low = "Occasional doubling." }
 
 [[check]]
@@ -43,29 +43,29 @@ severity = { high = "Explanation systematically undercuts scenes and talks down 
 
 [[check]]
 id = "density-and-pruning.info-dumps"
-title = "Exposition and backstory blocks"
-question = "Where does a block of backstory or explanation stop the story to inform the reader?"
-look_for = ["a paragraph of history before an event can happen", "a character lecturing", "backstory delivered in one go early on"]
+title = "Exposition, backstory and description blocks"
+question = "Where does a block of backstory, explanation, description or lore stop the story to inform the reader, and could it be cut or woven into action and perception at the point of need?"
+look_for = ["a paragraph of history or lore before an event can happen", "a long descriptive paragraph before anything happens, or a list-like inventory of a room or landscape", "description or explanation that does not pass through the viewpoint character", "a character lecturing"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3", "metrics"]
-metrics = ["long_paragraph_rate", "new_term_density"]
-evidence = "Blocks located by long dialogue-free paragraphs and term density, then read: length, location, what the reader learns, and where it is first needed. Setting description and world lore are judged in setting-and-space and world-coherence."
-severity = { high = "Large blocks stop the story at critical points or in the opening.", medium = "Several noticeable blocks.", low = "A short block." }
+metrics = ["long_paragraph_rate", "paragraph_length_mean", "new_term_density"]
+evidence = "Blocks located by long dialogue-free paragraphs and term density, then read: anchor, length, kind (backstory, explanation, description, lore), what the reader learns, and where it is first needed. Description that is itself the book's pleasure (a deliberate slow register) is recorded before flagging. Front-loaded backstory in the opening is opening.false-starts; when a needed pause falls is pacing.suspension."
+severity = { high = "Large blocks stop the story at critical points or recur throughout.", medium = "Several noticeable blocks.", low = "A short block." }
 
 [[check]]
 id = "density-and-pruning.digressions"
 title = "Digressions"
 question = "Which digressions earn their place, and which could be shortened or cut?"
-look_for = ["a tangent connected to nothing", "a digression longer than the scene around it", "an aside that halts a tense sequence"]
+look_for = ["a tangent connected to nothing", "a digression longer than the scene around it", "a digression that repeats a point another one already made"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "motifs", "metrics"]
 metrics = ["long_paragraph_rate", "scene_summary_ratio"]
-evidence = "Each digression with length, position, links to motifs or themes, and verdict (keep, shorten, cut) with reasons."
-severity = { high = "A long digression halts a key sequence without payoff.", medium = "Digressions repeatedly slow scenes.", low = "A short aside of marginal value." }
+evidence = "Each digression with length, position, links to motifs or themes, and verdict (keep, shorten, cut) with reasons. Whether it falls at a bad moment is pacing.suspension."
+severity = { high = "Long digressions with no link to the book's concerns take a large share of chapters.", medium = "Several digressions earn less than their length.", low = "A short aside of marginal value." }
 
 [[check]]
 id = "density-and-pruning.cut-candidates"

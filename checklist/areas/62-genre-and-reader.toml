@@ -20,7 +20,7 @@ severity = { high = "The book breaks its genre promise without compensation.", m
 id = "genre-and-reader.length-norms"
 title = "Length against market norms"
 question = "How does the total word count compare with the usual range for its category and market?"
-look_for = ["far above the usual range for a debut", "very short for the category", "length out of proportion to the story it carries"]
+look_for = ["far above the usual range for a debut", "very short for the category", "a length typical of a different category from the one claimed"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "none"
@@ -31,16 +31,16 @@ severity = { high = "Length is far outside the range of the market where it will
 
 [[check]]
 id = "genre-and-reader.reader-fit"
-title = "Fit and accessibility for the intended reader"
-question = "Do content, tone, vocabulary and complexity fit the intended reader, and is the effort the book asks (density, unfamiliar terms, private references) repaid?"
-look_for = ["vocabulary or syntax beyond the audience", "many unfamiliar terms or names early on", "allusions or private codes the reader cannot decode", "themes at odds with the declared readership"]
+title = "Fit and demand for the intended reader"
+question = "Taken as a whole, do content, tone, vocabulary and syntactic complexity fit the intended reader, and is the overall effort the book asks repaid?"
+look_for = ["vocabulary or syntax beyond the audience", "themes or content at odds with the declared readership", "density sustained over long stretches with nothing to ease the reader in", "effort that the book's rewards do not repay"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L0", "L1", "metrics"]
-metrics = ["readability_fernandez_huerta", "readability_szigriszt_inflesz", "readability_flesch", "new_term_density", "long_paragraph_rate"]
-evidence = "Readability (where available for the language) and term density per chapter as relative gauges, the passages that demand most, what the book does to help the reader in, and whether the effort pays off."
-severity = { high = "The text's demands conflict with its intended audience throughout, or closed references block the main movement.", medium = "Parts ask more than the intended reader will give.", low = "Mild mismatch." }
+metrics = ["readability_fernandez_huerta", "readability_szigriszt_inflesz", "readability_flesch", "long_paragraph_rate"]
+evidence = "Readability (where available for the language) per chapter as a relative gauge, the passages that demand most, what the book does to help the reader in, and whether the effort pays off. Specific references needing outside knowledge are world-coherence.external-context; invented terms, world-coherence.worldbuilding-delivery."
+severity = { high = "The text's demands conflict with its intended audience throughout.", medium = "Parts ask more than the intended reader will give.", low = "Mild mismatch." }
 
 [[check]]
 id = "genre-and-reader.age-appropriateness"
@@ -72,14 +72,14 @@ severity = { high = "The volume does not work without the others or gives no arc
 [[check]]
 id = "genre-and-reader.comparables"
 title = "Comparable titles"
-question = "Which recent published books occupy similar ground, and what does this book offer that they do not?"
+question = "Which recent published books occupy similar ground and readership, so the book can be placed among them?"
 look_for = ["no obvious comparables", "comparables from an incompatible market or era", "only blockbuster comparables"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
 inputs = ["L0", "L1", "findings"]
 modes = ["reader-report"]
-evidence = "Two to five comparable titles with the reason for each and the book's distinct offer, marked for the writer or agent to verify; no invented titles, and uncertainty stated."
+evidence = "Two to five comparable titles with the reason for each, marked for the writer or agent to verify; no invented titles, and uncertainty stated. What the book does that they do not is holistic-reading.originality."
 
 [[check]]
 id = "genre-and-reader.market-position"
@@ -95,25 +95,13 @@ evidence = "A positioning statement (category, hook, readership), the two or thr
 severity = { high = "Positioning is unclear to a degree that blocks a pitch.", medium = "Positioning needs work.", low = "Minor tuning." }
 
 [[check]]
-id = "genre-and-reader.reader-experience"
-title = "First-reader simulation"
-question = "Where might a first-time reader be gripped, bored, confused or moved, and which questions do they carry at each point?"
-look_for = ["a point where the reader would put the book down", "unanswered questions piling up", "an emotional peak the reader is not prepared for"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "findings"]
-evidence = "A chapter-by-chapter reader map with open questions and predicted engagement, confidence levels, and a note that it is a simulation."
-severity = { high = "Predicted drop-off or confusion at pivotal points.", medium = "Local confusion or boredom.", low = "Mild." }
-
-[[check]]
 id = "genre-and-reader.sensitivity"
 title = "Sensitivity and representation flags"
 question = "Which depictions (violence, trauma, identities, cultures, real groups) need care or checking by a qualified reader?"
-look_for = ["a stereotype", "dialect or accent rendered as caricature", "traumatic content with no framing", "cultural material used without apparent knowledge"]
+look_for = ["a stereotype", "traumatic content with no framing", "cultural material used without apparent knowledge", "a real group or person depicted in a way that could mislead"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "characters", "findings"]
-evidence = "Scene ids and quoted passages flagged for human verification with the concern; no certification is implied."
+evidence = "Scene ids and quoted passages flagged for human verification with the concern; no certification is implied. How dialect is rendered is dialogue.dialect-handling; flag it here only when the concern is representation."
 severity = { high = "Content likely to harm or mislead readers in a way that needs rethinking.", medium = "Content to verify with a specialist reader.", low = "A minor note." }

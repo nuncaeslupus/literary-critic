@@ -2,7 +2,7 @@ id = "holistic-reading"
 title = "Holistic reading"
 stage = "verification"
 order = 64
-purpose = "After the analytical work, judge what only the whole shows: the reading experience, emotional engagement, the voice, originality, the balance of ideas and lived experience, demonstrable strengths and the few root problems behind many symptoms. It ends in a verdict: in revision mode, the priorities for the next draft; in reader-report mode, a recommendation an agent or publisher can act on."
+purpose = "After the analytical work, judge what only the whole shows: the reading experience, originality, demonstrable strengths and the few root problems behind many symptoms. Engagement with the characters is judged in characters.reader-investment, the voice in pov-and-voice, ideas against experience in premise-theme.stated-enacted. It ends in a verdict: in revision mode, the priorities for the next draft; in reader-report mode, a recommendation an agent or publisher can act on."
 
 [[check]]
 id = "holistic-reading.whole-experience"
@@ -17,29 +17,6 @@ evidence = "A short account of the whole-book experience supported by anchors fr
 severity = { high = "The whole fails to cohere despite good parts.", medium = "Some parts unbalance the whole.", low = "Small unevenness." }
 
 [[check]]
-id = "holistic-reading.emotional-engagement"
-title = "Emotional engagement"
-question = "Does the reader come to care about the people and what is at stake for them, and does that investment hold to the end?"
-look_for = ["a protagonist the reader observes but does not care about", "stakes stated but not felt", "engagement that peaks early and fades"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "characters", "findings"]
-evidence = "Where investment is won, where it is lost, and why, with anchors to the scenes that build or drain it."
-severity = { high = "The reader has little reason to care, and the book's effect depends on it.", medium = "Engagement lapses for long stretches.", low = "A local dip." }
-
-[[check]]
-id = "holistic-reading.voice-value"
-title = "Value of the voice"
-question = "How much does the voice carry the book, and is it sustained from first page to last?"
-look_for = ["a voice strong enough to carry a slight plot", "a voice that tires by repetition", "a voice that fades in the middle"]
-method = "llm"
-kind = "strength"
-action_level = "none"
-inputs = ["L3", "findings"]
-evidence = "Short quoted passages from the start, middle and end with what the voice achieves in each."
-
-[[check]]
 id = "holistic-reading.originality"
 title = "Originality and distinctiveness"
 question = "What does this book do that others in its territory do not: in premise, construction, characters or voice, and does the novelty serve the book?"
@@ -50,19 +27,6 @@ action_level = "none"
 inputs = ["L0", "L1", "structure", "characters", "findings"]
 evidence = "Distinctive features with their effect; comparisons stated as impressions, not claims."
 severity = { high = "Nothing distinguishes the book from many others like it.", medium = "Distinctiveness is present but uneven or underexploited.", low = "Minor." }
-
-[[check]]
-id = "holistic-reading.ideas-experience"
-title = "Ideas and lived experience"
-question = "Do the book's ideas arise from lived events, or do events merely illustrate ideas, and does the share of reflection to narrative suit the book?"
-look_for = ["scenes that carry thought without stating it", "reflection floating free of any scene", "events staged as arguments", "essay-like stretches overwhelming the story"]
-method = "hybrid"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "findings", "metrics"]
-metrics = ["scene_summary_ratio"]
-evidence = "Share of reflective passages by block (LLM-tagged, script-aggregated) with examples at both poles."
-severity = { high = "Ideas dominate experience to the point of lifelessness, or experience lacks meaning.", medium = "Imbalance in some blocks.", low = "Slight tilt." }
 
 [[check]]
 id = "holistic-reading.demonstrable-strengths"

@@ -30,23 +30,23 @@ evidence = "Summary of the book from L0/L1 with chapter references for each clai
 id = "orientation.genre-promise"
 title = "Genre and reader promise"
 question = "Which genre, tradition or shelf does the book signal, and what does it promise a reader (pleasure, effect, kind of ending)?"
-look_for = ["signals of several genres without a dominant one", "opening promises something the middle drops", "genre named by the writer differs from what the text signals"]
+look_for = ["signals of several genres without a dominant one", "genre named by the writer differs from what the text signals", "conventions the book visibly plays against or subverts"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
 inputs = ["L0", "L1", "L2"]
-evidence = "Genre or tradition label(s) with the scenes that signal them; stated assumption if the writer did not declare the genre."
+evidence = "Genre or tradition label(s) with the scenes that signal them, and the promise in one or two lines; stated assumption if the writer did not declare the genre. Recorded, not judged: whether the opening's promise is kept is opening.opening-promise, and how conventions are honoured is genre-and-reader.genre-conventions."
 
 [[check]]
 id = "orientation.intended-reader"
 title = "Intended reader"
 question = "Who is the book written for, and what knowledge, patience and values does it assume of that reader?"
-look_for = ["assumed background knowledge never supplied", "register or vocabulary aimed at a different audience than the content", "content or tone mismatched with the declared readership"]
+look_for = ["no stated target readership, so the implied reader must be inferred", "textual signals (register, content, assumed knowledge) pointing to different readerships", "background the text assumes (culture, period, specialism) that the target reader may lack"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
 inputs = ["L0", "L1"]
-evidence = "Writer's stated target (if any), the textual signals of the implied reader, and a list of assumptions the text makes; fit is judged later in genre-and-reader."
+evidence = "Writer's stated target (if any), the textual signals of the implied reader, and a list of assumptions the text makes; recorded, not judged. Overall fit is genre-and-reader.reader-fit; specific outside knowledge is world-coherence.external-context."
 
 [[check]]
 id = "orientation.own-design"
@@ -63,24 +63,24 @@ evidence = "Short statement of the design with 2-4 anchors showing where the cho
 id = "orientation.language-conventions"
 title = "Language and typographic conventions"
 question = "What language, variety, tense, person and dialogue/quotation conventions does the manuscript use, so scripts and checks can be configured?"
-look_for = ["mixed spelling varieties", "several dialogue-marking conventions in one text", "foreign terms or other languages without a pattern"]
+look_for = ["the dominant form where several coexist (spelling variety, dialogue marks, dash style)", "conventions the writer declares versus those the text actually uses", "foreign terms or other languages that scripts must be told about"]
 method = "hybrid"
 kind = "inventory"
 action_level = "none"
 inputs = ["metrics", "L3"]
 metrics = ["quote_style_consistency", "tense_consistency"]
-evidence = "Detected conventions with counts and sample locations; the LLM reads only the sampled passages to confirm which are intentional."
+evidence = "Detected conventions with counts and sample locations, recorded as the book's working style sheet; the LLM reads only the sampled passages to confirm which are intentional. Deviations are judged later in dialogue.punctuation-conventions, lexicon-and-sound.language-variety, style-and-syntax.tense-slips and manuscript-closure.orthotypography."
 
 [[check]]
 id = "orientation.first-impressions"
 title = "First impressions log"
-question = "What did the first read produce before analysis: where attention rose or fell, what confused, what the reader wanted to know next?"
-look_for = ["confusion at specific points", "attention dropping over a stretch", "a question the reader held and later lost"]
+question = "What did the first read produce before analysis: where attention rose or fell, what confused, and which questions the reader carried at each point and later lost or had answered?"
+look_for = ["confusion at specific points", "attention dropping over a stretch, a point where a reader would put the book down", "a question the reader held and later lost", "unanswered questions piling up", "an emotional peak the reader was not prepared for"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
 inputs = ["L1", "L3"]
-evidence = "Log entries, each tied to a chapter or passage; impressions are recorded as reader experience, not diagnosis, and later confirmed or dismissed by analysis."
+evidence = "A chapter-by-chapter log of attention and open questions, each entry tied to a chapter or passage, with a confidence level; impressions are recorded as reader experience, not diagnosis, and later confirmed or dismissed by analysis (the engagement curve is judged in pacing.tension-curve)."
 
 [[check]]
 id = "orientation.first-strengths"

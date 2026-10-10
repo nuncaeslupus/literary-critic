@@ -2,7 +2,7 @@ id = "motifs-and-setups"
 title = "Motifs and setups"
 stage = "developmental"
 order = 30
-purpose = "Track the repeated images, objects and phrases, and the promises the text makes and fulfils. Motifs earn their place by changing across the book; setups need payoffs and payoffs need setups, calibrated so they neither telegraph nor surprise unfairly. Over-reading is as much a risk as under-reading: a symbol is only flagged if the text itself stresses it. End-of-book closure of open threads is checked under ending."
+purpose = "Track the repeated images, objects and phrases, and the promises the text makes and fulfils. Motifs earn their place by changing across the book; setups need payoffs and payoffs need setups, calibrated so they neither telegraph nor surprise unfairly. Over-reading is as much a risk as under-reading: a symbol is only flagged if the text itself stresses it. End-of-book closure of open threads is checked under ending; whether title, opening and ending still answer each other after revision is re-checked in manuscript-closure.post-change-recheck."
 
 [[check]]
 id = "motifs-and-setups.motif-inventory"

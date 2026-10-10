@@ -20,12 +20,12 @@ evidence = "Register rows: pair or group, type of bond, key scenes, state at sta
 id = "relationships-and-knowledge.bonds-enacted"
 title = "Bonds enacted: power, dependency, affection, kinship"
 question = "Who holds power over whom, who depends on whom, who loves or owes whom, and does the text show it in choices and conflict rather than assert it?"
-look_for = ["power relations contradicting behaviour", "affection told but not shown", "a family member drawn as a role rather than a person", "kinship terms or family history inconsistent across chapters"]
+look_for = ["power relations contradicting behaviour", "affection told but not shown", "a family member drawn as a role rather than a person", "a debt or obligation that never shapes a choice"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["relationships", "characters", "L2"]
-evidence = "Per central bond, the scenes where it shapes a decision and the passages where the text asserts it without showing; kinship inconsistencies cited by chapter."
+evidence = "Per central bond, the scenes where it shapes a decision and the passages where the text asserts it without showing. Contradictory kinship facts are continuity.character-continuity."
 severity = { high = "A central bond is asserted but never enacted, or contradicts its own scenes.", medium = "A bond is shown unevenly or drawn as a type.", low = "A minor bond lacking a scene." }
 
 [[check]]

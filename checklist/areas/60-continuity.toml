@@ -57,26 +57,26 @@ severity = { high = "A contradiction affects a clue, a payoff or the plot.", med
 [[check]]
 id = "continuity.gaps-jumps"
 title = "Involuntary gaps and jumps"
-question = "Is something missing: an unexplained arrival, a decision with no scene, time passing unreported?"
-look_for = ["a character appearing without arriving", "a decision with no scene", "an unexplained jump in time or place"]
+question = "Is a link missing in the chain of events: an unexplained arrival or exit, a decision with no scene, an object or fact appearing without its cause?"
+look_for = ["a character appearing without arriving", "a decision with no scene", "a change of place with no movement between"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["timeline", "L2", "metrics"]
 metrics = ["timeline_gap_count", "character_presence_matrix"]
-evidence = "Candidates from timeline or presence gaps, confirmed by reading the scenes on either side."
+evidence = "Candidates from timeline or presence gaps, confirmed by reading the scenes on either side. Whether deliberate time jumps are signalled is time-and-narrative-levels.time-jumps."
 severity = { high = "Gaps leave the reader lost on plot events.", medium = "Visible gaps.", low = "Minor." }
 
 [[check]]
 id = "continuity.error-or-design"
 title = "Error or design"
-question = "For each contradiction found, is it an error, or a design (unreliable narrator, differing accounts, a character's mistaken belief), and is the design signalled?"
+question = "For each internal contradiction the continuity checks found, is it an error, or a design (unreliable narrator, differing accounts, a character's mistaken belief), and is the design signalled?"
 look_for = ["two accounts of one event", "a character's belief contradicting established fact", "a narrator changing a story"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["findings", "ledger", "L2"]
-evidence = "Each continuity finding sorted into error or design, with the textual signals that support the reading; design without any signal flagged."
+evidence = "Each continuity finding sorted into error or design, with the textual signals that support the reading; design without any signal flagged. Real-world facts are world-coherence.factual-accuracy; how readable a designed unreliability is, pov-and-voice.unreliability-design."
 severity = { high = "Unsignalled contradictions in major matters will read as errors.", medium = "Several ambiguous cases.", low = "Minor." }
 
 [[check]]

@@ -13,7 +13,7 @@ method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L0", "L1", "L2"]
-evidence = "One-line statement of the stance from L0/L2, the passages where it is first signalled, and each departure cited by scene anchor with a short quote."
+evidence = "One-line statement of the stance from L0/L2, the passages where it is first signalled, and each departure cited by scene anchor with a short quote. The narrating moment and place are time-and-narrative-levels.narrator-position."
 severity = { high = "The stance is contradictory or unreadable in ways that change what the reader understands of the whole book.", medium = "The stance is clear in most of the book but blurs in whole chapters or blocks.", low = "Isolated drift in a few passages." }
 
 [[check]]
@@ -47,12 +47,12 @@ severity = { high = "A viewpoint strand or a key scene is told from a position t
 id = "pov-and-voice.head-hopping"
 title = "Viewpoint breaches and head-hopping"
 question = "Does the text enter more minds, or report more than the viewpoint in force can perceive or know, without a deliberate omniscient design?"
-look_for = ["thoughts of two characters within one scene or paragraph under a limited viewpoint", "a first-person narrator stating another character's inner life as fact", "the viewpoint character describing their own face or expression from outside", "knowledge of events elsewhere with no cue", "slips into the author's knowledge for a sentence"]
+look_for = ["thoughts of two characters within one scene or paragraph under a limited viewpoint", "the viewpoint character describing their own face or expression from outside", "knowledge of events elsewhere with no cue", "slips into the author's knowledge for a sentence"]
 method = "llm"
 kind = "diagnostic"
 action_level = "line"
 inputs = ["L2", "L3"]
-evidence = "Each breach quoted with scene anchor, the viewpoint in force (from L2), and whose mind or what knowledge is accessed. Read L3 only for scenes L2 marks as mixed or for samples; deliberate omniscience is recorded under omniscient-control, not here."
+evidence = "Each breach quoted with scene anchor, the viewpoint in force (from L2), and whose mind or what knowledge is accessed. Read L3 only for scenes L2 marks as mixed or for samples; deliberate omniscience is recorded under omniscient-control, and a first-person narrator's access to what they could not witness is time-and-narrative-levels.knowledge-source."
 severity = { high = "Breaches in key scenes leave the reader unsure whose experience they share, or leak information that spoils a later effect.", medium = "Recurring breaches that blur tension or intimacy across several scenes.", low = "Occasional single-sentence slips." }
 
 [[check]]
@@ -72,25 +72,25 @@ severity = { high = "The narrating intelligence is inconsistent enough that the 
 id = "pov-and-voice.psychic-distance"
 title = "Psychic distance"
 question = "How close is the narration to a character's inner life at each point, and do changes in that distance happen on purpose and at the right moments?"
-look_for = ["distance jumping from remote to deep interiority within a paragraph without effect", "remote summary at emotional peaks", "relentless closeness where distance would give perspective or relief", "filtering ('she saw', 'he felt') that holds the reader at arm's length in intense moments"]
+look_for = ["distance jumping from remote to deep interiority within a paragraph without effect", "remote summary at emotional peaks", "relentless closeness where distance would give perspective or relief", "one fixed distance across scenes that call for different ones"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "line"
 inputs = ["L2", "L3", "metrics"]
 metrics = ["filter_word_density"]
-evidence = "Scene anchors of the emotional peaks (from L2) with the distance used quoted; chapters with unusual filter-word density as pointers only. Before flagging, state whether a sustained distance is the book's deliberate register."
+evidence = "Scene anchors of the emotional peaks (from L2) with the distance used quoted; chapters with unusual filter-word density as pointers only. Before flagging, state whether a sustained distance is the book's deliberate register. Sentence-level filter words are style-and-syntax.filter-words."
 severity = { high = "Distance is wrong at the book's key emotional moments or unstable throughout, so the reader cannot settle into the characters.", medium = "Distance wavers or misfires in several scenes.", low = "A few lapses." }
 
 [[check]]
 id = "pov-and-voice.intrusions"
 title = "Narrator intrusions and commentary"
 question = "Where does the narrator step outside the story to comment, generalise, address the reader or discuss the telling, and does each intrusion add something the scene cannot?"
-look_for = ["asides that interrupt tension at its height", "comment that explains what the scene already showed", "intrusions repeating the same move", "metafictional remarks with no pattern or payoff"]
+look_for = ["asides that interrupt tension at its height", "intrusions repeating the same move", "a commenting presence that appears in some chapters only, with no pattern", "metafictional remarks with no pattern or payoff"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3"]
-evidence = "Intrusions quoted with anchors, a count by chapter, and for each the job it does (irony, judgement, framing, explanation). A commenting narrator who is part of the book's design is recorded as such before any flag."
+evidence = "Intrusions quoted with anchors, a count by chapter, and for each the job it does (irony, judgement, framing, explanation). A commenting narrator who is part of the book's design is recorded as such before any flag. Narration explaining a gesture or line the reader already understood is density-and-pruning.explain-duplicates-show."
 severity = { high = "Intrusions break key scenes or keep explaining what the reader has understood, across the book.", medium = "Several redundant or badly placed intrusions.", low = "A few that could be trimmed." }
 
 [[check]]
@@ -149,10 +149,10 @@ severity = { high = "The voice changes enough to read like another narrator or a
 [[check]]
 id = "pov-and-voice.voice-strength"
 title = "Voice strengths"
-question = "What is distinctive and valuable about the voice, and what must revision not flatten?"
-look_for = ["a recognisable cadence or syntax", "a distinctive stance towards the world", "humour, tenderness or menace only this voice can carry", "a productive oddity a cautious editor might smooth away"]
+question = "What is distinctive and valuable about the voice, how much of the book does it carry, and what must revision not flatten?"
+look_for = ["a recognisable cadence or syntax", "a distinctive stance towards the world", "humour, tenderness or menace only this voice can carry", "a voice strong enough to carry a slight plot", "a productive oddity a cautious editor might smooth away"]
 method = "llm"
 kind = "strength"
 action_level = "none"
 inputs = ["L2", "L3"]
-evidence = "Quoted passages with anchors showing the voice at its best, and a description of the features that make it work and that revision must keep."
+evidence = "Quoted passages with anchors from the start, middle and end showing the voice at its best, what it achieves in each, and the features that make it work and that revision must keep."
