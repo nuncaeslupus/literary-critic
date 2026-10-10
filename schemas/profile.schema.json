@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "profile",
+  "title": "Novel profile (analysis/profile.toml): mode, traits and check adjustments",
+  "type": "object",
+  "required": ["mode", "language"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "mode": {"enum": ["revision", "reader-report"]},
+    "language": {"type": "string", "pattern": "^[a-z]{2}$"},
+    "traits": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+$"}},
+    "disabled": {"type": "array", "items": {"type": "string"}},
+    "weights": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}}
+  }
+}

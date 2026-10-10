@@ -1,0 +1,7 @@
+{
+  "metric": "schema_validity_on_fixtures",
+  "value": 1.0,
+  "fixtures": 19,
+  "kinds": ["scene-card", "register", "finding", "action", "profile"],
+  "command": "uv run pytest tests/test_validate.py"
+}

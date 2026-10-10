@@ -1,0 +1,24 @@
+{
+ "schema_version": 1,
+ "anchor": "chapter one",
+ "summary": "A traveller loses his way at dusk and asks a boy for directions to the mines.",
+ "pov": "omniscient",
+ "characters": [
+  "Traveller",
+  "Boy"
+ ],
+ "location": "Hillside path",
+ "story_time": "Day 1, evening",
+ "events": [
+  "Traveller gets lost",
+  "Meets the boy"
+ ],
+ "setups": [
+  "Boy mentions a blind man"
+ ],
+ "payoffs": [],
+ "open_threads": [
+  "Where is the traveller going?"
+ ],
+ "notes": ""
+}
