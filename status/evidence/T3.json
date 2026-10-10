@@ -1,0 +1,10 @@
+{
+  "metric": "corpus_sources_documented",
+  "value": 1.0,
+  "texts": {
+    "jekyll-hyde": {"language": "en", "words": 25585, "chapters": 10, "documented": true},
+    "marianela": {"language": "es", "words": 50543, "chapters": 22, "documented": true}
+  },
+  "synth_sample": {"text": "marianela", "seed": 1, "rate": 0.05, "edits": 64, "old_paragraphs": 1270, "new_paragraphs": 1270},
+  "command": "uv run lc corpus check"
+}
