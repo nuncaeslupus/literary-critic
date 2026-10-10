@@ -2,13 +2,13 @@ id = "holistic-reading"
 title = "Holistic reading"
 stage = "verification"
 order = 64
-purpose = "After the analytical work, read the book as a whole again and judge what only the whole shows: the value of the voice, the singularity of the construction, the balance of thought and experience, demonstrable strengths, problems that affect the whole, and a critical balance. In reader-report mode this area ends in a verdict and recommendation."
+purpose = "After the analytical work, judge what only the whole shows: the reading experience, emotional engagement, the voice, originality, the balance of ideas and lived experience, demonstrable strengths and the few root problems behind many symptoms. It ends in a verdict: in revision mode, the priorities for the next draft; in reader-report mode, a recommendation an agent or publisher can act on."
 
 [[check]]
 id = "holistic-reading.whole-experience"
 title = "Reading as a whole"
 question = "What is the experience of the book from start to end, and where does the whole differ from the sum of its parts?"
-look_for = ["effect built over the book", "fatigue in the last third", "parts better than the whole"]
+look_for = ["an effect that builds across the book", "fatigue in the last third", "strong parts that do not add up"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
@@ -17,133 +17,84 @@ evidence = "A short account of the whole-book experience supported by anchors fr
 severity = { high = "The whole fails to cohere despite good parts.", medium = "Some parts unbalance the whole.", low = "Small unevenness." }
 
 [[check]]
+id = "holistic-reading.emotional-engagement"
+title = "Emotional engagement"
+question = "Does the reader come to care about the people and what is at stake for them, and does that investment hold to the end?"
+look_for = ["a protagonist the reader observes but does not care about", "stakes stated but not felt", "engagement that peaks early and fades"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "characters", "findings"]
+evidence = "Where investment is won, where it is lost, and why, with anchors to the scenes that build or drain it."
+severity = { high = "The reader has little reason to care, and the book's effect depends on it.", medium = "Engagement lapses for long stretches.", low = "A local dip." }
+
+[[check]]
 id = "holistic-reading.voice-value"
 title = "Value of the voice"
-question = "How much does the voice carry the book, and is it sustained?"
-look_for = ["a voice strong enough to carry weak plot", "voice wavering", "voice repeating itself"]
+question = "How much does the voice carry the book, and is it sustained from first page to last?"
+look_for = ["a voice strong enough to carry a slight plot", "a voice that tires by repetition", "a voice that fades in the middle"]
 method = "llm"
 kind = "strength"
 action_level = "none"
 inputs = ["L3", "findings"]
-evidence = "Quoted passages at start, middle and end."
+evidence = "Short quoted passages from the start, middle and end with what the voice achieves in each."
 
 [[check]]
-id = "holistic-reading.singularity"
-title = "Structural singularity"
-question = "What is distinctive about the construction, and does it serve the book?"
-look_for = ["an unusual architecture that works", "novelty without function", "form overwhelming content"]
+id = "holistic-reading.originality"
+title = "Originality and distinctiveness"
+question = "What does this book do that others in its territory do not: in premise, construction, characters or voice, and does the novelty serve the book?"
+look_for = ["a fresh angle on a familiar subject", "an unusual architecture that works", "generic characters in a distinctive world", "novelty without function"]
 method = "llm"
-kind = "strength"
+kind = "diagnostic"
 action_level = "none"
-inputs = ["L1", "structure", "findings"]
-evidence = "Features with effect."
+inputs = ["L0", "L1", "structure", "characters", "findings"]
+evidence = "Distinctive features with their effect; comparisons stated as impressions, not claims."
+severity = { high = "Nothing distinguishes the book from many others like it.", medium = "Distinctiveness is present but uneven or underexploited.", low = "Minor." }
 
 [[check]]
-id = "holistic-reading.narration-essay-balance"
-title = "Narration versus essay balance"
-question = "Does the proportion of narrative and reflection suit the book?"
-look_for = ["essay-like chapters overwhelming plot", "narrative with no thought", "abrupt swings"]
+id = "holistic-reading.ideas-experience"
+title = "Ideas and lived experience"
+question = "Do the book's ideas arise from lived events, or do events merely illustrate ideas, and does the share of reflection to narrative suit the book?"
+look_for = ["scenes that carry thought without stating it", "reflection floating free of any scene", "events staged as arguments", "essay-like stretches overwhelming the story"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
-inputs = ["L1", "L2", "metrics"]
-metrics = ["scene_summary_ratio", "dialogue_ratio"]
-applies_when = ["essayistic", "literary_fiction"]
-evidence = "Share of reflective passages by block (LLM-tagged) with the felt balance."
-severity = { high = "Balance misshapes the book.", medium = "Balance uneven in some blocks.", low = "Mild tilt." }
-
-[[check]]
-id = "holistic-reading.density-emotion"
-title = "Intellectual and emotional density"
-question = "Is the book rich in ideas and feeling, evenly or in bursts, and is the density sustainable for the reader?"
-look_for = ["ideas without feeling", "feeling without ideas", "density so high it exhausts"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "findings"]
-evidence = "Passages of highest and lowest density."
-severity = { high = "Density imbalance undermines the reading experience.", medium = "Uneven density in blocks.", low = "Mild." }
-
-[[check]]
-id = "holistic-reading.complexity-originality"
-title = "Character complexity and originality"
-question = "How complex are the characters and how original is the book's contribution?"
-look_for = ["generic characters in a distinctive world", "a fresh angle on a familiar subject", "borrowed material"]
-method = "llm"
-kind = "diagnostic"
-action_level = "none"
-inputs = ["L0", "characters", "findings"]
-evidence = "Evidence from characters and premise, with comparisons stated as impressions, not claims."
-severity = { high = "Lack of originality or complexity defines the whole book.", medium = "Uneven originality.", low = "Minor." }
-
-[[check]]
-id = "holistic-reading.thought-experience"
-title = "Balance of thought and experience"
-question = "Do ideas arise from lived events, or do events illustrate ideas?"
-look_for = ["lived scenes carrying thought", "thought floating free", "events as arguments"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "findings"]
-evidence = "Examples at both poles."
-severity = { high = "Ideas dominate experience to the point of lifelessness, or experience lacks meaning.", medium = "Imbalance in blocks.", low = "Slight tilt." }
-
-[[check]]
-id = "holistic-reading.whole-risks"
-title = "Risks of excess, repetition and hermeticism"
-question = "Which risks recur across the whole book rather than in single sentences?"
-look_for = ["recurrent patterns of excess", "recurrent closed references", "repeated gestures at book scale"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["findings", "backlog"]
-evidence = "Patterns drawn from findings with counts of occurrences and chapters."
-severity = { high = "A book-wide pattern materially harms the book.", medium = "Pattern in several blocks.", low = "Mild." }
+inputs = ["L1", "L2", "findings", "metrics"]
+metrics = ["scene_summary_ratio"]
+evidence = "Share of reflective passages by block (LLM-tagged, script-aggregated) with examples at both poles."
+severity = { high = "Ideas dominate experience to the point of lifelessness, or experience lacks meaning.", medium = "Imbalance in some blocks.", low = "Slight tilt." }
 
 [[check]]
 id = "holistic-reading.demonstrable-strengths"
 title = "Demonstrable strengths"
-question = "Which strengths can be demonstrated with evidence and must be protected?"
-look_for = ["strength recorded in several areas", "unique feature", "reliable pleasure"]
+question = "Which strengths can be shown with evidence, and which must every revision protect?"
+look_for = ["a strength recorded in several areas", "a unique feature", "a reliable pleasure for the reader"]
 method = "llm"
 kind = "strength"
 action_level = "none"
 inputs = ["findings"]
-evidence = "Consolidated list of strengths from the findings with evidence."
+evidence = "Consolidated list of strength findings across areas, each with its anchors and the revisions that could endanger it."
 
 [[check]]
 id = "holistic-reading.global-problems"
-title = "Problems affecting the whole"
-question = "Which problems affect the book as a whole and should be addressed first?"
-look_for = ["one issue behind many symptoms", "structural problem causing local ones", "dependency order of fixes"]
+title = "Root problems and priorities"
+question = "Which few problems affect the whole book, which local findings are symptoms of them, and in what order should they be addressed?"
+look_for = ["one cause behind many symptoms", "a structural problem producing local ones", "a pattern of excess or closure recurring across areas"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["findings", "backlog"]
-evidence = "Ranked list with causes, symptoms found and the order in which to address them."
-severity = { high = "Problem determines the book's success or failure.", medium = "Problem affects several blocks.", low = "Problem limited." }
-
-[[check]]
-id = "holistic-reading.critical-balance"
-title = "Global critical balance"
-question = "What is the overall balance of strengths and problems?"
-look_for = ["lopsided report", "praise without evidence", "critique without strengths"]
-method = "llm"
-kind = "diagnostic"
-action_level = "none"
-inputs = ["findings"]
-evidence = "A balanced summary citing the strongest evidence on each side."
-severity = { high = "Balance cannot be established because evidence is thin.", medium = "Balance partial.", low = "Fine." }
+evidence = "Ranked list of root problems with the findings each explains (ids and counts), and the order of work so that structural fixes precede line work."
+severity = { high = "The problem decides the book's success or failure.", medium = "The problem affects several blocks.", low = "The problem is limited." }
 
 [[check]]
 id = "holistic-reading.verdict"
 title = "Verdict and recommendation"
-question = "What is the overall verdict, and what is the recommendation (revise, develop, submit, hold)?"
-look_for = ["no clear verdict", "verdict contradicting the findings", "recommendation without a next step"]
+question = "What is the overall judgement, and what should happen next?"
+look_for = ["no clear verdict", "a verdict contradicting the findings", "praise or critique without evidence", "a recommendation with no next step"]
 method = "llm"
 kind = "diagnostic"
 action_level = "none"
 inputs = ["findings", "L0"]
-modes = ["reader-report"]
-evidence = "Verdict in a few lines with the top reasons and one next step; for a reader report, a clear recommendation with confidence."
-severity = { high = "Verdict missing or unsupported.", medium = "Verdict lacking specifics.", low = "Wording could be sharper." }
+evidence = "A few lines weighing the strongest evidence on each side. Revision mode: scope of the next draft and its top priorities. Reader-report mode: a clear recommendation (e.g. pass, consider with revisions, recommend) with the main reasons, risks and a confidence level."
+severity = { high = "The verdict is missing or unsupported by the findings.", medium = "The verdict lacks specifics or balance.", low = "Wording could be sharper." }

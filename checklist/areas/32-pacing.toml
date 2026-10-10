@@ -2,116 +2,104 @@ id = "pacing"
 title = "Pacing"
 stage = "developmental"
 order = 32
-purpose = "Check the rhythm of the whole and of each block: the alternation of action, dialogue, memory and reflection; build-up and release of tension; sag; preparation of decisive events. Metrics point to places to look, but only reading can tell whether slowness is a flaw or a design."
+purpose = "Check the rhythm of the whole and of each block: the alternation of modes (action, dialogue, memory, reflection), the rise and release of engagement, stalls, the timing of pauses, the space given to decisive moments, and chapter endings. Engagement is not only conflict: suspense, curiosity, dread, longing and contemplative absorption all count. Metrics point to places to look, but only reading can tell whether slowness is a flaw or a design."
 
 [[check]]
 id = "pacing.rhythm-profile"
 title = "Rhythm profile"
-question = "How are chapter length, scene length, dialogue share and sentence length distributed across the book?"
-look_for = ["long stretches with the same chapter length", "dialogue near zero for many chapters", "a chapter far from the baseline"]
+question = "How are chapter length, scene length, dialogue share, scene-versus-summary share and sentence length distributed across the book?"
+look_for = ["long stretches of identical chapter length", "dialogue near zero for many chapters", "a chapter far from the book's own baseline", "a part whose profile differs sharply from the others"]
 method = "script"
 kind = "inventory"
 action_level = "none"
 inputs = ["metrics", "structure"]
-metrics = ["words_per_chapter", "words_per_scene", "scene_count_per_chapter", "dialogue_ratio", "sentence_length_mean", "chapter_length_cv", "scene_length_cv"]
-evidence = "Per-chapter table of metrics with outliers marked against the book's own baseline."
+metrics = ["words_per_chapter", "words_per_scene", "scene_count_per_chapter", "dialogue_ratio", "scene_summary_ratio", "sentence_length_mean", "chapter_length_cv", "scene_length_cv"]
+evidence = "Per-chapter table of the metrics with outliers marked against the book's own baseline (not against external norms)."
 
 [[check]]
 id = "pacing.mode-alternation"
 title = "Alternation of modes"
-question = "Does the book alternate action, dialogue, memory and reflection, or does it run long in one mode?"
-look_for = ["many consecutive chapters of pure reflection", "uninterrupted dialogue with no grounding", "action without pause"]
+question = "Does the book alternate action, dialogue, memory and reflection in a way that keeps the reader engaged, or does it run long in one mode where that costs attention?"
+look_for = ["many consecutive chapters of reflection or memory", "long dialogue with no grounding or action", "action with no pause to absorb it", "the same chapter pattern repeated block after block"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "metrics"]
 metrics = ["dialogue_ratio", "scene_summary_ratio"]
-evidence = "Run of chapters by dominant mode with lengths; the LLM judges whether the run is deliberate."
-severity = { high = "A long run in one mode loses the reader or drains tension at a key point.", medium = "Runs recur in several blocks.", low = "Single mild run." }
+evidence = "Runs of chapters by dominant mode (from L2 tags and the metrics) with their length and position; the LLM records whether each run is deliberate and whether it works."
+severity = { high = "A long run in one mode loses the reader or drains energy at a key point.", medium = "Runs recur in several blocks.", low = "A single mild run." }
 
 [[check]]
 id = "pacing.tension-curve"
-title = "Tension build-up and release"
-question = "Where does tension rise, break and recover, and is there release after peaks?"
-look_for = ["no peaks", "peaks with no aftermath", "tension of the same level throughout"]
+title = "Shape of engagement over the book"
+question = "Where does engagement (suspense, curiosity, dread, emotional anticipation) rise, peak and release over the book, and does the overall shape fit the book's design, including its approach to the end?"
+look_for = ["no peaks anywhere", "peaks with no aftermath or release", "the same level of intensity throughout", "acceleration arriving too late, or slowing after the climax approach begins", "a structure without central conflict that also lacks other sources of pull (mystery, contrast, revelation)"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "structure", "metrics"]
+metrics = ["words_per_chapter", "dialogue_ratio", "scene_summary_ratio"]
+evidence = "Engagement curve per chapter or block estimated from L1/L2, with the scene anchors responsible for peaks and troughs; smoothed metrics as a secondary pointer. The structural model in use (from architecture) is named so the curve is judged against it, not against a default arc."
+severity = { high = "The curve is flat, or collapses before the climax, across most of the book.", medium = "Peaks are poorly spaced or releases are missing in places.", low = "Troughs slightly too deep or too brief." }
+
+[[check]]
+id = "pacing.stalls"
+title = "Stalls and repetition of situation"
+question = "Are there stretches (most often in the middle) where the situation, the relationships or the reader's understanding stop changing?"
+look_for = ["the same kind of scene or confrontation repeated with no escalation or variation", "no change of state across several chapters", "subplots that only delay", "waiting presented as plot"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "structure"]
-evidence = "Curve per block estimated from L1/L2 with the scenes responsible for peaks and valleys."
-severity = { high = "The tension curve is flat or collapses before the climax.", medium = "Peaks are poorly spaced.", low = "Valleys too deep or too brief." }
+evidence = "Chapter range with what changes (or not) in each, from L1/L2, and repeated scene types listed with anchors. Episodic, cyclical or meditative designs where recurrence is the point are recorded before flagging; the test is whether each recurrence adds something."
+severity = { high = "A long stretch changes nothing for the reader and is where readers would stop.", medium = "A stretch repeats patterns with only small differences.", low = "One slow chapter." }
 
 [[check]]
 id = "pacing.suspension"
-title = "Suspension of action"
-question = "Where does the story stop for explanation, memory or reflection, and does the stop pay its way?"
-look_for = ["reflection arriving at the moment of danger", "backstory that postpones a decision", "pauses that repeat earlier information"]
+title = "Timing of pauses"
+question = "Where the story stops for backstory, explanation, memory or reflection, does the pause fall at a moment it serves (deepening, delaying usefully), or at one it deflates?"
+look_for = ["reflection inserted at the height of danger or decision", "backstory postponing a scene the reader is waiting for", "pauses that repeat information already given", "a pause well placed but too long"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L2", "L3", "metrics"]
 metrics = ["long_paragraph_rate", "scene_summary_ratio"]
-evidence = "Passages with position, length and function; the metric points to long non-dialogue stretches."
-severity = { high = "A pause at a crucial moment drains the scene or repeats known information at length.", medium = "Several pauses that slow the middle.", low = "Single digression." }
+evidence = "Each pause with anchor, length, its position relative to the nearest peak, and its function. Whether the content of the pause is needed at all is judged under density-and-pruning; here the question is timing."
+severity = { high = "A pause at a crucial moment drains a key scene.", medium = "Several badly timed pauses slow a block.", low = "A single mistimed digression." }
 
 [[check]]
-id = "pacing.sagging-middle"
-title = "Sagging middle"
-question = "Does the middle keep changing the situation, or does it repeat the same type of scene?"
-look_for = ["same kind of confrontation repeated", "no change of state across many chapters", "subplots only delaying"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "structure"]
-evidence = "Chapter range with the changes (or lack) in each, and repeated scene types listed."
-severity = { high = "A long stretch of the middle changes nothing for the reader.", medium = "Middle repeats patterns but with small differences.", low = "One slow chapter." }
-
-[[check]]
-id = "pacing.preparation"
-title = "Preparation of decisive events"
-question = "Are the book's major events prepared by earlier build-up so that they land with their full weight?"
-look_for = ["decisive event arriving suddenly", "pressure absent before a crisis", "event too short for its weight"]
-method = "llm"
+id = "pacing.peak-handling"
+title = "Space and build-up for decisive moments"
+question = "Are the book's decisive events and climactic sequences prepared by build-up and given space proportional to their weight, neither rushed into summary nor diluted by padding?"
+look_for = ["a decisive event arriving with no pressure before it", "a climax narrated in summary or a few lines", "a peak scene bloated with logistics or repetition", "an off-page climax with no deliberate reason"]
+method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["L1", "L2", "metrics"]
-metrics = ["words_per_scene"]
-evidence = "Each decisive event with the preceding chapters' build-up and the length given to it."
-severity = { high = "A key event is under-prepared or too brief for its weight.", medium = "Preparation exists but is thin.", low = "Could be reinforced." }
+inputs = ["L1", "L2", "structure", "metrics"]
+metrics = ["words_per_scene", "scene_summary_ratio"]
+evidence = "Each decisive event (from structure or L1) with its anchor, its length and scene/summary share, and the build-up in the preceding chapters. Understatement or ellipsis used deliberately for effect is recorded before flagging."
+severity = { high = "The climax or a turning point is under-prepared or too brief for its weight, so it does not land.", medium = "Preparation or space is thin for a major event.", low = "Could be reinforced." }
 
 [[check]]
 id = "pacing.chapter-endings"
 title = "Chapter endings"
 question = "Do chapters end in varied ways that carry the reader forward, or in the same way every time?"
-look_for = ["every chapter ending on a reflection", "hook endings used mechanically", "endings that deflate"]
+look_for = ["every chapter ending on a reflection or summary", "hook endings used mechanically and resolved on the next page", "endings that deflate the chapter's energy", "chapters that run past their natural ending"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["L2", "L3", "metrics"]
+inputs = ["L2", "metrics"]
 metrics = ["chapter_ending_types"]
-evidence = "Ending type per chapter with runs of identical types; quotes of the weakest endings."
-severity = { high = "Endings are monotonous or deflate across much of the book.", medium = "Repeated type in a block.", low = "A few weak endings." }
-
-[[check]]
-id = "pacing.whole-breath"
-title = "Breathing of the whole"
-question = "Over the book, is there a sense of breath: expansion, pressure, rest, acceleration towards the end?"
-look_for = ["steady pace from start to end", "acceleration too late", "slow ending after fast middle"]
-method = "hybrid"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "metrics"]
-metrics = ["words_per_chapter", "dialogue_ratio", "sentence_length_mean"]
-evidence = "Smoothed profile of the metrics across the book with the LLM's reading of the felt pace."
-severity = { high = "The overall rhythm contradicts the book's design.", medium = "Pace uneven in a way that tires the reader.", low = "Slight unevenness." }
+evidence = "Ending type per chapter with runs of identical types; the last lines of the weakest endings quoted with anchors."
+severity = { high = "Endings are monotonous or deflating across much of the book.", medium = "A repeated type in a block.", low = "A few weak endings." }
 
 [[check]]
 id = "pacing.pacing-strength"
 title = "Pacing strengths"
-question = "Where is the rhythm particularly effective and should be untouched?"
-look_for = ["an acceleration that earns its speed", "a slow passage that rewards", "a well-timed silence"]
+question = "Where is the rhythm particularly effective and should be left untouched?"
+look_for = ["an acceleration that earns its speed", "a slow passage that rewards patience", "a well-timed silence or ellipsis", "a chapter ending that pulls the reader on"]
 method = "llm"
 kind = "strength"
 action_level = "none"
-inputs = ["L1", "L2", "metrics"]
-evidence = "Named passages with metrics or quotes and the effect produced."
+inputs = ["L1", "L2"]
+evidence = "Named passages with anchors and the effect produced, so cuts elsewhere do not disturb them."

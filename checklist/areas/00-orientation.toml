@@ -2,7 +2,18 @@ id = "orientation"
 title = "Orientation and first read"
 stage = "orientation"
 order = 0
-purpose = "Understand what the novel is trying to be before judging it: premise, genre and reader promise, intended reader, the book's own design and ambitions. The output is the novel profile (traits, mode, assumptions) that selects and shapes every later check, plus a log of honest first impressions made before analysis colours them."
+purpose = "Understand what the novel is trying to be before judging it: the writer's brief, premise, genre and reader promise, intended reader, the book's own design and ambitions. The output is the novel profile (traits, mode, conventions, assumptions) that selects and shapes every later check, plus a log of honest first impressions and strengths recorded before analysis colours them."
+
+[[check]]
+id = "orientation.writer-brief"
+title = "Writer's brief and constraints"
+question = "What does the writer want from this review: draft stage, their own worries, what they will not change, and any external targets (submission, length, readership, deadline)?"
+look_for = ["no stated goal, so depth and mode are guesses", "the writer's worries differ from what the text signals", "fixed constraints (length, series, commissioned scope) that rule out some actions"]
+method = "llm"
+kind = "inventory"
+action_level = "none"
+inputs = ["L0"]
+evidence = "The writer's stated goals, worries and constraints quoted or paraphrased from their own words, kept separate from the assistant's assumptions; missing items become questions for the writer."
 
 [[check]]
 id = "orientation.premise"
@@ -18,13 +29,13 @@ evidence = "Summary of the book from L0/L1 with chapter references for each clai
 [[check]]
 id = "orientation.genre-promise"
 title = "Genre and reader promise"
-question = "Which genre or shelf does the book appear to belong to, and what does it promise a reader (pleasure, effect, kind of ending)?"
+question = "Which genre, tradition or shelf does the book signal, and what does it promise a reader (pleasure, effect, kind of ending)?"
 look_for = ["signals of several genres without a dominant one", "opening promises something the middle drops", "genre named by the writer differs from what the text signals"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
-inputs = ["L0", "L1", "L3"]
-evidence = "Genre label(s) with the passages that signal them; stated assumption if the writer did not declare the genre."
+inputs = ["L0", "L1", "L2"]
+evidence = "Genre or tradition label(s) with the scenes that signal them; stated assumption if the writer did not declare the genre."
 
 [[check]]
 id = "orientation.intended-reader"
@@ -35,29 +46,18 @@ method = "llm"
 kind = "inventory"
 action_level = "none"
 inputs = ["L0", "L1"]
-evidence = "Writer's stated target (if any), the textual signals of the implied reader, and a list of assumptions the text makes."
+evidence = "Writer's stated target (if any), the textual signals of the implied reader, and a list of assumptions the text makes; fit is judged later in genre-and-reader."
 
 [[check]]
 id = "orientation.own-design"
 title = "The book's own design and ambitions"
-question = "What is the novel attempting formally and thematically, and by what standard should it be judged?"
+question = "What is the novel attempting formally and thematically, and by what standard (its own, not a default template) should it be judged?"
 look_for = ["unusual structure or voice that is clearly deliberate", "declared ambition (by the writer) not visible on the page", "formal choices that conflict with each other"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
-inputs = ["L0", "L1", "L3"]
-evidence = "Short statement of the design with 2-4 anchors showing where the choice is visible; the writer's own stated intentions kept separate from inferred ones."
-
-[[check]]
-id = "orientation.traits-mode"
-title = "Traits and mode selection"
-question = "Which traits from the catalogue apply to this novel, and is the work a revision for the writer or a reader report?"
-look_for = ["a trait declared but never exercised in the text", "a trait present in the text but not declared", "mode unclear from the request"]
-method = "llm"
-kind = "inventory"
-action_level = "none"
-inputs = ["L0", "L1", "structure"]
-evidence = "Trait list with one anchor each, chosen mode, and the checks or areas switched off with the reason."
+inputs = ["L0", "L1", "L2"]
+evidence = "Short statement of the design with 2-4 anchors showing where the choice is visible; the writer's stated intentions kept separate from inferred ones. Later checks cite this design before calling a departure from convention a defect."
 
 [[check]]
 id = "orientation.language-conventions"
@@ -67,31 +67,20 @@ look_for = ["mixed spelling varieties", "several dialogue-marking conventions in
 method = "hybrid"
 kind = "inventory"
 action_level = "none"
-inputs = ["L3", "metrics"]
+inputs = ["metrics", "L3"]
 metrics = ["quote_style_consistency", "tense_consistency"]
-evidence = "Detected conventions with counts and sample locations; the LLM confirms which are intentional."
+evidence = "Detected conventions with counts and sample locations; the LLM reads only the sampled passages to confirm which are intentional."
 
 [[check]]
 id = "orientation.first-impressions"
 title = "First impressions log"
-question = "What did the first read produce before analysis: where attention rose or fell, what confused, what lingered, what the reader wanted to know next?"
-look_for = ["confusion at specific points", "a passage that stayed vivid", "a question the reader held and later lost"]
+question = "What did the first read produce before analysis: where attention rose or fell, what confused, what the reader wanted to know next?"
+look_for = ["confusion at specific points", "attention dropping over a stretch", "a question the reader held and later lost"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
 inputs = ["L1", "L3"]
-evidence = "Dated log entries, each tied to a chapter or passage; impressions are recorded as reader experience, not diagnosis, and later checked against analysis."
-
-[[check]]
-id = "orientation.profile"
-title = "Novel profile"
-question = "Is the profile complete enough to start analysis: premise, genre, reader, traits, mode, conventions, assumptions and open questions for the writer?"
-look_for = ["missing field", "assumption stated as fact", "open questions never put to the writer"]
-method = "llm"
-kind = "inventory"
-action_level = "none"
-inputs = ["L0", "findings"]
-evidence = "The assembled profile with each field's source; questions for the writer listed separately."
+evidence = "Log entries, each tied to a chapter or passage; impressions are recorded as reader experience, not diagnosis, and later confirmed or dismissed by analysis."
 
 [[check]]
 id = "orientation.first-strengths"
@@ -103,3 +92,14 @@ kind = "strength"
 action_level = "none"
 inputs = ["L0", "L1", "L2"]
 evidence = "Each strength with anchors and a one-line reason; this list is carried into every later stage as 'protect'."
+
+[[check]]
+id = "orientation.profile"
+title = "Novel profile: traits, mode and open questions"
+question = "Which catalogue traits apply, is the work a revision or a reader report, and is the profile complete enough to start analysis?"
+look_for = ["a trait declared but never exercised in the text", "a trait present in the text but not declared", "mode unclear from the request", "assumption stated as fact", "open questions never put to the writer"]
+method = "llm"
+kind = "inventory"
+action_level = "none"
+inputs = ["L0", "L1", "structure", "findings"]
+evidence = "The assembled profile: each trait with one anchor, chosen mode, checks or areas switched off with the reason, each field's source; questions for the writer listed separately."

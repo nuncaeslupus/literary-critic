@@ -2,7 +2,7 @@ id = "plot-causality"
 title = "Plot and causality"
 stage = "developmental"
 order = 14
-purpose = "Check that events follow from one another (therefore/but rather than and-then), that stakes and agency are real, that coincidence is not doing the work of cause, and that subplots earn their place. Where the book deliberately does not use a causal plot, check instead for coherence and escalation of meaning."
+purpose = "Check that events follow from one another (therefore/but rather than and-then), that stakes, opposition and agency are real, that coincidence is not doing the work of cause, and that subplots earn their place. Where the book deliberately does not use a causal plot (episodic, mosaic, kishotenketsu, contemplative), check instead for coherence and escalation of meaning."
 
 [[check]]
 id = "plot-causality.causal-chain"
@@ -13,20 +13,32 @@ method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "ledger", "timeline"]
-evidence = "A chain of key events with the stated cause of each; the breaks cited with chapters."
-severity = { high = "A main-line event has no adequate cause, or a consequential cause is dropped.", medium = "Several links are thin or implied.", low = "Isolated link needing a sentence." }
+evidence = "A chain of key events with the cause of each, by chapter; the breaks cited. For non-causal designs, the links of meaning or juxtaposition that replace cause, and where those break."
+severity = { high = "A main-line event has no adequate cause, or a consequential cause is dropped.", medium = "Several links are thin or only implied.", low = "An isolated link needing a bridge." }
 
 [[check]]
 id = "plot-causality.stakes"
-title = "Stakes and escalation"
-question = "What can be lost, by whom, and does the pressure rise across the book?"
-look_for = ["stakes asserted but never felt", "the same level of threat repeated", "the cost of failure unclear until late"]
+title = "Stakes: clarity and escalation"
+question = "What can be lost or gained, by whom, why should the reader care, and does the pressure rise or deepen across the book?"
+look_for = ["stakes asserted but never felt", "the same level of threat repeated", "the cost of failure unclear until late", "external stakes with no personal meaning for the character"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "structure"]
-evidence = "For each block, the stakes and their level; scenes where stakes are stated versus shown."
-severity = { high = "Reader cannot tell what depends on the outcome, or pressure falls over long stretches.", medium = "Stakes present but static or late.", low = "Occasional flat stretch." }
+evidence = "For each block, the stakes (external and personal) and their level, with the scene where each is made concrete; stretches where stakes are only stated or stay flat. Quiet, inward stakes are valid stakes."
+severity = { high = "The reader cannot tell what depends on the outcome, or pressure falls over long stretches.", medium = "Stakes present but static, abstract or late.", low = "An occasional flat stretch." }
+
+[[check]]
+id = "plot-causality.opposition"
+title = "Opposition and obstacles"
+question = "What stands in the way of what the characters want (a person, a group, nature, society, chance, themselves), and is it specific, active and strong enough to keep the outcome uncertain?"
+look_for = ["an antagonist who is absent for long stretches or acts only when the plot needs it", "obstacles removed too easily", "opposition that never adapts to the protagonist's moves"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "characters"]
+evidence = "The main opposing forces with their goal or logic and the scenes where they act; points where opposition collapses or vanishes. In designs built on contemplation, juxtaposition or harmony rather than conflict, state that and judge what else creates resistance or uncertainty."
+severity = { high = "The central opposition is too weak or vague for the outcome to feel uncertain.", medium = "Opposition is strong but intermittent or one-dimensional.", low = "An obstacle resolves a little too easily." }
 
 [[check]]
 id = "plot-causality.agency"
@@ -37,8 +49,8 @@ method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "characters"]
-evidence = "Turning points listed with who caused each. Passive protagonists that are deliberate (observer, witness, victim) are judged on that design."
-severity = { high = "Central turning points happen without the protagonist's choice and the design does not justify it.", medium = "Agency is thin in the middle or the ending.", low = "Agency present but small choices." }
+evidence = "Turning points listed with who or what caused each. Choice includes refusal, endurance and inner decisions. A deliberately passive protagonist (observer, witness, someone constrained by circumstance) is judged on that design."
+severity = { high = "Central turning points happen without the protagonist's choice and the design does not justify it.", medium = "Agency is thin in the middle or the ending.", low = "Agency present but limited to small choices." }
 
 [[check]]
 id = "plot-causality.coincidence"
@@ -49,21 +61,21 @@ method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "ledger"]
-evidence = "Each coincidence with chapter, direction (helps or harms) and what the plot would need instead."
+evidence = "Each coincidence with chapter, direction (helps or harms) and what cause could replace it. Chance that starts a story or that the book thematises is noted, not flagged."
 severity = { high = "A climax or resolution depends on a helping coincidence.", medium = "Coincidences ease mid-story problems.", low = "Harmless or thematically motivated chance." }
 
 [[check]]
 id = "plot-causality.subplots"
 title = "Subplots and convergence"
-question = "Does each subplot have its own want and outcome, touch the main line, and resolve or converge?"
+question = "Does each subplot have its own movement and outcome, touch the main line, and resolve or converge?"
 look_for = ["a thread that vanishes", "a subplot that only delays", "a thread present for a long span then dropped"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
-inputs = ["L1", "L2", "structure", "ledger", "metrics"]
+inputs = ["L1", "structure", "ledger", "metrics"]
 metrics = ["open_thread_count", "character_presence_matrix"]
-evidence = "Thread table: first and last appearance, gaps, relation to the main line, outcome; unresolved threads flagged."
-severity = { high = "A major thread vanishes or a subplot contradicts the main line.", medium = "Thread is thin or resolved offstage.", low = "Small thread lacking closure." }
+evidence = "Thread table: first and last appearance, gaps, relation to the main line, outcome; unresolved threads flagged from the metrics and confirmed by the LLM."
+severity = { high = "A major thread vanishes or a subplot contradicts the main line.", medium = "A thread is thin or resolved offstage.", low = "A small thread lacking closure." }
 
 [[check]]
 id = "plot-causality.reversals"
@@ -74,20 +86,20 @@ method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "ledger"]
-evidence = "Each reversal with the preparation passages and the effect on earlier chapters."
-severity = { high = "A key reversal is unprepared or invalidates earlier events.", medium = "A reversal is predictable or weakly prepared.", low = "Minor surprise lacking impact." }
+evidence = "Each reversal with its preparation (ledger setups by chapter) and its effect on the reading of earlier chapters."
+severity = { high = "A key reversal is unprepared or invalidates earlier events.", medium = "A reversal is predictable or weakly prepared.", low = "A minor surprise lacking impact." }
 
 [[check]]
 id = "plot-causality.plausibility"
-title = "Plausibility of events and decisions"
-question = "Given what characters know and want, are their actions credible, and are events physically and socially possible in the book's terms?"
-look_for = ["a character acting stupid for the plot's sake", "an action requiring knowledge the character lacks", "logistics that do not work"]
+title = "Plausibility of events and plot-serving decisions"
+question = "Are events physically, logistically and socially possible in the book's own terms, and does any character act against obvious sense only because the plot needs it?"
+look_for = ["a character acting foolishly so the plot can proceed", "logistics (travel, money, access) that do not work", "an institution or authority that conveniently does nothing"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["L1", "L2", "characters", "relationships", "timeline"]
-evidence = "Each case with what the character knows at that point (from the knowledge register), what they do, and why it strains belief."
-severity = { high = "A pivotal decision or event is not credible.", medium = "A noticeable but repairable lapse.", low = "Small implausibility that a reader will forgive." }
+inputs = ["L1", "L2", "characters", "timeline", "locations"]
+evidence = "Each case with what the situation allows, what happens, and why it strains belief. Consistency of character temperament belongs to characters; who knows what, to relationships-and-knowledge."
+severity = { high = "A pivotal decision or event is not credible.", medium = "A noticeable but repairable lapse.", low = "A small implausibility a reader will forgive." }
 
 [[check]]
 id = "plot-causality.mystery-fairness"
@@ -99,8 +111,8 @@ kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "ledger", "timeline"]
 applies_when = ["mystery_plot"]
-evidence = "Clue ledger with chapter of each clue, red herring, and the reveal; unplanted facts listed."
-severity = { high = "The solution is not derivable or contradicts earlier facts.", medium = "Clues are unevenly planted or one red herring is unresolved.", low = "Reveal is guessable early." }
+evidence = "Clue ledger with the chapter of each clue, red herring and the reveal; unplanted facts listed."
+severity = { high = "The solution is not derivable or contradicts earlier facts.", medium = "Clues are unevenly planted or a red herring is unresolved.", low = "Reveal is guessable early." }
 
 [[check]]
 id = "plot-causality.plot-strength"

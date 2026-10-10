@@ -253,3 +253,69 @@ description = "Counts of each dialogue and quotation convention in use (dash, gu
 unit = "count"
 status = "planned"
 languages = ["any"]
+
+[metric.sensory_word_density]
+description = "Words from per-language sensory lexicons (sight, sound, smell, touch, taste, temperature) per 1,000 words, per scene, split by modality. A pointer to thin or single-sense grounding, not a quality score."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.knowledge_order_violations]
+description = "Candidate knowledge slips from the knowledge ledger: a character using or reacting to a fact in a scene earlier than the chapter recorded as when they learned it, listed with both locations."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.scene_break_markers]
+description = "Scene-break markers in use (blank lines, ornaments such as *** or #) with counts per style and locations of minority styles or suspected lost breaks."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.dialogue_run_length]
+description = "Runs of consecutive dialogue paragraphs with no narration or attribution, per scene: longest run and runs above a threshold (default 8 lines)."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.dialogue_punctuation_anomalies]
+description = "Dialogue lines breaking the configured per-language rule set (e.g. punctuation before or after a tag, capital after a tag, closing mark missing, two speakers in one paragraph), with locations."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.cliche_list_hits]
+description = "Matches against a per-language list of stock phrases and stock body reactions, per 1,000 words, with locations."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.comparison_marker_density]
+description = "Simile and comparison markers (like, as if, as though / como, como si, igual que) per 1,000 words, with clusters of two or more in one sentence or short window located; word lists per language."
+unit = "per_1000_words"
+status = "planned"
+languages = ["any"]
+
+[metric.suffix_echo_count]
+description = "Clusters of words sharing the same ending (configurable suffixes or last syllable) within a short window, as a proxy for accidental rhyme and jingles."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.spelling_variety_mix]
+description = "Counts of each form of known spelling-variety pairs (per-language lists, e.g. colour/color, -ise/-ize, video/vídeo) with locations of the minority form."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.heading_sequence]
+description = "Chapter and part numbering gaps or duplicates, and heading format variants, from the structure register."
+unit = "count"
+status = "planned"
+languages = ["any"]
+
+[metric.typo_signals]
+description = "Mechanical proofreading signals: doubled words, unmatched quotes or brackets, double spaces, space before punctuation, lowercase after sentence end, with locations."
+unit = "count"
+status = "planned"
+languages = ["any"]

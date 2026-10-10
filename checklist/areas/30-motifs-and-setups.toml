@@ -2,126 +2,114 @@ id = "motifs-and-setups"
 title = "Motifs and setups"
 stage = "developmental"
 order = 30
-purpose = "Track the repeated images, objects and phrases, and the promises the text makes and fulfils. Motifs earn their place by changing across the book; setups need payoffs and payoffs need setups. Over-reading is as much a risk as under-reading."
+purpose = "Track the repeated images, objects and phrases, and the promises the text makes and fulfils. Motifs earn their place by changing across the book; setups need payoffs and payoffs need setups, calibrated so they neither telegraph nor surprise unfairly. Over-reading is as much a risk as under-reading: a symbol is only flagged if the text itself stresses it. End-of-book closure of open threads is checked under ending."
 
 [[check]]
 id = "motifs-and-setups.motif-inventory"
-title = "Motif inventory"
-question = "Which recurring images, objects, phrases and symbols does the book use, with first appearance, transformations, payoff and final function?"
-look_for = ["a motif defined in one place only", "two motifs that are really one", "search terms that would find the motif"]
+title = "Motif and structural-object inventory"
+question = "Which recurring images, objects, places, phrases and symbols does the book use, and which of them organise its structure?"
+look_for = ["two motifs that are really one", "an object or image that recurs at structural joints (part openings, turning points)", "search terms that would find each motif", "a motif the text stresses only once"]
 method = "hybrid"
 kind = "inventory"
 action_level = "none"
 inputs = ["motifs", "L2", "metrics"]
 metrics = ["motif_occurrences"]
-evidence = "Motif register rows: id, search terms, first appearance, transformations by chapter, payoff, final function."
+evidence = "Motif register rows: id, search terms, first appearance anchor, occurrences by chapter, whether it marks structure, and its apparent final function."
 
 [[check]]
 id = "motifs-and-setups.motif-development"
 title = "Motif transformation"
-question = "Does each significant motif change meaning as the book proceeds, or merely repeat?"
-look_for = ["identical use each time", "a motif that collapses into decoration", "transformation only at the end"]
+question = "Does each significant motif gather or change meaning as the book proceeds, or merely repeat?"
+look_for = ["identical use each time", "a motif that collapses into decoration", "all transformation crammed into the last chapter", "a motif whose meaning contradicts itself without design"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["motifs", "L2", "metrics"]
 metrics = ["motif_occurrences"]
-evidence = "Occurrence timeline per motif with the sense of each use, and where it stagnates."
-severity = { high = "A main motif repeats without development or is contradicted.", medium = "Several motifs are static.", low = "Minor motif repeated lightly." }
-
-[[check]]
-id = "motifs-and-setups.structural-objects"
-title = "Structural objects"
-question = "Which objects or events recur to organise the book (a letter, a house, a journey), and do they hold the structure together?"
-look_for = ["an object introduced and dropped", "object appearing only for convenience", "structure resting on an object the reader cannot track"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["motifs", "ledger", "L2"]
-evidence = "Objects with their appearances by chapter and their structural job."
-severity = { high = "A structural object disappears or contradicts itself.", medium = "Role is vague or uneven.", low = "Secondary object." }
+evidence = "Occurrence timeline per motif with the sense of each use (anchor + one-line gloss) and the point where it stagnates. Insistent repetition used as an incantatory or rhythmic device is recorded as a choice before flagging."
+severity = { high = "A main motif repeats without development or is contradicted, so the meaning it was building collapses.", medium = "Several motifs are static.", low = "A minor motif repeated lightly." }
 
 [[check]]
 id = "motifs-and-setups.symbol-networks"
-title = "Crossing symbol networks"
-question = "How do motifs interact (pair, contrast, cross), and does the network make or confuse meaning?"
-look_for = ["symbols with contradictory meaning", "motif collisions that muddy", "networks only visible to a specialist"]
+title = "Interaction of motifs"
+question = "Where motifs meet (pair, contrast, merge), does the network sharpen meaning or muddy it?"
+look_for = ["two symbols carrying contradictory meanings in the same scene without design", "so many motifs in one passage that none registers", "a pattern only a specialist could see that the book nevertheless relies on"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["motifs", "L2"]
-evidence = "Pairs of motifs with scenes where they meet and the effect."
-severity = { high = "Symbol clashes produce incoherent meaning.", medium = "Network is overdense or accidental.", low = "Rich but unfocused." }
+evidence = "Pairs or clusters of motifs with the scene anchors where they meet and the effect produced."
+severity = { high = "Clashing symbols make the book's central meaning incoherent.", medium = "The network is overdense or accidental in places.", low = "Rich but unfocused." }
 
 [[check]]
-id = "motifs-and-setups.overinterpretation"
-title = "Explicit symbols versus over-interpretation"
-question = "Is the symbolic reading of an element supported by the text, or imposed by the reader or by the text's own commentary?"
-look_for = ["narrator explaining the symbol", "analysis of things the text does not stress", "symbolism more prominent than the story"]
+id = "motifs-and-setups.symbol-explanation"
+title = "Symbols explained by the text"
+question = "Does the text announce or explain its own symbols, so they stop working on the reader?"
+look_for = ["a narrator or character glossing what an image means", "a symbol named as a symbol", "symbolism more prominent than the story it should serve", "an explanation that closes a productive ambiguity"]
 method = "llm"
 kind = "diagnostic"
-action_level = "scene"
+action_level = "line"
 inputs = ["motifs", "L2", "L3"]
-evidence = "Passages where symbolism is announced, and elements the analysis suspects of being over-read."
-severity = { high = "Text spells out symbols so thoroughly that they stop working.", medium = "Some symbols over-explained.", low = "Minor explanatory sentence." }
+evidence = "Each explaining passage quoted with anchor and the motif it explains. The analyst only treats as symbolic what the text itself stresses; suspected over-reading by the analyst is noted, not flagged."
+severity = { high = "Key symbols are spelled out so thoroughly that the book's meaning reads as a lecture.", medium = "Some symbols over-explained.", low = "A single explanatory sentence." }
 
 [[check]]
 id = "motifs-and-setups.vanishing-motifs"
-title = "Motifs that vanish unresolved"
-question = "Which motifs are strongly introduced and then disappear without a payoff or deliberate silence?"
-look_for = ["a motif with a long gap", "a motif never closed", "a promise made by a motif and abandoned"]
+title = "Motifs that vanish"
+question = "Which motifs are strongly introduced and then disappear for long stretches or for good, without the silence meaning anything?"
+look_for = ["a motif with a long gap that the reader will have forgotten", "a motif stressed early and never seen again", "a motif that reappears once at the end with no bridge"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["motifs", "ledger", "metrics"]
-metrics = ["motif_occurrences", "setup_payoff_distance"]
-evidence = "Motifs with last appearance, gaps, and judgement whether the silence is meaningful."
-severity = { high = "A prominent motif is dropped in a way that leaves the reader waiting.", medium = "Several motifs fade.", low = "Minor motif unfinished." }
+inputs = ["motifs", "metrics"]
+metrics = ["motif_occurrences"]
+evidence = "Motifs with last appearance anchor and longest gap from the occurrence table; for each, a judgement whether the silence is meaningful and where a bridging reappearance could go."
+severity = { high = "A prominent motif is dropped in a way that leaves the reader waiting.", medium = "Several motifs fade.", low = "A minor motif fades." }
 
 [[check]]
 id = "motifs-and-setups.setups-payoffs"
-title = "Setups and payoffs (ledger)"
-question = "Does each prominent setup have a payoff, and does each payoff have a setup?"
-look_for = ["objects introduced and never used", "solutions using unmentioned facts", "payoff too close or too far from setup"]
+title = "Setups and payoffs"
+question = "Does each prominent setup have a payoff and each payoff a setup, and is the foreshadowing calibrated, neither telegraphing the payoff nor too faint to be fair?"
+look_for = ["an object or skill stressed and never used", "a solution that relies on something never mentioned", "a setup so heavy the payoff is obvious long before", "a payoff too close to its setup to feel earned, or so far the reader has forgotten"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["ledger", "L2", "metrics"]
 metrics = ["setup_payoff_distance", "open_thread_count"]
-evidence = "Ledger rows: setup chapter, payoff chapter, distance and status (paid, dangling, unplanted)."
-severity = { high = "A major setup is unpaid or a major payoff unprepared.", medium = "Several dangling minor setups.", low = "Setup left for atmosphere." }
+evidence = "Ledger rows: setup anchor, payoff anchor, distance and status (paid, dangling, unplanted, telegraphed). Each flagged row quotes the setup line."
+severity = { high = "A major setup is unpaid, or a major payoff is unprepared or telegraphed so heavily that a key effect is lost.", medium = "Several dangling or over-signalled minor setups.", low = "A setup left for atmosphere that could be trimmed or used." }
 
 [[check]]
 id = "motifs-and-setups.opening-ending"
-title = "Opening-ending correspondences"
-question = "Do the opening and ending speak to each other (image, question, phrase), and is that intended?"
-look_for = ["an opening image never returning", "an echo that is accidental", "an ending that has no relation to the beginning"]
+title = "Opening-ending correspondence"
+question = "Do the opening and the ending speak to each other (image, question, place, phrase), and does the echo show change rather than mere repetition?"
+look_for = ["an opening image or question never returning", "an echo that seems accidental", "a return to the start that registers nothing learned", "an ending with no relation to the beginning in a book built as a circle"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L2", "motifs"]
-evidence = "Opening and closing passages quoted side by side with the relation described."
-severity = { high = "The ending ignores or contradicts what the opening established.", medium = "Correspondence is weak.", low = "Opportunity for an echo." }
+evidence = "Opening and closing passages cited side by side (anchors, short quotes) with the relation described. Not every book needs an echo: flag absence only where the book's design invites one."
+severity = { high = "The ending ignores or contradicts what the opening established as the book's question.", medium = "A correspondence the book invites is weak.", low = "An opportunity for an echo." }
 
 [[check]]
 id = "motifs-and-setups.title-relation"
-title = "Relation to the title"
-question = "How does the title connect to the text, and does the connection deepen, mislead or arrive too late?"
-look_for = ["title phrase never appearing", "meaning of the title explained flatly", "title promising something else"]
+title = "Title, text and ending"
+question = "How does the title connect to the text, and does the connection deepen through the book and reach its final meaning at the end, rather than misleading or being explained flatly?"
+look_for = ["a title phrase never echoed", "the title's meaning explained in a sentence", "a title promising another kind of book", "an ending that leaves the title's meaning where it started"]
 method = "llm"
 kind = "diagnostic"
-action_level = "none"
+action_level = "line"
 inputs = ["L0", "L1", "motifs"]
-evidence = "Title, the passages that bear on it, and the effect on reading."
-severity = { high = "Title misleads about the book's nature.", medium = "Connection is weak or arrives late.", low = "Could be reinforced." }
+evidence = "Title, the passages that bear on it (anchors), and how its meaning shifts by the ending."
+severity = { high = "The title misleads about the book's nature or is at odds with the ending.", medium = "The connection is weak or arrives too late.", low = "Could be reinforced." }
 
 [[check]]
 id = "motifs-and-setups.motif-strength"
-title = "Motif strengths"
+title = "Motif and setup strengths"
 question = "Which motifs and setups work best and must be preserved when cutting?"
-look_for = ["a motif that changes the meaning of an earlier scene", "an object that quietly carries the theme", "a payoff that surprises and satisfies"]
+look_for = ["a motif that changes the meaning of an earlier scene", "an object that quietly carries the theme", "a payoff that surprises and feels inevitable"]
 method = "llm"
 kind = "strength"
 action_level = "none"
 inputs = ["motifs", "ledger", "L2"]
-evidence = "Named motifs or setups with chapters and effect."
+evidence = "Named motifs or setups with anchors, chapters and effect, plus the scenes a cut must not remove."

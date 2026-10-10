@@ -2,117 +2,118 @@ id = "genre-and-reader"
 title = "Genre and reader"
 stage = "verification"
 order = 62
-purpose = "Place the book in its market and readership honestly: the genre promises it makes and keeps or knowingly subverts, its length against norms, who it fits and how accessible it is. These checks inform positioning and the reader report; they never replace the book's own aims."
+purpose = "Place the book in its market and readership honestly: the genre promises it keeps or knowingly subverts, its length against norms, who it fits and how much effort it asks, comparable titles, and how an agent or editor would pitch it. These checks inform positioning and the reader report; they never replace the book's own aims, and every market claim is stated with its uncertainty."
 
 [[check]]
 id = "genre-and-reader.genre-conventions"
 title = "Genre conventions and promises"
-question = "Which conventions does the book honour, which does it subvert, and is each choice deliberate?"
-look_for = ["an expected scene missing", "a convention broken without a counter-effect", "trope used without freshness"]
+question = "Which conventions of its category does the book honour, which does it subvert, and does each subversion give the reader something in return?"
+look_for = ["an obligatory scene of the genre missing", "a convention broken without a counter-effect", "a trope used without freshness"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L0", "L1", "structure"]
-evidence = "Conventions listed with where they are met, subverted or absent; deliberateness assessed."
+evidence = "The category's expected elements listed with where each is met, subverted or absent, and whether the choice reads as deliberate."
 severity = { high = "The book breaks its genre promise without compensation.", medium = "Some conventions missed without clear design.", low = "Tropes familiar but acceptable." }
 
 [[check]]
 id = "genre-and-reader.length-norms"
-title = "Length against genre norms"
-question = "How does the word count compare to common ranges for its category and market?"
-look_for = ["far above typical length", "very short for the genre", "length hindering publishability"]
+title = "Length against market norms"
+question = "How does the total word count compare with the usual range for its category and market?"
+look_for = ["far above the usual range for a debut", "very short for the category", "length out of proportion to the story it carries"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "none"
 inputs = ["L0", "metrics"]
 metrics = ["words_per_chapter"]
-modes = ["reader-report", "revision"]
-evidence = "Word count and the stated comparison range with caveats; result is a market consideration, not a quality judgement."
-severity = { high = "Length is far outside the range for the market in which it will be offered.", medium = "Moderately outside range.", low = "Within or near range." }
+evidence = "Total word count, the comparison range with its source or stated as approximate, and the gap; a market consideration, not a quality judgement."
+severity = { high = "Length is far outside the range of the market where it will be offered.", medium = "Moderately outside the range.", low = "Within or near the range." }
 
 [[check]]
-id = "genre-and-reader.target-fit"
-title = "Target readership fit"
-question = "Does content, tone, vocabulary and complexity fit the intended reader?"
-look_for = ["vocabulary beyond audience", "themes at odds with declared readership", "assumed knowledge"]
+id = "genre-and-reader.reader-fit"
+title = "Fit and accessibility for the intended reader"
+question = "Do content, tone, vocabulary and complexity fit the intended reader, and is the effort the book asks (density, unfamiliar terms, private references) repaid?"
+look_for = ["vocabulary or syntax beyond the audience", "many unfamiliar terms or names early on", "allusions or private codes the reader cannot decode", "themes at odds with the declared readership"]
 method = "hybrid"
 kind = "diagnostic"
-action_level = "none"
+action_level = "structural"
 inputs = ["L0", "L1", "metrics"]
+metrics = ["readability_fernandez_huerta", "readability_szigriszt_inflesz", "readability_flesch", "new_term_density", "long_paragraph_rate"]
+evidence = "Readability (where available for the language) and term density per chapter as relative gauges, the passages that demand most, what the book does to help the reader in, and whether the effort pays off."
+severity = { high = "The text's demands conflict with its intended audience throughout, or closed references block the main movement.", medium = "Parts ask more than the intended reader will give.", low = "Mild mismatch." }
+
+[[check]]
+id = "genre-and-reader.age-appropriateness"
+title = "Age-category fit"
+question = "Do protagonist age, concerns, content, vocabulary and length fit the age category (picture book, middle grade, young adult) the book targets?"
+look_for = ["protagonist too old or young for the category", "content beyond the category's norms without purpose", "an adult narrator's hindsight dominating a young viewpoint"]
+method = "hybrid"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "characters", "metrics"]
 metrics = ["readability_fernandez_huerta", "readability_szigriszt_inflesz", "readability_flesch", "sentence_length_mean"]
-evidence = "Readability gauge per chapter and passages whose demands exceed the intended reader."
-severity = { high = "The text's demands conflict with its intended audience throughout.", medium = "Parts conflict with it.", low = "Mild mismatch." }
+applies_when = ["young_readers"]
+evidence = "Protagonist age, content flags and readability against the category's usual expectations, with passages that misfit quoted."
+severity = { high = "The book sits between categories and would be hard to place.", medium = "Several elements pull away from the category.", low = "Minor misfit." }
+
+[[check]]
+id = "genre-and-reader.series-function"
+title = "Series installment"
+question = "Does the volume stand on its own while serving the series: enough orientation for new readers, a satisfying arc of its own, threads left open on purpose?"
+look_for = ["recap dumps for returning readers", "reliance on earlier volumes for basic understanding", "no arc completed within this volume"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L0", "L1", "ledger"]
+applies_when = ["series_installment"]
+evidence = "The volume's own arc and its closure, threads deliberately left open, and passages that assume or recap earlier volumes."
+severity = { high = "The volume does not work without the others or gives no arc of its own.", medium = "Orientation or closure is weak.", low = "Minor recap or dependency." }
 
 [[check]]
 id = "genre-and-reader.comparables"
 title = "Comparable titles"
-question = "Which published books occupy similar ground, and what does this book offer that they do not?"
-look_for = ["no obvious comparables", "comparables from incompatible markets", "claimed uniqueness without evidence"]
+question = "Which recent published books occupy similar ground, and what does this book offer that they do not?"
+look_for = ["no obvious comparables", "comparables from an incompatible market or era", "only blockbuster comparables"]
 method = "llm"
 kind = "inventory"
 action_level = "none"
-inputs = ["L0", "L1"]
+inputs = ["L0", "L1", "findings"]
 modes = ["reader-report"]
-evidence = "Comparable titles suggested with the reason and a distinct offer; the writer should confirm any claim, and no invented titles."
+evidence = "Two to five comparable titles with the reason for each and the book's distinct offer, marked for the writer or agent to verify; no invented titles, and uncertainty stated."
 
 [[check]]
 id = "genre-and-reader.market-position"
-title = "Market positioning"
-question = "How might the book be described and positioned: category, hook, readership, strengths to emphasise?"
-look_for = ["premise hard to pitch", "genre blend with no anchor", "strong hook unexploited"]
+title = "Pitch and market positioning"
+question = "How would an agent or editor pitch the book: category, one-line hook, readership, selling points, and commercial risks?"
+look_for = ["premise hard to state in a line", "genre blend with no anchor", "a strong hook buried in the manuscript", "a risk a publisher would raise first"]
 method = "llm"
 kind = "diagnostic"
 action_level = "none"
 inputs = ["L0", "L1", "findings"]
 modes = ["reader-report"]
-evidence = "A positioning statement based on the profile and holistic reading, with caveats about market knowledge."
+evidence = "A positioning statement (category, hook, readership), the two or three selling points and main risks drawn from the findings, with caveats about market knowledge."
 severity = { high = "Positioning is unclear to a degree that blocks a pitch.", medium = "Positioning needs work.", low = "Minor tuning." }
 
 [[check]]
-id = "genre-and-reader.accessibility"
-title = "Accessibility for the intended reader"
-question = "How hard is the book to enter and follow, and which features create effort?"
-look_for = ["dense opening", "many unfamiliar terms", "long unbroken passages"]
-method = "hybrid"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L3", "metrics"]
-metrics = ["sentence_length_mean", "new_term_density", "long_paragraph_rate", "paragraph_length_mean"]
-evidence = "Features creating effort, quantified through metrics where possible, and a note on whether the effort pays off."
-severity = { high = "Effort exceeds what the intended reader will give.", medium = "Effort is high in some blocks.", low = "Effort moderate." }
-
-[[check]]
-id = "genre-and-reader.hermeticism"
-title = "Risks of hermeticism"
-question = "Does the book risk being closed to readers outside a narrow circle (private references, assumed knowledge, obscure allusion)?"
-look_for = ["unexplained allusions", "private symbolic code", "reference to events the reader cannot know"]
-method = "llm"
-kind = "diagnostic"
-action_level = "scene"
-inputs = ["L1", "L2", "ledger"]
-evidence = "Items needing outside knowledge, how the book helps the reader, and what it would take to open them."
-severity = { high = "Hermeticism blocks understanding of the book's main movement.", medium = "Parts are closed to outside readers.", low = "Occasional private reference." }
-
-[[check]]
 id = "genre-and-reader.reader-experience"
-title = "Reader experience simulation"
-question = "Where might a first-time reader be bored, confused or moved, and which questions do they hold at each point?"
-look_for = ["a point where the reader would stop", "unanswered questions piling up", "an emotional peak ungrounded"]
+title = "First-reader simulation"
+question = "Where might a first-time reader be gripped, bored, confused or moved, and which questions do they carry at each point?"
+look_for = ["a point where the reader would put the book down", "unanswered questions piling up", "an emotional peak the reader is not prepared for"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "findings"]
-evidence = "Chapter-by-chapter reader map with confidence levels, flagged as simulation."
+evidence = "A chapter-by-chapter reader map with open questions and predicted engagement, confidence levels, and a note that it is a simulation."
 severity = { high = "Predicted drop-off or confusion at pivotal points.", medium = "Local confusion or boredom.", low = "Mild." }
 
 [[check]]
 id = "genre-and-reader.sensitivity"
 title = "Sensitivity and representation flags"
-question = "Which depictions (violence, trauma, groups of people, cultural material) need care or checking by a qualified reader?"
-look_for = ["stereotype", "dialect rendered as caricature", "traumatic content without framing"]
+question = "Which depictions (violence, trauma, identities, cultures, real groups) need care or checking by a qualified reader?"
+look_for = ["a stereotype", "dialect or accent rendered as caricature", "traumatic content with no framing", "cultural material used without apparent knowledge"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["L2", "L3", "findings"]
-evidence = "Passages flagged for human verification with the concern; no certification is implied."
-severity = { high = "Content likely to harm or mislead readers in a way that needs rethinking.", medium = "Content to verify with a specialist.", low = "Minor note." }
+inputs = ["L2", "characters", "findings"]
+evidence = "Scene ids and quoted passages flagged for human verification with the concern; no certification is implied."
+severity = { high = "Content likely to harm or mislead readers in a way that needs rethinking.", medium = "Content to verify with a specialist reader.", low = "A minor note." }

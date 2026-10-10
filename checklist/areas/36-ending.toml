@@ -2,138 +2,102 @@ id = "ending"
 title = "Ending"
 stage = "developmental"
 order = 36
-purpose = "Check that the ending delivers on what the book set up: conflicts resolved or knowingly left open, fates and consequences, motifs closing, the last image and voice. Distinguish ambiguity that serves the book from loose ends left by accident and from endings that arrive too fast."
+purpose = "Check that the ending delivers on what the book set up: the central question or movement resolved, transformed or knowingly left open; an outcome that follows from the characters' choices; fates and open threads accounted for; closure in proportion to the promise; space for the climax and its aftermath; and a last image and voice that close the book's movement. Distinguish ambiguity that serves the book from loose ends left by accident. Title and opening echoes are checked under motifs-and-setups."
 
 [[check]]
 id = "ending.conflict-resolution"
-title = "Resolution of main conflicts"
-question = "Are the main conflicts and the central question resolved, transformed or consciously left open by the end?"
-look_for = ["a major conflict not addressed", "resolution by announcement", "new conflict started in the last pages"]
+title = "Resolution of the central question"
+question = "Are the central question, conflict or movement and the main lines of the book resolved, transformed or consciously left open by the end?"
+look_for = ["a main conflict or question never addressed", "resolution announced rather than enacted", "a new major conflict opened in the last pages", "a structure without central conflict whose final turn or revelation does not reframe what came before"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
-inputs = ["L1", "L2", "ledger"]
-evidence = "List of main conflicts with their status at the end and the scene that settles each."
-severity = { high = "A central conflict is neither resolved nor knowingly left open.", medium = "Resolution is thin or sudden.", low = "Minor loose end." }
+inputs = ["L0", "L1", "L2", "ledger"]
+evidence = "Main conflicts, questions or movements (from L0 and the ledger) with their status at the end and the anchor of the scene that settles or reframes each."
+severity = { high = "The central question is neither resolved nor knowingly left open.", medium = "A main line is resolved thinly or by announcement.", low = "A minor line resolved weakly." }
+
+[[check]]
+id = "ending.earned-ending"
+title = "Earned ending"
+question = "Does the ending follow from what came before (the characters' choices, the world's logic, earlier setups) and release the emotion the book has built, rather than arriving from outside?"
+look_for = ["rescue, solution or reversal by an outside force or chance", "the protagonist passive at the decisive moment", "consequences of earlier actions erased or ignored", "an emotional beat the story has not prepared", "the cause explained only after the fact"]
+method = "llm"
+kind = "diagnostic"
+action_level = "structural"
+inputs = ["L1", "L2", "ledger", "characters"]
+evidence = "The final act's chain of events and choices with anchors, the setups (ledger rows) that make it possible, and any outside intervention quoted. A deliberately arbitrary or fatalistic ending that the book has prepared as its worldview is recorded as a choice before flagging."
+severity = { high = "The resolution is caused by something external or unprepared, or erases the cost of what came before.", medium = "The causal or emotional link is thin.", low = "A beat could land harder." }
 
 [[check]]
 id = "ending.fates"
-title = "Characters' fates"
-question = "Does every significant character reach an end state (or a deliberately open one) that the book earns?"
-look_for = ["a major character who disappears", "fate delivered in summary", "a fate that contradicts the character's logic"]
+title = "Characters' end states"
+question = "Does every significant character reach an end state, or a deliberately open one, that the book earns and the reader can perceive?"
+look_for = ["a major character who disappears without notice", "a fate delivered in a line of summary", "an end state that contradicts the character's logic", "a character whose last appearance is long before the end with no closure"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["characters", "L2", "metrics"]
 metrics = ["character_presence_matrix"]
-evidence = "Per significant character: last appearance, final state and how it is conveyed."
-severity = { high = "A main character's fate is missing or contradicts the story.", medium = "Several fates are summarised or vague.", low = "Minor character left hanging." }
+evidence = "Per significant character: last-appearance anchor (from the presence matrix), final state, and how it is conveyed (scene, summary, implication)."
+severity = { high = "A main character's fate is missing or contradicts the story.", medium = "Several fates are summarised or vague.", low = "A minor character left hanging." }
 
 [[check]]
-id = "ending.moral-consequences"
-title = "Moral consequences"
-question = "Do actions have consequences by the end, and do those consequences fit the book's moral world?"
-look_for = ["wrongdoing without effect", "virtue rewarded without cost", "consequences outside the book's logic"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "ledger"]
-evidence = "Key choices of the book with their consequences at the end."
-severity = { high = "Consequences contradict the book's moral frame or erase the cost of earlier actions.", medium = "Consequences are partial or blunt.", low = "Slight lenience." }
-
-[[check]]
-id = "ending.causal-emotional"
-title = "Causal and emotional resolution"
-question = "Does the ending make sense of events (causal) and release what the book has built (emotional), and does the final act come from the characters' choices?"
-look_for = ["a rescue from outside", "emotional beat without cause", "cause explained after the fact"]
-method = "llm"
-kind = "diagnostic"
-action_level = "structural"
-inputs = ["L1", "L2", "ledger"]
-evidence = "The final act's chain of events and choices; emotional payoff linked to setup."
-severity = { high = "The ending is caused by something external or unearned.", medium = "Causal or emotional link is thin.", low = "Beat could be stronger." }
-
-[[check]]
-id = "ending.motif-closure"
-title = "Closure and return of seeded elements"
-question = "Do the motifs, objects and questions planted earlier return transformed, or is something left undone?"
-look_for = ["a motif vanishing before the end", "ledger entries still open", "motif returning unchanged"]
+id = "ending.open-threads"
+title = "Open threads at the end: designed or accidental"
+question = "Which setups, motifs, subplots and questions are still open at the end, and which of them are deliberately left open (with a textual signal) rather than forgotten?"
+look_for = ["ledger setups still unpaid at the last chapter", "a subplot that simply stops", "a question the text invites and never addresses", "ambiguity with no signal that it is intended"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["motifs", "ledger", "L2", "metrics"]
-metrics = ["motif_occurrences", "setup_payoff_distance", "open_thread_count"]
-evidence = "Ledger and motif register entries still open at the end with a judgement on each."
-severity = { high = "Major seeded elements are dropped at the end.", medium = "Several minor entries remain open.", low = "A minor motif unresolved." }
+inputs = ["ledger", "motifs", "L1", "metrics"]
+metrics = ["open_thread_count", "setup_payoff_distance"]
+evidence = "Threads and ledger entries open at the end (from the metric), each sorted into deliberate (with the anchor of the signal) or accidental, and for accidental ones where closure or a signal could go."
+severity = { high = "Accidental loose ends in major lines undermine the ending's meaning.", medium = "Several threads dropped or openness unsignalled.", low = "A fine ambiguity that needs a small anchor." }
 
 [[check]]
-id = "ending.last-image-voice"
-title = "Last image and last voice"
-question = "What are the last image and the last voice, and do they close the book's movement?"
-look_for = ["last line explaining", "final image unrelated", "narrator stepping out to conclude"]
-method = "llm"
-kind = "diagnostic"
-action_level = "line"
-inputs = ["L1", "L3", "motifs"]
-evidence = "Final paragraph quoted with its relation to the opening and to the central motif."
-severity = { high = "The last image or voice contradicts or undoes what came before.", medium = "Ending line is generic or over-explained.", low = "Could be sharper." }
-
-[[check]]
-id = "ending.open-or-accident"
-title = "Ambiguity left open versus accident"
-question = "Which ambiguities at the end are designed to stay open, and which look like loose threads?"
-look_for = ["questions the text invites and never addresses", "ambiguity not signalled as deliberate", "details left unexplained that the plot made essential"]
-method = "llm"
-kind = "diagnostic"
-action_level = "scene"
-inputs = ["ledger", "L1", "L2"]
-evidence = "List of open points sorted into deliberate (with textual signal) and accidental."
-severity = { high = "Accidental loose ends undermine the ending's meaning.", medium = "Openness unsignalled.", low = "Fine ambiguity needing a small anchor." }
-
-[[check]]
-id = "ending.closure-openness"
+id = "ending.closure-degree"
 title = "Degree of closure"
-question = "Is the amount of closure right for the book's promise and genre?"
-look_for = ["unearned neatness", "a trailing ending in a book that promised payoff", "epilogue re-explaining"]
+question = "Is the overall amount of closure right for the book's promise, its kind and, for a series volume, its place in the series?"
+look_for = ["unearned neatness that ties every thread", "a trailing ending in a book that promised resolution", "an epilogue that re-explains or over-settles", "a series volume that resolves nothing of its own"]
 method = "llm"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L0", "L1"]
-evidence = "The book's promise, the closure delivered, and the gap."
-severity = { high = "Closure contradicts the genre promise or the book's logic.", medium = "Too neat or too loose.", low = "Slight tuning." }
+evidence = "The book's promise (from L0 and the opening), the closure delivered, and the gap, with anchors of the passages that create it."
+severity = { high = "The degree of closure contradicts the book's promise or logic.", medium = "Too neat or too loose for the book.", low = "Slight tuning." }
 
 [[check]]
-id = "ending.title-ending"
-title = "Title and ending"
-question = "Does the ending give the title its final meaning or relationship?"
-look_for = ["title echo missing", "title reinterpreted by statement", "title and ending at odds"]
-method = "llm"
-kind = "diagnostic"
-action_level = "none"
-inputs = ["L0", "L1", "motifs"]
-evidence = "Title and ending side by side with the relation described."
-severity = { high = "Title and ending are in conflict.", medium = "Link is weak.", low = "Could be heightened." }
-
-[[check]]
-id = "ending.rushed-ending"
-title = "Deus ex machina and rushed endings"
-question = "Is the ending hurried, summarised or solved by outside force?"
-look_for = ["last chapters in summary", "sudden resolution", "denouement abrupt or over-extended"]
+id = "ending.ending-proportion"
+title = "Proportion of climax and aftermath"
+question = "Is the final movement given the right space: a climax not rushed into summary, and an aftermath long enough to let it land but not trailing on after the story is over?"
+look_for = ["the last chapters in summary", "a sudden cut from climax to final line", "several false endings or codas", "an aftermath much longer than its new content justifies"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "structural"
 inputs = ["L1", "L2", "metrics"]
 metrics = ["denouement_share", "scene_summary_ratio", "words_per_chapter"]
-evidence = "Share of text after the climax, summary share in final chapters, and the specific rescue or shortcut quoted."
-severity = { high = "The resolution relies on an unprepared outside force or collapses into summary.", medium = "Ending is brisk or stretched.", low = "Slight rushing." }
+evidence = "Climax anchor, share of text after it, summary share in the final chapters, and the passages where the ending hurries or lingers. An abrupt ending used as a deliberate effect is recorded before flagging."
+severity = { high = "The resolution collapses into summary or the ending drags long enough to dissipate its effect.", medium = "The ending is brisk or stretched.", low = "Slight rushing or lingering." }
+
+[[check]]
+id = "ending.last-image-voice"
+title = "Last image and last voice"
+question = "What are the last image and the last voice, and do they close the book's movement without explaining it?"
+look_for = ["a last line that states the moral or theme", "a final image unrelated to anything before", "the narrator stepping out to conclude in a new voice", "a final paragraph that weakens the scene before it"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L1", "L3", "motifs"]
+evidence = "Final paragraph quoted with its relation to the book's central motifs and question; L3 is read only for the last pages."
+severity = { high = "The last image or voice contradicts or undoes what came before.", medium = "The last line is generic or over-explained.", low = "Could be sharper." }
 
 [[check]]
 id = "ending.ending-strength"
 title = "Ending strengths"
 question = "What in the ending lands and should be left alone?"
-look_for = ["a final gesture that completes an arc", "an echo that closes a motif", "restraint at the right moment"]
+look_for = ["a final gesture that completes an arc", "an echo that closes a motif", "restraint at the right moment", "an ambiguity that keeps the book alive after the last page"]
 method = "llm"
 kind = "strength"
 action_level = "none"
 inputs = ["L1", "L3", "motifs"]
-evidence = "Quoted passages with the reason."
+evidence = "Quoted passages with anchors and the reason they work."

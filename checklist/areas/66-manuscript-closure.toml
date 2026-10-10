@@ -2,137 +2,84 @@ id = "manuscript-closure"
 title = "Manuscript closure"
 stage = "verification"
 order = 66
-purpose = "Close the revision loop: record every proposed intervention with its location and status, confirm what the writer accepted, separate editorial notes from literary text, and re-check continuity, level signalling, orthotypography, title, opening and ending after changes. The writer decides and edits; this area tracks and verifies."
+purpose = "Close the revision loop: record every proposed intervention with its location, status and the writer's decision, re-check the places a change touched, run the final orthotypographic and proofreading scans, and keep one master file. The writer decides and edits; this area tracks and verifies. Scans are scripted; reading is scoped to changed locations and flagged passages."
 
 [[check]]
 id = "manuscript-closure.intervention-registry"
-title = "Intervention registry"
-question = "Is every proposed change recorded with exact location and status (pending, decided, applied, discarded)?"
-look_for = ["proposals without location", "status not updated", "duplicate or contradictory proposals"]
-method = "llm"
-kind = "inventory"
-action_level = "none"
-inputs = ["findings", "backlog"]
-modes = ["revision"]
-evidence = "Registry rows: id, location, description, area, status, date."
-
-[[check]]
-id = "manuscript-closure.writer-confirmation"
-title = "Changes confirmed by the writer"
-question = "Has the writer explicitly confirmed each change that touches the manuscript?"
-look_for = ["applied changes without a recorded decision", "assumed approval", "discarded items reappearing"]
+title = "Intervention registry and writer confirmation"
+question = "Is every proposed change recorded with exact location, status (pending, accepted, applied, rejected, deferred) and the writer's explicit decision?"
+look_for = ["proposals without location", "a change applied with no recorded decision", "rejected items proposed again", "contradictory proposals"]
 method = "llm"
 kind = "diagnostic"
 action_level = "none"
 inputs = ["findings", "backlog"]
 modes = ["revision"]
-evidence = "Each applied change with the writer's recorded confirmation; none are applied without it."
-severity = { high = "A change was made without the writer's confirmation.", medium = "Confirmation not recorded.", low = "Record incomplete." }
+evidence = "Registry rows: id, location, area, description, status, writer decision and date; any applied change lacking a decision listed first."
+severity = { high = "A change reached the manuscript without the writer's confirmation.", medium = "Decisions or statuses not recorded.", low = "Record incomplete in minor fields." }
 
 [[check]]
-id = "manuscript-closure.notes-separation"
-title = "Editorial notes versus literary text"
-question = "Are editorial notes, comments and tracked suggestions kept apart from the literary text?"
-look_for = ["notes in the running text", "comments pasted into paragraphs", "tracked changes mixed with clean text"]
-method = "hybrid"
-kind = "diagnostic"
-action_level = "line"
-inputs = ["L3", "metrics"]
-metrics = ["author_note_markers"]
-modes = ["revision"]
-evidence = "Marker scan results and manual confirmation."
-severity = { high = "Editorial notes sit inside literary text.", medium = "Notes in surrounding material.", low = "Formatting residue." }
-
-[[check]]
-id = "manuscript-closure.post-change-structure"
-title = "Chapter, paragraph and transition checks after changes"
-question = "After changes, do the edited chapters, paragraphs and joins still work?"
-look_for = ["orphan reference after a cut", "broken transition", "paragraph left incomplete"]
-method = "llm"
-kind = "diagnostic"
-action_level = "line"
-inputs = ["L2", "L3", "backlog"]
-modes = ["revision"]
-evidence = "Each changed location with before and after context read and the verdict."
-severity = { high = "A change breaks sense or flow.", medium = "Seams visible.", low = "Cosmetic." }
-
-[[check]]
-id = "manuscript-closure.post-change-continuity"
-title = "Continuity re-check after changes"
-question = "Do changes introduce new contradictions in time, space, knowledge or details?"
-look_for = ["a removed scene whose consequences remain", "a character referring to a deleted event", "a ledger entry orphaned"]
+id = "manuscript-closure.post-change-recheck"
+title = "Re-check after changes"
+question = "At every changed location, do sense, joins, continuity, references and time or level markers still hold?"
+look_for = ["a reference to a cut event", "a broken transition or half-edited sentence", "a ledger entry orphaned by a cut", "a flashback cue removed with its passage"]
 method = "hybrid"
 kind = "diagnostic"
 action_level = "scene"
-inputs = ["timeline", "ledger", "L2", "metrics"]
-metrics = ["timeline_gap_count", "setup_payoff_distance"]
+inputs = ["L2", "L3", "timeline", "ledger", "backlog", "metrics"]
+metrics = ["timeline_gap_count", "setup_payoff_distance", "tense_consistency"]
 modes = ["revision"]
-evidence = "Re-run of continuity checks on affected chapters with new conflicts listed."
-severity = { high = "New contradiction in plot-relevant matters.", medium = "New contradiction in details.", low = "Minor." }
-
-[[check]]
-id = "manuscript-closure.post-change-levels"
-title = "Narrative-level signalling re-check"
-question = "After changes, are time and level markers still correct?"
-look_for = ["a flashback cue removed", "a tense mismatch", "a level opening without close"]
-method = "hybrid"
-kind = "diagnostic"
-action_level = "line"
-inputs = ["L2", "L3", "metrics"]
-metrics = ["tense_consistency"]
-applies_when = ["nested_narration", "nonlinear_time", "dual_timeline", "retrospective_narrator"]
-modes = ["revision"]
-evidence = "Level changes in affected chapters with markers present."
-severity = { high = "A level or time shift is unsignalled after changes.", medium = "Marker inconsistent.", low = "Cosmetic." }
-
-[[check]]
-id = "manuscript-closure.orthotypography"
-title = "Orthotypographic final pass"
-question = "Are punctuation, quotation and dialogue conventions applied consistently for the language (e.g. Spanish raya, quotes « » “ ” ‘ ’, spacing, ellipsis, apostrophes)?"
-look_for = ["mixed dialogue markers", "inconsistent quote styles", "spacing around dashes and ellipses", "hyphen used as dash"]
-method = "script"
-kind = "diagnostic"
-action_level = "line"
-inputs = ["L3", "metrics"]
-metrics = ["quote_style_consistency", "exclamation_ellipsis_density", "author_note_markers"]
-evidence = "Counts of each convention with locations of the minority forms; the chosen convention is confirmed with the writer."
-severity = { high = "Several conventions are mixed across the manuscript.", medium = "A minority convention in some chapters.", low = "Isolated deviations." }
+evidence = "Each changed location from the draft diff read with surrounding context; registers and metrics re-run on affected chapters, with new conflicts listed against the previous draft."
+severity = { high = "A change breaks sense or introduces a plot-relevant contradiction.", medium = "Visible seams or new detail contradictions.", low = "Cosmetic." }
 
 [[check]]
 id = "manuscript-closure.title-opening-ending"
-title = "Title, opening and ending verification"
-question = "After all changes, do the title, opening and ending still work together?"
-look_for = ["opening changed without checking its echo", "ending revised leaving an orphan motif", "title no longer connected"]
+title = "Title, opening and ending after revision"
+question = "After all changes, do the title, opening and ending still answer each other?"
+look_for = ["opening changed without checking its echo in the ending", "ending revised leaving an orphan motif", "title no longer connected to the revised book"]
 method = "llm"
 kind = "diagnostic"
 action_level = "scene"
 inputs = ["L1", "L3", "motifs"]
 modes = ["revision"]
-evidence = "Reading of the three together with relations noted."
-severity = { high = "The three no longer agree.", medium = "Echoes weaker.", low = "Fine tuning." }
+evidence = "First and last scenes read together with the title, and the links between them listed against the previous draft's."
+severity = { high = "The three no longer agree.", medium = "Echoes weakened.", low = "Fine tuning." }
 
 [[check]]
-id = "manuscript-closure.version-control"
-title = "Version control and master file"
-question = "Is there a single master file, with versions dated and differences traceable?"
-look_for = ["multiple divergent copies", "unclear latest version", "changes not logged"]
-method = "llm"
+id = "manuscript-closure.orthotypography"
+title = "Orthotypographic consistency"
+question = "Are quotation marks, dashes, ellipses, spacing, italics, numbers and capitalisation applied consistently according to the language's conventions and the book's chosen style?"
+look_for = ["mixed quote styles (e.g. « », “ ”, straight quotes)", "hyphen used where a dash is required", "inconsistent spacing around dashes, ellipses or punctuation", "numbers in figures and words without a rule"]
+method = "hybrid"
 kind = "diagnostic"
-action_level = "none"
-inputs = ["findings", "backlog"]
-modes = ["revision"]
-evidence = "Version list with dates, master file identified, and the diff between the last two drafts."
-severity = { high = "No clear master and divergent copies exist.", medium = "Versions poorly tracked.", low = "Log incomplete." }
+action_level = "line"
+inputs = ["L3", "metrics"]
+metrics = ["quote_style_consistency", "scene_break_markers", "typo_signals"]
+evidence = "Counts of each form with locations of the minority forms; the style sheet (chosen conventions) agreed with the writer and recorded. Dialogue-specific rules are dialogue.punctuation-conventions."
+severity = { high = "Several conventions are mixed across the manuscript.", medium = "A minority form persists in some chapters.", low = "Isolated deviations." }
 
 [[check]]
 id = "manuscript-closure.final-read"
-title = "Final clean read"
-question = "Does a final read-through of the clean text raise any remaining problems?"
-look_for = ["residual typos", "stray notes", "awkward join after edits"]
-method = "llm"
+title = "Final proof pass"
+question = "Do script scans and a read of the changed and flagged passages leave any typos, doubled words, stray marks or awkward joins?"
+look_for = ["doubled words", "unmatched quotes or brackets", "missing capital after a full stop", "stray author notes"]
+method = "hybrid"
 kind = "diagnostic"
 action_level = "line"
-inputs = ["L3", "findings"]
+inputs = ["L3", "findings", "metrics"]
+metrics = ["typo_signals", "author_note_markers"]
 modes = ["revision"]
-evidence = "Findings from the final read with locations; empty result recorded as such."
-severity = { high = "Remaining problem would embarrass in print.", medium = "Small blemishes.", low = "Cosmetic." }
+evidence = "Scan results with locations, plus findings from reading the changed passages; an empty result recorded as such. A full proofread by a human is recommended before print."
+severity = { high = "A remaining error would embarrass in print.", medium = "Small blemishes.", low = "Cosmetic." }
+
+[[check]]
+id = "manuscript-closure.master-file"
+title = "Master file and versions"
+question = "Is there one master file, with drafts dated and the differences between them traceable?"
+look_for = ["several divergent copies", "unclear latest version", "changes made outside the master"]
+method = "llm"
+kind = "diagnostic"
+action_level = "none"
+inputs = ["backlog"]
+modes = ["revision"]
+evidence = "Draft list with dates, the master identified, and the diff summary between the last two indexed drafts."
+severity = { high = "No clear master, and divergent copies exist.", medium = "Versions poorly tracked.", low = "Log incomplete." }
