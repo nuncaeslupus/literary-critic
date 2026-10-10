@@ -1,0 +1,15 @@
+title = "The Strange Case of Dr. Jekyll and Mr. Hyde"
+author = "Robert Louis Stevenson"
+year = 1886
+language = "en"
+origin = "Project Gutenberg eBook #43 (43.txt), fetched via the GITenberg mirror"
+origin_url = "https://www.gutenberg.org/ebooks/43"
+retrieved_from = "https://raw.githubusercontent.com/GITenberg/The-Strange-Case-of-Dr.-Jekyll-and-Mr.-Hyde_43/master/43.txt"
+retrieved = "2026-10-10"
+licence = "Public domain (author died 1894). Project Gutenberg licence header and footer removed; no Gutenberg trademark is used."
+processing = "CRLF to LF, trailing spaces stripped; kept only the text from the title line to the Gutenberg end line."
+sha256 = "2348815f91e14ca7e96df6daec9f625687a076e23e247b6f4f4a7260038d10ce"
+
+[structure]
+chapters = 10
+chapter_heading = "Upper-case chapter title on its own line (e.g. STORY OF THE DOOR)"

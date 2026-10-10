@@ -8,7 +8,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from litcritic import __version__, checklist, guard, workspace
+from litcritic import __version__, checklist, corpus, guard, synth, workspace
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -81,6 +81,36 @@ def _cmd_checklist(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_corpus(args: argparse.Namespace) -> int:
+    texts = corpus.load(args.root)
+    for t in texts:
+        words = len(t.read().split()) if t.path.is_file() else 0
+        lang = t.meta.get("language", "?")
+        print(f"{t.slug:<20} {lang!s:<3} {words:>7} words  {'ok' if t.documented else 'FAIL'}")
+        for err in t.errors:
+            print(f"  {err}", file=sys.stderr)
+    ratio = corpus.documented_ratio(texts)
+    print(f"corpus_sources_documented = {ratio:.3f} ({len(texts)} texts)")
+    return 0 if ratio == 1.0 else 1
+
+
+def _cmd_synth(args: argparse.Namespace) -> int:
+    source = Path(args.text)
+    if not source.is_file():
+        try:
+            source = corpus.get(args.text).path
+        except FileNotFoundError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    draft = synth.generate(source.read_text(encoding="utf-8"), args.seed, args.rate)
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "draft.txt").write_text(draft.text, encoding="utf-8")
+    truth = {"source": str(source), "seed": args.seed, "rate": args.rate, **draft.truth()}
+    (args.out / "truth.json").write_text(json.dumps(truth, indent=1) + "\n", encoding="utf-8")
+    print(f"{len(draft.ops)} edits, {truth['old_count']} -> {truth['new_count']} paragraphs")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lc", description="literary-critic toolkit")
     parser.add_argument("--version", action="version", version=__version__)
@@ -103,6 +133,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_check.add_argument("--root", type=Path, default=None, help="catalogue directory")
     p_check.add_argument("--profile", help="novel profile TOML (traits, mode, disabled)")
     p_check.set_defaults(func=_cmd_checklist)
+
+    p_corpus = sub.add_parser("corpus", help="check the public-domain corpus source notes")
+    p_corpus.add_argument("action", choices=["check"])
+    p_corpus.add_argument("--root", type=Path, default=None, help="corpus directory")
+    p_corpus.set_defaults(func=_cmd_corpus)
+
+    p_synth = sub.add_parser("synth", help="derive a synthetic draft with a truth map")
+    p_synth.add_argument("text", help="corpus slug or path to a text file")
+    p_synth.add_argument("--seed", type=int, default=0)
+    p_synth.add_argument("--rate", type=float, default=0.05, help="share of paragraphs edited")
+    p_synth.add_argument("--out", type=Path, required=True, help="output directory")
+    p_synth.set_defaults(func=_cmd_synth)
     return parser
 
 

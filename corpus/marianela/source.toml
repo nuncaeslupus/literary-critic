@@ -1,0 +1,15 @@
+title = "Marianela"
+author = "Benito Pérez Galdós"
+year = 1878
+language = "es"
+origin = "Project Gutenberg eBook #17340 (17340-8.txt), fetched via the GITenberg mirror"
+origin_url = "https://www.gutenberg.org/ebooks/17340"
+retrieved_from = "https://raw.githubusercontent.com/GITenberg/Marianela_17340/master/17340-8.txt"
+retrieved = "2026-10-10"
+licence = "Public domain (author died 1920). Project Gutenberg licence header and footer removed; no Gutenberg trademark is used."
+processing = "Converted from ISO-8859-1 to UTF-8, CRLF to LF, trailing spaces stripped; kept only the text between the transcriber line and the Gutenberg end marker."
+sha256 = "a18e7778b2f5f33001a2539516c31a65677ff97c76fdc25e9d82c4e8da286f3c"
+
+[structure]
+chapters = 22
+chapter_heading = "-I-, -II-, … on their own line, followed by a chapter title line"
