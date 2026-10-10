@@ -6,7 +6,7 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
 
 ```
 <slug>/
-  workspace.toml        # title, language, audience, schema_version
+  workspace.toml        # title, language, mode (revision | reader-report), schema_version
   guard-terms.txt       # names that must never reach the tool repo
   manuscript/           # writer's originals, one snapshot per draft (v001.docx, v002.docx…)
   text/                 # normalised text per draft (v001.txt), one paragraph per line

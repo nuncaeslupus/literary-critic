@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tomllib
@@ -9,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 HOME_ENV = "LITCRITIC_HOME"
+REGISTRY_ENV = "LITCRITIC_REGISTRY"
 DEFAULT_HOME = Path.home() / "literary-critic"
 MANIFEST = "workspace.toml"
 GUARD_TERMS = "guard-terms.txt"
@@ -36,6 +38,23 @@ def home() -> Path:
     """Directory holding all workspaces ($LITCRITIC_HOME or ~/literary-critic)."""
     env = os.environ.get(HOME_ENV)
     return Path(env).expanduser() if env else DEFAULT_HOME
+
+
+def registry_file() -> Path:
+    """Per-user list of workspace roots created outside the default home."""
+    env = os.environ.get(REGISTRY_ENV)
+    if env:
+        return Path(env).expanduser()
+    base = os.environ.get("XDG_CONFIG_HOME") or str(Path.home() / ".config")
+    return Path(base) / "litcritic" / "workspaces.txt"
+
+
+def _register(root: Path) -> None:
+    reg = registry_file()
+    known = reg.read_text(encoding="utf-8").splitlines() if reg.is_file() else []
+    if str(root) not in known:
+        reg.parent.mkdir(parents=True, exist_ok=True)
+        reg.write_text("\n".join([*known, str(root)]) + "\n", encoding="utf-8")
 
 
 def repo_root() -> Path:
@@ -74,28 +93,35 @@ def create(slug: str, title: str, language: str, base: Path | None = None) -> Wo
     """Create an empty workspace skeleton for one novel."""
     if not slug or "/" in slug or slug.startswith("."):
         raise WorkspaceError(f"invalid slug: {slug!r}")
-    root = (base or home()) / slug
+    root = ((base or home()).expanduser() / slug).resolve()
     check_location(root)
     if (root / MANIFEST).exists():
         raise WorkspaceError(f"workspace already exists: {root}")
     for sub in SUBDIRS:
         (root / sub).mkdir(parents=True, exist_ok=True)
+    q = json.dumps  # JSON string escaping is valid TOML basic-string escaping
     (root / MANIFEST).write_text(
-        f'slug = "{slug}"\ntitle = "{title}"\nlanguage = "{language}"\n'
-        'audience = "writer"\nschema_version = 1\n',
+        f"slug = {q(slug)}\ntitle = {q(title)}\nlanguage = {q(language)}\n"
+        'mode = "revision"\nschema_version = 1\n',
         encoding="utf-8",
     )
     (root / GUARD_TERMS).write_text(
         "# One term per line: title, character, place and other names that must\n"
         "# never appear in the literary-critic repo. Lines starting with # are ignored.\n"
-        f"{title}\n",
+        f"{' '.join(title.split())}\n",
         encoding="utf-8",
     )
+    _register(root)
     return Workspace(root)
 
 
 def all_workspaces(base: Path | None = None) -> list[Workspace]:
-    root = base or home()
-    if not root.is_dir():
-        return []
-    return [Workspace(p.parent) for p in sorted(root.glob(f"*/{MANIFEST}"))]
+    """Workspaces under ``base`` (default home), plus registered ones when no base is given."""
+    root = (base or home()).expanduser()
+    found = {p.parent.resolve() for p in root.glob(f"*/{MANIFEST}")} if root.is_dir() else set()
+    if base is None and registry_file().is_file():
+        for line in registry_file().read_text(encoding="utf-8").splitlines():
+            p = Path(line.strip())
+            if line.strip() and (p / MANIFEST).is_file():
+                found.add(p.resolve())
+    return [Workspace(p) for p in sorted(found)]

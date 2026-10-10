@@ -120,7 +120,6 @@ Key design points carried into `design`:
 - [ ] Python version available in each chatbot sandbox (confirm ≥3.12 or lower the floor).
 - [ ] Whether Claude.ai / ChatGPT Drive connectors can write arbitrary files (JSON/zip) reliably enough to skip the zip round-trip.
 - [ ] `reader-report` mode: scope and when (after the first full revision round).
-- [ ] Final license (D-13).
 
 **Decisions log**:
 
@@ -138,7 +137,7 @@ Key design points carried into `design`:
 | D-10 | Conversational, guided sessions (integral-job-search style) | agreed | 2026-10-10 |
 | D-11 | Locators for writers: chapter + approx. page + paragraph first/last words + search phrase; one change per message; plain language | agreed | 2026-10-10 |
 | D-12 | The writer writes: never produce replacement prose for the novel; diagnose and explain only | agreed | 2026-10-10 |
-| D-13 | License to be chosen deliberately (MIT was a placeholder) | open | 2026-10-10 |
+| D-13 | License: Apache-2.0 (replaces placeholder MIT) | agreed | 2026-10-10 |
 
 ---
 

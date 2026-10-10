@@ -89,10 +89,16 @@ def load(root: Path) -> Catalogue:
     """Load and validate the whole catalogue; problems go to ``Catalogue.errors``."""
     errors: list[str] = []
     traits_doc = _load_toml(root / "traits.toml", errors)
-    traits = {k: str(v.get("description", "")) for k, v in traits_doc.get("trait", {}).items()}
+    traits = {
+        k: str(v.get("description", "")) if isinstance(v, dict) else ""
+        for k, v in traits_doc.get("trait", {}).items()
+    }
     metrics_doc = _load_toml(root / "metrics.toml", errors)
     metrics: dict[str, dict[str, Any]] = dict(metrics_doc.get("metric", {}))
     for mid, m in metrics.items():
+        if not isinstance(m, dict):
+            errors.append(f"metrics.toml: metric {mid} must be a table")
+            continue
         for key in ("description", "unit", "status"):
             if key not in m:
                 errors.append(f"metrics.toml: metric {mid} missing {key}")
@@ -108,6 +114,9 @@ def load(root: Path) -> Catalogue:
         if missing:
             errors.append(f"{where}: area missing {missing}")
             continue
+        if not isinstance(doc["id"], str) or not isinstance(doc["order"], int):
+            errors.append(f"{where}: area id must be a string and order an integer")
+            continue
         aid = doc["id"]
         if aid in areas:
             errors.append(f"{where}: duplicate area id {aid}")
@@ -120,8 +129,14 @@ def load(root: Path) -> Catalogue:
         area_checks = doc.get("check", [])
         if not area_checks:
             errors.append(f"{where}: area has no checks")
+        if not isinstance(area_checks, list):
+            errors.append(f"{where}: [[check]] must be an array of tables")
+            continue
         for c in area_checks:
-            cid = c.get("id", "?")
+            if not isinstance(c, dict):
+                errors.append(f"{where}: check entries must be tables")
+                continue
+            cid = str(c.get("id", "?"))
             ctx = f"{where}:{cid}"
             errs: list[str] = []
             for k in CHECK_REQUIRED:

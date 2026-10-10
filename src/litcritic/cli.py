@@ -25,8 +25,11 @@ def _cmd_init(args: argparse.Namespace) -> int:
 def _cmd_guard(args: argparse.Namespace) -> int:
     repo = workspace.repo_root()
     files = guard.tracked_files(repo) if args.all else guard.staged_changes(repo)
-    term_files = guard.default_term_files(repo) + [Path(p) for p in args.terms]
-    terms = guard.read_terms(term_files)
+    try:
+        terms = guard.read_terms(guard.default_term_files(repo), [Path(p) for p in args.terms])
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     violations = guard.check(files, terms)
     for v in violations:
         print(f"BLOCKED {v.path}: {v.reason}", file=sys.stderr)
@@ -48,6 +51,9 @@ def _cmd_checklist(args: argparse.Namespace) -> int:
         print(json.dumps(checklist.stats(cat), indent=2))
         return 0
     # plan: select checks for a novel profile
+    if cat.errors:
+        print("error: catalogue is invalid; run `lc checklist validate`", file=sys.stderr)
+        return 2
     traits: set[str] = set()
     mode = "revision"
     disabled: set[str] = set()
@@ -56,9 +62,19 @@ def _cmd_checklist(args: argparse.Namespace) -> int:
         traits = set(prof.get("traits", []))
         mode = str(prof.get("mode", mode))
         disabled = set(prof.get("disabled", []))
-        unknown = traits - set(cat.traits)
-        if unknown:
-            print(f"error: unknown traits {sorted(unknown)}", file=sys.stderr)
+        known_ids = {c.id for c in cat.checks} | set(cat.areas)
+        problems = (
+            [f"unknown traits {sorted(traits - set(cat.traits))}"]
+            if traits - set(cat.traits)
+            else []
+        )
+        if mode not in checklist.MODES:
+            problems.append(f"unknown mode {mode!r} (use one of {checklist.MODES})")
+        if disabled - known_ids:
+            problems.append(f"unknown disabled ids {sorted(disabled - known_ids)}")
+        if problems:
+            for msg in problems:
+                print(f"error: {msg}", file=sys.stderr)
             return 2
     for c in checklist.select(cat, traits, mode, disabled):
         print(f"{c.stage:<13} {c.id:<40} {c.method:<6} {c.title}")

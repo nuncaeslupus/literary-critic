@@ -38,4 +38,4 @@ Rules for contributors and assistants: [`AGENTS.md`](AGENTS.md).
 
 ## License
 
-MIT
+Apache License 2.0 — see `LICENSE` and `NOTICE`.

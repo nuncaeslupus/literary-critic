@@ -3,7 +3,7 @@ name = "literary-critic"
 version = "0.1.0"
 description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = []  # runtime is stdlib only (see AGENTS.md rule 7)
 

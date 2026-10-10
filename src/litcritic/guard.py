@@ -34,9 +34,13 @@ def fold(text: str) -> str:
     return "".join(c for c in decomposed if not unicodedata.combining(c)).casefold()
 
 
-def read_terms(files: list[Path]) -> list[str]:
+def read_terms(files: list[Path], required: list[Path] | None = None) -> list[str]:
+    """Terms from the given files; missing ``files`` are skipped, missing ``required`` raise."""
+    for f in required or []:
+        if not f.is_file():
+            raise FileNotFoundError(f"terms file not found: {f}")
     terms: set[str] = set()
-    for f in files:
+    for f in [*files, *(required or [])]:
         if not f.is_file():
             continue
         for line in f.read_text(encoding="utf-8").splitlines():
@@ -76,40 +80,43 @@ def check(files: dict[str, str], terms: list[str]) -> list[Violation]:
     return out
 
 
-def staged_changes(repo: Path) -> dict[str, str]:
-    """Added lines per staged file (binary files map to '')."""
-    names = subprocess.run(
-        ["git", "-C", str(repo), "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=True,
-    ).stdout.split()
-    result: dict[str, str] = {}
-    for name in names:
-        diff = subprocess.run(
-            ["git", "-C", str(repo), "diff", "--cached", "-U0", "--", name],
-            capture_output=True,
-            text=True,
-            errors="replace",
-            check=True,
-        ).stdout
-        added = [
-            ln[1:] for ln in diff.splitlines() if ln.startswith("+") and not ln.startswith("+++")
-        ]
-        result[name] = "\n".join(added)
-    return result
+    ).stdout
+
+
+def _added_lines(diff: str) -> str:
+    """Added lines of a unified diff, skipping the file header."""
+    added: list[str] = []
+    in_hunk = False
+    for ln in diff.splitlines():
+        if ln.startswith("@@"):
+            in_hunk = True
+        elif in_hunk and ln.startswith("+"):
+            added.append(ln[1:])
+    return "\n".join(added)
+
+
+def staged_changes(repo: Path) -> dict[str, str]:
+    """Added lines per staged file (binary files map to '')."""
+    out = _git(repo, "diff", "--cached", "--name-only", "-z", "--diff-filter=ACMR")
+    names = [n for n in out.split("\0") if n]
+    return {n: _added_lines(_git(repo, "diff", "--cached", "-U0", "--", n)) for n in names}
 
 
 def tracked_files(repo: Path) -> dict[str, str]:
     """Full text of every tracked file (for CI / full scans)."""
-    names = subprocess.run(
-        ["git", "-C", str(repo), "ls-files"], capture_output=True, text=True, check=True
-    ).stdout.splitlines()
+    names = [n for n in _git(repo, "ls-files", "-z").split("\0") if n]
     result: dict[str, str] = {}
     for name in names:
-        p = repo / name
         try:
-            result[name] = p.read_text(encoding="utf-8")
+            result[name] = (repo / name).read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             result[name] = ""
     return result
