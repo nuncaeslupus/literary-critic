@@ -1,0 +1,10 @@
+# Review only this project's own files; vendored and generated content is excluded.
+reviews:
+  path_filters:
+    - "!claude-arsenal/**"
+    - "!.claude/**"
+    - "!arsenal/**"
+    - "!.github/workflows/arsenal-queue.yml"
+    - "!status/*-reader.html"
+    - "!status/*-annotated.md"
+    - "!uv.lock"
