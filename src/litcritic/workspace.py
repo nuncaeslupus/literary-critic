@@ -131,6 +131,7 @@ def resolve(ref: str, base: Path | None = None) -> Workspace:
     """A workspace from a folder path or a slug (searched under ``base``/home and the registry)."""
     path = Path(ref).expanduser()
     if (path / MANIFEST).is_file():
+        check_location(path.resolve())
         return Workspace(path.resolve())
     matches = [ws for ws in all_workspaces(base) if ws.root.name == ref]
     if len(matches) == 1:

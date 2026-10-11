@@ -50,8 +50,15 @@ def test_odt_paragraphs_match_text() -> None:
 
 
 def test_txt_modes() -> None:
-    wrapped = ingest.read_txt(b"One line\ncontinues.\n\n\n\nTwo\nlines.\n")
-    assert [p.text for p in wrapped.paragraphs] == ["One line continues.", "Two lines."]
+    text = (
+        b"One line that was wrapped by the editor at a fixed\nwidth.\n\n\n\n"
+        b"Two lines that were also wrapped at that same\nwidth.\n"
+    )
+    wrapped = ingest.read_txt(text)
+    assert [p.text for p in wrapped.paragraphs] == [
+        "One line that was wrapped by the editor at a fixed width.",
+        "Two lines that were also wrapped at that same width.",
+    ]
     assert wrapped.paragraphs[1].blank_before == 2
     per_line = ingest.read_txt("Uno.\r\nDos.\r\n\r\nTres.".encode("cp1252"))
     assert [(p.text, p.blank_before) for p in per_line.paragraphs] == [
@@ -134,3 +141,64 @@ def test_docx_explicit_and_rendered_page_breaks() -> None:
         (2, False),  # page turns mid-paragraph: it starts on page 2
         (3, False),  # natural page flow is not a "break"
     ]
+
+
+def test_review_regressions(tmp_path: Path) -> None:
+    # UTF-16 with BOM decodes; without BOM it is refused rather than garbled.
+    assert [p.text for p in ingest.read_txt("Hola mundo.\n".encode("utf-16")).paragraphs] == [
+        "Hola mundo."
+    ]
+    with pytest.raises(ingest.IngestError, match="UTF-16"):
+        ingest.read_txt("Hola mundo.".encode("utf-16-le"))
+    # A Markdown heading directly followed by text keeps its level.
+    md = ingest.read_md(b"# Chapter One\nShe left.\n\nThen more.")
+    assert [(p.text, p.heading) for p in md.paragraphs] == [
+        ("Chapter One", 1),
+        ("She left.", 0),
+        ("Then more.", 0),
+    ]
+    # Hard-wrapped, dialogue-heavy text stays in block mode.
+    lines = ["Short line.\n\n"] * 7 + [
+        "A wrapped line that goes on and on, cut at a fixed\nwidth by the editor.\n\n"
+    ] * 3
+    assert len(ingest.read_txt("".join(lines).encode()).paragraphs) == 10
+    # A gap in version numbers never overwrites an existing snapshot.
+    ws = tmp_path / "ws"
+    (ws / "manuscript").mkdir(parents=True)
+    (ws / "manuscript" / "v001.txt").write_text("old one", encoding="utf-8")
+    (ws / "manuscript" / "v003.txt").write_text("old three", encoding="utf-8")
+    src = tmp_path / "new.txt"
+    src.write_text("New text.", encoding="utf-8")
+    assert ingest.ingest(src, ws).version == "v004"
+    assert (ws / "manuscript" / "v003.txt").read_text(encoding="utf-8") == "old three"
+    # A run interrupted after the snapshot is completed next time.
+    (ws / "text" / "v004.meta.json").unlink()
+    again = ingest.ingest(src, ws)
+    assert (again.version, again.unchanged) == ("v004", False)
+    assert (ws / "text" / "v004.meta.json").is_file()
+    # Corrupt XML inside a docx is a readable error, not a traceback.
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("word/document.xml", "<w:document")
+    bad = tmp_path / "bad.docx"
+    bad.write_bytes(buf.getvalue())
+    with pytest.raises(ingest.IngestError):
+        ingest.read(bad)
+
+
+def test_workspace_inside_repo_is_refused(tmp_path: Path) -> None:
+    from litcritic import workspace
+    from litcritic.workspace import repo_root
+
+    inside = repo_root() / "tmp" / "ws-test-inside"
+    inside.mkdir(parents=True, exist_ok=True)
+    (inside / "workspace.toml").write_text('slug = "x"\n', encoding="utf-8")
+    try:
+        with pytest.raises(workspace.WorkspaceError):
+            workspace.resolve(str(inside))
+    finally:
+        (inside / "workspace.toml").unlink()
+        inside.rmdir()

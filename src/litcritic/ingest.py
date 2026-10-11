@@ -14,7 +14,6 @@ import hashlib
 import io
 import json
 import re
-import shutil
 import unicodedata
 import zipfile
 from dataclasses import dataclass, field
@@ -97,6 +96,10 @@ def _collect(raw: list[Para]) -> list[Para]:
 
 
 def _decode(data: bytes) -> str:
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return data.decode("utf-16")
+    if b"\x00" in data[:4096]:
+        raise IngestError("text file looks like UTF-16 without a BOM; save it as UTF-8")
     for enc in ("utf-8-sig", "cp1252"):
         try:
             return data.decode(enc)
@@ -108,8 +111,17 @@ def _decode(data: bytes) -> str:
 def read_txt(data: bytes) -> Draft:
     """Blank-line separated blocks when lines are hard-wrapped, else one paragraph per line."""
     lines = _decode(data).replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    blocks = [b for b in re.split(r"\n[ \t]*\n", "\n".join(lines)) if b.strip()]
-    wrapped = sum(b.strip("\n").count("\n") + 1 for b in blocks) / max(len(blocks), 1) > 1.5
+    blocks = [b.strip("\n") for b in re.split(r"\n[ \t]*\n", "\n".join(lines)) if b.strip()]
+    multi = [b for b in blocks if "\n" in b]
+    # Lines that a wrap cut (every line of a block but its last) sit near a fixed width.
+    cut = sorted(len(x) for b in multi for x in b.split("\n")[:-1])
+    wrapped = (
+        len(blocks) > 1
+        and len(multi) >= 0.2 * len(blocks)
+        and bool(cut)
+        and cut[len(cut) // 2] >= 40
+        and cut[int(0.9 * (len(cut) - 1))] <= 100
+    )
     if not wrapped:
         return Draft(_collect([Para(line) for line in lines]), "txt")
     # Hard-wrapped: one blank line separates paragraphs; extra blank lines are spacing.
@@ -138,10 +150,12 @@ def read_md(data: bytes) -> Draft:
         block = block.strip("\n")
         if not block.strip():
             continue
-        m = re.match(r"^(#{1,6})\s+(.*)$", block)
-        if m and "\n" not in block:
-            raw.append(Para(m.group(2).rstrip("#"), heading=len(m.group(1))))
-            continue
+        m = re.match(r"^(#{1,6})\s+(.*)$", block.split("\n", 1)[0])
+        if m:
+            raw.append(Para(m.group(2).rstrip("#").strip(), heading=len(m.group(1))))
+            if "\n" not in block:
+                continue
+            block = block.split("\n", 1)[1]
         # Hide escaped characters from the emphasis pass, then restore them literally.
         line = re.sub(
             r"\\([\\`*_{}\[\]()#+.!-])", lambda m: chr(0xE000 + ord(m.group(1))), block
@@ -183,7 +197,19 @@ def _docx_styles(zf: zipfile.ZipFile) -> dict[str, tuple[str, int, bool]]:
             level = int(name.strip()[-1])
         return name, level, bool(centred)
 
-    return {sid: resolve(sid) for sid in raw}
+    out = {sid: resolve(sid) for sid in raw}
+    # "" stands for the default paragraph style (used when a paragraph names none).
+    default = next(
+        (
+            st.get(f"{W}styleId", "")
+            for st in root.iter(f"{W}style")
+            if st.get(f"{W}type") == "paragraph" and st.get(f"{W}default") in ("1", "true")
+        ),
+        "Normal",
+    )
+    if default in out:
+        out[""] = out[default]
+    return out
 
 
 def read_docx(data: bytes) -> Draft:
@@ -209,8 +235,7 @@ def read_docx(data: bytes) -> Draft:
         if ppr is not None:
             sid_el = ppr.find(f"{W}pStyle")
             sid = sid_el.get(f"{W}val", "") if sid_el is not None else ""
-            name, level, centred = styles.get(sid, (sid, 0, False))
-            out.style, out.heading, out.centered = name, level, centred
+            out.style, out.heading, out.centered = styles.get(sid, (sid, 0, False))
             lvl = ppr.find(f"{W}outlineLvl")
             if lvl is not None and int(lvl.get(f"{W}val", "9")) < 9:
                 out.heading = int(lvl.get(f"{W}val", "9")) + 1
@@ -221,7 +246,7 @@ def read_docx(data: bytes) -> Draft:
             if pb is not None and pb.get(f"{W}val", "true") not in ("0", "false"):
                 out.page_break_before = True
         else:
-            out.style, out.heading, out.centered = styles.get("Normal", ("", 0, False))
+            out.style, out.heading, out.centered = styles.get("", ("", 0, False))
         parts: list[str] = []
         seen_text = False
 
@@ -299,11 +324,12 @@ def _as_file(data: bytes) -> io.BytesIO:
 
 def _odt_centred(zf: zipfile.ZipFile, content: ET.Element) -> dict[str, bool]:
     styles: dict[str, tuple[str, bool | None]] = {}
-    roots = [content]
-    if "styles.xml" in zf.namelist():
-        roots.append(ET.fromstring(zf.read("styles.xml")))
+    roots = [ET.fromstring(zf.read("styles.xml"))] if "styles.xml" in zf.namelist() else []
+    roots.append(content)  # the body's automatic styles win over same-named ones in styles.xml
     for root in roots:
         for st in root.iter(f"{STYLE}style"):
+            if st.get(f"{STYLE}family", "paragraph") != "paragraph":
+                continue
             props = st.find(f"{STYLE}paragraph-properties")
             align = props.get(f"{FO}text-align") if props is not None else None
             centred = align == "center" if align else None
@@ -384,11 +410,16 @@ def read_odt(data: bytes) -> Draft:
 READERS = {".txt": read_txt, ".md": read_md, ".docx": read_docx, ".odt": read_odt}
 
 
-def read(path: Path) -> Draft:
+def read(path: Path, data: bytes | None = None) -> Draft:
     suffix = path.suffix.lower()
     if suffix not in READERS:
         raise IngestError(f"unsupported format {suffix!r} (use {', '.join(FORMATS)})")
-    return READERS[suffix](path.read_bytes())
+    try:
+        return READERS[suffix](path.read_bytes() if data is None else data)
+    except (ET.ParseError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+        if isinstance(exc, IngestError):
+            raise
+        raise IngestError(f"not a readable {suffix} file: {exc}") from exc
 
 
 # --- workspace snapshot -----------------------------------------------------
@@ -403,9 +434,8 @@ class Result:
 
 
 def _versions(ws_root: Path) -> list[Path]:
-    return sorted(
-        (p for p in (ws_root / "manuscript").glob("v[0-9][0-9][0-9].*")), key=lambda p: p.stem
-    )
+    found = [p for p in (ws_root / "manuscript").glob("v*.*") if re.fullmatch(r"v\d{3,}", p.stem)]
+    return sorted(found, key=lambda p: int(p.stem[1:]))
 
 
 def ingest(path: Path, ws_root: Path) -> Result:
@@ -413,19 +443,19 @@ def ingest(path: Path, ws_root: Path) -> Result:
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     existing = _versions(ws_root)
-    if existing:
-        last = existing[-1]
-        if hashlib.sha256(last.read_bytes()).hexdigest() == digest:
-            text = ws_root / "text" / f"{last.stem}.txt"
-            count = len(text.read_text(encoding="utf-8").splitlines()) if text.is_file() else 0
-            return Result(last.stem, True, count, text)
-    draft = read(path)
+    draft = read(path, data)
     if not draft.paragraphs:
         raise IngestError("no text found")
-    version = f"v{len(existing) + 1:03d}"
+    version = f"v{int(existing[-1].stem[1:]) + 1:03d}" if existing else "v001"
+    if existing and hashlib.sha256(existing[-1].read_bytes()).hexdigest() == digest:
+        version = existing[-1].stem
+        text = ws_root / "text" / f"{version}.txt"
+        if text.is_file() and (ws_root / "text" / f"{version}.meta.json").is_file():
+            return Result(version, True, len(draft.paragraphs), text)
+        # A previous run stopped after the snapshot: finish writing text and meta.
     (ws_root / "manuscript").mkdir(parents=True, exist_ok=True)
     (ws_root / "text").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(path, ws_root / "manuscript" / f"{version}{path.suffix.lower()}")
+    (ws_root / "manuscript" / f"{version}{path.suffix.lower()}").write_bytes(data)
     text_path = ws_root / "text" / f"{version}.txt"
     text_path.write_text(draft.text, encoding="utf-8")
     meta = {
