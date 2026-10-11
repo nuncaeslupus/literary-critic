@@ -95,6 +95,21 @@ Queries print at most `--budget` tokens (default 2000) and say how to continue:
 | `lc find <words>` / `"<phrase>"` `[--in c03]` | matching paragraphs, accent-blind, with snippets |
 | `lc context c03.s2.p4` | chapter, scene card, the paragraph and its neighbours |
 
+## Rounds, letters and locators
+
+`lc round build` turns open findings (`analysis/findings.json`) into the next
+round's `revisions/round-NN/actions.json`: one action per finding of the
+earliest level with open problems (structural, then scene, then line), sorted
+by severity × confidence × profile weight ÷ effort. `lc round letter` writes
+`letter.md` in the novel's language; `lc round mark --id A3 --status accepted`
+records decisions; `lc round status` says whether the round can close.
+
+Every action carries a writer locator from `lc locate <anchor>`: chapter,
+scene, page (exact when the source recorded pages, else ≈ at 300 words per
+page) and the paragraph's first and last words — the shortest runs that occur
+only once in the draft. A very short paragraph that cannot be unique is placed
+after its neighbour.
+
 ## Moving a workspace between sessions
 
 | Surface | Pattern |

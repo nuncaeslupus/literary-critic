@@ -16,9 +16,11 @@ from litcritic import (
     guard,
     index,
     ingest,
+    locate,
     metrics,
     pack,
     query,
+    rounds,
     structure,
     synth,
     validate,
@@ -261,6 +263,44 @@ def _cmd_query(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_locate(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        version = args.version or structure.latest_version(ws.root)
+        ix = query.load(ws.root, version)
+        loc = locate.LocatorBuilder(ix, locate.load_meta(ws.root, version)).locate(args.anchor)
+        lang = str(ws.manifest.get("language", "en"))
+    except (workspace.WorkspaceError, OSError, ValueError, KeyError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(locate.as_json(loc) if args.json else locate.describe(loc, lang))
+    return 0
+
+
+def _cmd_round(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        if args.action == "build":
+            out, actions, warnings = rounds.build(ws.root, args.version, args.level)
+            for w in warnings:
+                print(f"warning: {w}", file=sys.stderr)
+            print(f"{len(actions)} actions ({actions[0]['level'] if actions else '-'}) -> {out}")
+        elif args.action == "letter":
+            print(f"wrote {rounds.letter(ws.root, args.version)}")
+        elif args.action == "mark":
+            if not args.action_id or not args.status:
+                raise rounds.RoundError("usage: lc round mark --id A3 --status accepted")
+            a = rounds.mark(ws.root, args.action_id, args.status)
+            print(f"{a['id']}: {a['status']}")
+        else:
+            st = rounds.status(ws.root)
+            print(json.dumps(st, ensure_ascii=False))
+    except (workspace.WorkspaceError, rounds.RoundError, OSError, ValueError, KeyError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1 if isinstance(exc, rounds.RoundError) else 2
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -377,6 +417,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_ctx.add_argument("anchor")
     query_args(p_ctx)
+
+    p_loc = sub.add_parser("locate", help="how a writer finds a paragraph (chapter, page, words)")
+    p_loc.add_argument("anchor")
+    p_loc.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_loc.add_argument("--version", default=None)
+    p_loc.add_argument("--json", action="store_true", help="machine-readable output")
+    p_loc.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_loc.set_defaults(func=_cmd_locate)
+
+    p_round = sub.add_parser("round", help="revision rounds: build actions, letter, status, mark")
+    p_round.add_argument("action", choices=["build", "status", "letter", "mark"])
+    p_round.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_round.add_argument("--version", default=None)
+    p_round.add_argument("--level", choices=list(rounds.LEVELS), default=None)
+    p_round.add_argument("--id", dest="action_id", default=None, help="action id for mark, e.g. A3")
+    p_round.add_argument(
+        "--status", choices=["pending", "accepted", "rejected", "done", "deferred"], default=None
+    )
+    p_round.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_round.set_defaults(func=_cmd_round)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

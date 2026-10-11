@@ -39,6 +39,8 @@ before line-level work.
      "anchors": ["c07.s2"],
      "evidence": [{"anchor": "c07.s2.p4", "quote": "at most 25 words copied from the text"}],
      "explanation": "What the problem (or strength) is and why it matters.",
+     "what": "One line: what the writer could change (no replacement prose).",
+     "options": ["Ways to address it, described, never written out"],
      "severity": "medium",
      "confidence": 0.7,
      "effort": "M",
