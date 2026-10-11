@@ -4,6 +4,7 @@ title: "T13: `lc pack/unpack` with checksummed manifest; stale-overwrite refusal
 label: "workspace pack/unpack"
 priority: 10
 deps: [t-d77a64a4]
+status: merged
 ---
 
 # T13: `lc pack/unpack` with checksummed manifest; stale-overwrite refusal

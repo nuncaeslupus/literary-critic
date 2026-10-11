@@ -16,6 +16,7 @@ from litcritic import (
     guard,
     ingest,
     metrics,
+    pack,
     structure,
     synth,
     validate,
@@ -181,6 +182,36 @@ def _cmd_metrics(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_pack(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        out, manifest = pack.pack(ws.root, args.out)
+    except (workspace.WorkspaceError, pack.PackError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(f"generation {manifest['generation']}: {len(manifest['files'])} files -> {out}")
+    print("keep this zip (e.g. in Drive); unpack it with `lc unpack` next session")
+    return 0
+
+
+def _cmd_unpack(args: argparse.Namespace) -> int:
+    try:
+        loaded = pack.read_zip(Path(args.zip))
+        slug = str(loaded[0]["slug"])
+        base = (args.home or workspace.home()).expanduser()
+        if args.workspace:
+            ref = Path(args.workspace).expanduser()
+            target = ref if (ref.is_absolute() or len(ref.parts) > 1) else base / ref
+        else:
+            target = base / slug
+        result = pack.unpack(Path(args.zip), target, force=args.force, loaded=loaded)
+    except (workspace.WorkspaceError, pack.PackError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1 if isinstance(exc, pack.PackError) else 2
+    print(f"{result.action}: {target} (generation {result.generation}, {result.written} files)")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -255,6 +286,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_met.add_argument("--language", default=None, help="override the workspace language")
     p_met.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_met.set_defaults(func=_cmd_metrics)
+
+    p_pack = sub.add_parser("pack", help="zip a workspace with a checksummed manifest")
+    p_pack.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_pack.add_argument("--out", type=Path, default=None, help="zip path (default next to it)")
+    p_pack.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_pack.set_defaults(func=_cmd_pack)
+
+    p_unp = sub.add_parser("unpack", help="restore a workspace zip; refuses to lose newer work")
+    p_unp.add_argument("zip")
+    p_unp.add_argument(
+        "--workspace", default=None, help="target folder, or a name under home (default: the zip's)"
+    )
+    p_unp.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_unp.add_argument("--force", action="store_true", help="overwrite even newer/diverged work")
+    p_unp.set_defaults(func=_cmd_unpack)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)
