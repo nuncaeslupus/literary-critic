@@ -21,8 +21,24 @@ def _text(ws_root: Path, draft: str) -> spanlib.Text:
 
 def _spans(args: argparse.Namespace, cx: Codex, root: Path) -> list[spanlib.Span]:
     out = []
-    if args.span or args.quote:
+    if args.span or args.quote or args.unit:
         text = _text(root, cx.draft)
+        for unit in args.unit or []:
+            try:
+                r = query.paragraph_range(query.Index(text.paragraphs, text.anchors, [], []), unit)
+            except KeyError as exc:
+                raise CodexError(f"--unit {unit!r}: no such chapter or scene") from exc
+            last = r[-1]
+            out.append(
+                spanlib.make(
+                    text,
+                    cx.draft,
+                    text.anchors[r[0]],
+                    0,
+                    text.anchors[last],
+                    len(text.paragraphs[last]),
+                )
+            )
         for raw in args.span or []:
             try:
                 a, b = raw.split("-", 1)
@@ -268,6 +284,7 @@ def register(sub: Any) -> None:
         sp.add_argument("--span", action="append", help="ANCHOR:OFF-ANCHOR:OFF (repeatable)")
         sp.add_argument("--quote", action="append", help="exact text, found once (repeatable)")
         sp.add_argument("--within", default=None, help="limit --quote to a chapter or scene")
+        sp.add_argument("--unit", action="append", help="a whole chapter or scene (repeatable)")
         sp.add_argument("--link", action="append", help="REL:ITEM_ID (repeatable)")
         sp.add_argument("--by", choices=("llm", "writer", "script"), default="llm")
 

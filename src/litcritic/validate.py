@@ -3,7 +3,7 @@
 Runtime is stdlib only, so this implements the subset of JSON Schema the
 schemas use: type, const, enum, required, properties, additionalProperties,
 items, minItems, minLength, minimum, maximum, pattern and local ``$ref``, plus
-``x-maxWords`` (word limit for quotes and summaries). Findings and profiles are
+``x-maxWords`` (word limit for quotes and summaries). Profiles are
 also checked against the catalogue (known check ids, traits, areas).
 """
 
@@ -18,7 +18,7 @@ from typing import Any
 from litcritic import checklist
 from litcritic.workspace import repo_root
 
-KINDS = ("scene-card", "register", "finding", "action", "profile", "report")
+KINDS = ("profile", "report")
 TYPES: dict[str, tuple[type, ...]] = {
     "object": (dict,),
     "array": (list,),
@@ -121,8 +121,6 @@ def validate(kind: str, data: Any, catalogue: checklist.Catalogue | None = None)
 
 def _cross_check(kind: str, item: dict[str, Any], cat: checklist.Catalogue) -> list[str]:
     known = {c.id for c in cat.checks}
-    if kind == "finding" and "check_id" in item and item["check_id"] not in known:
-        return [f"unknown check_id {item['check_id']!r}"]
     if kind == "profile":
         errors = [f"unknown trait {t!r}" for t in item.get("traits", []) if t not in cat.traits]
         errors += [

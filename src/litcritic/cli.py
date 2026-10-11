@@ -17,7 +17,6 @@ from litcritic import (
     diff,
     docx_out,
     guard,
-    index,
     ingest,
     kinds,
     kit,
@@ -259,22 +258,6 @@ def _cmd_unpack(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_index(args: argparse.Namespace) -> int:
-    try:
-        ws = workspace.resolve(args.workspace, args.home)
-        written, errors = index.build(ws.root, args.version)
-    except (workspace.WorkspaceError, OSError, ValueError, KeyError, TypeError) as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-    for err in errors:
-        print(err, file=sys.stderr)
-    if errors:
-        print(f"scene cards: {len(errors)} error(s); nothing written")
-        return 1
-    print(f"wrote {len(written)} registers to {written[0].parent}")
-    return 0
-
-
 def _cmd_query(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
@@ -509,12 +492,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_unp.add_argument("--force", action="store_true", help="overwrite even newer/diverged work")
     p_unp.set_defaults(func=_cmd_unpack)
 
-    p_idx = sub.add_parser("index", help="check scene cards and build registers from them")
-    p_idx.add_argument("--workspace", required=True, help="workspace folder or slug")
-    p_idx.add_argument("--version", default=None)
-    p_idx.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
-    p_idx.set_defaults(func=_cmd_index)
-
     def query_args(p: argparse.ArgumentParser) -> None:
         p.add_argument("--workspace", required=True, help="workspace folder or slug")
         p.add_argument("--version", default=None, help="draft version (default latest)")
@@ -531,7 +508,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_find.add_argument("--in", dest="within", default=None, help="limit to a chapter or scene")
     query_args(p_find)
     p_ctx = sub.add_parser(
-        "context", help="a paragraph with its chapter, scene card and neighbours"
+        "context", help="a paragraph with its chapter, Codex scene and neighbours"
     )
     p_ctx.add_argument("anchor")
     query_args(p_ctx)

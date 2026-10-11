@@ -10,19 +10,19 @@ before line-level work.
    `checklist/areas/`.
 2. Load only the inputs it names:
    - `L0`: `<ws>/analysis/synopsis.md` and the profile;
-   - `L1`: `lc show --workspace <slug>` (chapter summaries);
-   - `L2`: the scene cards (`<ws>/index/<version>/scene_cards.json`);
+   - `L1`: `lc show --workspace <slug>` (table of contents);
+   - `L2`: the Codex's `scene` items
+     (`lc codex sql "SELECT * FROM scene" --workspace <slug>`, or `lc context`
+     for one scene);
    - `L3`: `lc find "<phrase>" --workspace <slug>`,
      `lc context c05.s1.p3 --workspace <slug>`, or
      `lc show c05.s1 --workspace <slug>`;
    - `structure`: `<ws>/index/<version>/structure.json` (parts, chapters,
      scenes, word counts);
-   - `characters`, `locations`, `timeline`, `ledger` (setups and payoffs):
-     `<ws>/index/<version>/registers/` — `ledger` is `setups.json`. They are
-     built from scene cards by `lc index`;
-   - `relationships`, `motifs`: registers you write yourself in the same
-     folder (`relationships.json`, `motifs.json`, schema `register`) when a
-     check first needs them;
+   - `characters`, `locations`, `motifs`, `relationships`, `timeline`,
+     `ledger` (setups and payoffs): the Codex's `entity`, `fact` and `setup`
+     items and their links — ask a named question first
+     (`lc codex questions`), else `lc codex sql "<query>" --workspace <slug>`;
    - `findings`: the Codex's `issue` items
      (`lc codex find "<words>" --type issue --workspace <slug>`);
      `backlog`: past rounds and the writer's `decision` items

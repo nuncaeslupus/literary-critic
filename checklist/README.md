@@ -60,9 +60,10 @@ evidence = "What must be cited for a finding."
 severity = { high = "...", medium = "...", low = "..." }   # required for diagnostic
 ```
 
-Inputs name index layers: `L0` profile and synopsis, `L1` chapter summaries,
-`L2` scene cards, `L3` raw text, and the derived registers `structure`,
+Inputs name index layers: `L0` profile and synopsis, `L1` table of contents,
+`L2` the Codex's scene items, `L3` raw text, and the views `structure`,
 `characters`, `relationships`, `timeline`, `locations`, `motifs`, `ledger`
-(setups and payoffs), `metrics`, `findings`, `backlog`.
+(setups and payoffs), `metrics`, `findings`, `backlog` — all answered from
+the Codex or the draft's structure.
 
 Validate with `lc checklist validate`; see counts with `lc checklist stats`.

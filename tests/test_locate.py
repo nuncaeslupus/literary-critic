@@ -70,8 +70,6 @@ def test_short_paragraph_points_to_its_neighbour() -> None:
         ["c01.s1.p1", "c01.s1.p2", "c01.s1.p3", "c01.s1.p4"],
         ["a", "b", "c", "d"],
         [],
-        {},
-        {},
     )
     loc = locate.LocatorBuilder(ix).locate("c01.s1.p4")
     assert not loc.unique and loc.after == "Otra cosa distinta."

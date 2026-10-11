@@ -2,15 +2,13 @@
 
 JSON Schemas (draft 2020-12 subset) for the artefacts an LLM writes into a
 workspace. `lc validate <kind> <file>` checks a file against them with a
-stdlib-only validator; findings and profiles are also checked against the
-catalogue (known check ids, traits and areas).
+stdlib-only validator; profiles are also checked against the catalogue
+(known check ids, traits and areas). Codex items are checked against their
+type's schema (`src/litcritic/codex_types/`) by `lc codex check`.
 
 | Kind | File | Written by |
 |------|------|------------|
-| `scene-card` | `scene-card.schema.json` | LLM, one per scene |
-| `register` | `register.schema.json` | script, from scene cards (T9) |
-| `finding` | `finding.schema.json` | LLM, per check result |
-| `action` | `action.schema.json` | script + LLM, per revision round (T11) |
+| `report` | `report.schema.json` | LLM, reader-report mode |
 | `profile` | `profile.schema.json` | LLM + writer, `analysis/profile.toml` |
 
 Supported keywords: `type`, `const`, `enum`, `required`, `properties`,

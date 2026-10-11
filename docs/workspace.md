@@ -12,7 +12,7 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
   text/                 # normalised text per draft (v001.txt), one paragraph per line,
                         # + v001.meta.json: per-paragraph heading level, centred, page,
                         #   page break before, blank lines before, style name
-  index/                # anchors, structure, scene cards, characters, timeline… (per draft)
+  index/                # anchors, structure, alignment (per draft)
   metrics/              # script-measured metrics per draft
   analysis/             # novel profile (adapted checklist) and findings
   revisions/            # round-NN/: editorial letter + action backlog with statuses
@@ -67,7 +67,7 @@ Every fingerprint must match exactly one paragraph or nothing is applied.
 `index/v002/alignment.json`: for every old paragraph its status — unchanged,
 moved, modified (with similarity), split, merged or deleted — and its new
 anchors; the inserted paragraphs; and `stale_scenes`, the new scenes whose text
-changed, so only their scene cards are re-read.
+changed. `lc codex sync` uses it to move the Codex to the new draft.
 
 ## Metrics
 
@@ -77,33 +77,29 @@ paragraph statistics, readability (Fernández-Huerta and Szigriszt/INFLESZ for
 Spanish, Flesch for English — relative gauges only), dialogue, word choice,
 names, proofreading signals. Items carry anchors.
 
-Some metrics aggregate what the LLM or the registers provide and report
-`unmeasured` until that input exists:
+Some metrics aggregate what the LLM records and report `unmeasured` until
+that input exists:
 
 | Input | Path | Used by |
 |-------|------|---------|
-| Registers | `index/vNNN/registers/<kind>.json` (schema `register`) | characters, motifs, setups/threads |
-| Scene cards | `index/vNNN/scene_cards.json` (list, schema `scene-card`) | POV distribution |
+| Codex items (synced to the draft) | `entity` (kind `character` or `motif`), `setup` (payoffs link with `pays_off`), `scene` | characters, motifs, setups/threads, POV distribution |
 | Labels | `analysis/labels.json`: `chapter_endings` {chapter id: type}, `summary_passages` [anchors], `climax` anchor, `opening_hook` anchor | chapter endings, scene/summary ratio, dénouement share, opening hook |
 
 ## Index and queries
 
-The LLM writes one scene card per scene into `index/vNNN/scene_cards.json`
-(schema `scene-card`), chapter summaries into `index/vNNN/chapter_summaries.json`
-(`{"c01": "…"}`) and the synopsis into `analysis/synopsis.md`.
-`lc index --workspace <slug>` validates the cards (schema and anchors) and
-builds `index/vNNN/registers/` — characters, locations, timeline, setups — by
-script. Use the same short label for a setup and its payoff so they pair.
+The LLM records scenes, characters, places, motifs and setups as Codex items
+(`prompts/20-codex-items.md`) and writes the synopsis into
+`analysis/synopsis.md`.
 
 Queries print at most `--budget` tokens (default 2000) and say how to continue:
 
 | Command | Shows |
 |---------|-------|
-| `lc show` | table of contents: chapter, words, scenes, title, summary |
+| `lc show` | table of contents: chapter, words, scenes, title |
 | `lc show c03` / `c03.s2` / `c03.s2.p4` | that text, one anchored paragraph per line (`--fp` adds fingerprints for overrides) |
 | `lc show c03.s2.p17-` | continue reading from that paragraph |
 | `lc find <words>` / `"<phrase>"` `[--in c03]` | matching paragraphs, accent-blind, with snippets |
-| `lc context c03.s2.p4` | chapter, scene card, the paragraph and its neighbours |
+| `lc context c03.s2.p4` | chapter, Codex scene, the paragraph and its neighbours |
 
 ## Rounds, letters and locators
 

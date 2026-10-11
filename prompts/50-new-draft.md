@@ -11,13 +11,12 @@
    `lc diff v001 v002 --workspace <slug>`.
    `index/v002/alignment.json` maps every old paragraph to its new place and
    lists `stale_scenes`.
-3. Copy scene cards whose scenes did not change to the new version (update
-   their anchors from the alignment) and rewrite only the cards of stale
-   scenes; then `lc index --workspace <slug>`.
+3. Bring the Codex to the new draft: `lc codex sync --workspace <slug>`. It
+   moves every item's spans and lists the items to re-read; re-read only those
+   and fix them with `lc codex update <id> --workspace <slug>`.
 4. Re-run `lc metrics --workspace <slug>` and compare with the previous
    metrics file: say what moved and whether it moved the intended way.
-5. Move the open findings to the new version: for each anchor, take its new
-   anchor from the alignment (`old` entries). When the paragraph was modified,
-   deleted, split or merged, set the finding's `status` to `stale` and re-check
-   it against the new text; mark it `resolved` only when the evidence is gone
-   or changed as intended. Tell the writer what still needs attention.
+5. Open `issue` items moved with the sync; re-check those it flagged against
+   the new text, and retire one (`lc codex retire <id> --workspace <slug>`)
+   only when its evidence is gone or changed as intended. Tell the writer what
+   still needs attention.

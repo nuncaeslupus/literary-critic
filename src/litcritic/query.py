@@ -66,8 +66,7 @@ class Index:
     anchors: list[str]
     fps: list[str]
     chapters: list[dict[str, Any]]
-    cards: dict[str, dict[str, Any]]
-    summaries: dict[str, str]
+    scenes: dict[str, str] = field(default_factory=dict)  # scene anchor -> Codex scene line
 
     def scene_of(self, i: int) -> str:
         return self.anchors[i].rsplit(".p", 1)[0]
@@ -86,20 +85,30 @@ def load(ws_root: Path, version: str | None = None) -> Index:
         structure.fingerprint(t) != f for t, f in zip(paras, fps, strict=True)
     ):
         raise ValueError(f"structure for {version} is out of date; run `lc anchor`")
-    cards_file = ws_root / "index" / version / "scene_cards.json"
-    cards = json.loads(cards_file.read_text(encoding="utf-8")) if cards_file.is_file() else []
-    sums_file = ws_root / "index" / version / "chapter_summaries.json"
-    sums = json.loads(sums_file.read_text(encoding="utf-8")) if sums_file.is_file() else {}
-    if not isinstance(cards, list) or not isinstance(sums, dict):
-        raise ValueError("scene_cards.json must be a list and chapter_summaries.json an object")
-    return Index(
-        paras,
-        [a for a, _ in data["paragraphs"]],
-        [f for _, f in data["paragraphs"]],
-        data["chapters"],
-        {_bare(c["anchor"]): c for c in cards if isinstance(c, dict) and "anchor" in c},
-        sums,
-    )
+    anchors = [a for a, _ in data["paragraphs"]]
+    return Index(paras, anchors, fps, data["chapters"], _codex_scenes(ws_root, version, anchors))
+
+
+def _codex_scenes(ws_root: Path, version: str, anchors: list[str]) -> dict[str, str]:
+    """One line per Codex scene item, keyed by the scene its first span starts in."""
+    from litcritic.codex import Codex, CodexError  # codex -> spans -> query
+
+    try:
+        cx = Codex(ws_root)
+    except CodexError:
+        return {}
+    if cx.draft != version:
+        return {}
+    known = set(anchors)
+    out: dict[str, str] = {}
+    for item in cx.of_type("scene"):
+        if item.status == "retired" or not item.spans or item.spans[0].start.para not in known:
+            continue
+        f = item.fields
+        line = f"{f.get('summary', item.text)} | POV {f.get('pov', '?')}"
+        line += "".join(f" | {f[k]}" for k in ("location", "time") if f.get(k))
+        out.setdefault(_bare(item.spans[0].start.para.rsplit(".p", 1)[0]), line)
+    return out
 
 
 def chapter_key(anchor: str) -> str:
@@ -123,13 +132,10 @@ def paragraph_range(ix: Index, unit: str) -> range:
 
 def toc(ix: Index, budget: int = DEFAULT_BUDGET) -> str:
     out = Out(budget)
-    out.add("chapter | words | scenes | title — summary")
+    out.add("chapter | words | scenes | title")
     shown = 0
     for c in ix.chapters:
-        summary = ix.summaries.get(c["id"]) or ix.summaries.get(chapter_key(c["id"]), "")
         line = f"{c['id']} | {c['words']} | {len(c['scenes'])} | {c['title']}"
-        if summary:
-            line += f" — {summary}"
         if not out.add(line):
             break
         shown += 1
@@ -208,7 +214,7 @@ def _snippet(text: str, term: str, width: int = 30) -> str:
 
 
 def context(ix: Index, anchor: str, budget: int = DEFAULT_BUDGET) -> str:
-    """Where a paragraph sits: chapter, scene card, then the text around it."""
+    """Where a paragraph sits: chapter, Codex scene, then the text around it."""
     r = paragraph_range(ix, anchor)
     centre = r.start
     out = Out(budget)
@@ -217,16 +223,9 @@ def context(ix: Index, anchor: str, budget: int = DEFAULT_BUDGET) -> str:
     if chapter:
         title = chapter["title"] or "(untitled)"
         out.add(f"chapter {chapter['id']}: {title} — {chapter['words']} words")
-        summary = ix.summaries.get(chapter["id"]) or ix.summaries.get(ckey)
-        if summary:
-            out.add(f"chapter summary: {summary}")
-    card = ix.cards.get(_bare(ix.scene_of(centre)))
-    if card:
-        out.add(
-            f"scene {card['anchor']}: {card.get('summary', '')} | POV {card.get('pov', '?')} | "
-            f"{', '.join(card.get('characters', []))} | {card.get('location', '')} | "
-            f"{card.get('story_time', '')}"
-        )
+    scene = _bare(ix.scene_of(centre))
+    if scene in ix.scenes:
+        out.add(f"scene {scene}: {ix.scenes[scene]}")
     if not out.add(f">>> [{ix.anchors[centre]}] {ix.paragraphs[centre]}"):
         return out.finish("… paragraph longer than the budget; use lc show")
     header, target = out.lines[:-1], out.lines[-1]

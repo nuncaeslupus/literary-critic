@@ -62,7 +62,7 @@ generic change to the repo — and phrase it without any trace of the novel.
 |------|---------|
 | `src/litcritic/` | The `litcritic` package and `lc` CLI (stdlib only) |
 | `checklist/` | Generic analysis-check catalogue (part 2) |
-| `schemas/` | JSON schemas for index, scene cards, findings, actions |
+| `schemas/` | JSON schemas for the profile and the reader report |
 | `prompts/` | Portable LLM prompts (usable from any chatbot) |
 | `corpus/` | Public-domain texts for tests and examples |
 | `docs/` | Architecture, workspace format, research |

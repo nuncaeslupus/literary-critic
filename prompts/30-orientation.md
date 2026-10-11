@@ -8,7 +8,7 @@ does it. Run the `orientation` stage of the checklist.
    anything deliberate that might look like a mistake, and any limits (no
    structural changes, a deadline). Record it in `analysis/brief.md`.
 2. Read L0 (`<ws>/analysis/synopsis.md` and the profile, if they exist) and
-   L1, the table of contents with chapter summaries:
+   L1, the table of contents:
    `lc show --workspace <slug> --budget 8000`. Then the opening and the last
    chapter in full, and skim metrics (`<ws>/metrics/<version>.json`).
 3. Write `<ws>/analysis/profile.toml`:
