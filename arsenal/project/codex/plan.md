@@ -121,6 +121,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 | C3 | `check_detection_rate == 1.0` | 1.0 (5/5 injected defect kinds: dead link, orphan, stale span, duplicate id, schema failure); `new_type_core_changes` = 0 | `uv run pytest tests/test_codex.py` | [HERE] | local | 2026-10-11 |
 | C4 | `codex_load_seconds_20k <= 1` | 0.47 s (20,000 items + base tables, best of 3); writes, ATTACH, PRAGMA and DDL refused | `uv run pytest tests/test_view.py` | [HERE] | local | 2026-10-11 |
 | C5 | `example_questions_answered == 1.0` | 1.0 (4/4 families exact on the Marianela fixture Codex: speech per chapter, expression per chapter, relevance, storyline gaps); 21 named questions run | `uv run pytest tests/test_questions.py` | [HERE] | local | 2026-10-11 |
+| C7 | `sync_touched_ratio <= 1.5` | 1.0 (single-paragraph edit: 1 flagged / 1 reached); `sync_seconds_100k` = 3.17 s (101k words, 20k items, 5% edits); rename keeps id; deletion flags dependents | `uv run pytest tests/test_sync.py` | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 

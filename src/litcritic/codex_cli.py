@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from litcritic import query, questions, structure, view, workspace
+from litcritic import query, questions, structure, sync, view, workspace
 from litcritic import spans as spanlib
 from litcritic.codex import Codex, CodexError, Item
 from litcritic.view import ViewError
@@ -196,6 +196,9 @@ def _run(args: argparse.Namespace) -> int:
             cols, rows = questions.ask(v, q, given, max_rows=cap)
             print(f"{q.title}")
             print(view.table(cols, rows[:cap], args.budget, len(rows) > cap), end="")
+        elif args.codex_cmd == "sync":
+            report = sync.sync(ws.root, args.version, cx)
+            print("\n".join(report.lines()))
         elif args.codex_cmd == "check":
             problems = cx.check()
             for p in problems:
@@ -274,5 +277,8 @@ def register(sub: Any) -> None:
     common(p_ask)
     p_qs = csub.add_parser("questions", help="list the named questions")
     p_qs.set_defaults(func=_run)
+    p_sync = csub.add_parser("sync", help="bring the Codex up to the latest (or given) draft")
+    p_sync.add_argument("--version", default=None, help="draft to sync to (default latest)")
+    common(p_sync)
     p_chk = csub.add_parser("check", help="dead links, orphans, stale spans, bad items")
     common(p_chk)
