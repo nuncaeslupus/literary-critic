@@ -1,0 +1,417 @@
+# Codex question catalogue (C1). Generic writer questions; drives the tables and item types.
+# "needs" lists the data a query requires: a table, a column, or item:<type>(fields).
+# "sql" is filled by C6; an entry that cannot be translated keeps "missing" instead.
+
+[[question]]
+id = "structure-01"
+family = "structure"
+text = "How long is each chapter, and which chapters are much longer or shorter than the rest?"
+needs = ["chapters.words"]
+
+[[question]]
+id = "structure-02"
+family = "structure"
+text = "How many scenes does each chapter have, and how long are they?"
+needs = ["scenes"]
+
+[[question]]
+id = "structure-03"
+family = "structure"
+text = "Where are the part and chapter boundaries, and are parts balanced in length?"
+needs = ["chapters", "paragraphs.part"]
+
+[[question]]
+id = "structure-04"
+family = "structure"
+text = "Which chapters have no scene break at all?"
+needs = ["scenes"]
+
+[[question]]
+id = "structure-05"
+family = "structure"
+text = "What fraction of the book does the opening (first 10%) take before the first turning point?"
+needs = ["item:fact(role=turning_point)", "paragraphs.words"]
+
+[[question]]
+id = "structure-06"
+family = "structure"
+text = "Where do the main turning points fall as a percentage of the book?"
+needs = ["item:fact(role=turning_point)", "paragraphs.idx"]
+
+[[question]]
+id = "characters-01"
+family = "characters"
+text = "Which characters appear most, by mentions and by scenes present?"
+needs = ["mentions", "copresence"]
+
+[[question]]
+id = "characters-02"
+family = "characters"
+text = "In how many chapters does a given character speak?"
+needs = ["item:dialogue(speaker)", "paragraphs.chapter"]
+
+[[question]]
+id = "characters-03"
+family = "characters"
+text = "When does each character first and last appear?"
+needs = ["mentions"]
+
+[[question]]
+id = "characters-04"
+family = "characters"
+text = "Which named characters appear only once or twice?"
+needs = ["mentions", "item:entity(kind=character)"]
+
+[[question]]
+id = "characters-05"
+family = "characters"
+text = "Which characters disappear for long stretches, and how long are the gaps?"
+needs = ["mentions", "paragraphs.words"]
+
+[[question]]
+id = "characters-06"
+family = "characters"
+text = "Which characters are referred to by more than one name, and are the names used consistently?"
+needs = ["item:entity(aliases)", "mentions.form"]
+
+[[question]]
+id = "characters-07"
+family = "characters"
+text = "How much of the dialogue does each character speak, in words?"
+needs = ["item:dialogue(speaker)", "spans.words"]
+
+[[question]]
+id = "relationships-01"
+family = "relationships"
+text = "Which character matters most to a given character (scenes together, exchanges, mentions)?"
+needs = ["copresence", "item:dialogue(speaker,addressee)", "mentions"]
+
+[[question]]
+id = "relationships-02"
+family = "relationships"
+text = "Which pairs of characters never share a scene?"
+needs = ["copresence", "item:entity(kind=character)"]
+
+[[question]]
+id = "relationships-03"
+family = "relationships"
+text = "Who talks to whom, and how often?"
+needs = ["item:dialogue(speaker,addressee)"]
+
+[[question]]
+id = "relationships-04"
+family = "relationships"
+text = "Which relationships are stated in the bible but never shown on the page?"
+needs = ["links(rel=knows)", "copresence"]
+
+[[question]]
+id = "relationships-05"
+family = "relationships"
+text = "Who knows a given fact, and from which scene on?"
+needs = ["item:fact(known_by)", "spans"]
+
+[[question]]
+id = "relationships-06"
+family = "relationships"
+text = "Does any character act on a fact before they could have learned it?"
+needs = ["item:fact(known_by)", "links", "spans"]
+
+[[question]]
+id = "threads-01"
+family = "threads"
+text = "Is every subplot told continuously, or are there long gaps between its passages?"
+needs = ["item:thread", "spans", "paragraphs.words"]
+
+[[question]]
+id = "threads-02"
+family = "threads"
+text = "Which subplots are opened but never closed?"
+needs = ["item:thread", "item:setup"]
+
+[[question]]
+id = "threads-03"
+family = "threads"
+text = "How are the threads interleaved chapter by chapter?"
+needs = ["item:thread", "spans", "paragraphs.chapter"]
+
+[[question]]
+id = "threads-04"
+family = "threads"
+text = "Which chapters advance no thread at all?"
+needs = ["item:thread", "spans", "chapters"]
+
+[[question]]
+id = "threads-05"
+family = "threads"
+text = "How much of the book does each thread take?"
+needs = ["item:thread", "spans.words"]
+
+[[question]]
+id = "threads-06"
+family = "threads"
+text = "Which setups have no payoff, and which payoffs have no setup?"
+needs = ["item:setup(paid_by)", "links(rel=pays_off)"]
+
+[[question]]
+id = "threads-07"
+family = "threads"
+text = "How far apart are each setup and its payoff?"
+needs = ["item:setup", "links(rel=pays_off)", "spans"]
+
+[[question]]
+id = "time-01"
+family = "time"
+text = "In what order do scenes happen in story time, compared with the order they are told?"
+needs = ["item:scene(time)"]
+
+[[question]]
+id = "time-02"
+family = "time"
+text = "Where are the flashbacks and how long are they?"
+needs = ["item:scene(time)", "spans.words"]
+
+[[question]]
+id = "time-03"
+family = "time"
+text = "Which scenes have no time marker?"
+needs = ["item:scene(time)", "scenes"]
+
+[[question]]
+id = "time-04"
+family = "time"
+text = "How much story time does each chapter cover?"
+needs = ["item:scene(time)", "paragraphs.chapter"]
+
+[[question]]
+id = "time-05"
+family = "time"
+text = "Are there contradictions in dates, ages or durations?"
+needs = ["item:fact(claim)", "links(rel=contradicts)"]
+
+[[question]]
+id = "pov_setting-01"
+family = "pov_setting"
+text = "Whose point of view does each scene use, and how is it distributed?"
+needs = ["item:scene(pov)"]
+
+[[question]]
+id = "pov_setting-02"
+family = "pov_setting"
+text = "Where does the point of view change inside a scene?"
+needs = ["item:scene(pov)", "item:issue"]
+
+[[question]]
+id = "pov_setting-03"
+family = "pov_setting"
+text = "Which places are used most, and which only once?"
+needs = ["item:scene(location)", "item:entity(kind=place)"]
+
+[[question]]
+id = "pov_setting-04"
+family = "pov_setting"
+text = "Which places are mentioned but never visited?"
+needs = ["mentions", "item:scene(location)"]
+
+[[question]]
+id = "pov_setting-05"
+family = "pov_setting"
+text = "Does the description of a place change between scenes?"
+needs = ["item:fact(claim)", "links(rel=contradicts)"]
+
+[[question]]
+id = "dialogue-01"
+family = "dialogue"
+text = "What share of the book is dialogue, chapter by chapter?"
+needs = ["item:dialogue", "spans.words", "paragraphs.chapter"]
+
+[[question]]
+id = "dialogue-02"
+family = "dialogue"
+text = "Which scenes are almost all dialogue, or have none?"
+needs = ["item:dialogue", "scenes"]
+
+[[question]]
+id = "dialogue-03"
+family = "dialogue"
+text = "Which dialogue lines have no clear speaker?"
+needs = ["item:dialogue(speaker)"]
+
+[[question]]
+id = "dialogue-04"
+family = "dialogue"
+text = "Which speech verbs are used, and how often besides the neutral one?"
+needs = ["tokens", "item:dialogue"]
+
+[[question]]
+id = "dialogue-05"
+family = "dialogue"
+text = "Do characters have distinct voices (sentence length and favourite words per speaker)?"
+needs = ["item:dialogue(speaker)", "tokens"]
+
+[[question]]
+id = "dialogue-06"
+family = "dialogue"
+text = "How long are the longest uninterrupted speeches?"
+needs = ["item:dialogue", "spans.words"]
+
+[[question]]
+id = "style-01"
+family = "style"
+text = "How long are sentences and paragraphs, and how much do they vary per chapter?"
+needs = ["tokens", "paragraphs"]
+
+[[question]]
+id = "style-02"
+family = "style"
+text = "Which paragraphs are much longer than the book's usual paragraph?"
+needs = ["paragraphs.words"]
+
+[[question]]
+id = "style-03"
+family = "style"
+text = "How often do sentences open with the same word in a row?"
+needs = ["tokens"]
+
+[[question]]
+id = "style-04"
+family = "style"
+text = "Where are adverbs ending in -mente / -ly clustered?"
+needs = ["tokens"]
+
+[[question]]
+id = "style-05"
+family = "style"
+text = "How often is the passive voice used, by chapter?"
+needs = ["tokens"]
+
+[[question]]
+id = "style-06"
+family = "style"
+text = "Which chapters are hardest to read by readability score?"
+needs = ["tokens", "paragraphs.chapter"]
+
+[[question]]
+id = "lexicon-01"
+family = "lexicon"
+text = "Am I overusing a given expression? How often and where does it appear?"
+needs = ["ngrams", "paragraphs.chapter"]
+
+[[question]]
+id = "lexicon-02"
+family = "lexicon"
+text = "Which words or phrases are repeated close together (within a few lines)?"
+needs = ["ngrams", "tokens"]
+
+[[question]]
+id = "lexicon-03"
+family = "lexicon"
+text = "Which multi-word phrases recur across the book (tics, pet phrases)?"
+needs = ["ngrams"]
+
+[[question]]
+id = "lexicon-04"
+family = "lexicon"
+text = "Which words appear only once in the whole book?"
+needs = ["tokens"]
+
+[[question]]
+id = "lexicon-05"
+family = "lexicon"
+text = "How rich is the vocabulary chapter by chapter?"
+needs = ["tokens", "paragraphs.chapter"]
+
+[[question]]
+id = "lexicon-06"
+family = "lexicon"
+text = "Which filler and crutch words are most frequent?"
+needs = ["tokens", "lexicon"]
+
+[[question]]
+id = "rhythm_density-01"
+family = "rhythm_density"
+text = "Which passages carry the most and the least knowledge per word?"
+needs = ["spans", "items", "paragraphs.words"]
+
+[[question]]
+id = "rhythm_density-02"
+family = "rhythm_density"
+text = "Which long passages add no fact, event or thread progress?"
+needs = ["spans", "item:fact", "item:thread", "paragraphs.words"]
+
+[[question]]
+id = "rhythm_density-03"
+family = "rhythm_density"
+text = "How does the pace (scene length, dialogue share, events per chapter) change across the book?"
+needs = ["scenes", "item:dialogue", "item:fact"]
+
+[[question]]
+id = "rhythm_density-04"
+family = "rhythm_density"
+text = "Where do several slow chapters come in a row?"
+needs = ["chapters", "item:fact", "item:dialogue"]
+
+[[question]]
+id = "rhythm_density-05"
+family = "rhythm_density"
+text = "Which digressions are longer than the scene around them?"
+needs = ["item:fact(role=digression)", "spans.words", "scenes"]
+
+[[question]]
+id = "issues_progress-01"
+family = "issues_progress"
+text = "Which issues are still open, by level and severity?"
+needs = ["item:issue"]
+
+[[question]]
+id = "issues_progress-02"
+family = "issues_progress"
+text = "Which issues did the writer reject, and why?"
+needs = ["item:decision", "item:issue"]
+
+[[question]]
+id = "issues_progress-03"
+family = "issues_progress"
+text = "Which knowledge needs re-reading after the last draft?"
+needs = ["items.status", "reread"]
+
+[[question]]
+id = "issues_progress-04"
+family = "issues_progress"
+text = "Which issues sit in passages that changed since they were raised?"
+needs = ["item:issue", "spans.state"]
+
+[[question]]
+id = "issues_progress-05"
+family = "issues_progress"
+text = "What changed between the last two drafts, chapter by chapter?"
+needs = ["changes", "spans.state"]
+
+[[question]]
+id = "issues_progress-06"
+family = "issues_progress"
+text = "Which chapters have the most open issues?"
+needs = ["item:issue", "spans", "paragraphs.chapter"]
+
+[[question]]
+id = "mechanics-01"
+family = "mechanics"
+text = "Where are there double spaces or spaces before punctuation?"
+needs = ["paragraphs.text"]
+
+[[question]]
+id = "mechanics-02"
+family = "mechanics"
+text = "Are dialogue dashes and quotation marks used consistently?"
+needs = ["paragraphs.text", "item:dialogue"]
+
+[[question]]
+id = "mechanics-03"
+family = "mechanics"
+text = "Where are there unbalanced brackets, quotes or question/exclamation marks?"
+needs = ["paragraphs.text"]
+
+[[question]]
+id = "mechanics-04"
+family = "mechanics"
+text = "Is a given name always spelled the same way?"
+needs = ["item:entity(aliases)", "mentions.form", "tokens"]
