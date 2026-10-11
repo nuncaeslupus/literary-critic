@@ -12,6 +12,7 @@ from litcritic import (
     __version__,
     checklist,
     corpus,
+    diff,
     guard,
     ingest,
     structure,
@@ -149,6 +150,21 @@ def _cmd_anchor(args: argparse.Namespace) -> int:
     return 1 if errors else 0
 
 
+def _cmd_diff(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        out, _, data = diff.build(ws.root, args.old, args.new)
+    except (workspace.WorkspaceError, OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    counts = ", ".join(f"{k} {v}" for k, v in data["counts"].items())
+    print(f"{args.old} -> {args.new}: {counts}")
+    for note in data["notes"]:
+        print(f"note: {note}")
+    print(f"stale scenes: {len(data['stale_scenes'])}; wrote {out}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -209,6 +225,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_anc.add_argument("--version", default=None, help="draft version, e.g. v002 (default latest)")
     p_anc.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_anc.set_defaults(func=_cmd_anchor)
+
+    p_diff = sub.add_parser("diff", help="align two drafts: what changed, moved or is new")
+    p_diff.add_argument("old", help="earlier version, e.g. v001")
+    p_diff.add_argument("new", help="later version, e.g. v002")
+    p_diff.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_diff.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_diff.set_defaults(func=_cmd_diff)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

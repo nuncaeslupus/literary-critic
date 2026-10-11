@@ -1,0 +1,12 @@
+{
+  "metric": "anchor_stability_after_synthetic_edits",
+  "value": 1.0,
+  "detail": {
+    "corpus_rate_0.08_min_stability": 0.9991,
+    "change_recall_min": 1.0,
+    "change_precision_min": 0.99
+  },
+  "stress": "synthetic revisions of a private working draft (local only): stability 1.0 / 0.9935 / 0.9892 at 5% / 20% / 40% of paragraphs edited; recall 1.0; precision >= 0.975; < 2 s",
+  "method": "lc synth truth maps (modify, insert, delete, move, split, merge), seeds 0-2, both corpus texts",
+  "command": "uv run pytest tests/test_diff.py"
+}
