@@ -125,3 +125,16 @@ def all_workspaces(base: Path | None = None) -> list[Workspace]:
             if line.strip() and (p / MANIFEST).is_file():
                 found.add(p.resolve())
     return [Workspace(p) for p in sorted(found)]
+
+
+def resolve(ref: str, base: Path | None = None) -> Workspace:
+    """A workspace from a folder path or a slug (searched under ``base``/home and the registry)."""
+    path = Path(ref).expanduser()
+    if (path / MANIFEST).is_file():
+        return Workspace(path.resolve())
+    matches = [ws for ws in all_workspaces(base) if ws.root.name == ref]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise WorkspaceError(f"no workspace {ref!r} (give its folder or run `lc init`)")
+    raise WorkspaceError(f"several workspaces named {ref!r}; give the folder path")

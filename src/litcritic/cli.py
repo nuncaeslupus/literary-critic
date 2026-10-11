@@ -8,7 +8,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from litcritic import __version__, checklist, corpus, guard, synth, validate, workspace
+from litcritic import __version__, checklist, corpus, guard, ingest, synth, validate, workspace
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -111,6 +111,20 @@ def _cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ingest(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        result = ingest.ingest(Path(args.file), ws.root)
+    except (workspace.WorkspaceError, ingest.IngestError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if result.unchanged:
+        print(f"unchanged: same file as {result.version}")
+    else:
+        print(f"{result.version}: {result.paragraphs} paragraphs -> {result.text_path}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -159,6 +173,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_synth.add_argument("--rate", type=float, default=0.05, help="share of paragraphs edited")
     p_synth.add_argument("--out", type=Path, required=True, help="output directory")
     p_synth.set_defaults(func=_cmd_synth)
+
+    p_ing = sub.add_parser("ingest", help="snapshot a draft and extract its normalised text")
+    p_ing.add_argument("file", help=".txt, .md, .docx or .odt")
+    p_ing.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_ing.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_ing.set_defaults(func=_cmd_ingest)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

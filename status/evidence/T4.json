@@ -1,0 +1,8 @@
+{
+  "metric": "ingest_paragraph_fidelity",
+  "value": 1.0,
+  "paragraphs_compared": 9720,
+  "method": "corpus .txt paragraphs vs .docx and .odt twins built by tests/docgen.py (split runs, tracked deletions, field codes, soft hyphens, footnote refs, notes, compressed spaces), 3 seeds each, both corpus texts",
+  "real_draft_check": "one real .docx draft (Spanish, ~74k words) ingested without errors; paragraph count matches an independent extraction; rendered pages detected",
+  "command": "uv run pytest tests/test_ingest.py"
+}
