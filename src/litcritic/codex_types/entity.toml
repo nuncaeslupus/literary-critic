@@ -1,0 +1,22 @@
+# The bible: characters, places, objects, groups and world rules.
+type = "entity"
+prefix = "en"
+links = ["knows", "part_of", "refers_to", "depends_on", "contradicts", "about"]
+columns = ["kind", "name"]
+spans_required = false
+standalone = true
+
+[schema]
+type = "object"
+required = ["kind", "name"]
+additionalProperties = false
+[schema.properties.kind]
+enum = ["character", "place", "object", "group", "rule"]
+[schema.properties.name]
+type = "string"
+minLength = 1
+[schema.properties.aliases]
+type = "array"
+items = { type = "string", minLength = 1 }
+[schema.properties.exact_case]
+type = "boolean"

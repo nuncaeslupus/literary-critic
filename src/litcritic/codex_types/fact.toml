@@ -1,0 +1,20 @@
+# An event or a world fact, who knows it, and what role it plays.
+type = "fact"
+prefix = "fa"
+links = ["refers_to", "depends_on", "contradicts", "about", "part_of"]
+columns = ["role"]
+spans_required = true
+
+[schema]
+type = "object"
+required = ["claim"]
+additionalProperties = false
+[schema.properties.claim]
+type = "string"
+minLength = 1
+x-maxWords = 60
+[schema.properties.role]
+enum = ["event", "world", "turning_point", "digression", "reveal"]
+[schema.properties.known_by]
+type = "array"
+items = { type = "string", minLength = 1 }

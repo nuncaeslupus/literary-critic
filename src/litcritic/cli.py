@@ -11,6 +11,7 @@ from pathlib import Path
 from litcritic import (
     __version__,
     checklist,
+    codex_cli,
     corpus,
     diff,
     docx_out,
@@ -529,6 +530,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-catalogue", action="store_true", help="skip check-id/trait cross-checks"
     )
     p_val.set_defaults(func=_cmd_validate)
+    codex_cli.register(sub)
     return parser
 
 

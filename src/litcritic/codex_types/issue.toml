@@ -1,0 +1,24 @@
+# A finding at any level, from architecture to mechanics.
+type = "issue"
+prefix = "is"
+links = ["about", "refers_to", "depends_on"]
+columns = ["level", "severity", "check", "question"]
+spans_required = false
+
+[schema]
+type = "object"
+required = ["level", "severity"]
+additionalProperties = false
+[schema.properties.level]
+enum = ["book", "part", "chapter", "scene", "paragraph", "line", "mechanics"]
+[schema.properties.severity]
+enum = ["critical", "major", "minor", "note"]
+[schema.properties.check]
+type = "string"
+[schema.properties.question]
+type = "string"
+[schema.properties.why]
+type = "string"
+[schema.properties.options]
+type = "array"
+items = { type = "string", minLength = 1 }
