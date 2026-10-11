@@ -12,7 +12,7 @@ draft by scripts. Reading, finding, advising, reports, chats and any later
 editing tool are views on it or operations over it. An orchestrator keeps it
 current when the text changes, including changes made while the tool was not
 looking (renamed character, new plot twist, deleted paragraph that orphans
-later references). Granularity varies: scene, paragraph or sentence.
+later references). Knowledge sits on spans of any length (see D-8).
 Efficiency: scripts first, the LLM only reads what changed.
 
 
