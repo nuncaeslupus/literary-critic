@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="c5fb46e2f431f9e3129c144b245dfb1c6fd0ed6ed8583bceaa0f5bb1efd9c0a0">
+<title>Literary Critic — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#6b6862;--line:#e6e2da;
+  --card:#ffffff;--accent:#0f766e;--accent2:#b45309;--chip:#eef2f1;
+  --note:#fff8ec;--note-line:#f0cf94;--code:#f3f1ec;--link:#0f766e;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#e9e7e2;--muted:#a09c95;--line:#2e2c33;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#26313055;
+    --note:#251f10;--note-line:#6b531c;--code:#26242b;--link:#5eead4;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+a{color:var(--link)}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#b45309}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:22px 0 6px}
+.hero h1{font-size:25px;line-height:1.2;margin:.1em 0 .3em}
+.hero p{color:var(--muted);margin:.3em 0}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:26px 0}
+.part-title{font-size:21px;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 8px;position:sticky;top:54px;background:var(--bg);z-index:10}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+.sec{padding:6px 0 2px;border-bottom:1px solid var(--line);scroll-margin-top:100px}
+.sec:last-child{border-bottom:none}
+.sec-h{margin:10px 0 6px;line-height:1.3;position:sticky;top:94px;background:var(--bg);z-index:5;padding-top:6px}
+h3.sec-h{font-size:18.5px}
+h4.sec-h{font-size:16.5px;color:var(--fg)}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p{margin:.55em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent2);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;width:100%;font-size:13.5px;margin:.6em 0;display:block;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+.note{background:var(--note);border:1px solid var(--note-line);border-radius:10px;
+  padding:8px 11px;margin:10px 0 16px}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.note-ico{color:var(--accent2);font-weight:800}
+.note-label{font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted)}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:15.5px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:.8}
+.note.filled{box-shadow:0 0 0 2px var(--note-line) inset}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Specification<small>annotatable reader · 2026-10-11</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Spec</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-extend-phase-1-formats">Option A: Extend phase-1 formats (Conservative)</a></li>
+<li><a href="#s-spec-option-b-codex-core-with-typed-i">Option B: Codex core with typed items, spans and sync (Recommended)</a></li>
+<li><a href="#s-spec-option-c-graph-or-database-store">Option C: Graph or database store</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Spec</h2>
+<article class="sec" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-11
+<strong>Ticket / PR</strong>: phase 2, sub-project S0 (from <code>status/ideas.md</code>)
+<strong>Author</strong>: imarcos + Claude
+<strong>Revision</strong>: 1
+<strong>Status</strong>: draft
+<strong>Revision log</strong>:
+- r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)</p>
+<blockquote>
+<p>Review record. Each round of reviewer notes makes a new revision: bump
+<strong>Revision</strong>, add a log line naming the export it applied, and commit that
+export beside this file in the same commit. On approval set <strong>Status</strong> to
+<code>approved (YYYY-MM-DD, revision N)</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-intro"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></div><textarea class="note-ta" data-key="s-spec-intro" data-label="Preamble &amp; scope" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>Phase 1 gave the tool a map of a draft (anchors, structure), metrics, scene
+cards, registers, findings and revision rounds. But each of these is a separate
+format, tied to one draft version, at a fixed granularity (scene or paragraph),
+with its own code for loading and checking. Nothing carries knowledge from one
+draft to the next. A renamed character becomes a new one. A deleted paragraph
+leaves references to it elsewhere unflagged. A new plot twist does not mark the
+earlier passages it makes obsolete. Edits the writer made between sessions are
+noticed only if someone re-ingests and reads everything again. Every view the
+writer receives (reports, session agendas, chat advice) and every later editing
+tool depends on knowledge that stays correct as the text changes. Without it,
+the LLM either re-reads the whole work (slow, costly, forgetful) or works from
+stale notes (wrong advice).</p>
+<p>The Codex is a single knowledge base per work:
+- text spans of any length (D-8);
+- items that share one envelope (D-12);
+- links between items;
+- a sync step that follows each new draft and flags exactly what a change
+  touched.</p>
+<p>It is stored as plain text behind one module (D-10). It follows strict
+maintenance rules (D-11), is modular by kind of text (D-13), and lives in a
+library of many works (D-14, D-15).</p>
+<p><strong>Success criteria (measurable)</strong>. Each criterion is measured on the public corpus (<code>corpus/</code>) plus scripted edits; no working novel is used.</p>
+<ul>
+<li>[ ] <code>span_relocation_accuracy &gt;= 0.98</code>. Spans whose text is unchanged are found again at the right place after scripted edits: moves, insertions and deletions around them, splits and merges of their paragraph.</li>
+<li>[ ] <code>silent_misanchors == 0</code>. A span whose text changed, or that cannot be found, is always flagged <code>needs_reread</code>; it is never placed at a wrong position.</li>
+<li>[ ] <code>sync_touched_ratio &lt;= 1.5</code>. On a single-paragraph edit, items flagged / items whose spans or links actually reach the edited paragraph.</li>
+<li>[ ] <code>sync_seconds_100k &lt;= 5</code>. Wall time for a full sync of a 100k-word work with 20k items on a laptop-class machine.</li>
+<li>[ ] <code>codex_load_seconds_20k &lt;= 1</code>. Load time for 20k items with all in-memory indexes.</li>
+<li>[ ] <code>check_detection_rate == 1.0</code>. <code>lc codex check</code> finds every injected defect: dead link, orphan item, stale span, duplicate id, item failing its type schema.</li>
+<li>[ ] <code>phase1_migration_loss == 0</code>. Every phase-1 artefact (scene cards, findings, round actions with statuses) converts to Codex items and back without losing a field. Registers are not stored: they are recomputed from items (D-11).</li>
+<li>[ ] <code>new_type_core_changes == 0</code>. Adding an item type takes one type definition (fields and schema) and no change to core modules (judged by a test that registers a dummy type).</li>
+<li>[ ] <code>new_kind_core_changes == 0</code>. A second text kind (minimal poetry: stanzas and lines) plugs in its structure detection, item types and checklist without touching core modules.</li>
+<li>[ ] <code>library_id_collisions == 0</code>. Two works with the same title by different authors coexist. Moving or regrouping a work folder breaks no reference. <code>lc library --by author|kind|series|tag</code> lists them.</li>
+<li>[ ] Rename scenario passes: changing a character's name throughout a draft keeps the entity id. Old and new names become aliases, and mention spans are found again.</li>
+<li>[ ] Deletion scenario passes: deleting a paragraph that an item's span or a link depends on flags every dependent item.</li>
+<li>[ ] LLM usability (judged): one documented envelope schema; <code>lc codex show|find</code> output fits its token budget; a fresh LLM session can answer "where is X, what depends on it, what changed" through the CLI alone, checked by a scripted prompt-and-answer review.</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spans.py</code> (new)</td>
+<td>Primary</td>
+<td>Create, store and find again text spans: paragraph address with character positions, plus a W3C TextQuoteSelector (exact text, prefix, suffix). Report spans it lost or whose text changed.</td>
+<td>Yes</td>
+<td>New module</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>codex.py</code> (new)</td>
+<td>Primary</td>
+<td>The only reader and writer of Codex files. Item envelope, type registry, in-memory indexes, queries, atomic writes, <code>check</code>.</td>
+<td>Yes</td>
+<td>New module</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Sync orchestrator (new, in <code>codex.py</code> or <code>sync.py</code>)</td>
+<td>Primary</td>
+<td>New draft → anchor → align (reuses <code>diff.py</code>) → relocate spans → flag affected items and their links → re-read queue.</td>
+<td>Yes</td>
+<td>New flow, replaces the per-type carry-over</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Text kinds (new <code>kinds/</code> package)</td>
+<td>Primary</td>
+<td>Per-kind structure detection, item types and checklist: <code>novel</code> (current behaviour), <code>poem</code> (proof of modularity).</td>
+<td>Yes</td>
+<td><code>structure.py</code> becomes the novel kind's detector</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Library (<code>workspace.py</code>)</td>
+<td>Primary</td>
+<td>Works found anywhere under the home folder by their settings file. Unique work ids; metadata (author, kind, series, tags); <code>lc library</code>.</td>
+<td>Yes</td>
+<td>Registry and resolve change; existing workspaces keep working</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><code>ingest.py</code>, <code>structure.py</code>, <code>diff.py</code></td>
+<td>Dependent</td>
+<td>Text, anchors and alignment feed spans and sync.</td>
+<td>Small</td>
+<td><code>diff.py</code> alignment is reused; may expose character-level diffs within paragraphs</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>index.py</code>, <code>query.py</code>, <code>locate.py</code></td>
+<td>Dependent</td>
+<td>Registers, show/find/context and writer locators become views over the Codex.</td>
+<td>Yes</td>
+<td>Registers computed from items; queries gain span and link answers</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><code>rounds.py</code>, <code>report.py</code>, <code>docx_out.py</code></td>
+<td>Dependent</td>
+<td>Findings and actions become Codex items. Letters, reports and Word comments read them.</td>
+<td>Yes</td>
+<td>Migration of round files; behaviour unchanged for the writer</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><code>schemas/</code></td>
+<td>Shared resource</td>
+<td>Envelope schema plus one schema per item type. Existing phase-1 schemas stay valid for migration input.</td>
+<td>Yes</td>
+<td>New schemas, validator reused</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Workspace folder (writer's Drive)</td>
+<td>Shared resource</td>
+<td>Codex files: plain JSON/JSONL, synced by Drive.</td>
+<td>Yes</td>
+<td>New <code>codex/</code> folder; atomic file replace; no database files</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><code>prompts/</code>, Claude skill, chat kit</td>
+<td>UI</td>
+<td>Procedures that tell the LLM how to read and write the Codex through <code>lc</code>.</td>
+<td>Yes</td>
+<td>Rewritten around Codex commands</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>docx-fixer (separate repo)</td>
+<td>External</td>
+<td>Possible future source of mechanical findings, as items (D-2).</td>
+<td>No (later)</td>
+<td>None in S0</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact dimensions</strong></p>
+<ul>
+<li><strong>Data:</strong> new <code>codex/</code> store per work, plus a one-time migration of phase-1 files (kept, not deleted).</li>
+<li><strong>API:</strong> new <code>lc codex …</code> and <code>lc library</code> commands; existing commands keep their flags.</li>
+<li><strong>Performance:</strong> bounded by the criteria above.</li>
+<li><strong>User-facing:</strong> none directly; the writer sees the effects in S1 and S2.</li>
+<li><strong>Operational:</strong> stdlib only; no new dependency.</li>
+<li><strong>Risk of inaction:</strong> high. S1 (report), S2 (session flow) and any editing tool would each rebuild their own memory, and the rot D-11 forbids would appear.</li>
+</ul></div>
+<div class="note" data-for="s-spec-2"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></div><textarea class="note-ta" data-key="s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+<div class="note" data-for="s-spec-3"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></div><textarea class="note-ta" data-key="s-spec-3" data-label="§3 Options" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-a-extend-phase-1-formats">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Extend phase-1 formats (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Keep scene cards, registers, findings and actions as separate formats. Add span fields and a carry-over step to each, and a per-format check.</li>
+<li><strong>Scope</strong>: <code>index.py</code>, <code>rounds.py</code>, <code>diff.py</code>, schemas.</li>
+<li><strong>Effort</strong>: Medium.</li>
+<li><strong>Tradeoffs</strong>:<ul>
+<li>Pro: smallest change and familiar files.</li>
+<li>Con: every new kind of knowledge (facts, references, decisions, entities with aliases) needs its own loader, carry-over and check, which is exactly the maintenance cost D-11 rejects.</li>
+<li>Con: no common link model, so "what depends on this paragraph" cannot be answered across formats.</li>
+<li>Con: other text kinds need their own copies.</li>
+</ul>
+</li>
+<li><strong>Compatibility</strong>: fully backwards compatible.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-extend-phase-1-formats"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Extend phase-1 formats (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-extend-phase-1-formats" data-label="Option A: Extend phase-1 formats (Conservative)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-b-codex-core-with-typed-i">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Codex core with typed items, spans and sync (Recommended)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>:<ul>
+<li><code>spans.py</code> keeps spans in place (D-9). <code>codex.py</code> holds items in one envelope with typed fields (D-12), stored as plain JSON/JSONL with in-memory indexes (D-10).</li>
+<li>A sync orchestrator follows each new draft; <code>lc codex check</code> keeps the store free of dead or stale knowledge (D-11).</li>
+<li>Text kinds are plug-ins (D-13); the library holds many works (D-14, D-15).</li>
+<li>Phase-1 artefacts are migrated into items; registers become computed views.</li>
+</ul>
+</li>
+<li><strong>Scope</strong>: new <code>spans.py</code>, <code>codex.py</code>, sync, <code>kinds/</code>, library. Adapters in <code>index.py</code>, <code>query.py</code>, <code>locate.py</code>, <code>rounds.py</code>, <code>report.py</code>, <code>docx_out.py</code>; prompts and skill.</li>
+<li><strong>Effort</strong>: Large.</li>
+<li><strong>Tradeoffs</strong>:<ul>
+<li>Pro: one shape for every kind of knowledge; spans, links, sync and checks written once; new types and kinds are cheap; the Codex can be replaced behind one module.</li>
+<li>Con: a migration step, and a larger first build.</li>
+</ul>
+</li>
+<li><strong>Compatibility</strong>: phase-1 files stay readable; migration is explicit (<code>lc codex migrate</code>), repeatable, and keeps the originals.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-codex-core-with-typed-i"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Codex core with typed items, spans and sync (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-codex-core-with-typed-i" data-label="Option B: Codex core with typed items, spans and sync (Recommended)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-c-graph-or-database-store">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Graph or database store</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Same model as B, stored in SQLite or a graph database, with queries in SQL or a graph language.</li>
+<li><strong>Scope</strong>: as B, plus a storage engine.</li>
+<li><strong>Effort</strong>: Large.</li>
+<li><strong>Tradeoffs</strong>:<ul>
+<li>Pro: rich queries.</li>
+<li>Con: rejected in D-10. Binary files are unsafe under Drive sync, unreadable for writers and LLMs, and add a second representation to keep consistent. At the expected size (≤ 20k items) in-memory indexes are fast enough.</li>
+</ul>
+</li>
+<li><strong>Compatibility</strong>: needs a migration and a non-text store.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-graph-or-database-store"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Graph or database store</span></div><textarea class="note-ta" data-key="s-spec-option-c-graph-or-database-store" data-label="Option C: Graph or database store" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Medium</td>
+<td>Large</td>
+<td>Large</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>Low now, high later (rot, duplicated code)</td>
+<td>Medium (new core, migration)</td>
+<td>High (sync corruption, opacity)</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Partial: no links, no cross-type sync</td>
+<td>Full</td>
+<td>Full</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>Full</td>
+<td>Full, through explicit migration</td>
+<td>Needs migration and a binary store</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Grows with every type and kind</td>
+<td>Flat: one envelope, one sync, one check</td>
+<td>Flat, plus storage engine upkeep</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></div><textarea class="note-ta" data-key="s-spec-comparison" data-label="Comparison" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B. It is the only option that meets D-11 (one envelope, one sync, one check, nothing stored that can be recomputed) and D-13 (kinds as plug-ins). It does so with plain-text storage (D-10) and without the maintenance growth of Option A.</p>
+<p><strong>Immediate next action</strong>: <code>design</code> splits B into tasks, in this order:
+1. <code>spans.py</code> with its relocation test corpus (it carries the riskiest criteria).
+2. The <code>codex.py</code> envelope, type registry and check.
+3. Sync on top of <code>diff.py</code>.
+4. Migration of phase-1 artefacts.
+5. Kinds: <code>novel</code> refactor, then <code>poem</code>.
+6. Library.
+7. Adapters, prompts and skill.</p>
+<p><strong>Open questions</strong> (for <code>design</code>, none blocks the direction):
+- [ ] File layout inside <code>codex/</code>: one JSONL per item type, or one per layer (bible, threads, ledger, journal). Either way, only <code>codex.py</code> knows.
+- [ ] Item history: kept inside each item (last N changes) or in an append-only change log per work.
+- [ ] Which item types ship first: entity (character, place, object, rule), mention, fact, reference/link, issue, decision, scene card, session note.
+- [ ] Information-density measure (D-8): items per 1,000 words per span, or weighted by item type. Defined with the first metric that uses it.
+- [ ] Work ids: slug from author and title, or random short id plus a readable slug.</p>
+<p><strong>Decisions log</strong> (carried unchanged from <code>explore-idea</code>):</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Decision</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-1</td>
+<td>First surface is Claude</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td>docx-fixer stays a separate repo, used as a tool or API, possibly merged later</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>Report and session flow first; editing real files later</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>Order: report (S1), session flow (S2), Claude packaging (S3)</td>
+<td>superseded by D-6</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>Working notes are separate from writer-facing output; writer output is a per-session view chosen by the session goal; summarise status, let the writer choose, never repeat settled points</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-6</td>
+<td>The knowledge base (S0) is the core and comes first, then S1–S3</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-7</td>
+<td>The knowledge base is the Codex; "bible" is its characters-and-world layer</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-8</td>
+<td>No fixed sentence level; knowledge is anchored to spans of any length, which also measure information density</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-9</td>
+<td>Spans: paragraph address and character positions, plus a W3C text-quote selector (as Hypothesis does); changed or lost text is flagged, never moved silently; own module</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-10</td>
+<td>Storage: plain JSON/JSONL behind one module (<code>codex.py</code>) with in-memory indexes; no SQLite; replaceable later</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-11</td>
+<td>Design rules: simple, LLM-friendly; store only what cannot be recomputed; stable ids; a check command against dead references, orphans and stale spans; a small change costs a small update</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-12</td>
+<td>Items: one shared envelope (id, type, spans, links, status, text, history) plus a few typed fields per type</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-13</td>
+<td>Modular by kind of text (novel, short story, poetry, script, thesis, textbook…); a core that does not depend on the kind</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-14</td>
+<td>Many works side by side without collisions</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-15</td>
+<td>Works live anywhere under the home folder, found by their settings file; unique ids; author, kind, series and tags are metadata; grouping is a command</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var name='literary-critic-spec-notes-'+today()+'-r1.md';
+    var saved=download(name,r.text);openModal(r.text);
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    dirty=false;setState('✓ Backup saved '+nowStamp(),'ok');
+    toast('Exported '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
