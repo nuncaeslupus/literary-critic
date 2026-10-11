@@ -12,7 +12,7 @@
 **Ticket / PR**: workspace `chat`
 **Author**: Claude (with the owner)
 **Revision**: 2
-**Status**: draft
+**Status**: approved (2026-10-11, revision 2) — without annotations
 **Revision log**:
 - r1 — first draft, from the explore-idea decisions log D-1…D-18
 - r2 — owner's decision in conversation (no notes export): the Word 365 side panel leaves the main path; Cowork does everything, reaching the open Word through computer use; a live Word-control extension becomes a separate project, with its interface defined here (D-19…D-21)
@@ -52,7 +52,7 @@ This is a planned improvement. It decides whether the tool is usable by its targ
 - [ ] `open_document_overwrites == 0`: an edit never writes a file that Word holds open (Word's `~$` lock file) or that changed on disk since it was last read.
 - [ ] `live_locate_success >= 0.9`: in hand tests with computer use on Mac and Windows, Claude brings Word to the front at the exact paragraph, using Find on its first words, for at least 9 out of 10 located actions. When it fails, it falls back to the plain locator (chapter, page, first and last words) and tells the writer.
 - [ ] `word_helper_interface_documented == 1`: the interface the separate Word-control project must provide is written in `docs/` and used by the tool through one adapter, so plugging the extension in later needs no change elsewhere.
-- [ ] `prose_suggestions_default_off == 1`: a new workspace never proposes wording until the writer turns the setting on. Tested.
+- [ ] `prose_suggestions_default_off == 1`: a new workspace never proposes wording until the writer turns the setting on, and turning it on always shows the AI-text notice first (D-22). Tested.
 - [ ] `skill_workshop_errors == 0` for the litcritic skill (validate.py and audit_library).
 - [ ] Usability, judged by a scripted walkthrough: a fresh assistant plays a non-technical writer persona from the first sentence to an applied round-1 change on the main path, and a second run where Word is open throughout. The reviewer checks that every instruction to the writer is plain, located and one step at a time. Median writer-facing reply is at most 120 words.
 - [ ] The hand test D-18 and the D-7 path-B test are run and recorded in `status/evidence/` before any task that depends on their answer is designed.
@@ -198,6 +198,7 @@ This is a planned improvement. It decides whether the tool is usable by its targ
 | D-18 | Skills on the Free plan: sources disagree | open (verify) | 2026-10-11 |
 | D-19 | Main path: Cowork does everything. Edits land in the master `.docx` as tracked changes; Claude takes the writer to the exact paragraph in Word; no Microsoft 365 dependency | agreed | 2026-10-11 |
 | D-20 | How Cowork reaches the open Word: computer use now (A); our own Word-control extension (B) is built later | agreed | 2026-10-11 |
+| D-22 | Turning on prose suggestions first shows a plain notice: AI-written text may later be identified as AI-written (by detection tools, and by watermarks if a provider adds them); publishers, contests and agents may require disclosure or refuse it; authorship and rights questions follow. The tool recommends that the writer does the writing. If the writer still turns it on, even to write a novel with AI, that is the writer's choice, and the notice is recorded in the workspace | agreed | 2026-10-11 |
 | D-21 | The Word-control extension is a separate project; this spec defines the interface it must implement (find and select a passage, apply tracked edits live, rename across the document, save, close, reopen) | agreed | 2026-10-11 |
 
 
