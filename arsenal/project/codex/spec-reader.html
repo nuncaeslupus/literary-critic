@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="c5fb46e2f431f9e3129c144b245dfb1c6fd0ed6ed8583bceaa0f5bb1efd9c0a0">
+<meta name="arsenal-source-sha256" content="e02ffd90d08bf274a93ce06d0591ebc444916ae42927987e1c06f390922689d5">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -130,7 +130,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 10 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -158,6 +158,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-option-a-extend-phase-1-formats">Option A: Extend phase-1 formats (Conservative)</a></li>
 <li><a href="#s-spec-option-b-codex-core-with-typed-i">Option B: Codex core with typed items, spans and sync (Recommended)</a></li>
 <li><a href="#s-spec-option-c-graph-or-database-store">Option C: Graph or database store</a></li>
+<li><a href="#s-spec-query-surface-part-of-option-b">Query surface (part of Option B)</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
 </ul></details>
@@ -169,10 +170,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-11
 <strong>Ticket / PR</strong>: phase 2, sub-project S0 (from <code>status/ideas.md</code>)
 <strong>Author</strong>: imarcos + Claude
-<strong>Revision</strong>: 1
+<strong>Revision</strong>: 2
 <strong>Status</strong>: draft
 <strong>Revision log</strong>:
-- r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)</p>
+- r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)
+- r2 — applied <code>literary-critic-spec-notes-2026-10-11-r1.md</code>: no migration (phase-1 formats and docs are replaced, not converted); skills built with skill-workshop; the Codex answers questions through a query API, and checks and proactive feedback are named questions (D-16…D-18)</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied, and commit that
@@ -204,6 +206,18 @@ stale notes (wrong advice).</p>
 <p>It is stored as plain text behind one module (D-10). It follows strict
 maintenance rules (D-11), is modular by kind of text (D-13), and lives in a
 library of many works (D-14, D-15).</p>
+<p>Above all, the Codex answers questions (D-16). Typical questions:
+- "In how many chapters does this character speak?"
+- "Am I overusing this expression?"
+- "Which character matters most to this other character?"
+- "Is every subplot told continuously, or are there gaps?"</p>
+<p>The LLM turns such a question into a query in the Codex query API. Every
+measurable check in the catalogue is a named question (D-17), so feedback can
+be proactive: the tool runs the questions and raises what it finds.</p>
+<p>No novel has been analysed yet, so phase-1 per-type formats and their docs are
+replaced, not migrated (D-18). The tool is rebuilt on the Codex using the
+public corpus as the worked example. Data types a real novel later reveals are
+added as new item types.</p>
 <p><strong>Success criteria (measurable)</strong>. Each criterion is measured on the public corpus (<code>corpus/</code>) plus scripted edits; no working novel is used.</p>
 <ul>
 <li>[ ] <code>span_relocation_accuracy &gt;= 0.98</code>. Spans whose text is unchanged are found again at the right place after scripted edits: moves, insertions and deletions around them, splits and merges of their paragraph.</li>
@@ -212,13 +226,18 @@ library of many works (D-14, D-15).</p>
 <li>[ ] <code>sync_seconds_100k &lt;= 5</code>. Wall time for a full sync of a 100k-word work with 20k items on a laptop-class machine.</li>
 <li>[ ] <code>codex_load_seconds_20k &lt;= 1</code>. Load time for 20k items with all in-memory indexes.</li>
 <li>[ ] <code>check_detection_rate == 1.0</code>. <code>lc codex check</code> finds every injected defect: dead link, orphan item, stale span, duplicate id, item failing its type schema.</li>
-<li>[ ] <code>phase1_migration_loss == 0</code>. Every phase-1 artefact (scene cards, findings, round actions with statuses) converts to Codex items and back without losing a field. Registers are not stored: they are recomputed from items (D-11).</li>
+<li>[ ] <code>phase1_leftovers == 0</code>. Phase-1 per-type formats and their code paths are gone: the separate scene-card, register, findings and round-action files, and the docs describing them. Everything they did is done through Codex items and queries. A grep-based test lists any surviving reference.</li>
+<li>[ ] <code>example_questions_answered == 1.0</code>. On a hand-built fixture Codex of a corpus text, the named questions answer the four example families exactly as expected: speech per character per chapter; expression frequency and distribution; relevance between two characters (co-presence, interaction, mentions); subplot continuity gaps.</li>
+<li>[ ] <code>named_questions &gt;= 20</code> at first release, each with parameters, a description in plain words and a test.</li>
+<li>[ ] <code>measurable_checks_with_query == 1.0</code>. Every catalogue check tagged <code>measurable</code> maps to a named question. <code>lc codex questions --coverage</code> reports any check without one.</li>
+<li>[ ] <code>query_seconds_typical &lt;= 0.5</code> for any named question on a 100k-word work with 20k items, after load.</li>
 <li>[ ] <code>new_type_core_changes == 0</code>. Adding an item type takes one type definition (fields and schema) and no change to core modules (judged by a test that registers a dummy type).</li>
 <li>[ ] <code>new_kind_core_changes == 0</code>. A second text kind (minimal poetry: stanzas and lines) plugs in its structure detection, item types and checklist without touching core modules.</li>
 <li>[ ] <code>library_id_collisions == 0</code>. Two works with the same title by different authors coexist. Moving or regrouping a work folder breaks no reference. <code>lc library --by author|kind|series|tag</code> lists them.</li>
 <li>[ ] Rename scenario passes: changing a character's name throughout a draft keeps the entity id. Old and new names become aliases, and mention spans are found again.</li>
 <li>[ ] Deletion scenario passes: deleting a paragraph that an item's span or a link depends on flags every dependent item.</li>
-<li>[ ] LLM usability (judged): one documented envelope schema; <code>lc codex show|find</code> output fits its token budget; a fresh LLM session can answer "where is X, what depends on it, what changed" through the CLI alone, checked by a scripted prompt-and-answer review.</li>
+<li>[ ] LLM usability (judged): one documented envelope schema and one documented query schema; <code>lc codex show|find|ask</code> output fits its token budget. A fresh LLM session must answer, through the CLI alone, "where is X", "what depends on it", "what changed", and three of the example questions turned into queries. This is checked by a scripted prompt-and-answer review.</li>
+<li>[ ] Skills are built and checked with skill-workshop (the repo skill and any new ones); its validation passes.</li>
 </ul></div>
 <div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
@@ -247,10 +266,26 @@ library of many works (D-14, D-15).</p>
 <tr>
 <td><code>codex.py</code> (new)</td>
 <td>Primary</td>
-<td>The only reader and writer of Codex files. Item envelope, type registry, in-memory indexes, queries, atomic writes, <code>check</code>.</td>
+<td>The only reader and writer of Codex files. Item envelope, type registry, in-memory indexes, atomic writes, <code>check</code>.</td>
 <td>Yes</td>
 <td>New module</td>
 <td>High</td>
+</tr>
+<tr>
+<td>Query layer (new)</td>
+<td>Primary</td>
+<td>The Codex query API (<code>lc codex ask</code>): a documented, read-only query surface that the LLM writes against. A library of named questions (parameterised queries) backs checks and proactive feedback.</td>
+<td>Yes</td>
+<td>New module; the contract other tools depend on, so a replacement Codex must keep it</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Text facts layer (new, computed)</td>
+<td>Primary</td>
+<td>Facts computed by scripts at load and never stored: tokens and n-grams per span; dialogue spans and their speaker when the item gives one; co-presence of entities per scene and chapter. Expression and relevance questions run on these.</td>
+<td>Yes</td>
+<td>Rebuilt on load</td>
+<td>Medium</td>
 </tr>
 <tr>
 <td>Sync orchestrator (new, in <code>codex.py</code> or <code>sync.py</code>)</td>
@@ -295,15 +330,15 @@ library of many works (D-14, D-15).</p>
 <tr>
 <td><code>rounds.py</code>, <code>report.py</code>, <code>docx_out.py</code></td>
 <td>Dependent</td>
-<td>Findings and actions become Codex items. Letters, reports and Word comments read them.</td>
+<td>Findings and actions become Codex items. Letters, reports and Word comments read them through queries.</td>
 <td>Yes</td>
-<td>Migration of round files; behaviour unchanged for the writer</td>
+<td>Rewritten on the Codex; phase-1 round files deleted</td>
 <td>Medium</td>
 </tr>
 <tr>
 <td><code>schemas/</code></td>
 <td>Shared resource</td>
-<td>Envelope schema plus one schema per item type. Existing phase-1 schemas stay valid for migration input.</td>
+<td>Envelope schema, one schema per item type and the query schema. Phase-1 per-type schemas that the Codex replaces are deleted.</td>
 <td>Yes</td>
 <td>New schemas, validator reused</td>
 <td>Low</td>
@@ -319,9 +354,17 @@ library of many works (D-14, D-15).</p>
 <tr>
 <td><code>prompts/</code>, Claude skill, chat kit</td>
 <td>UI</td>
-<td>Procedures that tell the LLM how to read and write the Codex through <code>lc</code>.</td>
+<td>Procedures that tell the LLM how to read, write and query the Codex through <code>lc</code>, including how to turn a writer's question into a query.</td>
 <td>Yes</td>
-<td>Rewritten around Codex commands</td>
+<td>Rewritten around Codex commands; skills built with skill-workshop</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td><code>checklist/</code></td>
+<td>Dependent</td>
+<td>Checks that can be measured are tagged <code>measurable</code> and point to a named question.</td>
+<td>Yes</td>
+<td>New field per check</td>
 <td>Medium</td>
 </tr>
 <tr>
@@ -336,8 +379,8 @@ library of many works (D-14, D-15).</p>
 </table>
 <p><strong>Impact dimensions</strong></p>
 <ul>
-<li><strong>Data:</strong> new <code>codex/</code> store per work, plus a one-time migration of phase-1 files (kept, not deleted).</li>
-<li><strong>API:</strong> new <code>lc codex …</code> and <code>lc library</code> commands; existing commands keep their flags.</li>
+<li><strong>Data:</strong> new <code>codex/</code> store per work. Phase-1 per-type files are not migrated: no novel has been analysed yet (D-18).</li>
+<li><strong>API:</strong> new <code>lc codex …</code> (including <code>ask</code> and <code>questions</code>) and <code>lc library</code> commands. Phase-1 commands made obsolete by the Codex are removed, not kept as aliases.</li>
 <li><strong>Performance:</strong> bounded by the criteria above.</li>
 <li><strong>User-facing:</strong> none directly; the writer sees the effects in S1 and S2.</li>
 <li><strong>Operational:</strong> stdlib only; no new dependency.</li>
@@ -362,7 +405,7 @@ library of many works (D-14, D-15).</p>
 <li>Con: other text kinds need their own copies.</li>
 </ul>
 </li>
-<li><strong>Compatibility</strong>: fully backwards compatible.</li>
+<li><strong>Compatibility</strong>: keeps phase-1 formats, which D-18 no longer requires.</li>
 </ul></div>
 <div class="note" data-for="s-spec-option-a-extend-phase-1-formats"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Extend phase-1 formats (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-extend-phase-1-formats" data-label="Option A: Extend phase-1 formats (Conservative)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
@@ -373,17 +416,18 @@ library of many works (D-14, D-15).</p>
 <li><code>spans.py</code> keeps spans in place (D-9). <code>codex.py</code> holds items in one envelope with typed fields (D-12), stored as plain JSON/JSONL with in-memory indexes (D-10).</li>
 <li>A sync orchestrator follows each new draft; <code>lc codex check</code> keeps the store free of dead or stale knowledge (D-11).</li>
 <li>Text kinds are plug-ins (D-13); the library holds many works (D-14, D-15).</li>
-<li>Phase-1 artefacts are migrated into items; registers become computed views.</li>
+<li>A query layer answers questions (D-16). Measurable checks and proactive feedback are named questions (D-17).</li>
+<li>Phase-1 per-type formats, code paths and docs are replaced, not migrated (D-18). Registers become computed views.</li>
 </ul>
 </li>
-<li><strong>Scope</strong>: new <code>spans.py</code>, <code>codex.py</code>, sync, <code>kinds/</code>, library. Adapters in <code>index.py</code>, <code>query.py</code>, <code>locate.py</code>, <code>rounds.py</code>, <code>report.py</code>, <code>docx_out.py</code>; prompts and skill.</li>
+<li><strong>Scope</strong>: new <code>spans.py</code>, <code>codex.py</code>, query layer, sync, <code>kinds/</code>, library. <code>index.py</code>, <code>query.py</code>, <code>locate.py</code>, <code>rounds.py</code>, <code>report.py</code> and <code>docx_out.py</code> are rewritten on the Codex. Prompts, skills (via skill-workshop) and the checklist's <code>measurable</code> tags.</li>
 <li><strong>Effort</strong>: Large.</li>
 <li><strong>Tradeoffs</strong>:<ul>
 <li>Pro: one shape for every kind of knowledge; spans, links, sync and checks written once; new types and kinds are cheap; the Codex can be replaced behind one module.</li>
-<li>Con: a migration step, and a larger first build.</li>
+<li>Con: a larger first build, and phase-1 code paths must be removed cleanly.</li>
 </ul>
 </li>
-<li><strong>Compatibility</strong>: phase-1 files stay readable; migration is explicit (<code>lc codex migrate</code>), repeatable, and keeps the originals.</li>
+<li><strong>Compatibility</strong>: breaking by design (D-18). No novel has been analysed, so nothing needs converting.</li>
 </ul></div>
 <div class="note" data-for="s-spec-option-b-codex-core-with-typed-i"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Codex core with typed items, spans and sync (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-codex-core-with-typed-i" data-label="Option B: Codex core with typed items, spans and sync (Recommended)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
@@ -401,6 +445,63 @@ library of many works (D-14, D-15).</p>
 <li><strong>Compatibility</strong>: needs a migration and a non-text store.</li>
 </ul></div>
 <div class="note" data-for="s-spec-option-c-graph-or-database-store"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Graph or database store</span></div><textarea class="note-ta" data-key="s-spec-option-c-graph-or-database-store" data-label="Option C: Graph or database store" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-query-surface-part-of-option-b">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Query surface (part of Option B)</span></h4>
+<div class="sec-body"><p>The query API is the Codex's contract with the LLM and with every other tool,
+so its form matters as much as storage. Three forms fit D-10 (plain-text
+storage):</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Q-a: named questions only</th>
+<th>Q-b: JSON query language</th>
+<th>Q-c: read-only SQL over an in-memory view</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What the LLM writes</td>
+<td>A question name and its parameters</td>
+<td>A JSON object: select, filter, join, group, as defined by our schema</td>
+<td>SQL against documented tables (items, spans, mentions, links, paragraphs, chapters, tokens, n-grams), built in memory at load by Python's standard <code>sqlite3</code> and never written to disk</td>
+</tr>
+<tr>
+<td>New question</td>
+<td>New code each time</td>
+<td>Usually expressible; joins and grouping must be designed and built by us</td>
+<td>Usually expressible; LLMs write SQL fluently</td>
+</tr>
+<tr>
+<td>Effort</td>
+<td>Small</td>
+<td>Large (we own a query engine)</td>
+<td>Medium (tables and loaders; the engine is stdlib)</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>Rigid: unplanned questions fail</td>
+<td>Our engine's bugs and limits</td>
+<td>Table layout becomes a contract; mitigated by documenting it as the API and versioning it</td>
+</tr>
+<tr>
+<td>Fits "our special SQL, some kind of API"</td>
+<td>Partly</td>
+<td>Yes</td>
+<td>Yes, with real SQL</td>
+</tr>
+<tr>
+<td>Storage (D-10)</td>
+<td>Unchanged</td>
+<td>Unchanged</td>
+<td>Unchanged: plain files stay the only storage; the SQL view is rebuilt on each load</td>
+</tr>
+</tbody>
+</table>
+<p>Named questions sit on top in Q-b and Q-c alike: they are saved, tested
+queries with parameters, and the checks and proactive feedback use them.</p></div>
+<div class="note" data-for="s-spec-query-surface-part-of-option-b"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Query surface (part of Option B)</span></div><textarea class="note-ta" data-key="s-spec-query-surface-part-of-option-b" data-label="Query surface (part of Option B)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-spec-comparison">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
@@ -423,7 +524,7 @@ library of many works (D-14, D-15).</p>
 <tr>
 <td>Risk</td>
 <td>Low now, high later (rot, duplicated code)</td>
-<td>Medium (new core, migration)</td>
+<td>Medium (new core, rewrite of phase-1 paths)</td>
 <td>High (sync corruption, opacity)</td>
 </tr>
 <tr>
@@ -435,7 +536,7 @@ library of many works (D-14, D-15).</p>
 <tr>
 <td>Compatibility</td>
 <td>Full</td>
-<td>Full, through explicit migration</td>
+<td>Breaking by design (D-18); nothing to convert</td>
 <td>Needs migration and a binary store</td>
 </tr>
 <tr>
@@ -451,20 +552,28 @@ library of many works (D-14, D-15).</p>
 <article class="sec" id="s-spec-4">
 <h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
 <div class="sec-body"><p><strong>Recommended option</strong>: Option B. It is the only option that meets D-11 (one envelope, one sync, one check, nothing stored that can be recomputed) and D-13 (kinds as plug-ins). It does so with plain-text storage (D-10) and without the maintenance growth of Option A.</p>
+<p><strong>Recommended query surface</strong>: Q-c, read-only SQL over an in-memory view, with named questions on top. Reasons:
+- LLMs already write SQL well, so turning a writer's question into a query needs no new language.
+- The engine is in the standard library, so we build only the tables.
+- Storage stays plain text (D-10), because the view lives only in memory.
+- Questions nobody planned for still work.</p>
+<p>The documented table layout is the API, versioned like a schema, so the Codex stays replaceable (D-10). Pending owner confirmation (D-19).</p>
 <p><strong>Immediate next action</strong>: <code>design</code> splits B into tasks, in this order:
 1. <code>spans.py</code> with its relocation test corpus (it carries the riskiest criteria).
 2. The <code>codex.py</code> envelope, type registry and check.
-3. Sync on top of <code>diff.py</code>.
-4. Migration of phase-1 artefacts.
-5. Kinds: <code>novel</code> refactor, then <code>poem</code>.
+3. The query layer, the text facts layer and the first named questions, built on a fixture Codex of a corpus text.
+4. Sync on top of <code>diff.py</code>.
+5. Kinds: <code>novel</code> (current structure detection moved in), then <code>poem</code>.
 6. Library.
-7. Adapters, prompts and skill.</p>
+7. Rewrite of locate, rounds, report and Word comments on the Codex; removal of phase-1 formats and docs.
+8. The checklist's <code>measurable</code> tags mapped to named questions; prompts and skills via skill-workshop.</p>
 <p><strong>Open questions</strong> (for <code>design</code>, none blocks the direction):
 - [ ] File layout inside <code>codex/</code>: one JSONL per item type, or one per layer (bible, threads, ledger, journal). Either way, only <code>codex.py</code> knows.
 - [ ] Item history: kept inside each item (last N changes) or in an append-only change log per work.
 - [ ] Which item types ship first: entity (character, place, object, rule), mention, fact, reference/link, issue, decision, scene card, session note.
 - [ ] Information-density measure (D-8): items per 1,000 words per span, or weighted by item type. Defined with the first metric that uses it.
-- [ ] Work ids: slug from author and title, or random short id plus a readable slug.</p>
+- [ ] Work ids: slug from author and title, or random short id plus a readable slug.
+- [ ] Speaker attribution for dialogue: written by the LLM into items (who speaks in each dialogue span), with a script heuristic as a first guess. Which part goes where.</p>
 <p><strong>Decisions log</strong> (carried unchanged from <code>explore-idea</code>):</p>
 <table>
 <thead>
@@ -564,6 +673,30 @@ library of many works (D-14, D-15).</p>
 <td>D-15</td>
 <td>Works live anywhere under the home folder, found by their settings file; unique ids; author, kind, series and tags are metadata; grouping is a command</td>
 <td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-16</td>
+<td>The Codex answers questions through a query API (the LLM turns a question into a query), like a database</td>
+<td>agreed (spec notes r1)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-17</td>
+<td>Measurable checks and proactive feedback are named questions run against the Codex</td>
+<td>agreed (spec notes r1)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-18</td>
+<td>No migration: phase-1 per-type formats and docs are replaced; the tool is rebuilt on the Codex from corpus examples; real novels may add item types later</td>
+<td>agreed (spec notes r1)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-19</td>
+<td>Query surface: read-only SQL over an in-memory view (stdlib <code>sqlite3</code>, never persisted), with named questions on top</td>
+<td>open (recommended, awaiting owner)</td>
 <td>2026-10-11</td>
 </tr>
 </tbody>
@@ -693,7 +826,7 @@ library of many works (D-14, D-15).</p>
   document.getElementById('btn-export').addEventListener('click',function(){
     var r=buildExport();
     if(r.n===0){toast('No notes yet — add some first.');return;}
-    var name='literary-critic-spec-notes-'+today()+'-r1.md';
+    var name='literary-critic-spec-notes-'+today()+'-r2.md';
     var saved=download(name,r.text);openModal(r.text);
     try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
     if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
@@ -715,7 +848,7 @@ library of many works (D-14, D-15).</p>
     if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
     else{report(false);}
   });
-  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
   document.getElementById('modal-close').addEventListener('click',closeModal);
   modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
 

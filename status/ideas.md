@@ -81,3 +81,6 @@ Efficiency: scripts first, the LLM only reads what changed.
 | 13 | 2026-10-11 | Everything is modular by text kind (novel, short story, poetry, script, thesis, textbook...): each kind plugs in its own structure detection, item types and checklist on a kind-agnostic core. |
 | 14 | 2026-10-11 | Many works can be analysed side by side, each in its own place without collisions; grouping by kind, author or other criteria. |
 | 15 | 2026-10-11 | Works live anywhere under the home folder (user subfolders allowed), found by their settings file; each has a unique id that everything refers to; author, kind, series, tags are metadata; grouping is a command (lc library --by ...). |
+| 16 | 2026-10-11 | The Codex answers questions through a query API; the LLM turns a writer's question into a query. |
+| 17 | 2026-10-11 | Measurable checks and proactive feedback are named questions run against the Codex. |
+| 18 | 2026-10-11 | No migration: phase-1 per-type formats and docs are replaced; the tool is rebuilt on the Codex from corpus examples. |
