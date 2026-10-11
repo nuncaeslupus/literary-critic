@@ -17,7 +17,7 @@ import re
 import sqlite3
 import time
 import tomllib
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -52,21 +52,33 @@ CREATE INDEX links_src ON links(src);
 CREATE INDEX links_dst ON links(dst);
 """
 
-COMPUTED = {
-    "tokens": "CREATE TABLE tokens(para_idx INTEGER, pos INTEGER, form TEXT, norm TEXT,"
-    " is_word INTEGER); CREATE INDEX tokens_norm ON tokens(norm);",
-    "ngrams": "CREATE TABLE ngrams(n INTEGER, norm TEXT, para_idx INTEGER, pos INTEGER);"
-    " CREATE INDEX ngrams_norm ON ngrams(norm);",
-    "mentions": "CREATE TABLE mentions(entity_id TEXT, para_idx INTEGER, off INTEGER,"
-    " form TEXT); CREATE INDEX mentions_entity ON mentions(entity_id);",
-    "copresence": "CREATE TABLE copresence(a TEXT, b TEXT, scene TEXT, chapter TEXT);",
+# Computed tables: (columns, index column, what it is). Built only when a query names them.
+COMPUTED: dict[str, tuple[tuple[str, ...], str, str]] = {
+    "tokens": (
+        ("para_idx", "pos", "form", "norm", "is_word"),
+        "norm",
+        "every word, number and punctuation mark; pos counts all tokens in the paragraph;"
+        " norm = lower case, no accents",
+    ),
+    "ngrams": (
+        ("n", "norm", "para_idx", "pos"),
+        "norm",
+        f"word sequences of 2..{NGRAM_MAX} inside a paragraph (norm forms);"
+        " pos is the tokens.pos of the first word",
+    ),
+    "mentions": (
+        ("entity_id", "para_idx", "off", "form"),
+        "entity_id",
+        "where each entity's name or alias appears (off = character offset in the paragraph)",
+    ),
+    "copresence": (
+        ("a", "b", "scene", "chapter"),
+        "a",
+        "pairs of entities mentioned in the same scene (a < b)",
+    ),
 }
-DOCS = {
-    "tokens": "computed: every word, number and punctuation mark; norm = lower case, no accents",
-    "ngrams": f"computed: word sequences of 2..{NGRAM_MAX} inside a paragraph (norm forms)",
-    "mentions": "computed: where each entity's name or alias appears",
-    "copresence": "computed: pairs of entities mentioned in the same scene (a < b)",
-}
+STRING = re.compile(r"'(?:[^']|'')*'")
+TABLE_REF = re.compile(r"\b(?:from|join)\s+\"?(\w+)", re.I)
 
 
 class ViewError(Exception):
@@ -86,16 +98,22 @@ class View:
         self.structure = json.loads(
             (work_root / "index" / self.cx.draft / "structure.json").read_text(encoding="utf-8")
         )
-        self.conn = sqlite3.connect(":memory:")
+        # No statement cache: a write prepared while building must never be reused later.
+        self.conn = sqlite3.connect(":memory:", cached_statements=0)
         self.built: set[str] = set()
         self._writable = True
         self.conn.set_authorizer(self._authorize)
         self.conn.executescript(BASE)
         self._fill_base()
         self._views()
-        self._writable = False
+        self._seal()
 
     # -- guards ----------------------------------------------------------------
+
+    def _seal(self) -> None:
+        """Back to read-only; setting the authorizer again expires prepared statements."""
+        self._writable = False
+        self.conn.set_authorizer(self._authorize)
 
     def _authorize(self, action: int, *args: Any) -> int:
         if self._writable:
@@ -196,22 +214,29 @@ class View:
             )
 
     def _need(self, sql: str) -> None:
+        named = {m.lower() for m in TABLE_REF.findall(STRING.sub("''", sql))}
         for name in COMPUTED:
-            if name not in self.built and re.search(rf"\b{name}\b", sql, re.I):
+            if name in named and name not in self.built:
                 self._build(name)
 
     def _build(self, name: str) -> None:
-        was, self._writable = self._writable, True
+        if name == "ngrams" and "tokens" not in self.built:
+            self._build("tokens")
+        if name == "copresence" and "mentions" not in self.built:
+            self._build("mentions")
+        cols, key, _ = COMPUTED[name]
+        self._writable = True
         try:
-            if name == "ngrams":
-                self._need("tokens")
-            if name == "copresence":
-                self._need("mentions")
-            self.conn.executescript(COMPUTED[name])
-            getattr(self, f"_build_{name}")()
+            self.conn.execute(f"CREATE TABLE {name}({', '.join(cols)})")
+            try:
+                getattr(self, f"_build_{name}")()
+                self.conn.execute(f"CREATE INDEX {name}_{key} ON {name}({key})")
+            except BaseException:
+                self.conn.execute(f"DROP TABLE {name}")
+                raise
             self.built.add(name)
         finally:
-            self._writable = was
+            self._seal()
 
     def _build_tokens(self) -> None:
         rows = []
@@ -224,30 +249,41 @@ class View:
     def _build_ngrams(self) -> None:
         rows = []
         cur = self.conn.execute(
-            "SELECT para_idx, norm FROM tokens WHERE is_word = 1 ORDER BY rowid"
+            "SELECT para_idx, pos, norm FROM tokens WHERE is_word = 1 ORDER BY para_idx, pos"
         )
-        by_para: dict[int, list[str]] = {}
-        for i, w in cur:
-            by_para.setdefault(i, []).append(w)
+        by_para: dict[int, list[tuple[int, str]]] = {}
+        for i, pos, w in cur:
+            by_para.setdefault(i, []).append((pos, w))
         for i, words in by_para.items():
             for n in range(2, NGRAM_MAX + 1):
-                for pos in range(len(words) - n + 1):
-                    rows.append((n, " ".join(words[pos : pos + n]), i, pos))
+                for k in range(len(words) - n + 1):
+                    gram = " ".join(w for _, w in words[k : k + n])
+                    rows.append((n, gram, i, words[k][0]))
         self.conn.executemany("INSERT INTO ngrams VALUES (?,?,?,?)", rows)
 
     def _build_mentions(self) -> None:
-        rows = []
+        exact: dict[str, list[str]] = {}
+        folded: dict[str, list[str]] = {}
         for ent in self.cx.of_type("entity"):
             if ent.status == "retired":
                 continue
-            names = [ent.fields.get("name", ""), *ent.fields.get("aliases", [])]
-            names = sorted({n for n in names if n}, key=len, reverse=True)
-            if not names:
-                continue
-            flags = 0 if ent.fields.get("exact_case") else re.I
-            rx = re.compile(r"(?<!\w)(?:" + "|".join(map(re.escape, names)) + r")(?!\w)", flags)
-            for i, p in enumerate(self.text.paragraphs):
-                rows += [(ent.id, i, m.start(), m.group()) for m in rx.finditer(p)]
+            forms = {ent.fields.get("name", ""), *ent.fields.get("aliases", [])} - {""}
+            for n in forms:
+                if ent.fields.get("exact_case"):
+                    exact.setdefault(n, []).append(ent.id)
+                else:
+                    folded.setdefault(n.casefold(), []).append(ent.id)
+        patterns: list[tuple[re.Pattern[str], dict[str, list[str]], int]] = []
+        for names, flags in ((exact, 0), (folded, re.I)):
+            if names:
+                alts = "|".join(map(re.escape, sorted(names, key=len, reverse=True)))
+                patterns.append((re.compile(rf"(?<!\w)(?:{alts})(?!\w)", flags), names, flags))
+        rows = []
+        for i, p in enumerate(self.text.paragraphs):
+            for rx, names, flags in patterns:
+                for m in rx.finditer(p):
+                    key = m.group().casefold() if flags else m.group()
+                    rows += [(e, i, m.start(), m.group()) for e in names.get(key, [])]
         self.conn.executemany("INSERT INTO mentions VALUES (?,?,?,?)", rows)
 
     def _build_copresence(self) -> None:
@@ -268,15 +304,18 @@ class View:
     # -- querying --------------------------------------------------------------
 
     def run(
-        self, sql: str, params: dict[str, Any] | Sequence[Any] = ()
+        self,
+        sql: str,
+        params: dict[str, Any] | Sequence[Any] = (),
+        max_rows: int | None = None,
     ) -> tuple[list[str], list[tuple[Any, ...]]]:
-        """Columns and rows of one read-only query."""
+        """Columns and rows of one read-only query (at most ``max_rows`` + 1 rows when set)."""
         self._need(sql)
         deadline = time.monotonic() + TIMEOUT
         self.conn.set_progress_handler(lambda: int(time.monotonic() > deadline), 10_000)
         try:
             cur = self.conn.execute(sql, params)
-            rows = cur.fetchall()
+            rows = cur.fetchall() if max_rows is None else cur.fetchmany(max_rows + 1)
         except sqlite3.DatabaseError as exc:
             if time.monotonic() > deadline:
                 raise ViewError(f"query stopped after {TIMEOUT:g} s; narrow it") from exc
@@ -293,11 +332,9 @@ class View:
         try:
             lines += self._describe()
         finally:
-            self._writable = False
-        for name, sql in COMPUTED.items():
-            cols = re.search(r"\((.*?)\);", sql)
-            names = [c.split()[0] for c in cols.group(1).split(",")] if cols else []
-            lines.append(f"{name}({', '.join(names)})  -- {DOCS[name]}")
+            self._seal()
+        for name, (cols, _, doc) in COMPUTED.items():
+            lines.append(f"{name}({', '.join(cols)})  -- computed: {doc}")
         return "\n".join(lines)
 
     def _describe(self) -> list[str]:
@@ -313,15 +350,31 @@ class View:
         return lines
 
 
-def table(cols: list[str], rows: Iterable[tuple[Any, ...]], budget: int) -> str:
-    """Rows as ``a | b | c`` lines, cut to the token budget with a footer."""
+def max_rows(budget: int) -> int:
+    """How many rows a budget can show at most (one token per row, at least)."""
+    return max(1, budget - query.FOOTER_RESERVE)
+
+
+def cell(v: Any) -> Any:
+    return v.hex() if isinstance(v, bytes) else v
+
+
+def table(cols: list[str], rows: Sequence[tuple[Any, ...]], budget: int, more: bool) -> str:
+    """Rows as ``a | b | c`` lines, cut to the token budget with a footer.
+
+    ``more`` says the query had rows beyond those passed in.
+    """
     out = query.Out(budget)
     out.add(" | ".join(cols))
-    rows = list(rows)
     shown = 0
     for r in rows:
-        if not out.add(" | ".join("" if v is None else str(v) for v in r)):
+        line = " | ".join("" if v is None else str(cell(v)) for v in r)
+        if not out.add(line):
+            if shown == 0:
+                out.add_cut(line)
+                shown = 1
             break
         shown += 1
-    rest = len(rows) - shown
-    return out.finish(f"… {rest} more rows; add LIMIT or narrow the query" if rest else "")
+    if shown < len(rows) or more:
+        return out.finish("… more rows; add LIMIT, narrow the query or raise --budget")
+    return out.finish()

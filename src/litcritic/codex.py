@@ -32,6 +32,7 @@ STATUSES = ("active", "needs_reread", "retired")
 BY = ("llm", "writer", "script")
 TYPES_DIR = Path(__file__).parent / "codex_types"
 DRAFT = re.compile(r"^v\d{3,}$")
+NAME = re.compile(r"^[a-z][a-z0-9_]*$")  # type names and SQL column names
 
 
 class CodexError(Exception):
@@ -64,6 +65,9 @@ def load_types(*dirs: Path) -> dict[str, ItemType]:
                 spans_required=bool(raw.get("spans_required", False)),
                 standalone=bool(raw.get("standalone", False)),
             )
+            bad = [n for n in (t.name, *t.columns) if not NAME.match(n)]
+            if bad:
+                raise CodexError(f"{f}: names must match {NAME.pattern}: {bad}")
             if t.name in out:
                 raise CodexError(f"item type {t.name!r} defined twice ({f})")
             if any(o.prefix == t.prefix for o in out.values()):

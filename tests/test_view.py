@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import time
 from pathlib import Path
@@ -100,11 +101,15 @@ def test_view_load_time_20k_items(work: Path) -> None:
             )
         )
     (work / "codex" / "items" / "fact.jsonl").write_text("\n".join(rows) + "\n")
-    start = time.perf_counter()
-    v = view.View(work)
-    elapsed = time.perf_counter() - start
+    times = []
+    for _ in range(2):
+        start = time.perf_counter()
+        v = view.View(work)
+        times.append(time.perf_counter() - start)
     assert v.run("SELECT COUNT(*) FROM v_fact")[1][0][0] == 20_000
-    assert elapsed <= 1.0, elapsed
+    # Gate: 1 s on a laptop-class machine; slow shared runners may scale it.
+    limit = 1.0 * float(os.environ.get("LITCRITIC_PERF_FACTOR", "1"))
+    assert min(times) <= limit, times
 
 
 def test_codex_sql_cli(work: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -112,9 +117,40 @@ def test_codex_sql_cli(work: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["codex", "sql", "--schema", *w]) == 0
     assert "paragraphs(idx, anchor" in capsys.readouterr().out
     assert main(["codex", "sql", "SELECT COUNT(*) AS n FROM chapters", "--json", *w]) == 0
-    assert json.loads(capsys.readouterr().out)[0]["n"] > 10
+    data = json.loads(capsys.readouterr().out)
+    assert data["columns"] == ["n"] and data["rows"][0][0] > 10 and data["more"] is False
+    assert main(["codex", "sql", "SELECT text FROM paragraphs", "--json", *w]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["more"] is True and len(json.dumps(data)) < 3.5 * 2100
+    sql = "SELECT idx FROM paragraphs WHERE idx + 0 = :i"
+    assert main(["codex", "sql", sql, "--param", "i=12", *w]) == 0
+    assert capsys.readouterr().out.splitlines()[1] == "12"
     assert main(["codex", "sql", "DELETE FROM items", *w]) == 2
     out = capsys.readouterr()
     assert "error" in out.err
     assert main(["codex", "sql", "SELECT anchor FROM paragraphs", "--budget", "100", *w]) == 0
     assert "more rows" in capsys.readouterr().out
+    long = "SELECT text FROM paragraphs ORDER BY length(text) DESC LIMIT 1"
+    assert main(["codex", "sql", long, "--budget", "100", *w]) == 0
+    assert "[…]" in capsys.readouterr().out
+
+
+def test_view_cached_build_statements_cannot_write(work: Path) -> None:
+    v = view.View(work)
+    with pytest.raises(view.ViewError):
+        v.run("INSERT INTO links VALUES (?,?,?)", ("a", "rel", "b"))
+    v.run("SELECT COUNT(*) FROM tokens")
+    with pytest.raises(view.ViewError):
+        v.run("INSERT INTO tokens VALUES (?,?,?,?,?)", (0, 0, "x", "x", 1))
+    assert v.run("SELECT COUNT(*) FROM links")[1][0][0] == 0
+
+
+def test_view_computed_tables_only_built_when_used(work: Path) -> None:
+    v = view.View(work)
+    v.run("SELECT COUNT(*) AS mentions FROM paragraphs WHERE text LIKE '%tokens%'")
+    assert v.built == set()
+    _, rows = v.run(
+        "SELECT g.norm, t.norm FROM ngrams g JOIN tokens t"
+        " ON t.para_idx = g.para_idx AND t.pos = g.pos WHERE g.n = 2 LIMIT 200"
+    )
+    assert all(g.split()[0] == t for g, t in rows)

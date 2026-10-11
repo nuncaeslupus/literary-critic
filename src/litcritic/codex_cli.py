@@ -36,6 +36,16 @@ def _spans(args: argparse.Namespace, cx: Codex, root: Path) -> list[spanlib.Span
     return out
 
 
+def _value(raw: str) -> int | float | str:
+    """A --param value: numbers bind as numbers, everything else as text."""
+    for kind in (int, float):
+        try:
+            return kind(raw)
+        except ValueError:
+            pass
+    return raw
+
+
 def _links(raw: list[str] | None) -> list[dict[str, str]]:
     out = []
     for entry in raw or []:
@@ -134,14 +144,22 @@ def _run(args: argparse.Namespace) -> int:
                 return 0
             if not args.query:
                 raise CodexError("give a query, or --schema to see the tables")
-            params = dict(p.split("=", 1) for p in args.param or [])
-            cols, rows = v.run(args.query, params)
+            params = {k: _value(v) for k, v in (p.split("=", 1) for p in args.param or [])}
+            cap = view.max_rows(args.budget)
+            cols, rows = v.run(args.query, params, max_rows=cap)
+            more = len(rows) > cap
+            rows = rows[:cap]
             if args.json:
-                print(
-                    json.dumps([dict(zip(cols, r, strict=True)) for r in rows], ensure_ascii=False)
-                )
+                cells = [[view.cell(x) for x in r] for r in rows]
+                payload: dict[str, Any] = {"columns": cols, "rows": cells}
+                while cells and query.estimate_tokens(json.dumps(payload)) > args.budget:
+                    cells = cells[: len(cells) // 2]
+                    payload["rows"] = cells
+                    more = True
+                payload["more"] = more
+                print(json.dumps(payload, ensure_ascii=False))
             else:
-                print(view.table(cols, rows, args.budget), end="")
+                print(view.table(cols, rows, args.budget, more), end="")
         elif args.codex_cmd == "check":
             problems = cx.check()
             for p in problems:
