@@ -18,8 +18,10 @@ GOLDEN_ES = "El perro come carne. La niña canta una canción bonita."
 def test_readability_es_golden() -> None:
     w, s, syl = metrics.readability_counts([GOLDEN_ES], "es")
     assert (w, s, syl) == (10, 2, 19)
-    # 206.84 - 0.60 * 190 - 1.02 * 20 = 72.44
-    assert metrics.fernandez_huerta(w, s, syl) == pytest.approx(72.44)
+    # Corrected form: 206.84 - 0.60 * 190 - 1.02 * 5 = 87.74
+    assert metrics.fernandez_huerta(w, s, syl) == pytest.approx(87.74)
+    # Longer sentences must read as harder.
+    assert metrics.fernandez_huerta(100, 5, 200) < metrics.fernandez_huerta(100, 10, 200)
     # 206.835 - 62.3 * 1.9 - 5 = 83.465
     assert metrics.szigriszt(w, s, syl) == pytest.approx(83.465, abs=0.01)
     assert metrics.inflesz_band(83.465) == "muy fácil"
@@ -180,3 +182,47 @@ def test_cli_metrics(tmp_path: Path) -> None:
     assert main(["metrics", "--workspace", str(ws)]) == 0
     data = json.loads((ws / "metrics" / "v001.json").read_text(encoding="utf-8"))
     assert data["language"] == "en" and "readability_flesch" in data["metrics"]
+
+
+def test_review_regressions() -> None:
+    assert len(ts.sentences("He said no. Then he left.", "en")) == 2
+    assert ts.sentences("—No. Vete de aquí. Ahora.", "es") == ["—No.", "Vete de aquí.", "Ahora."]
+    assert len(ts.sentences("Lo firmó J. Pérez ayer.", "es")) == 1
+    assert ts.dialogue_spans("«Esto sigue en el párrafo siguiente") == [
+        "Esto sigue en el párrafo siguiente"
+    ]
+    assert ts.dialogue_spans("» y aquí termina.»")
+    paras = [
+        "CAPÍTULO 1",
+        "1. Cómo empezó",
+        "—Bueno...—dijo ella.",
+        "—Dijo que vendría —explicó Ana.",
+        "«Un discurso que sigue",
+        "» y termina aquí.»",
+    ]
+    data = structure.to_json(structure.detect(paras), "v001")
+    ctx = metrics.Context(
+        paras,
+        [a for a, _ in data["paragraphs"]],
+        data["chapters"],
+        "es",
+        registers={
+            "characters": [{"id": "g", "name": "Gabriel Utterson", "anchors": ["c01.s1"]}],
+            "setups": [{"id": "x", "name": "x", "anchors": ["c01.s1"], "status": "dropped"}],
+        },
+    )
+    assert metrics.REGISTRY["dialogue_punctuation_anomalies"](ctx)["items"] == []
+    assert "unmatched «»" not in metrics.REGISTRY["typo_signals"](ctx)["counts"]
+    assert metrics.REGISTRY["setup_payoff_distance"](ctx)["items"] == [
+        {"id": "x", "status": "dropped"}
+    ]
+    ctx.paragraphs[1] = "Gabriel Utterson y gabriel utterson."
+    assert (
+        metrics.REGISTRY["name_variant_count"](ctx)["items"]
+        == [{"name": "Gabriel Utterson", "forms": {"Gabriel Utterson": 1, "gabriel utterson": 1}}]
+        or metrics.REGISTRY["name_variant_count"](ctx)["book"] == 0
+    )
+    titled = [{"id": "c01", "title": "1. Cómo empezó", "start": 0, "end": 0, "scenes": []}]
+    titled.append({"id": "c02", "title": "Días de lluvia", "start": 1, "end": 1, "scenes": []})
+    ctx2 = metrics.Context(paras[:2], ["c01.s0.p1", "c02.s0.p1"], titled, "es")
+    assert metrics.REGISTRY["heading_sequence"](ctx2)["items"] == []

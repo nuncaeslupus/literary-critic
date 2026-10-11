@@ -258,7 +258,7 @@ def heading_sequence(ctx: Context) -> Result:
         m = re.search(r"\b(\d{1,3})\b", title)
         if m:
             return int(m.group(1))
-        m = re.search(r"(?<![A-Za-z])([IVXLCDM]+)(?![A-Za-z])", title)
+        m = re.search(r"(?<![^\W\d_])([IVXLCDM]+)(?![^\W\d_])", title)
         if not m:
             return None
         total, prev = 0, 0
@@ -355,9 +355,14 @@ def readability_counts(text_paragraphs: list[str], lang: str) -> tuple[int, int,
 
 
 def fernandez_huerta(words: int, sentences: int, syllables: int) -> float:
+    """Fernández-Huerta with the usual transcription error corrected (Law, 2011).
+
+    The widely quoted form subtracts 1.02 x sentences per 100 words, which makes
+    longer sentences read as easier; the corrected form subtracts 1.02 x words
+    per sentence, consistent with Flesch.
+    """
     p = 100 * syllables / words
-    f = 100 * sentences / words
-    return _round(206.84 - 0.60 * p - 1.02 * f, 2)
+    return _round(206.84 - 0.60 * p - 1.02 * words / sentences, 2)
 
 
 def szigriszt(words: int, sentences: int, syllables: int) -> float:
@@ -447,11 +452,8 @@ def mtld(ctx: Context) -> Result:
 
 def _is_adverb(word: str, lex: dict[str, Any]) -> bool:
     suffix = str(lex.get("adverb_suffix", "ly"))
-    return (
-        word.endswith(suffix)
-        and len(word) > len(suffix) + 2
-        and word not in set(lex.get("adverb_exclude", []))
-    )
+    exclude = lex.setdefault("_adverb_exclude_set", frozenset(lex.get("adverb_exclude", [])))
+    return word.endswith(suffix) and len(word) > len(suffix) + 2 and word not in exclude
 
 
 @metric("adverb_density")
@@ -769,13 +771,13 @@ def dialogue_punctuation_anomalies(ctx: Context) -> Result:
                 problems.append("space after opening dash")
             if re.match(r"^\s*-[^-\s]", t) and not hyphen_is_convention:
                 problems.append("hyphen instead of dash")
-            if re.search(r"[.]—", t):
+            if re.search(r"(?<![.…])\.—", t):
                 problems.append("full stop before closing dash")
             if re.search(
-                r"—(?:Dijo|Preguntó|Respondió|Contestó|Exclamó|Murmuró|Susurró|Gritó)\b", t
+                r"\s—(?:Dijo|Preguntó|Respondió|Contestó|Exclamó|Murmuró|Susurró|Gritó)\b", t
             ):
                 problems.append("capital letter in dialogue tag")
-        else:
+        elif not ts.continues_speech(t):
             if t.count('"') % 2 or t.count("“") != t.count("”"):
                 problems.append("unbalanced quotes")
             if re.search(r'["”],', t):
@@ -903,16 +905,25 @@ def name_similarity_pairs(ctx: Context) -> Result:
     return {"book": len(items), "items": items}
 
 
+def _fold_keep_length(text: str) -> str:
+    """Case- and accent-folded, one character per input character (keeps offsets)."""
+    return "".join((ts.strip_accents(c).casefold() or c)[:1] for c in text)
+
+
 @metric("name_variant_count")
 def name_variant_count(ctx: Context) -> Result:
     names = _names_from_register(ctx) or {n: [n] for n in _proper_nouns(ctx)}
     forms: dict[str, Counter[str]] = defaultdict(Counter)
-    folded = {ts.strip_accents(t).casefold(): n for n, terms in names.items() for t in terms}
-    for ws in ctx.words:
-        for w in ws:
-            key = ts.strip_accents(w).casefold()
-            if key in folded:
-                forms[folded[key]][w] += 1
+    folded = {_fold_keep_length(t): n for n, terms in names.items() for t in terms}
+    if folded:
+        pat = re.compile(
+            r"(?<![^\W\d_])(?:"
+            + "|".join(map(re.escape, sorted(folded, key=len, reverse=True)))
+            + r")(?![^\W\d_])"
+        )
+        for text in ctx.paragraphs:
+            for m in pat.finditer(_fold_keep_length(text)):
+                forms[folded[m.group()]][text[m.start() : m.end()]] += 1
     variants = {n: dict(c) for n, c in forms.items() if len([f for f in c if not f.islower()]) > 1}
     return {"book": len(variants), "items": [{"name": n, "forms": f} for n, f in variants.items()]}
 
@@ -966,8 +977,14 @@ def setup_payoff_distance(ctx: Context) -> Result:
     for e in setups:
         anchors = e.get("anchors", [])
         status = e.get("status", "open")
-        if status != "paid_off" or len(anchors) < 2:
-            items.append({"id": e["id"], "status": "unpaid" if anchors else "unplanted"})
+        if status == "dropped":
+            items.append({"id": e["id"], "status": "dropped"})
+            continue
+        if status != "paid_off":
+            items.append({"id": e["id"], "status": "unpaid"})
+            continue
+        if len(anchors) < 2:
+            items.append({"id": e["id"], "status": "unplanted"})  # payoff with no setup
             continue
         a, b = anchors[0], anchors[-1]
         ca, cb = idx.get(a.split(".s")[0].split(".p")[0], 0), idx.get(b.split(".s")[0], 0)
@@ -997,7 +1014,7 @@ def open_thread_count(ctx: Context) -> Result:
             chs = sorted(idx.get(a.split(".s")[0], 0) for a in e.get("anchors", []))
             if not chs or chs[0] > k:
                 continue
-            if e.get("status") == "paid_off" and chs[-1] <= k:
+            if e.get("status") in ("paid_off", "dropped") and chs[-1] <= k:
                 continue
             n += 1
         per[c["id"]] = n
@@ -1114,6 +1131,8 @@ def typo_signals(ctx: Context) -> Result:
             for m in pat.finditer(t):
                 items.append({"anchor": ctx.anchors[i], "signal": name, "text": m.group()[:30]})
         for a, b in ("()", "[]", "«»", "“”", "¿?", "¡!"):
+            if a in "«“" and ts.continues_speech(t):
+                continue  # a speech running over several paragraphs
             if t.count(a) != t.count(b) and (a not in "¿¡" or ctx.lang == "es"):
                 items.append({"anchor": ctx.anchors[i], "signal": f"unmatched {a}{b}", "text": ""})
     return {

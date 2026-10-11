@@ -69,7 +69,7 @@ description = "Fernandez-Huerta readability, per chapter. A relative gauge only;
 unit = "score"
 status = "implemented"
 languages = ["es"]
-formula = "206.84 - 0.60*P - 1.02*F  (P = syllables per 100 words, F = sentences per 100 words)"
+formula = "206.84 - 0.60*P - 1.02*F  (P = syllables per 100 words, F = words per sentence; corrected form, Law 2011)"
 
 [metric.readability_szigriszt_inflesz]
 description = "Szigriszt-Pazos perspicuity score with INFLESZ band, per chapter. Designed for non-fiction; use for relative comparison between chapters."

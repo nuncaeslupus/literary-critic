@@ -15,6 +15,6 @@ sensory.touch = ["tocar", "tocó", "tacto", "suave", "áspero", "rugoso", "liso"
 sensory.taste = ["sabor", "sabía a", "dulce", "amargo", "salado", "ácido", "agrio", "probó", "lengua", "paladar"]
 sensory.temperature = ["frío", "fría", "calor", "caliente", "helado", "helada", "tibio", "tibia", "templado", "sudor", "escalofrío"]
 cliches = ["un escalofrío le recorrió la espalda", "se le heló la sangre", "el corazón le dio un vuelco", "contuvo la respiración", "soltó el aire que no sabía que estaba conteniendo", "se le hizo un nudo en la garganta", "como alma que lleva el diablo", "en un abrir y cerrar de ojos", "más blanco que la nieve", "frío como el hielo", "el tiempo se detuvo", "un silencio sepulcral", "a la velocidad del rayo", "el corazón le latía con fuerza", "las piernas le temblaban", "se le erizó el vello"]
-spelling_pairs = [["vídeo", "video"], ["período", "periodo"], ["olimpíada", "olimpiada"], ["sólo", "solo"], ["éste", "este"], ["ésta", "esta"], ["aquél", "aquel"], ["psicología", "sicología"], ["septiembre", "setiembre"], ["obscuro", "oscuro"], ["quizá", "quizás"], ["icono", "ícono"]]
+spelling_pairs = [["vídeo", "video"], ["período", "periodo"], ["olimpíada", "olimpiada"], ["psicología", "sicología"], ["septiembre", "setiembre"], ["obscuro", "oscuro"], ["quizá", "quizás"], ["icono", "ícono"]]
 long_sentence_words = 50
 note_markers = ["TODO", "XXX", "NOTA", "OJO", "REVISAR", "PENDIENTE", "COMPROBAR", "??"]

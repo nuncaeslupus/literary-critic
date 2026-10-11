@@ -8,7 +8,7 @@
     "tense_consistency",
     "knowledge_order_violations"
   ],
-  "golden": "Fernández-Huerta 72.44 and Szigriszt 83.465 (INFLESZ 'muy fácil') on a hand-counted Spanish sample; Flesch 108.27 on a hand-counted English sample; 12 hand-checked Spanish syllable counts",
+  "golden": "Fernández-Huerta 87.74 (corrected formula) and Szigriszt 83.465 (INFLESZ 'muy fácil') on a hand-counted Spanish sample; Flesch 108.27 on a hand-counted English sample; 12 hand-checked Spanish syllable counts",
   "needs_input": "9 metrics report 'unmeasured' until registers, scene cards or LLM labels exist (T9/T10)",
   "real_draft_check": "also run locally on a private working draft (no details recorded)",
   "command": "uv run pytest tests/test_metrics.py"

@@ -11,6 +11,7 @@ import unicodedata
 
 WORD = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
 DASHES = "—–"
+SINGLE_LETTER_WORDS = {"I", "A", "O", "Y", "E", "U"}  # words, not initials
 ABBREVIATIONS = {
     "es": {
         "sr",
@@ -28,7 +29,7 @@ ABBREVIATIONS = {
         "núm",
         "st",
     },
-    "en": {"mr", "mrs", "ms", "dr", "st", "jr", "sr", "vs", "etc", "no", "mt", "prof", "rev"},
+    "en": {"mr", "mrs", "ms", "dr", "st", "jr", "sr", "vs", "etc", "mt", "prof", "rev"},
 }
 
 
@@ -44,7 +45,7 @@ def sentences(text: str, lang: str = "en") -> list[str]:
     opening ``¿``/``¡``, or the end of the paragraph. Known abbreviations and
     single initials do not end sentences.
     """
-    abbr = ABBREVIATIONS.get(lang, set()) | ABBREVIATIONS["en"]
+    abbr = ABBREVIATIONS.get(lang, ABBREVIATIONS["en"])
     out: list[str] = []
     start = 0
     for m in re.finditer(r"[.!?…]+[\"'»”’)\]]*", text):
@@ -57,7 +58,9 @@ def sentences(text: str, lang: str = "en") -> list[str]:
             continue
         if m.group().startswith(".") and len(m.group()) == 1:
             prev = re.search(r"([^\W\d_]+)$", text[start : m.start()])
-            if prev and (prev.group(1).casefold() in abbr or len(prev.group(1)) == 1):
+            word = prev.group(1) if prev else ""
+            initial = len(word) == 1 and word.isupper() and word not in SINGLE_LETTER_WORDS
+            if word.casefold() in abbr or initial:
                 continue
         piece = text[start:end].strip()
         if words(piece):
@@ -138,7 +141,20 @@ def dialogue_spans(text: str) -> list[str]:
         return spans
     for pattern in (r"«([^»]*)»", r"“([^”]*)”", r'"([^"]*)"'):
         spans.extend(m.group(1) for m in re.finditer(pattern, text) if words(m.group(1)))
+    if not spans and continues_speech(text):
+        spans.append(stripped.lstrip('«»“"'))
     return spans
+
+
+def continues_speech(text: str) -> bool:
+    """A speech running over paragraphs: opened and not closed, or a » continuation."""
+    t = text.lstrip()
+    if t.startswith("»"):
+        return True
+    for open_, close in (("«", "»"), ("“", "”")):
+        if t.startswith(open_) and t.count(close) < t.count(open_):
+            return True
+    return t.startswith('"') and t.count('"') % 2 == 1
 
 
 def is_dialogue(text: str) -> bool:
