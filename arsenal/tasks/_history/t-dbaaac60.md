@@ -5,6 +5,7 @@ label: "catalogue to sql"
 priority: 5
 deps: [t-dfcab048]
 workspace: codex
+status: merged
 ---
 
 # C6: Catalogue translation: SQL for each catalogue question; untranslatable ones name the missing data; add item types or tables where cheap

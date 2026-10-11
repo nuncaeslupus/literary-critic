@@ -1,417 +1,490 @@
 # Codex question catalogue (C1). Generic writer questions; drives the tables and item types.
 # "needs" lists the data a query requires: a table, a column, or item:<type>(fields).
-# "sql" is filled by C6; an entry that cannot be translated keeps "missing" instead.
+# C6: each entry has "question" (a named question, with "params") or "sql"; entries that
+# cannot be translated yet name the missing data in "missing".
 
 [[question]]
 id = "structure-01"
 family = "structure"
 text = "How long is each chapter, and which chapters are much longer or shorter than the rest?"
 needs = ["chapters.words"]
+question = "chapter-lengths"
 
 [[question]]
 id = "structure-02"
 family = "structure"
 text = "How many scenes does each chapter have, and how long are they?"
 needs = ["scenes"]
+question = "scenes-per-chapter"
 
 [[question]]
 id = "structure-03"
 family = "structure"
 text = "Where are the part and chapter boundaries, and are parts balanced in length?"
 needs = ["chapters", "paragraphs.part"]
+sql = "SELECT part, COUNT(DISTINCT chapter) AS chapters, SUM(words) AS words FROM paragraphs GROUP BY part ORDER BY part"
 
 [[question]]
 id = "structure-04"
 family = "structure"
 text = "Which chapters have no scene break at all?"
 needs = ["scenes"]
+sql = "SELECT c.id FROM chapters c JOIN scenes s ON s.chapter = c.id WHERE c.id != 'c00' GROUP BY c.id HAVING COUNT(*) = 1 ORDER BY MIN(c.idx)"
 
 [[question]]
 id = "structure-05"
 family = "structure"
 text = "What fraction of the book does the opening (first 10%) take before the first turning point?"
 needs = ["item:fact(role=turning_point)", "paragraphs.words"]
+sql = "SELECT ROUND(100.0 * (SELECT MIN(pp.word0) FROM v_fact f JOIN para_pos pp ON pp.idx = f.para_idx WHERE f.role = 'turning_point') / (SELECT SUM(words) FROM paragraphs), 1) AS percent_before_first_turn"
 
 [[question]]
 id = "structure-06"
 family = "structure"
 text = "Where do the main turning points fall as a percentage of the book?"
 needs = ["item:fact(role=turning_point)", "paragraphs.idx"]
+sql = "SELECT f.id, f.text, ROUND(100.0 * pp.word0 / (SELECT SUM(words) FROM paragraphs), 1) AS percent FROM v_fact f JOIN para_pos pp ON pp.idx = f.para_idx WHERE f.role = 'turning_point' ORDER BY pp.word0"
 
 [[question]]
 id = "characters-01"
 family = "characters"
 text = "Which characters appear most, by mentions and by scenes present?"
 needs = ["mentions", "copresence"]
+question = "character-appearances"
 
 [[question]]
 id = "characters-02"
 family = "characters"
 text = "In how many chapters does a given character speak?"
 needs = ["item:dialogue(speaker)", "paragraphs.chapter"]
+question = "speech-chapters"
+params = { character = "Nela" }
 
 [[question]]
 id = "characters-03"
 family = "characters"
 text = "When does each character first and last appear?"
 needs = ["mentions"]
+question = "character-appearances"
 
 [[question]]
 id = "characters-04"
 family = "characters"
 text = "Which named characters appear only once or twice?"
 needs = ["mentions", "item:entity(kind=character)"]
+sql = "SELECT e.name, COUNT(m.para_idx) AS mentions FROM v_entity e LEFT JOIN mentions m ON m.entity_id = e.id WHERE e.kind = 'character' AND e.status != 'retired' GROUP BY e.id HAVING COUNT(m.para_idx) <= 2"
 
 [[question]]
 id = "characters-05"
 family = "characters"
 text = "Which characters disappear for long stretches, and how long are the gaps?"
 needs = ["mentions", "paragraphs.words"]
+question = "character-absences"
 
 [[question]]
 id = "characters-06"
 family = "characters"
 text = "Which characters are referred to by more than one name, and are the names used consistently?"
 needs = ["item:entity(aliases)", "mentions.form"]
+sql = "SELECT e.name, m.form, COUNT(*) AS uses FROM mentions m JOIN v_entity e ON e.id = m.entity_id GROUP BY e.id, m.form ORDER BY e.name, uses DESC"
 
 [[question]]
 id = "characters-07"
 family = "characters"
 text = "How much of the dialogue does each character speak, in words?"
 needs = ["item:dialogue(speaker)", "spans.words"]
+question = "speech-share"
 
 [[question]]
 id = "relationships-01"
 family = "relationships"
 text = "Which character matters most to a given character (scenes together, exchanges, mentions)?"
 needs = ["copresence", "item:dialogue(speaker,addressee)", "mentions"]
+question = "relevance"
+params = { character = "Nela" }
 
 [[question]]
 id = "relationships-02"
 family = "relationships"
 text = "Which pairs of characters never share a scene?"
 needs = ["copresence", "item:entity(kind=character)"]
+question = "never-together"
 
 [[question]]
 id = "relationships-03"
 family = "relationships"
 text = "Who talks to whom, and how often?"
 needs = ["item:dialogue(speaker,addressee)"]
+question = "talks-to"
 
 [[question]]
 id = "relationships-04"
 family = "relationships"
 text = "Which relationships are stated in the bible but never shown on the page?"
 needs = ["links(rel=knows)", "copresence"]
+sql = "SELECT a.name, b.name FROM links l JOIN v_entity a ON a.id = l.src JOIN v_entity b ON b.id = l.dst WHERE l.rel = 'knows' AND NOT EXISTS (SELECT 1 FROM copresence c WHERE c.a = min(l.src, l.dst) AND c.b = max(l.src, l.dst))"
 
 [[question]]
 id = "relationships-05"
 family = "relationships"
 text = "Who knows a given fact, and from which scene on?"
 needs = ["item:fact(known_by)", "spans"]
+sql = "SELECT f.id, f.text, j.value AS known_by, p.scene FROM items f JOIN json_each(f.fields_json, '$.known_by') j JOIN spans s ON s.item_id = f.id AND s.k = 0 JOIN paragraphs p ON p.idx = s.start_idx WHERE f.type = 'fact'"
 
 [[question]]
 id = "relationships-06"
 family = "relationships"
 text = "Does any character act on a fact before they could have learned it?"
 needs = ["item:fact(known_by)", "links", "spans"]
+missing = "when each character learns a fact: a 'learns' item (character, fact, span) to compare with the passages where they act on it"
 
 [[question]]
 id = "threads-01"
 family = "threads"
 text = "Is every subplot told continuously, or are there long gaps between its passages?"
 needs = ["item:thread", "spans", "paragraphs.words"]
+question = "thread-gaps"
 
 [[question]]
 id = "threads-02"
 family = "threads"
 text = "Which subplots are opened but never closed?"
 needs = ["item:thread", "item:setup"]
+question = "setups-without-payoff"
 
 [[question]]
 id = "threads-03"
 family = "threads"
 text = "How are the threads interleaved chapter by chapter?"
 needs = ["item:thread", "spans", "paragraphs.chapter"]
+question = "thread-chapters"
 
 [[question]]
 id = "threads-04"
 family = "threads"
 text = "Which chapters advance no thread at all?"
 needs = ["item:thread", "spans", "chapters"]
+sql = "SELECT c.id FROM chapters c WHERE c.id != 'c00' AND NOT EXISTS (SELECT 1 FROM v_thread t JOIN spans s ON s.item_id = t.id JOIN paragraphs p ON p.idx BETWEEN s.start_idx AND s.end_idx WHERE p.chapter = c.id) ORDER BY c.idx"
 
 [[question]]
 id = "threads-05"
 family = "threads"
 text = "How much of the book does each thread take?"
 needs = ["item:thread", "spans.words"]
+sql = "SELECT t.name, SUM(s.words) AS words, ROUND(100.0 * SUM(s.words) / (SELECT SUM(words) FROM paragraphs), 1) AS percent FROM v_thread t JOIN spans s ON s.item_id = t.id GROUP BY t.id ORDER BY words DESC"
 
 [[question]]
 id = "threads-06"
 family = "threads"
 text = "Which setups have no payoff, and which payoffs have no setup?"
 needs = ["item:setup(paid_by)", "links(rel=pays_off)"]
+sql = "SELECT id, label, side FROM v_setup s WHERE s.status != 'retired' AND ((side = 'setup' AND NOT EXISTS (SELECT 1 FROM links l WHERE l.dst = s.id AND l.rel = 'pays_off')) OR (side = 'payoff' AND NOT EXISTS (SELECT 1 FROM links l WHERE l.src = s.id AND l.rel = 'pays_off')))"
 
 [[question]]
 id = "threads-07"
 family = "threads"
 text = "How far apart are each setup and its payoff?"
 needs = ["item:setup", "links(rel=pays_off)", "spans"]
+sql = "SELECT su.label, pp2.word0 - pp1.word0 AS words_apart FROM links l JOIN v_setup pa ON pa.id = l.src JOIN v_setup su ON su.id = l.dst JOIN para_pos pp1 ON pp1.idx = su.para_idx JOIN para_pos pp2 ON pp2.idx = pa.para_idx WHERE l.rel = 'pays_off' ORDER BY words_apart DESC"
 
 [[question]]
 id = "time-01"
 family = "time"
 text = "In what order do scenes happen in story time, compared with the order they are told?"
 needs = ["item:scene(time)"]
+sql = "SELECT sc.id, sc.time, p.chapter FROM v_scene sc JOIN paragraphs p ON p.idx = sc.para_idx ORDER BY sc.para_idx"
 
 [[question]]
 id = "time-02"
 family = "time"
 text = "Where are the flashbacks and how long are they?"
 needs = ["item:scene(time)", "spans.words"]
+missing = "which scenes are flashbacks: a flashback flag or an ordinal story time on scene items"
 
 [[question]]
 id = "time-03"
 family = "time"
 text = "Which scenes have no time marker?"
 needs = ["item:scene(time)", "scenes"]
+sql = "SELECT sc.id FROM v_scene sc WHERE sc.time IS NULL OR sc.time = ''"
 
 [[question]]
 id = "time-04"
 family = "time"
 text = "How much story time does each chapter cover?"
 needs = ["item:scene(time)", "paragraphs.chapter"]
+sql = "SELECT p.chapter, group_concat(sc.time, ' / ') AS story_time FROM v_scene sc JOIN paragraphs p ON p.idx = sc.para_idx GROUP BY p.chapter"
 
 [[question]]
 id = "time-05"
 family = "time"
 text = "Are there contradictions in dates, ages or durations?"
 needs = ["item:fact(claim)", "links(rel=contradicts)"]
+sql = "SELECT a.text, b.text FROM links l JOIN items a ON a.id = l.src JOIN items b ON b.id = l.dst WHERE l.rel = 'contradicts'"
 
 [[question]]
 id = "pov_setting-01"
 family = "pov_setting"
 text = "Whose point of view does each scene use, and how is it distributed?"
 needs = ["item:scene(pov)"]
+sql = "SELECT pov, COUNT(*) AS scenes, SUM(words) AS words FROM v_scene GROUP BY pov ORDER BY words DESC"
 
 [[question]]
 id = "pov_setting-02"
 family = "pov_setting"
 text = "Where does the point of view change inside a scene?"
 needs = ["item:scene(pov)", "item:issue"]
+missing = "point of view per passage, not only per scene (a pov field on spans or passage items)"
 
 [[question]]
 id = "pov_setting-03"
 family = "pov_setting"
 text = "Which places are used most, and which only once?"
 needs = ["item:scene(location)", "item:entity(kind=place)"]
+sql = "SELECT location, COUNT(*) AS scenes FROM v_scene WHERE location IS NOT NULL GROUP BY location ORDER BY scenes DESC"
 
 [[question]]
 id = "pov_setting-04"
 family = "pov_setting"
 text = "Which places are mentioned but never visited?"
 needs = ["mentions", "item:scene(location)"]
+sql = "SELECT e.name FROM v_entity e WHERE e.kind = 'place' AND e.status != 'retired' AND EXISTS (SELECT 1 FROM mentions m WHERE m.entity_id = e.id) AND NOT EXISTS (SELECT 1 FROM v_scene sc WHERE norm(sc.location) = norm(e.name) OR norm(sc.location) IN (SELECT norm(a.value) FROM items i, json_each(i.fields_json, '$.aliases') a WHERE i.id = e.id))"
 
 [[question]]
 id = "pov_setting-05"
 family = "pov_setting"
 text = "Does the description of a place change between scenes?"
 needs = ["item:fact(claim)", "links(rel=contradicts)"]
+sql = "SELECT e.name, a.text, b.text FROM links l JOIN items a ON a.id = l.src JOIN items b ON b.id = l.dst JOIN links la ON la.src = a.id AND la.rel = 'about' JOIN v_entity e ON e.id = la.dst WHERE l.rel = 'contradicts' AND e.kind = 'place'"
 
 [[question]]
 id = "dialogue-01"
 family = "dialogue"
 text = "What share of the book is dialogue, chapter by chapter?"
 needs = ["item:dialogue", "spans.words", "paragraphs.chapter"]
+question = "dialogue-share"
 
 [[question]]
 id = "dialogue-02"
 family = "dialogue"
 text = "Which scenes are almost all dialogue, or have none?"
 needs = ["item:dialogue", "scenes"]
+sql = "SELECT s.id, s.words, COALESCE(SUM(d.words), 0) AS dialogue_words FROM scenes s JOIN paragraphs p ON p.scene = s.id LEFT JOIN v_dialogue d ON d.para_idx = p.idx GROUP BY s.id HAVING dialogue_words = 0 OR dialogue_words > 0.9 * s.words"
 
 [[question]]
 id = "dialogue-03"
 family = "dialogue"
 text = "Which dialogue lines have no clear speaker?"
 needs = ["item:dialogue(speaker)"]
+sql = "SELECT p.anchor FROM paragraphs p WHERE p.scene NOT LIKE '%.s0' AND (p.text GLOB '--*' OR p.text GLOB '—*' OR p.text GLOB '«*' OR p.text GLOB '“*' OR p.text GLOB '\"*') AND NOT EXISTS (SELECT 1 FROM v_dialogue d JOIN spans s ON s.item_id = d.id WHERE d.status != 'retired' AND p.idx BETWEEN s.start_idx AND s.end_idx) ORDER BY p.idx"
 
 [[question]]
 id = "dialogue-04"
 family = "dialogue"
 text = "Which speech verbs are used, and how often besides the neutral one?"
 needs = ["tokens", "item:dialogue"]
+sql = "SELECT t.norm, COUNT(*) AS uses FROM tokens t JOIN v_dialogue d ON d.para_idx = t.para_idx WHERE t.norm IN ('dijo', 'pregunto', 'respondio', 'exclamo', 'contesto', 'murmuro', 'grito', 'said', 'asked', 'replied', 'shouted', 'whispered') GROUP BY t.norm ORDER BY uses DESC"
 
 [[question]]
 id = "dialogue-05"
 family = "dialogue"
 text = "Do characters have distinct voices (sentence length and favourite words per speaker)?"
 needs = ["item:dialogue(speaker)", "tokens"]
+sql = "SELECT e.name, COUNT(*) AS lines, ROUND(AVG(d.words), 1) AS avg_words FROM v_dialogue d JOIN v_entity e ON e.id = d.speaker GROUP BY e.id ORDER BY lines DESC"
 
 [[question]]
 id = "dialogue-06"
 family = "dialogue"
 text = "How long are the longest uninterrupted speeches?"
 needs = ["item:dialogue", "spans.words"]
+sql = "SELECT d.id, e.name, d.words FROM v_dialogue d JOIN v_entity e ON e.id = d.speaker ORDER BY d.words DESC LIMIT 10"
 
 [[question]]
 id = "style-01"
 family = "style"
 text = "How long are sentences and paragraphs, and how much do they vary per chapter?"
 needs = ["tokens", "paragraphs"]
+sql = "WITH ends AS (SELECT para_idx, COUNT(*) AS n FROM tokens WHERE form IN ('.', '?', '!', '…') GROUP BY para_idx) SELECT p.chapter, ROUND(1.0 * SUM(p.words) / MAX(SUM(COALESCE(e.n, 0)), 1), 1) AS words_per_sentence, ROUND(AVG(p.words), 1) AS words_per_paragraph, MAX(p.words) AS longest_paragraph FROM paragraphs p LEFT JOIN ends e ON e.para_idx = p.idx GROUP BY p.chapter ORDER BY MIN(p.idx)"
 
 [[question]]
 id = "style-02"
 family = "style"
 text = "Which paragraphs are much longer than the book's usual paragraph?"
 needs = ["paragraphs.words"]
+question = "long-paragraphs"
 
 [[question]]
 id = "style-03"
 family = "style"
 text = "How often do sentences open with the same word in a row?"
 needs = ["tokens"]
+sql = "WITH t AS (SELECT para_idx, pos, norm, is_word, LAG(form) OVER (PARTITION BY para_idx ORDER BY pos) AS prev_form FROM tokens), starts AS (SELECT para_idx, pos, norm FROM t WHERE is_word = 1 AND (prev_form IS NULL OR prev_form IN ('.', '?', '!', '…', '-', '—', '¿', '¡', '«', '\"', '“'))), seq AS (SELECT norm, LAG(norm) OVER (ORDER BY para_idx, pos) AS prev FROM starts) SELECT norm, COUNT(*) AS repeats FROM seq WHERE norm = prev GROUP BY norm ORDER BY repeats DESC"
 
 [[question]]
 id = "style-04"
 family = "style"
 text = "Where are adverbs ending in -mente / -ly clustered?"
 needs = ["tokens"]
+sql = "SELECT p.chapter, COUNT(*) AS adverbs FROM tokens t JOIN paragraphs p ON p.idx = t.para_idx WHERE t.is_word = 1 AND length(t.norm) > 5 AND (t.norm LIKE '%mente' OR t.norm LIKE '%ly') GROUP BY p.chapter ORDER BY adverbs DESC"
 
 [[question]]
 id = "style-05"
 family = "style"
 text = "How often is the passive voice used, by chapter?"
 needs = ["tokens"]
+sql = "SELECT p.chapter, COUNT(*) AS passives FROM ngrams g JOIN paragraphs p ON p.idx = g.para_idx WHERE g.n = 2 AND (g.norm GLOB 'fue *ad[oa]' OR g.norm GLOB 'fue *id[oa]' OR g.norm GLOB 'fueron *ad[oa]s' OR g.norm GLOB 'fueron *id[oa]s' OR g.norm GLOB 'fue *[cs]ho' OR g.norm GLOB 'fue *to' OR g.norm GLOB 'was *ed' OR g.norm GLOB 'were *ed' OR g.norm IN ('was taken', 'was given', 'was seen', 'was made', 'was done', 'was written', 'were taken', 'were given', 'were seen', 'were made')) GROUP BY p.chapter ORDER BY passives DESC"
 
 [[question]]
 id = "style-06"
 family = "style"
 text = "Which chapters are hardest to read by readability score?"
 needs = ["tokens", "paragraphs.chapter"]
+missing = "syllables per word (readability is computed by lc metrics but not exposed in the view)"
 
 [[question]]
 id = "lexicon-01"
 family = "lexicon"
 text = "Am I overusing a given expression? How often and where does it appear?"
 needs = ["ngrams", "paragraphs.chapter"]
+question = "expression-use"
+params = { expression = "los ojos" }
 
 [[question]]
 id = "lexicon-02"
 family = "lexicon"
 text = "Which words or phrases are repeated close together (within a few lines)?"
 needs = ["ngrams", "tokens"]
+question = "near-repeats"
 
 [[question]]
 id = "lexicon-03"
 family = "lexicon"
 text = "Which multi-word phrases recur across the book (tics, pet phrases)?"
 needs = ["ngrams"]
+question = "top-phrases"
 
 [[question]]
 id = "lexicon-04"
 family = "lexicon"
 text = "Which words appear only once in the whole book?"
 needs = ["tokens"]
+sql = "SELECT norm FROM tokens WHERE is_word = 1 GROUP BY norm HAVING COUNT(*) = 1 ORDER BY norm"
 
 [[question]]
 id = "lexicon-05"
 family = "lexicon"
 text = "How rich is the vocabulary chapter by chapter?"
 needs = ["tokens", "paragraphs.chapter"]
+sql = "SELECT p.chapter, COUNT(DISTINCT t.norm) AS distinct_words, COUNT(*) AS words, ROUND(1.0 * COUNT(DISTINCT t.norm) / COUNT(*), 3) AS ratio FROM tokens t JOIN paragraphs p ON p.idx = t.para_idx WHERE t.is_word = 1 GROUP BY p.chapter ORDER BY MIN(p.idx)"
 
 [[question]]
 id = "lexicon-06"
 family = "lexicon"
 text = "Which filler and crutch words are most frequent?"
 needs = ["tokens", "lexicon"]
+sql = "SELECT t.norm, COUNT(*) AS uses FROM tokens t WHERE t.norm IN ('muy', 'realmente', 'entonces', 'pues', 'algo', 'cosa', 'just', 'really', 'very', 'then', 'thing', 'quite') GROUP BY t.norm ORDER BY uses DESC"
 
 [[question]]
 id = "rhythm_density-01"
 family = "rhythm_density"
 text = "Which passages carry the most and the least knowledge per word?"
 needs = ["spans", "items", "paragraphs.words"]
+sql = "WITH k AS (SELECT p.chapter, COUNT(*) AS n FROM spans s JOIN items i ON i.id = s.item_id JOIN paragraphs p ON p.idx = s.start_idx WHERE i.status != 'retired' AND i.type NOT IN ('issue', 'decision') GROUP BY p.chapter) SELECT c.id, c.words, COALESCE(k.n, 0) AS items, ROUND(1000.0 * COALESCE(k.n, 0) / MAX(c.words, 1), 2) AS per_1000_words FROM chapters c LEFT JOIN k ON k.chapter = c.id ORDER BY per_1000_words"
 
 [[question]]
 id = "rhythm_density-02"
 family = "rhythm_density"
 text = "Which long passages add no fact, event or thread progress?"
 needs = ["spans", "item:fact", "item:thread", "paragraphs.words"]
+sql = "SELECT s.id, s.words FROM scenes s WHERE s.words > 1000 AND NOT EXISTS (SELECT 1 FROM spans x JOIN items i ON i.id = x.item_id JOIN paragraphs p ON p.idx = x.start_idx WHERE p.scene = s.id AND i.type IN ('fact', 'thread') AND i.status != 'retired') ORDER BY s.words DESC"
 
 [[question]]
 id = "rhythm_density-03"
 family = "rhythm_density"
 text = "How does the pace (scene length, dialogue share, events per chapter) change across the book?"
 needs = ["scenes", "item:dialogue", "item:fact"]
+sql = "SELECT c.id, c.words, (SELECT COUNT(*) FROM scenes s WHERE s.chapter = c.id) AS scenes, (SELECT COALESCE(SUM(d.words), 0) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx WHERE p.chapter = c.id) AS dialogue_words, (SELECT COUNT(*) FROM v_fact f JOIN paragraphs p ON p.idx = f.para_idx WHERE p.chapter = c.id) AS facts FROM chapters c ORDER BY c.idx"
 
 [[question]]
 id = "rhythm_density-04"
 family = "rhythm_density"
 text = "Where do several slow chapters come in a row?"
 needs = ["chapters", "item:fact", "item:dialogue"]
+sql = "WITH r AS (SELECT c.idx, c.id, 1000.0 * ((SELECT COUNT(*) FROM v_fact f JOIN paragraphs p ON p.idx = f.para_idx WHERE p.chapter = c.id AND f.status != 'retired') + (SELECT COUNT(*) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx WHERE p.chapter = c.id AND d.status != 'retired')) / MAX(c.words, 1) AS pace FROM chapters c WHERE c.id != 'c00'), m AS (SELECT AVG(pace) AS a FROM r), slow AS (SELECT r.idx, r.id, r.pace FROM r, m WHERE r.pace < m.a) SELECT s.id, ROUND(s.pace, 2) AS pace FROM slow s WHERE EXISTS (SELECT 1 FROM slow o WHERE o.idx IN (s.idx - 1, s.idx + 1)) ORDER BY s.idx"
 
 [[question]]
 id = "rhythm_density-05"
 family = "rhythm_density"
 text = "Which digressions are longer than the scene around them?"
 needs = ["item:fact(role=digression)", "spans.words", "scenes"]
+sql = "SELECT f.id, f.words, s.words AS scene_words FROM v_fact f JOIN paragraphs p ON p.idx = f.para_idx JOIN scenes s ON s.id = p.scene WHERE f.role = 'digression' AND f.words > 0.5 * s.words"
 
 [[question]]
 id = "issues_progress-01"
 family = "issues_progress"
 text = "Which issues are still open, by level and severity?"
 needs = ["item:issue"]
+question = "open-issues"
 
 [[question]]
 id = "issues_progress-02"
 family = "issues_progress"
 text = "Which issues did the writer reject, and why?"
 needs = ["item:decision", "item:issue"]
+question = "rejected"
 
 [[question]]
 id = "issues_progress-03"
 family = "issues_progress"
 text = "Which knowledge needs re-reading after the last draft?"
 needs = ["items.status", "reread"]
+question = "needs-reread"
 
 [[question]]
 id = "issues_progress-04"
 family = "issues_progress"
 text = "Which issues sit in passages that changed since they were raised?"
 needs = ["item:issue", "spans.state"]
+sql = "SELECT i.id, i.text, s.state FROM v_issue i JOIN spans s ON s.item_id = i.id WHERE s.state IN ('changed', 'lost', 'moved')"
 
 [[question]]
 id = "issues_progress-05"
 family = "issues_progress"
 text = "What changed between the last two drafts, chapter by chapter?"
 needs = ["changes", "spans.state"]
+missing = "the alignment between the last two drafts as a table (lc diff writes it to index/vNNN/alignment.json)"
 
 [[question]]
 id = "issues_progress-06"
 family = "issues_progress"
 text = "Which chapters have the most open issues?"
 needs = ["item:issue", "spans", "paragraphs.chapter"]
+sql = "SELECT p.chapter, COUNT(*) AS open_issues FROM v_issue i JOIN paragraphs p ON p.idx = i.para_idx WHERE i.status = 'active' AND NOT EXISTS (SELECT 1 FROM links l JOIN items d ON d.id = l.src WHERE l.dst = i.id AND l.rel = 'about' AND d.type = 'decision' AND d.status != 'retired' AND json_extract(d.fields_json, '$.verdict') IN ('rejected', 'done', 'done_differently')) GROUP BY p.chapter ORDER BY open_issues DESC"
 
 [[question]]
 id = "mechanics-01"
 family = "mechanics"
 text = "Where are there double spaces or spaces before punctuation?"
 needs = ["paragraphs.text"]
+question = "spacing"
 
 [[question]]
 id = "mechanics-02"
 family = "mechanics"
 text = "Are dialogue dashes and quotation marks used consistently?"
 needs = ["paragraphs.text", "item:dialogue"]
+sql = "SELECT CASE WHEN text GLOB '--*' THEN '--' WHEN text GLOB '—*' THEN '—' WHEN text GLOB '-*' THEN '-' WHEN text GLOB '«*' THEN '«' WHEN text GLOB '“*' THEN '“' ELSE '\"' END AS opener, COUNT(*) AS lines FROM paragraphs WHERE scene NOT LIKE '%.s0' AND (text GLOB '-*' OR text GLOB '—*' OR text GLOB '«*' OR text GLOB '“*' OR text GLOB '\"*') GROUP BY opener ORDER BY lines DESC"
 
 [[question]]
 id = "mechanics-03"
 family = "mechanics"
 text = "Where are there unbalanced brackets, quotes or question/exclamation marks?"
 needs = ["paragraphs.text"]
+sql = "SELECT anchor FROM paragraphs WHERE (length(text) - length(replace(text, '(', ''))) != (length(text) - length(replace(text, ')', ''))) OR (length(text) - length(replace(text, '«', ''))) != (length(text) - length(replace(text, '»', ''))) OR (length(text) - length(replace(text, '¿', ''))) > (length(text) - length(replace(text, '?', ''))) ORDER BY idx"
 
 [[question]]
 id = "mechanics-04"
 family = "mechanics"
 text = "Is a given name always spelled the same way?"
 needs = ["item:entity(aliases)", "mentions.form", "tokens"]
+sql = "SELECT e.name, t.form AS variant, COUNT(*) AS uses FROM v_entity e JOIN tokens t ON t.is_word = 1 AND t.form GLOB '[A-ZÁÉÍÓÚÑ]*' AND substr(t.norm, 1, 3) = substr(norm(e.name), 1, 3) AND abs(length(t.norm) - length(norm(e.name))) <= 1 AND t.norm != norm(e.name) WHERE e.kind = 'character' AND e.status != 'retired' AND instr(e.name, ' ') = 0 AND NOT EXISTS (SELECT 1 FROM items i, json_each(i.fields_json, '$.aliases') a WHERE i.id = e.id AND norm(a.value) = t.norm) GROUP BY e.id, t.form ORDER BY uses DESC"
