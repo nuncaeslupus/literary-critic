@@ -32,6 +32,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from litcritic import kinds
+
 ROMAN = r"[IVXLCDM]+"
 NUMBER_WORDS = (
     "uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|"
@@ -431,7 +433,7 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     meta = None
     if meta_file.is_file():
         meta = json.loads(meta_file.read_text(encoding="utf-8")).get("paragraphs")
-    s = detect(paragraphs, meta)
+    s = kinds.of_work(ws_root).detect(paragraphs, meta)
     errors: list[str] = []
     ov = ws_root / "analysis" / "structure-overrides.json"
     if ov.is_file():

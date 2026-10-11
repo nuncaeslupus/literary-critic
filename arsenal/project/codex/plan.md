@@ -123,6 +123,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 | C5 | `example_questions_answered == 1.0` | 1.0 (4/4 families exact on the Marianela fixture Codex: speech per chapter, expression per chapter, relevance, storyline gaps); 21 named questions run | `uv run pytest tests/test_questions.py` | [HERE] | local | 2026-10-11 |
 | C7 | `sync_touched_ratio <= 1.5` | 1.0 (single-paragraph edit: 1 flagged / 1 reached); `sync_seconds_100k` = 3.17 s (101k words, 20k items, 5% edits); rename keeps id; deletion flags dependents | `uv run pytest tests/test_sync.py` | [HERE] | local | 2026-10-11 |
 | C9 | `library_id_collisions == 0` | 0 (same title by two authors; same slug in two folders resolved by id; moved folder keeps references) | `uv run pytest tests/test_library.py` | [HERE] | local | 2026-10-11 |
+| C8 | `new_kind_core_changes == 0` | 0 (poem kind: structure, 2 item types and a 1-area checklist plug in; core modules never name it) | `uv run pytest tests/test_kinds.py` | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 

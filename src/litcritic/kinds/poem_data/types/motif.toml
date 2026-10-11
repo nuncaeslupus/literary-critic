@@ -1,0 +1,14 @@
+# An image or word that returns across poems; its spans are the returns.
+type = "motif"
+prefix = "mo"
+links = ["about", "refers_to"]
+columns = ["name"]
+spans_required = true
+
+[schema]
+type = "object"
+required = ["name"]
+additionalProperties = false
+[schema.properties.name]
+type = "string"
+minLength = 1
