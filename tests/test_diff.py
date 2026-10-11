@@ -80,7 +80,7 @@ def test_identical_drafts() -> None:
 def test_cli_diff(tmp_path: Path) -> None:
     ws = tmp_path / "ws"
     ws.mkdir()
-    (ws / "workspace.toml").write_text('slug = "ws"\n', encoding="utf-8")
+    (ws / "work.toml").write_text('slug = "ws"\n', encoding="utf-8")
     text = corpus.get("jekyll-hyde").read()
     (tmp_path / "a.txt").write_text(text, encoding="utf-8")
     (tmp_path / "b.txt").write_text(synth.generate(text, 5).text, encoding="utf-8")

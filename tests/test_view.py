@@ -14,7 +14,7 @@ from litcritic.cli import main
 @pytest.fixture(scope="module")
 def base(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("work")
-    (root / "workspace.toml").write_text('slug = "w"\nlanguage = "es"\n', encoding="utf-8")
+    (root / "work.toml").write_text('slug = "w"\nlanguage = "es"\n', encoding="utf-8")
     assert main(["ingest", str(corpus.get("marianela").path), "--workspace", str(root)]) == 0
     assert main(["anchor", "--workspace", str(root)]) == 0
     codex.Codex.init(root, "v001")

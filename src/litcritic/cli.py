@@ -34,12 +34,46 @@ from litcritic import (
 
 def _cmd_init(args: argparse.Namespace) -> int:
     try:
-        ws = workspace.create(args.slug, args.title, args.language, args.home)
+        ws = workspace.create(
+            args.slug,
+            args.title,
+            args.language,
+            args.home,
+            author=args.author,
+            kind=args.kind,
+            series=args.series,
+            tags=tuple(args.tag or []),
+        )
     except workspace.WorkspaceError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    print(f"workspace created: {ws.root}")
+    print(f"work created: {ws.root} (id {ws.manifest['id']})")
     print(f"add character/place names to {ws.guard_terms_file}")
+    return 0
+
+
+def _cmd_library(args: argparse.Namespace) -> int:
+    try:
+        works = workspace.all_workspaces(args.home)
+    except (workspace.WorkspaceError, OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    groups: dict[str, list[str]] = {}
+    for ws in works:
+        m = ws.manifest
+        tags = m.get("tags", [])
+        if args.by == "tag":
+            keys = [str(t) for t in tags] if isinstance(tags, list) else []
+        else:
+            keys = [str(m.get(args.by, ""))]
+        line = f"{m.get('id', ws.root.name)}  {m.get('title', '')}  ({ws.root})"
+        for key in keys or [""]:
+            groups.setdefault(key or f"(no {args.by})", []).append(line)
+    for key in sorted(groups):
+        print(f"{key}:")
+        for line in sorted(groups[key]):
+            print(f"  {line}")
+    print(f"{len(works)} work(s)")
     return 0
 
 
@@ -211,7 +245,10 @@ def _cmd_unpack(args: argparse.Namespace) -> int:
             ref = Path(args.workspace).expanduser()
             target = ref if (ref.is_absolute() or len(ref.parts) > 1) else base / ref
         else:
-            target = base / slug
+            raw = loaded[1].get(workspace.MANIFEST, b"")
+            wid = str(tomllib.loads(raw.decode("utf-8")).get("id", "")) if raw else ""
+            same = workspace.find_id(wid, args.home) if wid else []
+            target = same[0].root if len(same) == 1 else base / slug
         result = pack.unpack(Path(args.zip), target, force=args.force, loaded=loaded)
     except (workspace.WorkspaceError, pack.PackError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -386,8 +423,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("slug")
     p_init.add_argument("--title", required=True)
     p_init.add_argument("--language", required=True, help="ISO 639-1 code, e.g. es, en")
+    p_init.add_argument("--author", default="")
+    p_init.add_argument("--kind", default="novel", help="novel, short-story, poem, script…")
+    p_init.add_argument("--series", default="")
+    p_init.add_argument("--tag", action="append", help="repeatable")
     p_init.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_init.set_defaults(func=_cmd_init)
+
+    p_lib = sub.add_parser("library", help="list the works under the home folder")
+    p_lib.add_argument("--by", choices=["author", "kind", "series", "tag"], default="author")
+    p_lib.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_lib.set_defaults(func=_cmd_library)
 
     p_guard = sub.add_parser("guard", help="block working-novel content from the repo")
     p_guard.add_argument("--all", action="store_true", help="scan all tracked files")

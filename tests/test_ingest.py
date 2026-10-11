@@ -113,7 +113,7 @@ def test_ingest_snapshots_and_skips_unchanged(tmp_path: Path) -> None:
 def test_cli_ingest(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     ws = tmp_path / "ws"
     (ws).mkdir()
-    (ws / "workspace.toml").write_text('slug = "ws"\n', encoding="utf-8")
+    (ws / "work.toml").write_text('slug = "ws"\n', encoding="utf-8")
     assert main(["ingest", str(corpus.get("jekyll-hyde").path), "--workspace", str(ws)]) == 0
     assert "v001" in capsys.readouterr().out
     assert main(["ingest", str(tmp_path / "missing.txt"), "--workspace", str(ws)]) == 2
@@ -195,10 +195,10 @@ def test_workspace_inside_repo_is_refused(tmp_path: Path) -> None:
 
     inside = repo_root() / "tmp" / "ws-test-inside"
     inside.mkdir(parents=True, exist_ok=True)
-    (inside / "workspace.toml").write_text('slug = "x"\n', encoding="utf-8")
+    (inside / "work.toml").write_text('slug = "x"\n', encoding="utf-8")
     try:
         with pytest.raises(workspace.WorkspaceError):
             workspace.resolve(str(inside))
     finally:
-        (inside / "workspace.toml").unlink()
+        (inside / "work.toml").unlink()
         inside.rmdir()

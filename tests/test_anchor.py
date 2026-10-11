@@ -177,7 +177,7 @@ def test_fingerprint_ignores_case_accents_spacing() -> None:
 def test_cli_anchor_writes_structure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     ws = tmp_path / "ws"
     ws.mkdir()
-    (ws / "workspace.toml").write_text('slug = "ws"\n', encoding="utf-8")
+    (ws / "work.toml").write_text('slug = "ws"\n', encoding="utf-8")
     assert main(["anchor", "--workspace", str(ws)]) == 2
     assert main(["ingest", str(corpus.get("jekyll-hyde").path), "--workspace", str(ws)]) == 0
     assert main(["anchor", "--workspace", str(ws)]) == 0

@@ -109,7 +109,7 @@ def test_sync_deleted_paragraph_flags_dependents(
 def test_sync_100k_words_under_5s(tmp_path: Path) -> None:
     root = tmp_path / "big"
     root.mkdir()
-    (root / "workspace.toml").write_text('slug = "big"\nlanguage = "es"\n', encoding="utf-8")
+    (root / "work.toml").write_text('slug = "big"\nlanguage = "es"\n', encoding="utf-8")
     text = corpus.get("marianela").read()
     big = synth.paragraphs(text) * 2
     _new_draft(root, big, tmp_path)
