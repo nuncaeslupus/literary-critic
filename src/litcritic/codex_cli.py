@@ -8,9 +8,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from litcritic import query, structure, workspace
+from litcritic import query, structure, view, workspace
 from litcritic import spans as spanlib
 from litcritic.codex import Codex, CodexError, Item
+from litcritic.view import ViewError
 
 
 def _text(ws_root: Path, draft: str) -> spanlib.Text:
@@ -126,6 +127,21 @@ def _run(args: argparse.Namespace) -> int:
                 shown += 1
             rest = len(hits) - shown
             print(out.finish(f"… {rest} more; add words or --type" if rest else ""), end="")
+        elif args.codex_cmd == "sql":
+            v = view.View(ws.root, cx)
+            if args.schema:
+                print(v.schema())
+                return 0
+            if not args.query:
+                raise CodexError("give a query, or --schema to see the tables")
+            params = dict(p.split("=", 1) for p in args.param or [])
+            cols, rows = v.run(args.query, params)
+            if args.json:
+                print(
+                    json.dumps([dict(zip(cols, r, strict=True)) for r in rows], ensure_ascii=False)
+                )
+            else:
+                print(view.table(cols, rows, args.budget), end="")
         elif args.codex_cmd == "check":
             problems = cx.check()
             for p in problems:
@@ -137,6 +153,7 @@ def _run(args: argparse.Namespace) -> int:
         CodexError,
         spanlib.SpanError,
         workspace.WorkspaceError,
+        ViewError,
         OSError,
         ValueError,
     ) as exc:
@@ -188,5 +205,12 @@ def register(sub: Any) -> None:
     p_find.add_argument("--type", default=None)
     p_find.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
     common(p_find)
+    p_sql = csub.add_parser("sql", help="run one read-only SQL query against the Codex")
+    p_sql.add_argument("query", nargs="?", default=None)
+    p_sql.add_argument("--param", action="append", help="NAME=VALUE for :NAME in the query")
+    p_sql.add_argument("--schema", action="store_true", help="print the tables and views")
+    p_sql.add_argument("--json", action="store_true")
+    p_sql.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
+    common(p_sql)
     p_chk = csub.add_parser("check", help="dead links, orphans, stale spans, bad items")
     common(p_chk)

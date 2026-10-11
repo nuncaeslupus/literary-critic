@@ -5,6 +5,7 @@ label: "sql view"
 priority: 5
 deps: [t-69220b4e]
 workspace: codex
+status: merged
 ---
 
 # C4: `view.py`: in-memory SQL view, `codex_schema = 1`, computed tables (tokens, n-grams, mentions, co-presence) built lazily, read-only guards, budgeted output; `lc codex sql --schema`
