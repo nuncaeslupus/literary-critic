@@ -17,6 +17,7 @@ from litcritic import (
     guard,
     index,
     ingest,
+    kit,
     locate,
     metrics,
     pack,
@@ -343,6 +344,20 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kit(args: argparse.Namespace) -> int:
+    out, n = kit.build(args.out)
+    print(f"{n} files -> {out}")
+    return 0
+
+
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    problems = kit.doctor()
+    for p in problems:
+        print(f"problem: {p}", file=sys.stderr)
+    print("ok" if not problems else f"{len(problems)} problem(s)")
+    return 1 if problems else 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -493,6 +508,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_rep.add_argument("--version", default=None)
     p_rep.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_rep.set_defaults(func=_cmd_report)
+
+    p_kit = sub.add_parser("kit", help="build the chat kit zip (for chatbots with code execution)")
+    p_kit.add_argument("--out", type=Path, default=None, help="zip path (default dist/)")
+    p_kit.set_defaults(func=_cmd_kit)
+    p_doc = sub.add_parser("doctor", help="check that this platform can run the tool")
+    p_doc.set_defaults(func=_cmd_doctor)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

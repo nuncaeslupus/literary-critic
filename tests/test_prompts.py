@@ -24,6 +24,7 @@ def _documents() -> list[Path]:
     root = repo_root()
     docs = sorted((root / "prompts").glob("*.md"))
     docs += sorted((root / ".claude" / "skills").glob("litcritic*/SKILL.md"))
+    docs.append(root / "kit" / "START_HERE.md")
     return docs
 
 
@@ -35,7 +36,7 @@ def _commands(text: str) -> list[str]:
     for chunk in chunks:
         for line in chunk.splitlines():
             for part in re.split(r"&&|;|\|", line):
-                part = part.strip()
+                part = part.strip().replace("python lc.py ", "lc ", 1)
                 if part.startswith("lc "):
                     out.append(part)
     return out

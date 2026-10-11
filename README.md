@@ -21,7 +21,7 @@ Status: early development. See `status/specification.md` and `status/plan.md`.
 | Where | How |
 |-------|-----|
 | Claude Code (local or cloud) | Clone, open, talk. Scripts run directly. |
-| Chat with code execution (ChatGPT, Claude.ai, Gemini) | Upload the kit zip and your workspace zip; the assistant runs the scripts and returns an updated workspace zip. |
+| Chat with code execution (ChatGPT, Claude.ai, Gemini) | Upload the kit zip (`lc kit` builds it; the assistant reads its `START_HERE.md`) and your workspace zip; the assistant runs the scripts and returns an updated workspace zip. |
 | Chat without code execution | Paste the portable prompts from `prompts/`; reduced mode without metrics. |
 
 Your novel and all working files live in a **workspace folder outside this
