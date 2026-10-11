@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="cc8fbd7fd2edd5842a18ff58919b97d2944fb623ca0cb0f5596eb1d2db502fa2">
+<title>Literary Critic — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#6b6862;--line:#e6e2da;
+  --card:#ffffff;--accent:#0f766e;--accent2:#b45309;--chip:#eef2f1;
+  --note:#fff8ec;--note-line:#f0cf94;--code:#f3f1ec;--link:#0f766e;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#e9e7e2;--muted:#a09c95;--line:#2e2c33;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#26313055;
+    --note:#251f10;--note-line:#6b531c;--code:#26242b;--link:#5eead4;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+a{color:var(--link)}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#b45309}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:22px 0 6px}
+.hero h1{font-size:25px;line-height:1.2;margin:.1em 0 .3em}
+.hero p{color:var(--muted);margin:.3em 0}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:26px 0}
+.part-title{font-size:21px;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 8px;position:sticky;top:54px;background:var(--bg);z-index:10}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+.sec{padding:6px 0 2px;border-bottom:1px solid var(--line);scroll-margin-top:100px}
+.sec:last-child{border-bottom:none}
+.sec-h{margin:10px 0 6px;line-height:1.3;position:sticky;top:94px;background:var(--bg);z-index:5;padding-top:6px}
+h3.sec-h{font-size:18.5px}
+h4.sec-h{font-size:16.5px;color:var(--fg)}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p{margin:.55em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent2);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;width:100%;font-size:13.5px;margin:.6em 0;display:block;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+.note{background:var(--note);border:1px solid var(--note-line);border-radius:10px;
+  padding:8px 11px;margin:10px 0 16px}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.note-ico{color:var(--accent2);font-weight:800}
+.note-label{font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted)}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:15.5px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:.8}
+.note.filled{box-shadow:0 0 0 2px var(--note-line) inset}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Specification<small>annotatable reader · 2026-10-11</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Spec</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-wizard-prompt-and-comme">Option A: Wizard prompt and commented copies (Conservative)</a></li>
+<li><a href="#s-spec-option-b-cowork-first-wizard-saf">Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)</a></li>
+<li><a href="#s-spec-option-c-word-panel-first">Option C: Word-panel-first</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Spec</h2>
+<article class="sec" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-11
+<strong>Ticket / PR</strong>: workspace <code>chat</code>
+<strong>Author</strong>: Claude (with the owner)
+<strong>Revision</strong>: 1
+<strong>Status</strong>: draft
+<strong>Revision log</strong>:
+- r1 — first draft, from the explore-idea decisions log D-1…D-18</p>
+<blockquote>
+<p>Review record. Each round of reviewer notes makes a new revision: bump
+<strong>Revision</strong>, add a log line naming the export it applied
+(<code>- r2 — applied `&lt;project&gt;-spec-notes-&lt;date&gt;-r1.md`</code>), and commit that
+export beside this file in the same commit. On approval set
+<strong>Status</strong> to <code>approved (YYYY-MM-DD, revision N)</code> and, when the reviewer sent
+no notes for that revision, add <code>— without annotations</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-intro"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></div><textarea class="note-ta" data-key="s-spec-intro" data-label="Preamble &amp; scope" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>Today literary-critic needs someone technical to use it. You need a terminal or a code-running chat, a workspace path, <code>lc</code> commands, and, in a chat, uploading the kit and a workspace zip every session. The no-code "reduced mode" loses metrics, the Codex and every check that a script measures. A non-technical writer (or an agency reader) cannot start, and the changes the tool recommends still have to be found and typed by hand in Word. That costs time and creates stray copies of the manuscript.</p>
+<p>The tool should start from one sentence in a normal Claude chat: "I want to use literary-critic for my novel".
+- A setup wizard checks what the writer's Claude and computer can do, says exactly what to turn on, finds the novel and its versions, and prepares a working folder.
+- The tool then guides the writer through a plan in short, targeted messages. The writer accepts, changes or rejects each step.
+- Accepted changes land in the writer's own <code>.docx</code> as tracked changes, safely, without new copies.
+- Writers with Microsoft 365 can work from a Claude side panel inside Word, with the text changing live in front of them.</p>
+<p>This is a planned improvement. It decides whether the tool is usable by its target users at all.</p>
+<p><strong>Success criteria (measurable)</strong></p>
+<ul>
+<li>[ ] <code>writer_setup_actions &lt;= 5</code> on the main path (Pro plan, Cowork). These are the actions the writer performs between "I want to use literary-critic for my novel" and the first feedback on the novel: toggles, folder picks, uploads and permission clicks. Counted on a scripted walkthrough checklist.</li>
+<li>[ ] <code>wizard_capability_misreports == 0</code> over the scripted environment cases: code execution on/off, folder connected or not, computer use on/off, Word 365 or perpetual Word, Windows Home, Free plan.</li>
+<li>[ ] <code>novel_discovery_accuracy == 1.0</code> on a fixture folder with drafts, copies, backups and unrelated <code>.docx</code> files. The wizard names the latest draft and lists the other versions in date order.</li>
+<li>[ ] <code>unintended_docx_changes == 0</code>: across a corpus of fixture manuscripts, the text diff after an approved edit batch equals exactly the approved edits, and styles, comments and other parts are byte-identical outside the edited runs.</li>
+<li>[ ] <code>edits_as_tracked_revisions == 1.0</code>: every applied edit is a native Word revision (<code>w:ins</code> / <code>w:del</code>) that can be rejected one by one. Checked by script, and opening in Word 2016-compatible OOXML is validated.</li>
+<li>[ ] <code>backup_before_edit == 1.0</code> and <code>restore_on_failure == 1.0</code>, with failures injected at each step of the safe-edit protocol.</li>
+<li>[ ] <code>open_document_overwrites == 0</code>: an edit never writes a file that Word holds open (Word's <code>~$</code> lock file) or that changed on disk since it was last read.</li>
+<li>[ ] <code>bridge_roundtrip_accuracy == 1.0</code>: round actions written as tagged comments (<code>[LC A3]</code>), with decisions written as replies in those threads, are read back into Codex <code>decision</code> items exactly, on fixture documents.</li>
+<li>[ ] <code>prose_suggestions_default_off == 1</code>: a new workspace never proposes wording until the writer turns the setting on. Tested.</li>
+<li>[ ] <code>skill_workshop_errors == 0</code> for the litcritic skill (validate.py and audit_library).</li>
+<li>[ ] Usability, judged by a scripted walkthrough: a fresh assistant plays a non-technical writer persona from the first sentence to an applied round-1 change on the main path, and a second run on the Word-panel path. The reviewer checks that every instruction to the writer is plain, located and one step at a time. Median writer-facing reply is at most 120 words.</li>
+<li>[ ] The hand tests D-14, D-16 and D-18 are run and recorded in <code>status/evidence/</code> before any task that depends on their answer is designed.</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Setup wizard (new: <code>lc setup</code> plus a <code>05-setup</code> prompt)</td>
+<td>Primary</td>
+<td>Detects capabilities, explains what to enable, finds the novel and its versions, creates <code>MyNovel/literary-critic/</code></td>
+<td>Yes</td>
+<td>New entry point for every writer</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Safe docx editor (new module, stdlib)</td>
+<td>Primary</td>
+<td>Applies approved edits and renames to the master <code>.docx</code> as tracked changes, after the lock-file and on-disk-change checks, with backup, verification and automatic restore</td>
+<td>Yes</td>
+<td>Writes the writer's manuscript, the highest-risk change the tool has made</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Comment bridge (<code>docx_out</code> + <code>rounds</code>)</td>
+<td>Primary</td>
+<td>Writes round actions as tagged comments into the master, reads reply decisions back into the Codex, removes finished comments</td>
+<td>Yes</td>
+<td>Links Cowork with the Word side panel</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>litcritic Skill and packaging (<code>kit.py</code>, <code>.claude/skills/litcritic</code>)</td>
+<td>Primary</td>
+<td>Entry instructions for chat, Cowork and the Word panel; builds the Skill zip with the kit bundled</td>
+<td>Yes</td>
+<td>How the tool is installed and recognised in each surface</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Prompts (<code>00-guide</code>, new <code>05-setup</code>, new <code>80-word-panel</code>)</td>
+<td>Dependent</td>
+<td>Guided flow, short answers, one change per message, Word-panel procedure</td>
+<td>Yes</td>
+<td>What the writer experiences</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Profile schema and <code>AGENTS.md</code> rule 5</td>
+<td>Shared resource</td>
+<td>New per-writer setting <code>prose_suggestions</code> (default off); rule 5 reworded to match</td>
+<td>Yes</td>
+<td>Changes a hard rule of the project</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Codex, rounds, sync (existing)</td>
+<td>Dependent</td>
+<td>Decisions from comment replies; a new draft is detected when the master file changes</td>
+<td>Validation, small changes</td>
+<td>Must keep their gates green</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Claude surfaces (chat, Cowork, computer use, Claude for Word, Drive connector)</td>
+<td>Infrastructure (external)</td>
+<td>Where the tool runs; not ours to change</td>
+<td>No (validation)</td>
+<td>Their limits shape the design: Cowork needs a paid plan and an Apple Silicon Mac or Windows Pro/Enterprise/Education; the Word panel needs Word 365 or Word on the web</td>
+<td>High</td>
+</tr>
+<tr>
+<td>docx-fixer (separate repo)</td>
+<td>Dependent (external)</td>
+<td>Existing Word-fixing logic</td>
+<td>Validation; reuse decided in design</td>
+<td>Kept as a separate repo (earlier decision)</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact dimensions</strong>
+- <strong>Data:</strong> the master manuscript is edited in place, and only on explicit approval of each change or batch. Backups in <code>literary-critic/backups/</code> are the safety net. <em>High.</em>
+- <strong>API:</strong> new <code>lc setup</code> and <code>lc docx</code> commands; nothing removed. <em>Low.</em>
+- <strong>Performance:</strong> a rename across a 100k-word <code>.docx</code> must take seconds, not minutes. <em>Low.</em>
+- <strong>User-facing:</strong> the whole experience changes from commands to a guided conversation. <em>High.</em>
+- <strong>Operational:</strong> a Skill zip is released per version, and a computer-use preview may change under us. <em>Med.</em>
+- <strong>Risk of inaction:</strong> the tool stays usable only by its author.</p></div>
+<div class="note" data-for="s-spec-2"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></div><textarea class="note-ta" data-key="s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+<div class="note" data-for="s-spec-3"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></div><textarea class="note-ta" data-key="s-spec-3" data-label="§3 Options" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-a-wizard-prompt-and-comme">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Wizard prompt and commented copies (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Add a setup prompt and plain-language install docs on top of the current kit. Feedback reaches Word only as a commented <strong>copy</strong> of the manuscript; there are no in-place edits and no Word-panel bridge.</li>
+<li><strong>Scope</strong>: <code>prompts/</code>, <code>kit/START_HERE.md</code>, docs, small <code>docx_out</code> changes.</li>
+<li><strong>Effort</strong>: Small</li>
+<li><strong>Tradeoffs</strong>: Lowest risk to the manuscript. It contradicts D-9/D-11: copies multiply versions, the writer still searches and types every change, and the 365 side panel is unused.</li>
+<li><strong>Compatibility</strong>: Fully backward compatible.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-wizard-prompt-and-comme"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Wizard prompt and commented copies (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-wizard-prompt-and-comme" data-label="Option A: Wizard prompt and commented copies (Conservative)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-b-cowork-first-wizard-saf">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>:<ul>
+<li>The wizard runs in chat or Cowork. Claude fetches the tool itself, or falls back to the Skill zip.</li>
+<li>In Cowork it finds the novel, prepares <code>MyNovel/literary-critic/</code>, and runs the guided rounds.</li>
+<li>Approved edits and renames are applied to the master <code>.docx</code> as tracked changes through the safe-edit protocol. When computer use is on, it saves, closes and reopens Word for the writer.</li>
+<li>For Word 365 users, round actions travel as tagged comments in the master. The Skill tells the Word panel how to work through them live, and the replies come back into the Codex.</li>
+<li>Free plan: basic mode with the existing kit (upload and workspace zip).</li>
+</ul>
+</li>
+<li><strong>Scope</strong>: new setup module and prompt, new safe docx editor, comment bridge in <code>docx_out</code>/<code>rounds</code>, Skill and packaging, prompts, profile setting, rule 5, docs.</li>
+<li><strong>Effort</strong>: Large</li>
+<li><strong>Tradeoffs</strong>: Meets every agreed decision, and the heavy analysis stays where scripts can run. The cost is the most code, and it writes the writer's own manuscript, which is acceptable only with the safe-edit gates above. Computer use is a preview, so every step it helps with must also work without it.</li>
+<li><strong>Compatibility</strong>: Backward compatible: existing CLI, Codex and rounds are unchanged; the new commands are additive.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-cowork-first-wizard-saf"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-cowork-first-wizard-saf" data-label="Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-option-c-word-panel-first">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Word-panel-first</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Make the Word side panel the main surface. All analysis runs inside the add-in, and the state travels inside the document.</li>
+<li><strong>Scope</strong>: Skill and prompts; the analysis is re-expressed for the add-in.</li>
+<li><strong>Effort</strong>: Large</li>
+<li><strong>Tradeoffs</strong>: The best live experience, but it depends on D-16 (scripts may not run in the panel), loses the Codex (the panel cannot read the folder), excludes perpetual Word and Free, and is bounded by the panel's limits (it sees only open documents, its history is per device).</li>
+<li><strong>Compatibility</strong>: Breaks the script-first rule (<code>AGENTS.md</code> rule 7) unless D-16 proves scripts run there.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-word-panel-first"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Word-panel-first</span></div><textarea class="note-ta" data-key="s-spec-option-c-word-panel-first" data-label="Option C: Word-panel-first" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Small</td>
+<td>Large</td>
+<td>Large</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>Low</td>
+<td>Medium (manuscript writes, gated)</td>
+<td>High (unverified platform)</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Low: no in-place edits, no side panel</td>
+<td>High: every agreed decision</td>
+<td>Partial: 365 only, no Codex</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>Full</td>
+<td>Full (additive)</td>
+<td>Conflicts with rule 7 unless D-16 passes</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Low</td>
+<td>Medium</td>
+<td>High (tracks a moving add-in)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></div><textarea class="note-ta" data-key="s-spec-comparison" data-label="Comparison" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B. It is the only option that delivers the owner's vision on every plan the writer may have, keeps the analysis in scripts (rule 7), and still gives Word 365 users the live side panel the owner cares about most. The bridge works whether or not D-16 passes.</p>
+<p><strong>Immediate next action</strong>: run the three hand tests below and record them in <code>status/evidence/</code>. D-16 decides how much the Word panel can do on its own. Then <code>design</code> the plan, starting with the safe docx editor, since every later task writes through it.</p>
+<p><strong>Open questions</strong>:
+- [ ] <strong>D-14:</strong> does the Claude for Word add-in install and work in free Word on the web with a personal Microsoft account? This is a hand test by the owner.
+- [ ] <strong>D-16:</strong> can an uploaded Skill run its scripts inside the Word panel, and can the panel read comment replies and resolved state? This is a hand test.
+- [ ] <strong>D-18:</strong> are custom Skills available on the Free plan? The help center says yes, the docs say Pro and up. Verify.
+- [ ] <strong>D-7 path B:</strong> can Claude in a chat, or in Cowork, download the tool from GitHub itself? Test it; the Skill zip is the fallback either way.
+- [ ] <strong>docx-fixer:</strong> reuse its logic as a vendored, stdlib-only module, or reimplement the minimal editor here? Decided in <code>design</code>. docx-fixer stays a separate repo.
+- [ ] <strong>Windows Home and Intel Macs (no Cowork):</strong> confirm the fallback (web chat with the Skill, plus the Word panel or basic mode) is acceptable as documented.</p>
+<p><strong>Decisions log</strong> (carried unchanged from <code>explore-idea</code>):</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Decision</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-1</td>
+<td>Split into engine → storage → setup</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td>Claude runs the kit's code; prompt-only fallback</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>What each Claude plan offers (research table)</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>Entry point: a normal-chat sentence ("I want to use literary-critic for my novel")</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>Setup wizard: checks plan, OS, Word version and what is enabled; says what to turn on; finds the novel and its versions</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-6</td>
+<td>Guided flow: a plan; the writer accepts, changes or rejects; short, targeted answers</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-7</td>
+<td>Install: Claude fetches the tool itself (B); falls back to Skill zip upload (A)</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-8</td>
+<td>Main target Pro + Cowork; Free as basic mode</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-9</td>
+<td>Commented copies as the main Word channel</td>
+<td>superseded by D-11</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-10</td>
+<td>Working files in <code>MyNovel/literary-critic/</code></td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-11</td>
+<td>Edit the same manuscript on approval: tracked changes, backup, computer use for live fixes, 365 add-in when available</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-12</td>
+<td>Rule 5: prose suggestions are a per-writer setting, off by default; mechanical edits always allowed after approval</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-13</td>
+<td>Safe-edit protocol: lock-file and on-disk-change checks, save before close, backup, verify, auto-restore</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-14</td>
+<td>Free route: Word add-in on free Word for the web</td>
+<td>open (test by hand)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-15</td>
+<td><code>.docx</code> stays the master; Google Docs read-only support</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-16</td>
+<td>Can Skill scripts run inside the Word add-in?</td>
+<td>open (test)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-17</td>
+<td>Cowork↔Word bridge: round actions as tagged comments in the master; decisions back as thread replies</td>
+<td>agreed (pending spec approval)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-18</td>
+<td>Skills on the Free plan: sources disagree</td>
+<td>open (verify)</td>
+<td>2026-10-11</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var name='literary-critic-spec-notes-'+today()+'-r1.md';
+    var saved=download(name,r.text);openModal(r.text);
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    dirty=false;setState('✓ Backup saved '+nowStamp(),'ok');
+    toast('Exported '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
