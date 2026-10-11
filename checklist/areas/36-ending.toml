@@ -43,6 +43,8 @@ severity = { high = "A main character's fate is missing or contradicts the story
 
 [[check]]
 id = "ending.open-threads"
+measurable = true
+codex_question = "setups-without-payoff"
 title = "Open threads at the end: designed or accidental"
 question = "Which setups, motifs, subplots and questions are still open at the end, and which of them are deliberately left open (with a textual signal) rather than forgotten?"
 look_for = ["a subplot that simply stops", "a question the text invites and never addresses", "ambiguity with no signal that it is intended", "a thread closed offstage in a line of summary"]

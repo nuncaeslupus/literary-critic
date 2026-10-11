@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="91ca24047b35cc46648bc1876cf9c47005157bc4b52419a6982294eebd21ed01">
+<meta name="arsenal-source-sha256" content="af2d44d41d67778f0ae1b4a8a6321c69dd2f51eb08c6f2faa032c279f32e30ca">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -870,13 +870,13 @@ v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status
 <article class="sec" id="s-spec-named-questions">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Named questions</span></h4>
 <div class="sec-body"><p>One file per question, <code>src/litcritic/questions/&lt;id&gt;.sql</code>, with a TOML header
-in a leading comment:</p>
+in a leading comment. Checklist checks point to it with <code>measurable = true</code> and
+<code>codex_question = "&lt;id&gt;"</code>, the only place that link is kept:</p>
 <pre><code class="language-sql">-- id = &quot;speech-chapters&quot;
 -- title = &quot;In how many chapters does a character speak?&quot;
 -- family = &quot;characters&quot;
 -- params = { character = &quot;entity id or name&quot; }
 -- defaults = {}
--- checks = [&quot;dialogue.voice-distinct&quot;]
 SELECT COUNT(DISTINCT p.chapter) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx
 WHERE d.speaker = :character;
 </code></pre></div>

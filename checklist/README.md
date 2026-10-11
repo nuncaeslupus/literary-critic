@@ -52,6 +52,8 @@ kind = "diagnostic"            # diagnostic (default) | inventory | strength
 action_level = "structural"    # structural | scene | line | none  → revision round
 inputs = ["L1", "structure", "metrics"]
 metrics = ["words_per_chapter"]
+measurable = true             # optional: a named Codex question measures it
+codex_question = "chapter-lengths"   # required when measurable (see `lc codex questions`)
 applies_when = []              # traits; empty = always applies
 modes = ["revision", "reader-report"]   # default: both
 evidence = "What must be cited for a finding."

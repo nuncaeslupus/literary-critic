@@ -6,6 +6,8 @@ purpose = "Find redundancy, not simply length: repeated facts, restated ideas, e
 
 [[check]]
 id = "density-and-pruning.repeated-information"
+measurable = true
+codex_question = "top-phrases"
 title = "Repeated information"
 question = "Where is the same fact or event told to the reader more than once without adding?"
 look_for = ["a revelation re-explained later", "recaps of earlier chapters", "characters telling each other what the reader already saw"]

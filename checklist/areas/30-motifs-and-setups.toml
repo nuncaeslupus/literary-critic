@@ -68,6 +68,8 @@ severity = { high = "A prominent motif is dropped in a way that leaves the reade
 
 [[check]]
 id = "motifs-and-setups.setups-payoffs"
+measurable = true
+codex_question = "setups-without-payoff"
 title = "Setups and payoffs"
 question = "Does each prominent setup have a payoff and each payoff a setup, and is the foreshadowing calibrated, neither telegraphing the payoff nor too faint to be fair?"
 look_for = ["an object or skill stressed and never used", "a solution that relies on something never mentioned", "a setup so heavy the payoff is obvious long before", "a payoff too close to its setup to feel earned, or so far the reader has forgotten"]
