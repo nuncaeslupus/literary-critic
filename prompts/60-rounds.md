@@ -23,4 +23,9 @@ be cut is wasted.
    (`accepted`, `rejected`, `deferred`, `done`).
 4. `lc round status --workspace <slug>` says whether the round can close: no
    open high-severity action left, or the writer decides to close it.
-5. To find any paragraph for the writer: `lc locate c05.s1.p3 --workspace <slug>`.
+5. If the writer works in Word or Google Docs, offer a commented copy:
+   `lc docx-comments --workspace <slug>` writes
+   `<ws>/revisions/round-NN/<version>-comments.docx` with each open action as a
+   comment on its paragraph. It is a copy; the writer's file is never changed.
+   (Google Docs imports Word comments when the file is uploaded.)
+6. To find any paragraph for the writer: `lc locate c05.s1.p3 --workspace <slug>`.

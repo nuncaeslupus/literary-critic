@@ -1,0 +1,7 @@
+{
+  "metric": "docx_comment_anchor_accuracy",
+  "value": 1.0,
+  "method": "a .docx twin of the Spanish corpus text (split runs, tracked deletions, field codes, empty spacer paragraphs) gets one comment per action; each comment's range start is located in the output and its paragraph text compared with the action's target paragraph; the output re-ingests to identical text and the original snapshot is byte-identical",
+  "real_draft_check": "also run on a temporary copy of a private working draft with placeholder comments (no details recorded; copy deleted)",
+  "command": "uv run pytest tests/test_docx_out.py"
+}

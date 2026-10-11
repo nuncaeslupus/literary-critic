@@ -44,6 +44,7 @@ class Para:
     page_break_before: bool = False
     blank_before: int = 0  # empty paragraphs/lines skipped just before this one
     style: str = ""
+    src: int = -1  # docx: position among all w:p elements (for anchored comments)
 
     def meta(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
@@ -227,9 +228,11 @@ def read_docx(data: bytes) -> Draft:
     # present, so an explicit break is not counted twice.
     state = {"page": 1, "rendered": _has_rendered_breaks(root), "break_next": False}
     raw: list[Para] = []
+    ordinal = {id(el): k for k, el in enumerate(root.iter(f"{W}p"))}
 
     def para(p: ET.Element) -> Para:
         out = Para("", page=state["page"], page_break_before=bool(state["break_next"]))
+        out.src = ordinal[id(p)]
         state["break_next"] = False
         ppr = p.find(f"{W}pPr")
         if ppr is not None:

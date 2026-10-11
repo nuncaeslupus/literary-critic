@@ -110,6 +110,14 @@ page) and the paragraph's first and last words — the shortest runs that occur
 only once in the draft. A very short paragraph that cannot be unique is placed
 after its neighbour.
 
+## Comments in Word
+
+`lc docx-comments --workspace <slug>` writes a copy of the draft's `.docx`
+snapshot to `revisions/round-NN/vNNN-comments.docx` with each pending or
+accepted action of the latest round as a comment on its paragraph. Paragraphs
+are matched by their position in the document recorded at ingest; existing
+comments are kept. The writer's original file is never modified.
+
 ## Moving a workspace between sessions
 
 | Surface | Pattern |

@@ -13,6 +13,7 @@ from litcritic import (
     checklist,
     corpus,
     diff,
+    docx_out,
     guard,
     index,
     ingest,
@@ -303,6 +304,23 @@ def _cmd_round(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_docx_comments(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        out, n = docx_out.build(ws.root, args.version)
+    except (
+        workspace.WorkspaceError,
+        docx_out.DocxError,
+        rounds.RoundError,
+        OSError,
+        ValueError,
+    ) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1 if isinstance(exc, docx_out.DocxError | rounds.RoundError) else 2
+    print(f"{n} paragraphs commented; the original is unchanged -> {out}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -439,6 +457,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_round.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_round.set_defaults(func=_cmd_round)
+
+    p_dc = sub.add_parser(
+        "docx-comments", help="copy of the .docx with the round's actions as comments"
+    )
+    p_dc.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_dc.add_argument("--version", default=None)
+    p_dc.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_dc.set_defaults(func=_cmd_docx_comments)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)
