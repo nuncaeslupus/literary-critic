@@ -59,6 +59,23 @@ moved, modified (with similarity), split, merged or deleted — and its new
 anchors; the inserted paragraphs; and `stale_scenes`, the new scenes whose text
 changed, so only their scene cards are re-read.
 
+## Metrics
+
+`lc metrics --workspace <slug>` writes `metrics/vNNN.json` with every metric in
+`checklist/metrics.toml` that the script implements: lengths, sentence and
+paragraph statistics, readability (Fernández-Huerta and Szigriszt/INFLESZ for
+Spanish, Flesch for English — relative gauges only), dialogue, word choice,
+names, proofreading signals. Items carry anchors.
+
+Some metrics aggregate what the LLM or the registers provide and report
+`unmeasured` until that input exists:
+
+| Input | Path | Used by |
+|-------|------|---------|
+| Registers | `index/vNNN/registers/<kind>.json` (schema `register`) | characters, motifs, setups/threads |
+| Scene cards | `index/vNNN/scene_cards.json` (list, schema `scene-card`) | POV distribution |
+| Labels | `analysis/labels.json`: `chapter_endings` {chapter id: type}, `summary_passages` [anchors], `climax` anchor, `opening_hook` anchor | chapter endings, scene/summary ratio, dénouement share, opening hook |
+
 ## Moving a workspace between sessions
 
 | Surface | Pattern |

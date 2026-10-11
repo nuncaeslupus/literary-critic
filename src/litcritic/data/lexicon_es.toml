@@ -1,0 +1,20 @@
+# Spanish word lists for script metrics. Lower case; matching ignores accents
+# only where noted. Multi-word entries match as phrases.
+stopwords = ["a", "al", "algo", "algún", "alguna", "algunas", "alguno", "algunos", "ante", "antes", "aquel", "aquella", "aquello", "así", "aun", "aún", "cada", "como", "con", "contra", "cual", "cuando", "de", "del", "desde", "donde", "dos", "el", "él", "ella", "ellas", "ello", "ellos", "en", "entre", "era", "eran", "es", "esa", "ese", "eso", "esta", "está", "estaba", "este", "esto", "fue", "había", "habían", "hasta", "hay", "la", "las", "le", "les", "lo", "los", "me", "mi", "mis", "mucho", "muy", "nada", "ni", "no", "nos", "o", "os", "para", "pero", "poco", "por", "porque", "que", "qué", "se", "sea", "ser", "si", "sí", "sin", "sobre", "su", "sus", "también", "tan", "te", "tenía", "ti", "todo", "todos", "tu", "tú", "un", "una", "uno", "unos", "unas", "y", "ya", "yo"]
+filter_words = ["vio", "veía", "vi", "miró", "miraba", "oyó", "oía", "escuchó", "sintió", "sentía", "notó", "notaba", "pareció", "parecía", "pensó", "pensaba", "se dio cuenta", "supo", "sabía", "creyó", "creía", "se preguntó", "observó", "percibió", "advirtió"]
+crutch_words = ["muy", "algo", "cosa", "cosas", "de repente", "de pronto", "repentinamente", "empezó a", "empezaba a", "comenzó a", "comenzaba a", "realmente", "simplemente", "básicamente", "un poco", "bastante", "casi", "solo", "sólo", "entonces", "incluso", "totalmente", "absolutamente"]
+said_verbs = ["dijo", "decía", "dije", "preguntó", "preguntaba", "respondió", "contestó", "repuso", "añadió"]
+tag_verbs = ["dijo", "decía", "dije", "preguntó", "preguntaba", "respondió", "contestó", "repuso", "añadió", "exclamó", "gritó", "susurró", "murmuró", "replicó", "insistió", "suspiró", "balbuceó", "sollozó", "rió", "rio", "musitó", "bramó", "masculló", "advirtió", "explicó", "comentó", "aseguró", "protestó", "ordenó", "rogó"]
+comparison_markers = ["como si", "como", "igual que", "parecido a", "semejante a", "cual si", "a modo de", "tal como"]
+adverb_suffix = "mente"
+adverb_exclude = ["mente", "demente", "clemente", "simiente", "vehemente", "inclemente"]
+sensory.sight = ["ver", "vio", "veía", "mirar", "miró", "brillo", "brillaba", "luz", "sombra", "oscuro", "oscuridad", "color", "rojo", "azul", "verde", "blanco", "negro", "gris", "amarillo", "resplandor", "destello"]
+sensory.sound = ["oír", "oyó", "oía", "sonido", "ruido", "silencio", "voz", "grito", "susurro", "eco", "crujido", "golpe", "murmullo", "campana", "canto"]
+sensory.smell = ["olor", "olía", "oler", "aroma", "perfume", "hedor", "peste", "fragancia", "olfato"]
+sensory.touch = ["tocar", "tocó", "tacto", "suave", "áspero", "rugoso", "liso", "piel", "roce", "rozó", "caricia", "acarició", "apretó", "pegajoso"]
+sensory.taste = ["sabor", "sabía a", "dulce", "amargo", "salado", "ácido", "agrio", "probó", "lengua", "paladar"]
+sensory.temperature = ["frío", "fría", "calor", "caliente", "helado", "helada", "tibio", "tibia", "templado", "sudor", "escalofrío"]
+cliches = ["un escalofrío le recorrió la espalda", "se le heló la sangre", "el corazón le dio un vuelco", "contuvo la respiración", "soltó el aire que no sabía que estaba conteniendo", "se le hizo un nudo en la garganta", "como alma que lleva el diablo", "en un abrir y cerrar de ojos", "más blanco que la nieve", "frío como el hielo", "el tiempo se detuvo", "un silencio sepulcral", "a la velocidad del rayo", "el corazón le latía con fuerza", "las piernas le temblaban", "se le erizó el vello"]
+spelling_pairs = [["vídeo", "video"], ["período", "periodo"], ["olimpíada", "olimpiada"], ["sólo", "solo"], ["éste", "este"], ["ésta", "esta"], ["aquél", "aquel"], ["psicología", "sicología"], ["septiembre", "setiembre"], ["obscuro", "oscuro"], ["quizá", "quizás"], ["icono", "ícono"]]
+long_sentence_words = 50
+note_markers = ["TODO", "XXX", "NOTA", "OJO", "REVISAR", "PENDIENTE", "COMPROBAR", "??"]
