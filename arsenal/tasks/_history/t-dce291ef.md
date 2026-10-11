@@ -4,6 +4,7 @@ title: "T6: Draft alignment: old\u2192new anchor map, changed/moved/new/deleted,
 label: "draft alignment"
 priority: 5
 deps: [t-22f7049e]
+status: merged
 ---
 
 # T6: Draft alignment: old→new anchor map, changed/moved/new/deleted, stale scenes

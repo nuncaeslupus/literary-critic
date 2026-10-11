@@ -51,6 +51,14 @@ fingerprints (from `structure.json`):
 
 Every fingerprint must match exactly one paragraph or nothing is applied.
 
+## Comparing drafts
+
+`lc diff v001 v002 --workspace <slug>` (both drafts anchored) writes
+`index/v002/alignment.json`: for every old paragraph its status — unchanged,
+moved, modified (with similarity), split, merged or deleted — and its new
+anchors; the inserted paragraphs; and `stale_scenes`, the new scenes whose text
+changed, so only their scene cards are re-read.
+
 ## Moving a workspace between sessions
 
 | Surface | Pattern |
