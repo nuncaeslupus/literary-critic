@@ -1,0 +1,7 @@
+{
+  "metric": "index_query_tokens_p95",
+  "value": 1929,
+  "detail": {"marianela": {"queries": 86, "p95": 1929, "max": 1950}, "jekyll-hyde": {"queries": 39, "p95": 1918, "max": 1939}},
+  "method": "toc, every chapter, first two scenes of each chapter, 7 finds, context every 40th paragraph, all at the default budget (2000, estimated tokens = chars / 3.5). Output is cut at the budget, so the bound does not depend on novel length; the spec's 150k-word corpus novel is not in corpus/ yet.",
+  "command": "uv run pytest tests/test_query.py"
+}

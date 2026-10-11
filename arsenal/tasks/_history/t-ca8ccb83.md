@@ -4,6 +4,7 @@ title: "T9: Index build (registers from scene cards) + `lc show/find/context --b
 label: "index build and queries"
 priority: 5
 deps: [t-dce291ef, t-83a5f678]
+status: merged
 ---
 
 # T9: Index build (registers from scene cards) + `lc show/find/context --budget`
