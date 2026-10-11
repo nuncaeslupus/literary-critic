@@ -14,9 +14,11 @@ from litcritic import (
     corpus,
     diff,
     guard,
+    index,
     ingest,
     metrics,
     pack,
+    query,
     structure,
     synth,
     validate,
@@ -212,6 +214,53 @@ def _cmd_unpack(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_index(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        written, errors = index.build(ws.root, args.version)
+    except (workspace.WorkspaceError, OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    for err in errors:
+        print(err, file=sys.stderr)
+    if errors:
+        print(f"scene cards: {len(errors)} error(s); nothing written")
+        return 1
+    print(f"wrote {len(written)} registers to {written[0].parent}")
+    return 0
+
+
+def _cmd_query(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        ix = query.load(ws.root, args.version)
+        if args.command == "show":
+            unit = args.unit or ""
+            if not unit:
+                text = query.toc(ix, args.budget)
+            elif unit.endswith("-"):
+                text = query.show_from(ix, unit, args.budget)
+            else:
+                text = query.show(ix, unit, args.budget, args.fp)
+        elif args.command == "find":
+            text = query.find(ix, args.query, args.budget, args.within or "")
+        else:
+            text = query.context(ix, args.anchor, args.budget)
+    except (
+        workspace.WorkspaceError,
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        IndexError,
+    ) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    sys.stdout.write(text)
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -301,6 +350,33 @@ def build_parser() -> argparse.ArgumentParser:
     p_unp.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_unp.add_argument("--force", action="store_true", help="overwrite even newer/diverged work")
     p_unp.set_defaults(func=_cmd_unpack)
+
+    p_idx = sub.add_parser("index", help="check scene cards and build registers from them")
+    p_idx.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_idx.add_argument("--version", default=None)
+    p_idx.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_idx.set_defaults(func=_cmd_index)
+
+    def query_args(p: argparse.ArgumentParser) -> None:
+        p.add_argument("--workspace", required=True, help="workspace folder or slug")
+        p.add_argument("--version", default=None, help="draft version (default latest)")
+        p.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET, help="max tokens")
+        p.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+        p.set_defaults(func=_cmd_query)
+
+    p_show = sub.add_parser("show", help="table of contents, or the text of a chapter/scene")
+    p_show.add_argument("unit", nargs="?", help="c03, c03.s2, c03.s2.p4, or c03.s2.p4- to continue")
+    p_show.add_argument("--fp", action="store_true", help="also print paragraph fingerprints")
+    query_args(p_show)
+    p_find = sub.add_parser("find", help="paragraphs containing all words (or a quoted phrase)")
+    p_find.add_argument("query")
+    p_find.add_argument("--in", dest="within", default=None, help="limit to a chapter or scene")
+    query_args(p_find)
+    p_ctx = sub.add_parser(
+        "context", help="a paragraph with its chapter, scene card and neighbours"
+    )
+    p_ctx.add_argument("anchor")
+    query_args(p_ctx)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

@@ -76,6 +76,25 @@ Some metrics aggregate what the LLM or the registers provide and report
 | Scene cards | `index/vNNN/scene_cards.json` (list, schema `scene-card`) | POV distribution |
 | Labels | `analysis/labels.json`: `chapter_endings` {chapter id: type}, `summary_passages` [anchors], `climax` anchor, `opening_hook` anchor | chapter endings, scene/summary ratio, dénouement share, opening hook |
 
+## Index and queries
+
+The LLM writes one scene card per scene into `index/vNNN/scene_cards.json`
+(schema `scene-card`), chapter summaries into `index/vNNN/chapter_summaries.json`
+(`{"c01": "…"}`) and the synopsis into `analysis/synopsis.md`.
+`lc index --workspace <slug>` validates the cards (schema and anchors) and
+builds `index/vNNN/registers/` — characters, locations, timeline, setups — by
+script. Use the same short label for a setup and its payoff so they pair.
+
+Queries print at most `--budget` tokens (default 2000) and say how to continue:
+
+| Command | Shows |
+|---------|-------|
+| `lc show` | table of contents: chapter, words, scenes, title, summary |
+| `lc show c03` / `c03.s2` / `c03.s2.p4` | that text, one anchored paragraph per line (`--fp` adds fingerprints for overrides) |
+| `lc show c03.s2.p17-` | continue reading from that paragraph |
+| `lc find <words>` / `"<phrase>"` `[--in c03]` | matching paragraphs, accent-blind, with snippets |
+| `lc context c03.s2.p4` | chapter, scene card, the paragraph and its neighbours |
+
 ## Moving a workspace between sessions
 
 | Surface | Pattern |
