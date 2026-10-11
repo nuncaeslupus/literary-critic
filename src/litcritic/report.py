@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, locate, query, rounds, structure, validate, workspace
+from litcritic import checklist, kinds, locate, query, rounds, structure, validate, workspace
 
 SECTIONS = ("summary", "synopsis", "strengths", "weaknesses", "market", "facts", "verdict")
 MAX_WEAKNESSES = 10
@@ -83,7 +83,7 @@ def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, b
     errors = validate.validate("report", judgment)
     findings = rounds.load_json(ws_root / "analysis" / "findings.json", [])
     errors += validate.validate(
-        "finding", findings, checklist.load(workspace.repo_root() / "checklist")
+        "finding", findings, checklist.load(kinds.of_work(ws_root).CHECKLIST)
     )
     if errors:
         raise ReportError("report.json or findings.json is invalid: " + "; ".join(errors[:5]))

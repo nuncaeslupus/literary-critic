@@ -32,15 +32,19 @@ def get(name: str) -> ModuleType:
 
 
 def of_work(work_root: Path) -> ModuleType:
-    """The kind named in the work's ``work.toml`` (novel when missing)."""
+    """The kind named in the work's ``work.toml`` (novel when it names none).
+
+    An unknown kind or an unreadable ``work.toml`` is an error, never a silent
+    fallback: a poem read as a novel would lose its item types.
+    """
     f = work_root / "work.toml"
-    kind = DEFAULT
-    if f.is_file():
-        try:
-            kind = str(tomllib.loads(f.read_text(encoding="utf-8")).get("kind") or DEFAULT)
-        except (OSError, ValueError):
-            kind = DEFAULT
-    return get(kind if kind in available() else DEFAULT)
+    if not f.is_file():
+        return get(DEFAULT)
+    try:
+        kind = str(tomllib.loads(f.read_text(encoding="utf-8")).get("kind") or DEFAULT)
+    except (OSError, ValueError) as exc:
+        raise KindError(f"cannot read {f}: {exc}") from exc
+    return get(kind)
 
 
 def type_dirs(work_root: Path) -> list[Path]:

@@ -1,9 +1,10 @@
 """Poetry collections: each poem is a chapter, its stanzas are paragraphs.
 
-A poem starts at a title line: short, no closing punctuation, alone in its
-block (a blank line after it, when the file records blank lines) and followed by
-text. Each line of verse is a paragraph. Everything before the first title is
-front matter.
+A poem starts at a title line: short, no closing punctuation, and alone in its
+block (a blank line before and after it). Each line of verse is a paragraph, so
+a stanza's first or last line never qualifies. One-line stanzas that look like
+titles are the known ambiguity; correct them with structure overrides.
+Everything before the first title is front matter.
 """
 
 from __future__ import annotations
@@ -28,15 +29,17 @@ def _is_title(text: str) -> bool:
 
 def detect(paragraphs: list[str], meta: list[dict[str, Any]] | None = None) -> Structure:
     n = len(paragraphs)
-    known = meta if meta and len(meta) == n else None
+    if not meta or len(meta) != n:
+        note = "no blank-line information: poems not separated (ingest a .txt, .md or .docx)"
+        return Structure(list(paragraphs), [], [Unit(start=0, reason="front")], {0}, set(), [note])
 
-    def alone(i: int) -> bool:
-        return known is None or int(known[i + 1].get("blank_before", 0)) >= 1
+    def blank_before(i: int) -> bool:
+        return i == 0 or int(meta[i].get("blank_before", 0)) >= 1
 
     titles = [
         i
         for i in range(n - 1)
-        if _is_title(paragraphs[i]) and alone(i) and not _is_title(paragraphs[i + 1])
+        if _is_title(paragraphs[i]) and blank_before(i) and blank_before(i + 1)
     ]
     chapters = [
         Unit(start=i, heading=[i], title=paragraphs[i].strip(), reason="title") for i in titles

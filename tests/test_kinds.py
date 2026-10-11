@@ -13,11 +13,11 @@ A note on the poems that follow.
 
 First Light
 
-The kettle hums before the sun,
+The kettle hums before the sun
 the window learns its grey.
 
 A bird repeats the only word
-it found along the way.
+it found along the way
 
 Harbour
 
@@ -63,3 +63,20 @@ def test_novel_is_the_default_kind(tmp_path: Path) -> None:
     assert kinds.of_work(tmp_path).NAME == "novel"
     with pytest.raises(kinds.KindError):
         kinds.get("opera")
+
+
+def test_poem_titles_need_a_block_of_their_own() -> None:
+    from litcritic.kinds import poem
+
+    lines = ["Harbour", "Ropes complain against the posts", "the boats rehearse their names"]
+    meta = [{}, {"blank_before": 1}, {}]
+    assert [c.title for c in poem.detect(lines, meta).chapters] == ["Harbour"]
+    assert [c.reason for c in poem.detect(lines, None).chapters] == ["front"]
+
+
+def test_unknown_kind_is_an_error(tmp_path: Path) -> None:
+    (tmp_path / "work.toml").write_text('kind = "poems"\n', encoding="utf-8")
+    with pytest.raises(kinds.KindError, match="unknown kind"):
+        kinds.of_work(tmp_path)
+    with pytest.raises(SystemExit):
+        main(["init", "x", "--title", "X", "--language", "en", "--kind", "opera"])
