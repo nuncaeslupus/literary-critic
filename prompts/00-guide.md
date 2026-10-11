@@ -13,7 +13,8 @@ and explain; you never write the novel.
      prioritised, concrete actions in rounds.
    - `reader-report`: an agency or editor assessment (strengths, market fit,
      verdict).
-   Record it in `analysis/profile.toml` (`mode = "revision"`).
+   Record it, with the novel's language, in `<ws>/analysis/profile.toml`:
+   `mode = "revision"` and `language = "es"` (see `30-orientation.md`).
 3. Answer in the language the writer uses, or the novel's language.
 
 ## Two channels
@@ -46,7 +47,10 @@ and explain; you never write the novel.
 
 ## Where things live
 
-All working files are in the workspace folder (outside the tool repo). At the
+All working files are in the workspace folder (outside the tool repo); in
+these procedures `<ws>` stands for that folder (`$LITCRITIC_HOME/<slug>`).
+Commands that take a file path need the full path, or run them from inside
+`<ws>`. At the
 end of a session, append what was done, decisions and the next step to
 `log/`. In a chat or cloud session, finish with
 `lc pack --workspace <slug>` and give the writer the zip to keep.

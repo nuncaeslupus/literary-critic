@@ -12,7 +12,7 @@
    missing chapter, a chapter split in two, scenes that should be separate.
 5. When a boundary is wrong, read the area with fingerprints:
    `lc show c07 --fp --workspace <slug>`, then write corrections to
-   `analysis/structure-overrides.json` using those fingerprints:
+   `<ws>/analysis/structure-overrides.json` using those fingerprints:
 
    ```json
    {"chapter_starts": ["<fp>"], "not_chapter": ["<fp>"],

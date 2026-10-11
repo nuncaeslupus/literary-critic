@@ -6,8 +6,8 @@ checks read instead of the text, so they must be accurate and consistent.
 ## For each scene
 
 1. Read it: `lc show c03.s2 --workspace <slug> --budget 3000`
-   (continue with the printed `lc show …-` command if it is cut).
-2. Write the card in `index/<version>/scene_cards.json` (a JSON list, one
+   (if it is cut, run the continuation command printed on its last line).
+2. Write the card in `<ws>/index/<version>/scene_cards.json` (a JSON list, one
    object per scene):
 
    ```json
@@ -39,5 +39,5 @@ checks read instead of the text, so they must be accurate and consistent.
 ## After a batch of cards
 
 Validate and build the registers:
-`lc validate scene-card index/<version>/scene_cards.json` and
+`lc validate scene-card <ws>/index/<version>/scene_cards.json` and
 `lc index --workspace <slug>`. Fix every reported error before going on.
