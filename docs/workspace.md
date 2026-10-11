@@ -9,7 +9,9 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
   workspace.toml        # title, language, mode (revision | reader-report), schema_version
   guard-terms.txt       # names that must never reach the tool repo
   manuscript/           # writer's originals, one snapshot per draft (v001.docx, v002.docx…)
-  text/                 # normalised text per draft (v001.txt), one paragraph per line
+  text/                 # normalised text per draft (v001.txt), one paragraph per line,
+                        # + v001.meta.json: per-paragraph heading level, centred, page,
+                        #   page break before, blank lines before, style name
   index/                # anchors, structure, scene cards, characters, timeline… (per draft)
   metrics/              # script-measured metrics per draft
   analysis/             # novel profile (adapted checklist) and findings
@@ -19,6 +21,15 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
 
 Everything is text (TOML, JSON, Markdown) except the manuscript snapshots, so a
 workspace diffs cleanly and survives any sync tool.
+
+## Ingesting a draft
+
+`lc ingest <file> --workspace <slug|folder>` accepts `.txt`, `.md`, `.docx` and
+`.odt`. It copies the file to `manuscript/vNNN.<ext>` and writes `text/vNNN.txt`
+plus its meta file. Tracked deletions, field codes, footnotes and comments are
+left out; soft line breaks become spaces. Ingesting an unchanged file again
+does nothing. Page numbers come from the page breaks Word/LibreOffice last
+rendered, so they are approximate.
 
 ## Moving a workspace between sessions
 
