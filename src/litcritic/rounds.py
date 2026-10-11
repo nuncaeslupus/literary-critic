@@ -209,8 +209,9 @@ def build(
 ) -> tuple[Path, list[dict[str, Any]], list[str]]:
     """Record the next round; returns (round.json path, actions, warnings).
 
-    A latest round with no decision on any of its issues has not been put to the
-    writer yet, so it is rebuilt in place (same number) rather than followed.
+    A latest round with no letter and no decision on any of its issues has not been
+    put to the writer yet, so it is rebuilt in place (same number) rather than
+    followed. Once its letter exists, its numbering is fixed.
     ``version`` is accepted for the CLI and must be the Codex's synced draft.
     """
     cx = Codex(ws_root)
@@ -224,7 +225,8 @@ def build(
     reuse = None
     if dirs:
         last = _round_meta(dirs[-1]).get("actions") or []
-        if last and all(decision(cx, a["issue"]) is None for a in last):
+        sent = (dirs[-1] / "letter.md").exists()
+        if last and not sent and all(decision(cx, a["issue"]) is None for a in last):
             reuse = dirs[-1]
     in_rounds = {a["issue"] for d in dirs if d != reuse for a in _round_meta(d).get("actions", [])}
     problems = [
@@ -287,6 +289,8 @@ def mark(ws_root: Path, action_id: str, status: str, reason: str = "") -> dict[s
         for entry in _round_meta(d).get("actions", []):
             if entry["id"] != action_id:
                 continue
+            if entry["issue"] not in cx.items:
+                raise RoundError(f"{action_id}: its issue {entry['issue']} is not in the Codex")
             current = decision(cx, entry["issue"])
             if current is not None:
                 cx.retire(current.id, by="writer")
@@ -300,7 +304,10 @@ def mark(ws_root: Path, action_id: str, status: str, reason: str = "") -> dict[s
                     links=[{"rel": "about", "to": entry["issue"]}],
                     by="writer",
                 )
-            return next(a for a in round_actions(ws_root, d, cx) if a["id"] == action_id)
+            found = [a for a in round_actions(ws_root, d, cx) if a["id"] == action_id]
+            if not found:
+                raise RoundError(f"{action_id}: its issue could not be read from the Codex")
+            return found[0]
     raise RoundError(f"no action {action_id!r}")
 
 
