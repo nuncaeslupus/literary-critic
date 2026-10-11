@@ -116,6 +116,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
+| C1 | `catalogue_questions >= 60` | 69 (12 families) | `uv run pytest tests/test_codex_catalogue.py` | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 
