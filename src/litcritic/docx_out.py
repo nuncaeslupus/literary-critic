@@ -10,7 +10,6 @@ the writer already had are kept; ours get ids after theirs.
 from __future__ import annotations
 
 import io
-import json
 import re
 import zipfile
 from datetime import UTC, datetime
@@ -19,7 +18,8 @@ from typing import Any
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
-from litcritic import ingest, query, rounds, structure
+from litcritic import ingest, query, rounds
+from litcritic.codex import Codex
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 COMMENTS_PART = "word/comments.xml"
@@ -187,16 +187,12 @@ def comment_lines(action: dict[str, Any], lang: str) -> list[str]:
 def build(ws_root: Path, version: str | None = None) -> tuple[Path, int]:
     """Write ``revisions/round-NN/<draft>-comments.docx`` for the latest round.
 
-    The draft is the one the round was built on (``round.json``), because
-    action anchors point into that version.
+    Comments go on the Codex's synced draft, where the issues' spans point;
+    actions whose passage is gone, or that the writer already closed, get none.
     """
     round_dir = rounds.latest_round(ws_root)
-    meta = (
-        json.loads((round_dir / "round.json").read_text(encoding="utf-8"))
-        if (round_dir / "round.json").is_file()
-        else {}
-    )
-    version = str(meta.get("version") or version or structure.latest_version(ws_root))
+    cx = Codex(ws_root)
+    version = cx.draft
     snapshot = ws_root / "manuscript" / f"{version}.docx"
     if not snapshot.is_file():
         raise DocxError(f"draft {version} is not a .docx; comments need a Word file")
@@ -208,12 +204,11 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, int]:
         raise DocxError(str(exc)) from exc
     if [p.text for p in draft.paragraphs] != ix.paragraphs:
         raise DocxError(f"{snapshot.name} no longer matches text/{version}.txt; re-ingest it")
-    actions = json.loads((round_dir / "actions.json").read_text(encoding="utf-8"))
     lang = rounds.language(ws_root)
     index_of = {a: i for i, a in enumerate(ix.anchors)}
     targets: dict[int, list[str]] = {}
-    for action in actions:
-        if action["status"] not in ("pending", "accepted"):
+    for action in rounds.round_actions(ws_root, round_dir, cx):
+        if action["status"] not in ("pending", "accepted") or not action["where"]:
             continue
         anchor = action["where"]["anchor"]
         if anchor not in index_of:

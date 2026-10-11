@@ -1,6 +1,6 @@
 import io
-import json
 import re
+import shutil
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -8,14 +8,15 @@ from xml.etree import ElementTree as ET
 import docgen
 import pytest
 
-from litcritic import corpus, docx_out, ingest, query, rounds
+from litcritic import codex, corpus, docx_out, ingest, query, rounds
+from litcritic import spans as spanlib
 from litcritic.cli import main
 
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
 @pytest.fixture(scope="module")
-def ws(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def base(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("ws")
     (root / "work.toml").write_text('slug = "ws"\nlanguage = "es"\n', encoding="utf-8")
     text = [p.text for p in ingest.read_txt(corpus.get("marianela").path.read_bytes()).paragraphs]
@@ -24,26 +25,32 @@ def ws(tmp_path_factory: pytest.TempPathFactory) -> Path:
     draft.write_bytes(docgen.docx(paras, seed=5))
     assert main(["ingest", str(draft), "--workspace", str(root)]) == 0
     assert main(["anchor", "--workspace", str(root)]) == 0
+    codex.Codex.init(root, "v001")
     return root
 
 
-def _findings(anchors: list[str]) -> list[dict[str, object]]:
-    return [
-        {
-            "schema_version": 1,
-            "id": f"F{k}",
-            "check_id": "scene-craft.purpose",
-            "anchors": [a],
-            "evidence": [{"anchor": a, "quote": "x"}],
-            "explanation": f"Motivo {k} & <detalle>.",
+@pytest.fixture
+def ws(base: Path, tmp_path: Path) -> Path:
+    root = tmp_path / "ws"
+    shutil.copytree(base, root)
+    return root
+
+
+def _issues(root: Path, anchors: list[str]) -> None:
+    cx = codex.Codex(root)
+    ix = query.load(root)
+    text = spanlib.Text(ix.paragraphs, ix.anchors, "v001")
+    for k, a in enumerate(anchors, 1):
+        n = len(ix.paragraphs[ix.anchors.index(a)])
+        fields = {
+            "level": "scene",
             "severity": "medium",
+            "check": "scene-craft.purpose",
             "confidence": 0.9,
             "effort": "S",
-            "kind": "problem",
-            "status": "open",
+            "why": f"Motivo {k} & <detalle>.",
         }
-        for k, a in enumerate(anchors, 1)
-    ]
+        cx.add("issue", f"Punto {k}", fields, [spanlib.make(text, "v001", a, 0, a, n)])
 
 
 def docx_comment_anchor_accuracy(
@@ -71,8 +78,7 @@ def docx_comment_anchor_accuracy(
 def test_comments_attach_to_target_paragraphs(ws: Path) -> None:
     ix = query.load(ws)
     anchors = [ix.anchors[i] for i in range(5, len(ix.anchors), 97) if ".s0." not in ix.anchors[i]]
-    (ws / "analysis").mkdir(exist_ok=True)
-    (ws / "analysis" / "findings.json").write_text(json.dumps(_findings(anchors)), encoding="utf-8")
+    _issues(ws, anchors)
     _, actions, _ = rounds.build(ws, level="scene")
     original = (ws / "manuscript" / "v001.docx").read_bytes()
     out_path, n = docx_out.build(ws)
@@ -135,7 +141,7 @@ def test_existing_comments_and_odd_markup() -> None:
 def test_round_draft_and_statuses(ws: Path) -> None:
     ix = query.load(ws)
     anchors = [ix.anchors[i] for i in (40, 41, 300)]
-    (ws / "analysis" / "findings.json").write_text(json.dumps(_findings(anchors)), encoding="utf-8")
+    _issues(ws, anchors)
     _, actions, _ = rounds.build(ws, level="scene")
     rounds.mark(ws, actions[1]["id"], "deferred")
     out_path, n = docx_out.build(ws)

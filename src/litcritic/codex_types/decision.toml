@@ -10,6 +10,6 @@ type = "object"
 required = ["verdict"]
 additionalProperties = false
 [schema.properties.verdict]
-enum = ["accepted", "rejected", "done_differently", "done"]
+enum = ["accepted", "rejected", "done_differently", "done", "deferred"]
 [schema.properties.reason]
 type = "string"

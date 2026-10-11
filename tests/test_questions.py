@@ -84,7 +84,7 @@ def test_progress_questions_on_fixture(work: tuple[Path, dict[str, str]], v: vie
     rejected = _ask(v, "rejected")
     assert rejected == [(ids["rejected-issue"], "Slow opening.", "intended pace")]
     open_issues = {(r[0], r[1]): r[2] for r in _ask(v, "open-issues")}
-    assert open_issues == {("line", "minor"): 1, ("scene", "minor"): 1}  # accepted != done
+    assert open_issues == {("line", "low"): 1, ("scene", "low"): 1}  # accepted != done
 
 
 def test_question_params_validated(v: view.View) -> None:

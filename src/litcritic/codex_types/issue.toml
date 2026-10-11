@@ -12,7 +12,15 @@ additionalProperties = false
 [schema.properties.level]
 enum = ["book", "part", "chapter", "scene", "paragraph", "line", "mechanics"]
 [schema.properties.severity]
-enum = ["critical", "major", "minor", "note"]
+enum = ["high", "medium", "low"]
+[schema.properties.kind]
+enum = ["problem", "strength"]
+[schema.properties.confidence]
+type = "number"
+minimum = 0
+maximum = 1
+[schema.properties.effort]
+enum = ["S", "M", "L"]
 [schema.properties.check]
 type = "string"
 [schema.properties.question]
