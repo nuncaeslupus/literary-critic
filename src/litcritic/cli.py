@@ -139,7 +139,7 @@ def _cmd_anchor(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
         out, s, errors = structure.build(ws.root, args.version)
-    except (workspace.WorkspaceError, OSError, ValueError) as exc:
+    except (workspace.WorkspaceError, OSError, ValueError, KeyError, TypeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     for err in errors:

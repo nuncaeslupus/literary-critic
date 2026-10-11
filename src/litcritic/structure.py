@@ -44,7 +44,9 @@ CHAPTER_WORD = re.compile(
     r"|interludio|interlude|introducci[oó]n|introduction|coda)\b",
     re.I,
 )
-PART_WORD = re.compile(rf"^(?:parte|part|libro|book|volumen|volume)\s+{NUM}\b", re.I)
+PART_WORD = re.compile(
+    rf"^(?i:parte|part|libro|book|volumen|volume)\s+(?:\d+|{ROMAN}|(?i:{NUMBER_WORDS}))(?![^\W\d_])"
+)
 BARE_NUMBER = re.compile(rf"^[-\u2013\u2014.\s]*(?:\d{{1,3}}|{ROMAN})[-\u2013\u2014.\s]*$")
 SYMBOLS = re.compile(r"^[\s*#~•·⁂§◆◇○●=+_\u2014\u2013-]{1,15}$")
 STYLE_CHAPTER = re.compile(r"cap[ií]tulo|chapter|chap\b", re.I)
@@ -111,9 +113,9 @@ def _is_title_line(text: str, meta: dict[str, Any]) -> bool:
 
 
 def _is_break(text: str, meta: dict[str, Any]) -> bool:
-    return bool(SYMBOLS.match(text)) or bool(
-        STYLE_BREAK.search(str(meta.get("style", ""))) and _words(text) <= 3
-    )
+    style = str(meta.get("style", ""))
+    styled = bool(STYLE_BREAK.search(style)) and not STYLE_AFTER_BREAK.search(style)
+    return bool(SYMBOLS.match(text)) or (styled and not re.search(r"[^\W_]", text))
 
 
 def _chapter_signal(text: str, meta: dict[str, Any], top_levels: set[int]) -> str:
@@ -135,28 +137,30 @@ def _chapter_signal(text: str, meta: dict[str, Any], top_levels: set[int]) -> st
 
 
 def detect(paragraphs: list[str], meta: list[dict[str, Any]] | None = None) -> Structure:
-    meta = meta or [{} for _ in paragraphs]
+    if meta is None or len(meta) != len(paragraphs):
+        meta = [{} for _ in paragraphs]  # missing or stale layout facts: text signals only
     levels = sorted({int(m["heading"]) for m in meta if m.get("heading")})
     parts: list[Unit] = []
     part_level = 0
-    # Two heading levels in use and the top one is rare → the top one marks parts.
+    # Two heading levels in use and the top one is few and much rarer than the
+    # next → the top one marks parts. Only one level below it counts for chapters;
+    # deeper headings are subtitles or notes.
     if len(levels) >= 2:
         top_count = sum(1 for m in meta if m.get("heading") == levels[0])
-        if top_count <= max(2, len(paragraphs) // 200):
+        next_count = sum(1 for m in meta if m.get("heading") == levels[1])
+        if top_count <= 12 and 2 * top_count <= next_count:
             part_level = levels[0]
-    top_levels = {lv for lv in levels[:2] if lv != part_level} if levels else set()
-    if part_level and len(levels) >= 3:
-        top_levels = {levels[1]}
+    top_levels = {levels[1]} if part_level else set(levels[:1])
 
     breaks = {i for i, t in enumerate(paragraphs) if _is_break(t, meta[i])}
     for i, (text, m) in enumerate(zip(paragraphs, meta, strict=True)):
         if i in breaks:
             continue
         style = str(m.get("style", ""))
-        if (
+        if _heading_like(text) and (
             PART_WORD.match(text)
             or (part_level and m.get("heading") == part_level)
-            or (STYLE_PART.search(style) and _heading_like(text))
+            or STYLE_PART.search(style)
         ):
             parts.append(Unit(i, [i], text, "part"))
     part_starts = {p.start for p in parts}
@@ -275,6 +279,19 @@ def _scenes(
 # --- anchors -------------------------------------------------------------------
 
 
+def chapter_starts(s: Structure) -> list[int]:
+    """First paragraph of each chapter, a part heading just before it included."""
+    part_heads = {p.start for p in s.parts}
+    starts = [c.start for c in s.chapters]
+    for ps in sorted(part_heads):
+        for k, st in enumerate(starts):
+            between = range(ps + 1, st)
+            if st > ps and all(i in s.breaks or i in part_heads for i in between):
+                starts[k] = min(st, ps)
+                break
+    return starts
+
+
 def _anchor_list(s: Structure) -> list[str]:
     """``[pN.]cNN.sN.pN``: chapter 00 is front matter, scene 0 holds heading lines.
 
@@ -283,13 +300,7 @@ def _anchor_list(s: Structure) -> list[str]:
     """
     n = len(s.paragraphs)
     part_heads = {p.start for p in s.parts}
-    starts = [c.start for c in s.chapters]
-    for ps in part_heads:  # pull a part heading into the next chapter's head
-        for k, st in enumerate(starts):
-            between = range(ps + 1, st)
-            if st > ps and all(i in s.breaks or i in part_heads for i in between):
-                starts[k] = min(st, ps)
-                break
+    starts = chapter_starts(s)
     heads = {i for c in s.chapters for i in c.heading} | part_heads
     has_front = bool(s.chapters) and s.chapters[0].reason == "front"
     out: list[str] = []
@@ -300,7 +311,7 @@ def _anchor_list(s: Structure) -> list[str]:
         num = max(ci, 0) if has_front else ci + 1
         part = sum(1 for ps in part_heads if ps <= i)
         prefix = f"p{part}." if s.parts else ""
-        if i in heads:
+        if i in heads or (i in s.breaks and scene == 0):  # ornament under a title
             sc = 0
         else:
             if i in s.scene_starts or scene == 0:
@@ -323,6 +334,8 @@ def apply_overrides(s: Structure, overrides: dict[str, Any]) -> list[str]:
     Nothing is applied when any error is found, so a bad proposal never leaves a
     half-corrected structure.
     """
+    if not isinstance(overrides, dict):
+        return ["overrides must be a JSON object"]
     fps = [fingerprint(t) for t in s.paragraphs]
     where: dict[str, list[int]] = {}
     for i, fp in enumerate(fps):
@@ -349,10 +362,15 @@ def apply_overrides(s: Structure, overrides: dict[str, Any]) -> list[str]:
     known = {c.start for c in s.chapters}
     for i in resolved["chapter_starts"]:
         if i not in known:
-            s.chapters.append(Unit(i, [], "", "override"))
+            text = s.paragraphs[i]
+            is_title = _heading_like(text) and _words(text) <= 8
+            s.chapters.append(
+                Unit(i, [i] if is_title else [], text if is_title else "", "override")
+            )
     s.chapters.sort(key=lambda c: c.start)
     s.scene_starts |= set(resolved["scene_starts"]) | set(resolved["chapter_starts"])
     s.scene_starts -= set(resolved["not_scene"])
+    s.notes[0] = f"{len(s.parts)} parts, {len(s.chapters)} chapters, {len(s.scene_starts)} scenes"
     s.notes.append(f"overrides applied: {sum(len(v) for v in resolved.values())}")
     return []
 
@@ -363,10 +381,10 @@ def apply_overrides(s: Structure, overrides: dict[str, Any]) -> list[str]:
 def to_json(s: Structure, version: str) -> dict[str, Any]:
     anchors = s.anchors()
     words = [_words(t) for t in s.paragraphs]
-    bounds = [c.start for c in s.chapters] + [len(s.paragraphs)]
+    bounds = [*chapter_starts(s), len(s.paragraphs)]
     chapters = []
     for k, c in enumerate(s.chapters):
-        lo, hi = c.start, bounds[k + 1]
+        lo, hi = bounds[k], bounds[k + 1]
         cid = anchors[next((i for i in range(lo, hi) if i not in c.heading), lo)].split(".s")[0]
         scenes: dict[str, dict[str, Any]] = {}
         for i in range(lo, hi):
@@ -412,7 +430,7 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     meta_file = ws_root / "text" / f"{version}.meta.json"
     meta = None
     if meta_file.is_file():
-        meta = json.loads(meta_file.read_text(encoding="utf-8"))["paragraphs"]
+        meta = json.loads(meta_file.read_text(encoding="utf-8")).get("paragraphs")
     s = detect(paragraphs, meta)
     errors: list[str] = []
     ov = ws_root / "analysis" / "structure-overrides.json"

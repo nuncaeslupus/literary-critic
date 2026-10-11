@@ -191,3 +191,38 @@ def test_cli_anchor_writes_structure(tmp_path: Path, capsys: pytest.CaptureFixtu
     (ws / "analysis" / "structure-overrides.json").write_text('{"not_chapter": ["000000000000"]}')
     assert main(["anchor", "--workspace", str(ws)]) == 1
     assert "override rejected" in capsys.readouterr().err
+
+
+def test_review_regressions() -> None:
+    body = "word " * 200
+    # Body sentences starting "Part one…" or with roman-looking words are not parts.
+    s = structure.detect(["CHAPTER ONE", "Part one of the plan failed, as everyone knew.", body])
+    assert s.parts == []
+    # An "after break" style opens a scene; it is not itself a separator.
+    meta = [{}, {}, {"style": "Text after break"}, {}]
+    s = structure.detect(["CHAPTER ONE", body, "No one.", body], meta)
+    assert 2 not in s.breaks and 2 in s.scene_starts
+    # An ornament under a chapter title stays in the heading block.
+    s = structure.detect(["Chapter 1", "* * *", body, "Chapter 2", body, "Chapter 3", body])
+    assert s.anchors()[:3] == ["c01.s0.p1", "c01.s0.p2", "c01.s1.p1"]
+    # Many H1 chapters with H2 subheads: H1 stays the chapter level, H2 is ignored.
+    text: list[str] = []
+    meta2: list[dict[str, Any]] = []
+    for k in range(20):
+        text += [f"Title {k}", f"Sub {k}", body]
+        meta2 += [{"heading": 1}, {"heading": 2}, {}]
+    s = structure.detect(text, meta2)
+    assert s.parts == [] and len([c for c in s.chapters if c.reason != "front"]) == 20
+    # Part headings are counted in the chapter their anchor names.
+    text = ["Part One", "Chapter 1", body, "Chapter 2", body, "Part Two", "Chapter 3", body]
+    data = structure.to_json(structure.detect(text), "v001")
+    c2 = data["chapters"][1]
+    assert c2["end"] == 4 and data["chapters"][2]["start"] == 5
+    # Overrides refresh the summary and give a short override line a heading.
+    s = structure.detect(["CHAPTER ONE", body, "Interlude", body, "CHAPTER TWO", body])
+    assert (
+        structure.apply_overrides(s, {"chapter_starts": [structure.fingerprint("Interlude")]}) == []
+    )
+    assert s.notes[0].startswith("0 parts, 3 chapters")
+    assert any(c.title == "Interlude" for c in s.chapters)
+    assert structure.apply_overrides(s, [])[0] == "overrides must be a JSON object"  # type: ignore[arg-type]
