@@ -2,6 +2,6 @@
   "metric": "runtime_third_party_imports",
   "value": 0,
   "method": "every import in src/litcritic is parsed (ast) and checked against sys.stdlib_module_names",
-  "kit": "lc kit builds a zip with the package, data, schemas, checklist, prompts, START_HERE.md and an lc.py launcher; extracted to an empty folder it passes `python -I lc.py doctor` (ingest, anchor, metrics, queries, pack in a temp workspace) and `checklist validate`; START_HERE commands are checked by the prompt reference gate",
+  "kit": "lc kit builds a zip with the package, data, schemas, checklist, prompts, START_HERE.md and an lc.py launcher; extracted to an empty folder it passes `python -I lc.py doctor --home ./home` (ingest of .txt and .docx, anchor, metrics, queries, pack in a temp workspace, plus the workspace-location rule for ./home), `checklist validate`, and the documented `init` and `pack` with `--home ./home`; the arguments of every START_HERE command are parsed by the prompt reference gate",
   "command": "uv run pytest tests/test_stdlib_only.py"
 }

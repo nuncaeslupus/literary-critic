@@ -49,7 +49,7 @@ def test_kit_runs_on_its_own(tmp_path: Path) -> None:
     zipfile.ZipFile(out).extractall(folder)
     env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
     result = subprocess.run(
-        [sys.executable, "-I", "lc.py", "doctor"],
+        [sys.executable, "-I", "lc.py", "doctor", "--home", "./home"],
         cwd=folder,
         capture_output=True,
         text=True,
@@ -67,3 +67,31 @@ def test_kit_runs_on_its_own(tmp_path: Path) -> None:
         check=False,
     )
     assert checked.returncode == 0, checked.stderr
+    for argv in (
+        ["init", "nov", "--title", "T", "--language", "es", "--home", "./home"],
+        ["pack", "--workspace", "nov", "--home", "./home"],
+    ):
+        ran = subprocess.run(
+            [sys.executable, "-I", "lc.py", *argv],
+            cwd=folder,
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        assert ran.returncode == 0, ran.stderr
+
+
+def test_kit_skips_its_own_output(tmp_path: Path) -> None:
+    inside = repo_root() / "schemas" / "kit-test.zip"
+    try:
+        out, count = kit.build(inside)
+        names = zipfile.ZipFile(out).namelist()
+        assert "schemas/kit-test.zip" not in names and count == len(names)
+    finally:
+        inside.unlink(missing_ok=True)
+
+
+def test_doctor_flags_workspaces_inside_the_checkout() -> None:
+    problems = kit.doctor(repo_root() / "home")
+    assert any("cannot live" in p for p in problems)

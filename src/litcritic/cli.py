@@ -345,13 +345,17 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
 
 def _cmd_kit(args: argparse.Namespace) -> int:
-    out, n = kit.build(args.out)
+    try:
+        out, n = kit.build(args.out)
+    except kit.KitError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     print(f"{n} files -> {out}")
     return 0
 
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
-    problems = kit.doctor()
+    problems = kit.doctor(args.home or workspace.home())
     for p in problems:
         print(f"problem: {p}", file=sys.stderr)
     print("ok" if not problems else f"{len(problems)} problem(s)")
@@ -513,6 +517,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_kit.add_argument("--out", type=Path, default=None, help="zip path (default dist/)")
     p_kit.set_defaults(func=_cmd_kit)
     p_doc = sub.add_parser("doctor", help="check that this platform can run the tool")
+    p_doc.add_argument(
+        "--home", type=Path, default=None, help="where workspaces will live (checked, not written)"
+    )
     p_doc.set_defaults(func=_cmd_doctor)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")

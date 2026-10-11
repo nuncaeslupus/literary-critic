@@ -36,7 +36,7 @@ def _commands(text: str) -> list[str]:
     for chunk in chunks:
         for line in chunk.splitlines():
             for part in re.split(r"&&|;|\|", line):
-                part = part.strip().replace("python lc.py ", "lc ", 1)
+                part = re.sub(r"^python3? lc\.py ", "lc ", part.strip())
                 if part.startswith("lc "):
                     out.append(part)
     return out

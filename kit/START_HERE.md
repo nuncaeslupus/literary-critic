@@ -8,10 +8,10 @@ a novel, or an editor assess one, using the `lc` tool. Read this file first.
 Unzip the kit, then from its folder run:
 
 ```
-python lc.py doctor
+python lc.py doctor --home ./home
 ```
 
-It needs Python 3.11 or newer and only the standard library. If it prints
+It needs Python 3.12 or newer and only the standard library. If it prints
 `ok`, use the full procedures below. If you cannot run code at all, use the
 **reduced mode** (section 4).
 
