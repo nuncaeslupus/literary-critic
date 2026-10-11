@@ -23,7 +23,7 @@ from pathlib import Path
 
 from litcritic import diff, query, structure
 from litcritic import spans as spanlib
-from litcritic.codex import Codex, Item, _write_atomic
+from litcritic.codex import Codex, CodexError, Item, _check_draft, _write_atomic
 from litcritic.textstats import WORD
 
 HOP = ("depends_on", "refers_to", "pays_off")
@@ -39,6 +39,7 @@ class Report:
     lost: list[str] = field(default_factory=list)
     dependents: list[str] = field(default_factory=list)
     renamed: list[tuple[str, str, str]] = field(default_factory=list)  # (entity, old, new)
+    notes: list[str] = field(default_factory=list)
 
     @property
     def flagged(self) -> list[str]:
@@ -47,6 +48,7 @@ class Report:
     def lines(self) -> list[str]:
         out = [f"synced {self.old} -> {self.new}: {self.moved} spans moved"]
         out += [f"renamed {e}: {a} -> {b}" for e, a, b in self.renamed]
+        out += self.notes
         if self.changed:
             out.append(f"text changed under {len(self.changed)} item(s): {', '.join(self.changed)}")
         if self.lost:
@@ -73,17 +75,23 @@ def _renames(cx: Codex, old: spanlib.Text, new: spanlib.Text, al: diff.Alignment
         for n in [e.fields.get("name", ""), *e.fields.get("aliases", [])]
         for w in WORD.findall(n)
     }
+    if not names:
+        return {}
     subs: Counter[tuple[str, str]] = Counter()
     for i, entry in enumerate(al.old):
         if entry["status"] not in ("modified", "split", "merged"):
             continue
         a = WORD.findall(old.paragraphs[i])
+        if names.isdisjoint(a):
+            continue
         b = [w for j in entry["new"] for w in WORD.findall(new.paragraphs[j])]
         for tag, i0, i1, j0, j1 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
             if tag == "replace" and i1 - i0 == j1 - j0:
                 subs.update(
                     (x, y) for x, y in zip(a[i0:i1], b[j0:j1], strict=True) if x in names and x != y
                 )
+    if not subs:
+        return {}
     still = set(WORD.findall(new.joined))
     best: dict[str, tuple[str, int]] = {}
     for (x, y), n in subs.items():
@@ -92,28 +100,53 @@ def _renames(cx: Codex, old: spanlib.Text, new: spanlib.Text, al: diff.Alignment
     return {x: y for x, (y, _) in best.items()}
 
 
-def _rename_entities(cx: Codex, renames: dict[str, str], report: Report) -> list[Item]:
-    out = []
-    for e in cx.of_type("entity"):
-        name = e.fields.get("name", "")
-        aliases = list(e.fields.get("aliases", []))
-        new_name = " ".join(renames.get(w, w) for w in name.split())
-        new_aliases = [" ".join(renames.get(w, w) for w in a.split()) for a in aliases]
+def _rename_entities(
+    cx: Codex, renames: dict[str, str], updates: dict[str, Item], report: Report
+) -> None:
+    """Apply renames to active entities, keeping old names as aliases; skip clashes."""
+    if not renames:
+        return
+
+    def swap(text: str) -> str:
+        return WORD.sub(lambda m: renames.get(m.group(), m.group()), text)
+
+    active = [e for e in cx.of_type("entity") if e.status != "retired"]
+    for e in active:
+        base = updates.get(e.id) or Item.from_json(e.as_json())
+        name = base.fields.get("name", "")
+        aliases = list(base.fields.get("aliases", []))
+        new_name = swap(name)
+        new_aliases = [swap(a) for a in aliases]
         if new_name == name and new_aliases == aliases:
             continue
+        taken = {
+            n.casefold()
+            for o in active
+            if o.id != e.id
+            for n in [o.fields.get("name", ""), *o.fields.get("aliases", [])]
+        }
+        if {new_name.casefold(), *(a.casefold() for a in new_aliases)} & taken:
+            report.notes.append(
+                f"{e.id}: {name} -> {new_name} not applied (name of another entity)"
+            )
+            continue
         keep = [a for a in dict.fromkeys([name, *aliases, *new_aliases]) if a != new_name]
-        fields = {**e.fields, "name": new_name, "aliases": keep}
-        out.append(Item.from_json({**e.as_json(), "fields": fields}))
+        base.fields = {**base.fields, "name": new_name, "aliases": keep}
+        updates[e.id] = base
         report.renamed.append((e.id, name, new_name))
-    return out
 
 
 def sync(work_root: Path, to: str | None = None, cx: Codex | None = None) -> Report:
     cx = cx or Codex(work_root)
     new_draft = to or structure.latest_version(work_root)
+    _check_draft(work_root, new_draft)
     report = Report(cx.draft, new_draft)
     if new_draft == cx.draft:
         return report
+    if int(new_draft[1:]) < int(cx.draft[1:]):
+        raise CodexError(f"the Codex is at {cx.draft}; it does not go back to {new_draft}")
+    if cx.damaged:
+        raise CodexError(f"fix the unreadable rows first (lc codex check): {sorted(cx.damaged)}")
     old, new = _text(work_root, cx.draft), _text(work_root, new_draft)
     al = diff.align(old.paragraphs, new.paragraphs)
     kept = al.mapping()
@@ -135,36 +168,32 @@ def sync(work_root: Path, to: str | None = None, cx: Codex | None = None) -> Rep
         copy.spans = moved
         updates[item.id] = copy
     hit = {*report.changed, *report.lost}
+    dependents: set[str] = set()
     for target in sorted(hit):
         for src, rel in cx.linked_to(target):
             if rel in HOP and src.status != "retired" and src.id not in hit:
                 base = updates.get(src.id) or Item.from_json(src.as_json())
                 base.status = "needs_reread"
                 updates[src.id] = base
-                if src.id not in report.dependents:
-                    report.dependents.append(src.id)
-    for e in _rename_entities(cx, _renames(cx, old, new, al), report):
-        updates[e.id] = e
-    previous = dict(cx.meta)
-    cx.set_meta(synced_draft=new_draft, last_sync=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
-    try:
-        cx.replace_all(list(updates.values()), op="sync", by="script")
-    except Exception:
-        cx.set_meta(**previous)
-        raise
+                dependents.add(src.id)
+    report.dependents = sorted(dependents)
+    _rename_entities(cx, _renames(cx, old, new, al), updates, report)
+    # Items first, the synced draft last: a crash in between leaves spans that a
+    # re-run relocates again (their draft no longer matches), never a false "synced".
+    cx.replace_all(list(updates.values()), op="sync", by="script", updated=new_draft)
+    reasons = {i: "changed" for i in report.changed}
+    reasons.update({i: "lost" for i in report.lost})
+    reasons.update({i: "depends" for i in report.dependents})
     queue = [
-        {"item": i, "reason": r}
-        for r, ids in (
-            ("changed", report.changed),
-            ("lost", report.lost),
-            ("depends", report.dependents),
-        )
-        for i in ids
+        {"item": it.id, "reason": reasons.get(it.id, "earlier")}
+        for it in sorted(cx.items.values(), key=lambda x: x.id)
+        if it.status == "needs_reread"
     ]
     _write_atomic(
         cx.root / "reread.jsonl",
         "".join(json.dumps(q, ensure_ascii=False) + "\n" for q in queue),
     )
+    cx.set_meta(synced_draft=new_draft, last_sync=datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"))
     report.changed.sort()
     report.lost.sort()
     report.dependents.sort()

@@ -69,6 +69,7 @@ def test_sync_rename_keeps_entity_id(work: tuple[Path, dict[str, str]], tmp_path
     assert (ids["celipin"], "Celipín", "Celipino") in report.renamed
     ent = codex.Codex(root).get(ids["celipin"])
     assert ent.fields["name"] == "Celipino" and "Celipín" in ent.fields["aliases"]
+    assert codex.Codex(root).check() == []
     after = view.View(root).run(
         "SELECT COUNT(*) FROM mentions WHERE entity_id = ?", (ids["celipin"],)
     )[1][0][0]
@@ -143,3 +144,37 @@ def test_sync_100k_words_under_5s(tmp_path: Path) -> None:
     assert report.new == "v002"
     limit = 5.0 * float(os.environ.get("LITCRITIC_PERF_FACTOR", "1"))
     assert elapsed <= limit, elapsed
+
+
+def test_sync_rename_with_spans_keeps_relocation_and_queue(
+    work: tuple[Path, dict[str, str]], tmp_path: Path
+) -> None:
+    root, ids = work
+    cx = codex.Codex(root)
+    ix = query.load(root, "v001")
+    text = spanlib.Text(ix.paragraphs, ix.anchors, "v001")
+    i = next(k for k, p in enumerate(ix.paragraphs) if "Celipín" in p and k > 50)
+    off = ix.paragraphs[i].index("Celipín")
+    span = spanlib.make(text, "v001", ix.anchors[i], off, ix.anchors[i], off + 7)
+    cx.update(ids["celipin"], spans=[span])
+    cx.update(ids["pablo"], status="needs_reread")
+    _new_draft(root, [p.replace("Celipín", "Celipino") for p in ix.paragraphs], tmp_path)
+    report = sync.sync(root)
+    after = codex.Codex(root)
+    ent = after.get(ids["celipin"])
+    assert ent.fields["name"] == "Celipino" and ent.status == "needs_reread"
+    assert ent.spans[0].draft == "v002" and ids["celipin"] in report.changed
+    queue = {
+        json.loads(x)["item"]: json.loads(x)["reason"]
+        for x in (root / "codex" / "reread.jsonl").read_text().splitlines()
+    }
+    assert queue[ids["pablo"]] == "earlier" and queue[ids["celipin"]] == "changed"
+    assert after.check() == []
+
+
+def test_sync_refuses_going_back(work: tuple[Path, dict[str, str]], tmp_path: Path) -> None:
+    root, _ = work
+    _new_draft(root, _old(root), tmp_path)
+    sync.sync(root)
+    with pytest.raises(codex.CodexError, match="does not go back"):
+        sync.sync(root, "v001")
