@@ -326,7 +326,14 @@ def _cmd_report(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
         out, complete = report.render(ws.root, args.version)
-    except (workspace.WorkspaceError, report.ReportError, OSError, ValueError, KeyError) as exc:
+    except (
+        workspace.WorkspaceError,
+        report.ReportError,
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1 if isinstance(exc, report.ReportError) else 2
     missing = [name for name, ok in complete.items() if not ok]
