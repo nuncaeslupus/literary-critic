@@ -95,6 +95,7 @@ T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T8 ☑ (PR #16) · T4 ◐ · other
 | T5 | `scene_boundary_f1 >= 0.95` | 1.0 (9 variants, both corpus texts) | `uv run pytest tests/test_anchor.py` | 434307b+ | [HERE] | 2026-10-11 |
 | T6 | `anchor_stability_after_synthetic_edits >= 0.99` | ≥0.999 on corpus (recall 1.0, precision ≥0.99) | `uv run pytest tests/test_diff.py` | T5+ | [HERE] | 2026-10-11 |
 | T7 | `planned_metrics_implemented >= 0.8` | 0.942 (49/52; golden FH (corrected)/INFLESZ/Flesch exact) | `uv run pytest tests/test_metrics.py` | T6+ | [HERE] | 2026-10-11 |
+| T13 | `stale_overwrite_blocked == 1.0` | 1.0 (3/3 stale cases refused) | `uv run pytest tests/test_pack.py` | T7+ | [HERE] | 2026-10-11 |
 | T8 | `schema_validity_on_fixtures == 1.0` | 1.0 (19 fixtures, 5 kinds) | `uv run pytest tests/test_validate.py` | 741fa89+ | [HERE] | 2026-10-10 |
 
 ### Dependency graph

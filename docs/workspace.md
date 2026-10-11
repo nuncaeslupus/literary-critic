@@ -85,8 +85,13 @@ Some metrics aggregate what the LLM or the registers provide and report
 | Chat with code execution | Upload kit zip + workspace zip; the assistant runs `lc`, then `lc pack` and returns the zip to download and store in Drive. |
 | Chat without code | Upload the latest `index/` summaries and `log/`; reduced mode. |
 
-`lc pack` / `lc unpack` (planned) carry a manifest with checksums so an older zip
-never silently overwrites newer work.
+`lc pack --workspace <slug>` writes `<slug>-gNNN.zip` with a manifest of
+SHA-256 checksums and a generation number that grows with every pack.
+`lc unpack <zip>` restores it (to `$LITCRITIC_HOME/<slug>` unless
+`--workspace` says otherwise) and refuses, unless `--force`, when that would
+lose work: the zip is older than the workspace, both continue the same
+generation with different content, or the workspace changed since it was last
+packed or unpacked. Damaged zips and unsafe paths are always rejected.
 
 ## Rules
 

@@ -1,0 +1,7 @@
+{
+  "metric": "stale_overwrite_blocked",
+  "value": 1.0,
+  "cases": ["older zip over newer workspace", "two sessions diverged from one zip (same generation)", "newer zip over unsaved local changes"],
+  "also": "tampered file (checksum), unsafe paths (zip slip) and zips without a manifest are rejected; --force overrides only the staleness refusals",
+  "command": "uv run pytest tests/test_pack.py"
+}
