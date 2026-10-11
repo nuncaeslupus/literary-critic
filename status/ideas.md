@@ -4,7 +4,17 @@ Living list of ideas for the next phase. New ideas are appended under their
 group; decisions move to the log at the end. Nothing here is committed work
 until it reaches a spec and a plan.
 
-## Groups
+## Core idea (owner, 2026-10-11)
+The heart of the tool is a structured knowledge base about the novel (a
+"meta-novel"): text, structure, entities, facts, references between parts,
+issues and decisions, all anchored to the text and kept in sync with every
+draft by scripts. Reading, finding, advising, reports, chats and any later
+editing tool are views on it or operations over it. An orchestrator keeps it
+current when the text changes, including changes made while the tool was not
+looking (renamed character, new plot twist, deleted paragraph that orphans
+later references). Granularity varies: scene, paragraph or sentence.
+Efficiency: scripts first, the LLM only reads what changed.
+
 
 ### A. Critique
 - Cover every level, from architecture to mechanics: structure, plot, characters,
@@ -60,3 +70,5 @@ until it reaches a spec and a plan.
 | 2 | 2026-10-11 | docx-fixer stays a separate repo; may be used as a tool/API or merged later. |
 | 3 | 2026-10-11 | First priority: report and session flow. Editing real files comes later. |
 | 4 | 2026-10-11 | Shape the critical report (S1) first; then session flow and memory (S2); then Claude packaging (S3). |
+| 5 | 2026-10-11 | Working notes (many files) are separate from what the writer gets. Writer-facing output is a per-session view chosen by the session's goal; summarise status, let the writer choose, never repeat settled points. |
+| 6 | 2026-10-11 | The knowledge base is the core (sub-project S0) and comes before S1-S3. |
