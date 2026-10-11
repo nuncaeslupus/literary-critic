@@ -85,3 +85,5 @@ Efficiency: scripts first, the LLM only reads what changed.
 | 17 | 2026-10-11 | Measurable checks and proactive feedback are named questions run against the Codex. |
 | 18 | 2026-10-11 | No migration: phase-1 per-type formats and docs are replaced; the tool is rebuilt on the Codex from corpus examples. |
 | 19 | 2026-10-11 | Query surface: read-only SQL over an in-memory view (stdlib sqlite3, never persisted) plus named questions; the stored/computed data is derived from a catalogue of writer questions. Spec approved (r3). |
+| 20 | 2026-10-11 | Chat-first use for non-technical writers: Cowork does everything, edits land in the master .docx as tracked changes, Claude takes the writer to the exact paragraph in Word (computer use for now). Spec: arsenal/project/chat/spec.md. |
+| 21 | 2026-10-11 | A live Word-control extension (edit the open document while chatting with the agent, any Word version) is a separate project; literary-critic defines the interface it needs and uses it through one adapter. |
