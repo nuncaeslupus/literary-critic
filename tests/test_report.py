@@ -11,7 +11,7 @@ from litcritic.cli import main
 def ws(tmp_path: Path) -> Path:
     root = tmp_path / "ws"
     root.mkdir()
-    (root / "workspace.toml").write_text(
+    (root / "work.toml").write_text(
         'slug = "ws"\ntitle = "Marianela"\nlanguage = "es"\n', encoding="utf-8"
     )
     assert main(["ingest", str(corpus.get("marianela").path), "--workspace", str(root)]) == 0

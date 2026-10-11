@@ -46,7 +46,7 @@ def whole(text: spanlib.Text, i: int) -> spanlib.Span:
 
 def build(root: Path) -> dict[str, str]:
     """Ingest, anchor and fill a Codex in ``root``; returns names -> item ids."""
-    (root / "workspace.toml").write_text('slug = "marianela"\nlanguage = "es"\n', "utf-8")
+    (root / "work.toml").write_text('slug = "marianela"\nlanguage = "es"\n', "utf-8")
     assert main(["ingest", str(corpus.get("marianela").path), "--workspace", str(root)]) == 0
     assert main(["anchor", "--workspace", str(root)]) == 0
     cx = codex.Codex.init(root, "v001")

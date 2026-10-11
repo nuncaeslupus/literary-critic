@@ -151,9 +151,9 @@ def test_cli_pack_unpack(tmp_path: Path) -> None:
     out = tmp_path / "w.zip"
     assert main(["pack", "--workspace", str(ws), "--out", str(out)]) == 0
     assert main(["unpack", str(out), "--home", str(tmp_path / "other")]) == 0
-    assert (tmp_path / "other" / "novel" / "workspace.toml").is_file()
+    assert (tmp_path / "other" / "novel" / "work.toml").is_file()
     _edit(ws, "x")
     assert main(["pack", "--workspace", str(ws), "--out", str(tmp_path / "w2.zip")]) == 0
     assert main(["unpack", str(out), "--workspace", str(ws)]) == 1
     assert main(["unpack", str(out), "--workspace", "renamed", "--home", str(tmp_path / "h")]) == 0
-    assert (tmp_path / "h" / "renamed" / "workspace.toml").is_file()
+    assert (tmp_path / "h" / "renamed" / "work.toml").is_file()

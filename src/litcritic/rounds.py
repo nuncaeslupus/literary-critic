@@ -95,7 +95,7 @@ def language(ws_root: Path) -> str:
     profile = load_profile(ws_root)
     if profile.get("language"):
         return str(profile["language"])
-    manifest = ws_root / "workspace.toml"
+    manifest = ws_root / "work.toml"
     if manifest.is_file():
         return str(tomllib.loads(manifest.read_text(encoding="utf-8")).get("language", "en"))
     return "en"

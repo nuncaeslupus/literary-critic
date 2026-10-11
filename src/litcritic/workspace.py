@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import subprocess
 import tomllib
 from dataclasses import dataclass
@@ -12,7 +13,7 @@ from pathlib import Path
 HOME_ENV = "LITCRITIC_HOME"
 REGISTRY_ENV = "LITCRITIC_REGISTRY"
 DEFAULT_HOME = Path.home() / "literary-critic"
-MANIFEST = "workspace.toml"
+MANIFEST = "work.toml"
 GUARD_TERMS = "guard-terms.txt"
 SUBDIRS = ("manuscript", "text", "index", "metrics", "analysis", "revisions", "log")
 
@@ -95,8 +96,17 @@ def check_location(path: Path) -> None:
         raise WorkspaceError(f"workspace {resolved} is inside the tool repo work tree")
 
 
-def create(slug: str, title: str, language: str, base: Path | None = None) -> Workspace:
-    """Create an empty workspace skeleton for one novel."""
+def create(
+    slug: str,
+    title: str,
+    language: str,
+    base: Path | None = None,
+    author: str = "",
+    kind: str = "novel",
+    series: str = "",
+    tags: tuple[str, ...] = (),
+) -> Workspace:
+    """Create an empty work: a folder named ``slug`` with a unique id in ``work.toml``."""
     if not slug or "/" in slug or slug.startswith("."):
         raise WorkspaceError(f"invalid slug: {slug!r}")
     root = ((base or home()).expanduser() / slug).resolve()
@@ -106,9 +116,11 @@ def create(slug: str, title: str, language: str, base: Path | None = None) -> Wo
     for sub in SUBDIRS:
         (root / sub).mkdir(parents=True, exist_ok=True)
     q = json.dumps  # JSON string escaping is valid TOML basic-string escaping
+    work_id = f"{slug}-{secrets.token_hex(3)}"
     (root / MANIFEST).write_text(
-        f"slug = {q(slug)}\ntitle = {q(title)}\nlanguage = {q(language)}\n"
-        'mode = "revision"\nschema_version = 1\n',
+        f"id = {q(work_id)}\nslug = {q(slug)}\ntitle = {q(title)}\nauthor = {q(author)}\n"
+        f"kind = {q(kind)}\nseries = {q(series)}\ntags = {q(list(tags))}\n"
+        f'language = {q(language)}\nmode = "revision"\nschema_version = 2\n',
         encoding="utf-8",
     )
     (root / GUARD_TERMS).write_text(
@@ -121,10 +133,28 @@ def create(slug: str, title: str, language: str, base: Path | None = None) -> Wo
     return Workspace(root)
 
 
+def _under(root: Path) -> set[Path]:
+    """Work folders anywhere under ``root`` (hidden folders and works' insides skipped)."""
+    found: set[Path] = set()
+    if not root.is_dir():
+        return found
+    stack = [root]
+    while stack:
+        d = stack.pop()
+        try:
+            entries = list(d.iterdir())
+        except OSError:
+            continue
+        if (d / MANIFEST).is_file():
+            found.add(d.resolve())
+            continue  # a work never contains another work
+        stack += [e for e in entries if e.is_dir() and not e.name.startswith(".")]
+    return found
+
+
 def all_workspaces(base: Path | None = None) -> list[Workspace]:
-    """Workspaces under ``base`` (default home), plus registered ones when no base is given."""
-    root = (base or home()).expanduser()
-    found = {p.parent.resolve() for p in root.glob(f"*/{MANIFEST}")} if root.is_dir() else set()
+    """Works under ``base`` (default home, any depth), plus registered ones without a base."""
+    found = _under((base or home()).expanduser())
     if base is None and registry_file().is_file():
         for line in registry_file().read_text(encoding="utf-8").splitlines():
             p = Path(line.strip())
@@ -139,9 +169,14 @@ def resolve(ref: str, base: Path | None = None) -> Workspace:
     if (path / MANIFEST).is_file():
         check_location(path.resolve())
         return Workspace(path.resolve())
-    matches = [ws for ws in all_workspaces(base) if ws.root.name == ref]
+    works = all_workspaces(base)
+    by_id = [ws for ws in works if ws.manifest.get("id") == ref]
+    if by_id:
+        return by_id[0]
+    matches = [ws for ws in works if ws.root.name == ref or ws.manifest.get("slug") == ref]
     if len(matches) == 1:
         return matches[0]
     if not matches:
-        raise WorkspaceError(f"no workspace {ref!r} (give its folder or run `lc init`)")
-    raise WorkspaceError(f"several workspaces named {ref!r}; give the folder path")
+        raise WorkspaceError(f"no work {ref!r} (give its id, folder or run `lc init`)")
+    ids = ", ".join(str(ws.manifest.get("id", ws.root)) for ws in matches)
+    raise WorkspaceError(f"several works named {ref!r}; give one of these ids: {ids}")

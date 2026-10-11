@@ -6,7 +6,7 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
 
 ```
 <slug>/
-  workspace.toml        # title, language, mode (revision | reader-report), schema_version
+  work.toml             # id, slug, title, author, kind, series, tags, language, mode, schema_version
   guard-terms.txt       # names that must never reach the tool repo
   manuscript/           # writer's originals, one snapshot per draft (v001.docx, v002.docx…)
   text/                 # normalised text per draft (v001.txt), one paragraph per line,
@@ -21,6 +21,16 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
 
 Everything is text (TOML, JSON, Markdown) except the manuscript snapshots, so a
 workspace diffs cleanly and survives any sync tool.
+
+## Library
+
+Works can live anywhere under the home folder, in subfolders of your choosing
+(`novels/`, `clients/ana/`…); the tool finds them by their `work.toml`. Each
+work has a unique `id` (its slug plus a short random suffix) that every
+command accepts, so moving or regrouping folders breaks nothing. Author, kind,
+series and tags are labels: `lc library --by author|kind|series|tag` lists the
+works grouped by any of them. `lc init <slug> --title … --language … [--author …
+--kind … --series … --tag …]` creates one.
 
 ## Ingesting a draft
 

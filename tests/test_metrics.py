@@ -175,7 +175,7 @@ def test_proofreading_signals() -> None:
 def test_cli_metrics(tmp_path: Path) -> None:
     ws = tmp_path / "ws"
     ws.mkdir()
-    (ws / "workspace.toml").write_text('slug = "ws"\nlanguage = "en"\n', encoding="utf-8")
+    (ws / "work.toml").write_text('slug = "ws"\nlanguage = "en"\n', encoding="utf-8")
     assert main(["metrics", "--workspace", str(ws)]) == 2
     assert main(["ingest", str(corpus.get("jekyll-hyde").path), "--workspace", str(ws)]) == 0
     assert main(["anchor", "--workspace", str(ws)]) == 0

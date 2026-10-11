@@ -17,7 +17,7 @@ W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 @pytest.fixture(scope="module")
 def ws(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("ws")
-    (root / "workspace.toml").write_text('slug = "ws"\nlanguage = "es"\n', encoding="utf-8")
+    (root / "work.toml").write_text('slug = "ws"\nlanguage = "es"\n', encoding="utf-8")
     text = [p.text for p in ingest.read_txt(corpus.get("marianela").path.read_bytes()).paragraphs]
     paras = [(t, bool(re.fullmatch(r"-[IVXL]+-", t))) for t in text]
     draft = root.parent / "novela.docx"
@@ -152,7 +152,7 @@ def test_round_draft_and_statuses(ws: Path) -> None:
 def test_non_docx_draft_is_refused(tmp_path: Path) -> None:
     root = tmp_path / "ws"
     root.mkdir()
-    (root / "workspace.toml").write_text('slug = "ws"\n', encoding="utf-8")
+    (root / "work.toml").write_text('slug = "ws"\n', encoding="utf-8")
     assert main(["ingest", str(corpus.get("jekyll-hyde").path), "--workspace", str(root)]) == 0
     assert main(["anchor", "--workspace", str(root)]) == 0
     assert main(["docx-comments", "--workspace", str(root)]) == 1
