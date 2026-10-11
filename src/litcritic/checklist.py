@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+QUESTIONS_DIR = Path(__file__).parent / "questions"  # named Codex questions
 STAGES = ("orientation", "developmental", "scene", "line", "verification")
 METHODS = ("script", "llm", "hybrid")
 KINDS = ("diagnostic", "inventory", "strength")
@@ -165,9 +166,14 @@ def load(root: Path) -> Catalogue:
                 not isinstance(sev, dict) or sorted(sev) != sorted(SEVERITIES)
             ):
                 errs.append("diagnostic checks need severity.high/medium/low")
-            if c.get("measurable") and not isinstance(c.get("codex_question"), str):
+            if not isinstance(c.get("measurable", False), bool):
+                errs.append("measurable must be true or false")
+            q = c.get("codex_question")
+            if c.get("measurable") is True and not isinstance(q, str):
                 errs.append("measurable checks must name their codex_question")
-            if "codex_question" in c and not c.get("measurable"):
+            elif isinstance(q, str) and not (QUESTIONS_DIR / f"{q}.sql").is_file():
+                errs.append(f"codex_question {q!r} is not a named question")
+            if "codex_question" in c and c.get("measurable") is not True:
                 errs.append("codex_question needs measurable = true")
             if not isinstance(c.get("look_for", []), list):
                 errs.append("look_for must be a list")

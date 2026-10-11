@@ -97,7 +97,7 @@ severity = { high = "Long speeches or unanchored exchanges dominate key chapters
 [[check]]
 id = "dialogue.punctuation-conventions"
 measurable = true
-codex_question = "spacing"
+codex_question = "dialogue-openers"
 title = "Dialogue punctuation and layout"
 question = "Are speech, quoted text and thought marked following the conventions of the manuscript's language and applied consistently?"
 look_for = ["dialogue marked two ways in one book (e.g. dash in one chapter, quotation marks in another)", "tag punctuation against the language's convention (e.g. Spanish raya rules for incises; English comma before a closing quote)", "a new speaker not given a new paragraph", "thought rendered in italics in some places and unmarked in others"]

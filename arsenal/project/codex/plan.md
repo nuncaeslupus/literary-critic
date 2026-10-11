@@ -125,7 +125,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 | C9 | `library_id_collisions == 0` | 0 (same title by two authors; same slug in two folders resolved by id; moved folder keeps references) | `uv run pytest tests/test_library.py` | [HERE] | local | 2026-10-11 |
 | C8 | `new_kind_core_changes == 0` | 0 (poem kind: structure, 2 item types and a 1-area checklist plug in; core modules never name it) | `uv run pytest tests/test_kinds.py` | [HERE] | local | 2026-10-11 |
 | C6 | `question_catalogue_expressible >= 0.9` | 0.928 (64/69 run on the fixture, 6 checked for exact answers; 5 name missing data: learns-fact items, flashback flag, per-passage POV, syllables in the view, alignment table) | `uv run pytest tests/test_codex_catalogue.py` | [HERE] | local | 2026-10-11 |
-| C12 | `measurable_checks_with_query == 1.0` | 1.0 (22/22 measurable checks name a known question); `named_questions` = 21 | `uv run pytest tests/test_checklist.py -k measurable` | [HERE] | local | 2026-10-11 |
+| C12 | `measurable_checks_with_query == 1.0` | 1.0 (22/22 measurable checks name a known question that runs without parameters, across all kinds); `named_questions` = 22 | `uv run pytest tests/test_checklist.py -k measurable` | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 

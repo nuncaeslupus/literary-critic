@@ -2,8 +2,9 @@
 
 Each question is ``questions/<id>.sql`` with a TOML header in its leading
 ``-- `` comment lines: ``id``, ``title``, ``family``, ``params`` (name ->
-description), optional ``defaults`` and ``checks`` (checklist ids it answers).
-Checks and proactive feedback run these; the LLM can read them as examples.
+description) and optional ``defaults``. Checklist checks point to the question
+that measures them (``codex_question``); checks and proactive feedback run
+them, and the LLM can read them as examples.
 """
 
 from __future__ import annotations
@@ -32,7 +33,6 @@ class Question:
     sql: str
     params: dict[str, str] = field(default_factory=dict)
     defaults: dict[str, Any] = field(default_factory=dict)
-    checks: tuple[str, ...] = ()
 
 
 def parse(text: str, name: str = "?") -> Question:
@@ -58,7 +58,6 @@ def parse(text: str, name: str = "?") -> Question:
         sql=sql,
         params=dict(meta.get("params", {})),
         defaults=dict(meta.get("defaults", {})),
-        checks=tuple(meta.get("checks", [])),
     )
     used = set(PARAM.findall(sql))
     if used != set(q.params):

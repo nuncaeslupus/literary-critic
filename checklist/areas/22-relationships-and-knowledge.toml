@@ -7,7 +7,7 @@ purpose = "Trace how people stand to one another (power, dependence, affection, 
 [[check]]
 id = "relationships-and-knowledge.relationship-register"
 measurable = true
-codex_question = "relevance"
+codex_question = "talks-to"
 title = "Relationship register"
 question = "Which pairs and groups matter, what is the nature of each bond, and where does it change?"
 look_for = ["important bond with no scene of its own", "bond changing between chapters without cause", "relationships stated by narration only"]

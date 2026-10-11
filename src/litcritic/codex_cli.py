@@ -57,19 +57,30 @@ def _params(raw: list[str] | None) -> dict[str, int | float | str]:
 
 
 def coverage(root: Path | None = None) -> tuple[list[str], list[str]]:
-    """(measurable check ids, problems): every measurable check must name a known question."""
+    """(measurable check ids, problems) across every kind's checklist (or one ``root``).
+
+    A measurable check must name a known question that runs without parameters
+    (every parameter has a default), so checks can run unattended.
+    """
     from litcritic import checklist, kinds
 
     qs = questions.load()
-    cat = checklist.load(root or kinds.get(kinds.DEFAULT).CHECKLIST)
+    roots = [root] if root else sorted({kinds.get(k).CHECKLIST for k in kinds.available()})
     measurable, problems = [], []
-    for c in cat.checks:
-        if not c.raw.get("measurable"):
-            continue
-        measurable.append(c.id)
-        q = c.raw.get("codex_question")
-        if q not in qs:
-            problems.append(f"{c.id}: codex_question {q!r} is not a named question")
+    for r in roots:
+        cat = checklist.load(r)
+        problems += [
+            f"{r.name}: {e}" for e in cat.errors if "measurable" in e or "codex_question" in e
+        ]
+        for c in cat.checks:
+            if c.raw.get("measurable") is not True:
+                continue
+            measurable.append(c.id)
+            q = c.raw.get("codex_question")
+            if not isinstance(q, str) or q not in qs:
+                problems.append(f"{c.id}: codex_question {q!r} is not a named question")
+            elif set(qs[q].params) - set(qs[q].defaults):
+                problems.append(f"{c.id}: {q} needs parameters without defaults")
     return measurable, problems
 
 

@@ -430,7 +430,8 @@ v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status
 ### Named questions
 
 One file per question, `src/litcritic/questions/<id>.sql`, with a TOML header
-in a leading comment:
+in a leading comment. Checklist checks point to it with `measurable = true` and
+`codex_question = "<id>"`, the only place that link is kept:
 
 ```sql
 -- id = "speech-chapters"
@@ -438,7 +439,6 @@ in a leading comment:
 -- family = "characters"
 -- params = { character = "entity id or name" }
 -- defaults = {}
--- checks = ["dialogue.voice-distinct"]
 SELECT COUNT(DISTINCT p.chapter) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx
 WHERE d.speaker = :character;
 ```

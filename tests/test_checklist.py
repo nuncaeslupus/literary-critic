@@ -96,5 +96,10 @@ def test_measurable_without_question_is_invalid(tmp_path: Path) -> None:
     root = tmp_path / "cat"
     shutil.copytree(repo_root() / "checklist", root)
     f = root / "areas" / "52-lexicon-and-sound.toml"
-    f.write_text(f.read_text().replace('codex_question = "near-repeats"\n', "", 1))
+    text = f.read_text(encoding="utf-8")
+    f.write_text(text.replace('codex_question = "near-repeats"\n', "", 1), encoding="utf-8")
     assert any("codex_question" in e for e in checklist.load(root).errors)
+    f.write_text(text.replace('"near-repeats"', '"near-repeat"', 1), encoding="utf-8")
+    assert any("not a named question" in e for e in checklist.load(root).errors)
+    f.write_text(text.replace("measurable = true", 'measurable = "yes"', 1), encoding="utf-8")
+    assert any("true or false" in e for e in checklist.load(root).errors)
