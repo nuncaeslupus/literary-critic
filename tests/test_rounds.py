@@ -69,14 +69,14 @@ def test_round_built_from_issue_items(ws: Path) -> None:
     assert [a["issue"] for a in actions] == [ids["F3"], ids["F2"]]  # high before medium
     assert actions[1]["options"] == ["Cut", "Merge"] and actions[0]["status"] == "pending"
     assert actions[0]["where"]["chapter"].startswith("9")
-    letter = rounds.letter(ws).read_text(encoding="utf-8")
-    assert letter.startswith("# Ronda 1: estructura")
-    assert "Lo que funciona" in letter and "Capítulo 9" in letter
     assert rounds.status(ws)["can_close"] is False
-    # Rebuilding before any decision replaces the round.
+    # Rebuilding before the letter and any decision replaces the round.
     _, again, _ = rounds.build(ws)
     assert [d.name for d in rounds.round_dirs(ws)] == ["round-01"]
     assert [a["id"] for a in again] == [a["id"] for a in actions]
+    letter = rounds.letter(ws).read_text(encoding="utf-8")
+    assert letter.startswith("# Ronda 1: estructura")
+    assert "Lo que funciona" in letter and "Capítulo 9" in letter
     # A decision is a Codex item about the issue, and keeps it out of later rounds.
     assert rounds.mark(ws, actions[0]["id"], "rejected", "it is the point")["status"] == "rejected"
     cx = codex.Codex(ws)
@@ -114,3 +114,24 @@ def test_round_cli(ws: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["round", "status", *w]) == 0
     assert json.loads(capsys.readouterr().out.splitlines()[-1])["by_status"]["done"] == 1
     assert main(["round", "mark", *w]) == 1
+
+
+def test_round_with_a_letter_is_never_rebuilt(ws: Path) -> None:
+    _issues(ws)
+    rounds.build(ws)
+    rounds.letter(ws)
+    first = (ws / "revisions" / "round-01" / "round.json").read_text(encoding="utf-8")
+    rounds.build(ws)  # the scene issue goes to a new round; round 1 keeps its numbering
+    assert [d.name for d in rounds.round_dirs(ws)] == ["round-01", "round-02"]
+    assert (ws / "revisions" / "round-01" / "round.json").read_text(encoding="utf-8") == first
+
+
+def test_mark_refuses_an_issue_gone_from_the_codex(ws: Path) -> None:
+    _issues(ws)
+    _, actions, _ = rounds.build(ws)
+    gone = actions[0]["issue"]
+    f = ws / "codex" / "items" / "issue.jsonl"
+    keep = [ln for ln in f.read_text(encoding="utf-8").splitlines() if gone not in ln]
+    f.write_text("\n".join(keep) + "\n", encoding="utf-8")
+    with pytest.raises(rounds.RoundError, match="not in the Codex"):
+        rounds.mark(ws, actions[0]["id"], "done")
