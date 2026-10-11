@@ -11,6 +11,11 @@ head, tail, length and hash.
 exact text is found again. When the text changed, or more than one place fits
 equally well, the span is marked ``changed`` (or ``lost`` when the paragraphs
 it lived in are gone) and is never moved silently.
+
+For a ``changed`` or ``lost`` span the position says where to look and the
+quote keeps the last text seen there; the two no longer agree until the span is
+re-read and rebuilt. A later relocation still searches for that quote, so text
+the writer restores is found again.
 """
 
 from __future__ import annotations
@@ -20,10 +25,12 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from litcritic.diff import Alignment
+from litcritic.query import _bare
 
 QUOTE_MAX = 300  # longer quotes keep head, tail, length and hash
 HEAD = 150
 CONTEXT = 32
+TRUSTED_CONTEXT = 24  # matching context characters needed to accept a match away from home
 STATES = ("ok", "moved", "changed", "lost")
 
 
@@ -68,6 +75,8 @@ class Span:
 
     @classmethod
     def from_json(cls, d: dict[str, Any]) -> Span:
+        if not d.get("exact") and not d.get("head"):
+            raise SpanError("span has no quote (exact or head)")
         return cls(
             draft=d["draft"],
             start=Pos(d["start"]["para"], int(d["start"]["off"])),
@@ -89,6 +98,7 @@ class Text:
 
     paragraphs: list[str]
     anchors: list[str]
+    draft: str = ""  # when set, spans from another draft are not read by position
     joined: str = field(init=False)
     starts: list[int] = field(init=False)
     index: dict[str, int] = field(init=False)
@@ -155,9 +165,11 @@ def from_quote(text: Text, draft: str, quote: str, within: str = "") -> Span:
     if not quote:
         raise SpanError("empty quote")
     hits = []
+    unit = _bare(within) if within else ""
     g = text.joined.find(quote)
     while g != -1:
-        if not within or text.anchors[text.para_of(g)].startswith(within):
+        bare = _bare(text.anchors[text.para_of(g)])
+        if not unit or bare == unit or bare.startswith(unit + "."):
             hits.append(g)
         g = text.joined.find(quote, g + 1)
     if len(hits) != 1:
@@ -182,15 +194,19 @@ def matches(span: Span, text: str, g0: int, g1: int) -> bool:
     return text[g0:g1] == span.exact
 
 
-def _occurrences(span: Span, text: str) -> list[tuple[int, int]]:
+def _occurrences(span: Span, text: str, lo: int = 0, hi: int = -1) -> list[tuple[int, int]]:
+    """Every place in ``text[lo:hi]`` where the stored quote matches exactly."""
     needle = span.head or span.exact
+    if not needle:
+        raise SpanError("span has no quote (exact or head)")
     size = span.length if span.head else len(span.exact)
+    hi = len(text) if hi < 0 else hi
     out = []
-    g = text.find(needle)
+    g = text.find(needle, lo, hi)
     while g != -1:
-        if matches(span, text, g, g + size):
+        if g + size <= hi and matches(span, text, g, g + size):
             out.append((g, g + size))
-        g = text.find(needle, g + 1)
+        g = text.find(needle, g + 1, hi)
     return out
 
 
@@ -208,43 +224,64 @@ def _context_score(span: Span, text: str, g0: int, g1: int) -> int:
     return score
 
 
-def relocate(span: Span, old: Text, new: Text, alignment: Alignment, draft: str) -> Span:
-    """The span in the new draft, or the same span marked ``changed`` / ``lost``."""
+def relocate(
+    span: Span,
+    old: Text,
+    new: Text,
+    alignment: Alignment,
+    draft: str,
+    kept: dict[int, int] | None = None,
+) -> Span:
+    """The span in the new draft, or the same span marked ``changed`` / ``lost``.
+
+    ``kept`` is ``alignment.mapping()``; pass it when relocating many spans.
+    A span whose anchors are not in ``old`` (one already lost) is only searched for.
+    """
+    kept = alignment.mapping() if kept is None else kept
     i0, i1 = old.index.get(span.start.para), old.index.get(span.end.para)
-    if i0 is None or i1 is None:
-        raise SpanError(f"span is not in the old draft ({span.start.para}..{span.end.para})")
-    region = {j for i in range(i0, i1 + 1) for j in alignment.old[i]["new"]}
+    if old.draft and span.draft != old.draft:  # anchors are positional: never reuse them
+        i0 = i1 = None
+    region: set[int] = set()
     out = Span(**{**span.__dict__, "draft": draft})
-    # Fast path: both end paragraphs kept their text; same offsets, verified.
-    e0, e1 = alignment.old[i0], alignment.old[i1]
-    if e0["status"] in ("unchanged", "moved") and e1["status"] in ("unchanged", "moved"):
-        j0, j1 = e0["new"][0], e1["new"][0]
-        if j0 <= j1:
-            g0 = new.starts[j0] + span.start.off
-            g1 = new.starts[j1] + span.end.off
+    if i0 is not None and i1 is not None:
+        region = {j for i in range(i0, i1 + 1) for j in alignment.old[i]["new"]}
+        # Fast path: both end paragraphs kept their text; same offsets, verified.
+        if i0 in kept and i1 in kept and kept[i0] <= kept[i1]:
+            g0 = new.starts[kept[i0]] + span.start.off
+            g1 = new.starts[kept[i1]] + span.end.off
             if matches(span, new.joined, g0, g1):
                 return _placed(out, new, g0, g1, span)
-    # Quote search: exact text anywhere; prefer the old paragraphs' new home, then context.
-    found = _occurrences(span, new.joined)
+    # Quote search: the old paragraphs' new home first, then the whole draft.
+    found: list[tuple[int, int]] = []
+    if region:
+        js = sorted(region)
+        lo, hi = new.starts[js[0]], new.starts[js[-1]] + len(new.paragraphs[js[-1]])
+        found = _occurrences(span, new.joined, lo, hi)
+    home = bool(found)
+    if not found:
+        found = _occurrences(span, new.joined)
     if found:
         ranked = sorted(
-            (
-                (new.para_of(g0) in region, _context_score(span, new.joined, g0, g1), g0, g1)
-                for g0, g1 in found
-            ),
+            ((_context_score(span, new.joined, g0, g1), g0, g1) for g0, g1 in found),
             reverse=True,
         )
         best = ranked[0]
-        if len(ranked) == 1 or ranked[1][:2] != best[:2]:
-            return _placed(out, new, best[2], best[3], span)
-    # Not found, or ambiguous: point at where it was, flag it.
-    if region:
-        js = sorted(region)
-        out.start = Pos(new.anchors[js[0]], 0)
-        out.end = Pos(new.anchors[js[-1]], len(new.paragraphs[js[-1]]))
+        unique = len(ranked) == 1 or ranked[1][0] != best[0]
+        # Away from home, a match must also agree with the text around it.
+        if unique and (home or best[0] >= TRUSTED_CONTEXT):
+            return _placed(out, new, best[1], best[2], span)
+    # Not found, ambiguous or untrusted: point at where to look, flag it.
+    if region or found:
+        if region:
+            js = sorted(region)
+            first, last = js[0], js[-1]
+        else:
+            first = last = new.para_of(found[0][0])
+        out.start = Pos(new.anchors[first], 0)
+        out.end = Pos(new.anchors[last], len(new.paragraphs[last]))
         out.state = "changed"
     else:
-        out.draft = span.draft
+        out.draft = span.draft  # keeps the coordinates of the draft it was last seen in
         out.state = "lost"
     return out
 

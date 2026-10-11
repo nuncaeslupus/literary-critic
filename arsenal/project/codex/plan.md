@@ -117,7 +117,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
 | C1 | `catalogue_questions >= 60` | 69 (12 families) | `uv run pytest tests/test_codex_catalogue.py` | [HERE] | local | 2026-10-11 |
-| C2 | `span_relocation_accuracy >= 0.98` | 1.0 (3386/3386 spans with a known new home, 2 corpus texts, 5 seeds, edit rates 0.05–0.3); `silent_misanchors` = 0 | `uv run pytest tests/test_spans.py` | [HERE] | local | 2026-10-11 |
+| C2 | `span_relocation_accuracy >= 0.98` | 1.0 (3386/3386 spans with a known new home, 2 corpus texts, 5 seeds, edit rates 0.05–0.3); `silent_misanchors` = 0 | `uv run pytest tests/test_spans.py -k relocated` (RUNS: 5 seeds, rates 0.05–0.3) | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 
