@@ -1,0 +1,8 @@
+{
+  "metric": "scene_boundary_f1",
+  "value": 1.0,
+  "variants": ["marianela-txt", "marianela-breaks", "marianela-md", "marianela-docx", "jekyll-hyde-txt", "jekyll-hyde-breaks", "jekyll-hyde-md", "jekyll-hyde-docx", "marianela-style-only"],
+  "method": "chapter starts and scene starts detected vs known corpus chapters plus seeded '* * *' scene breaks; md and docx re-encodings; a style-only variant where chapters are marked only by a 'Chapter start' paragraph style and page break",
+  "real_draft_check": "one real .docx draft (Spanish): 3 parts and 54 chapters found, matching the draft's own chapter-start style",
+  "command": "uv run pytest tests/test_anchor.py"
+}
