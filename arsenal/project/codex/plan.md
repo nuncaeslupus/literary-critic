@@ -4,7 +4,7 @@
 **Specification**: `arsenal/project/codex/spec.md` (approved, revision 3)
 **Author**: imarcos + Claude
 **Revision**: 1
-**Status**: draft
+**Status**: approved (2026-10-11, revision 1) — without annotations
 **Revision log**:
 - r1 — first draft
 
@@ -131,6 +131,6 @@ C2 ─> C3 ─┬─> C4 ─────────┴─> C5 ─┬─> C6 ─
 
 ## Sign-off
 
-- [ ] Design reviewed by owner
-- [ ] Contracts (spec §5) agreed
-- [ ] Ready for execution
+- [x] Design reviewed by owner
+- [x] Contracts (spec §5) agreed
+- [x] Ready for execution
