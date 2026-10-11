@@ -202,11 +202,8 @@ class View:
         c.executemany("INSERT INTO links VALUES (?,?,?)", link_rows)
 
     def _work_meta(self) -> dict[str, Any]:
-        for name in ("work.toml", workspace.MANIFEST):
-            f = self.root / name
-            if f.is_file():
-                return tomllib.loads(f.read_text(encoding="utf-8"))
-        return {}
+        f = self.root / workspace.MANIFEST
+        return tomllib.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
 
     def _span_row(self, s: spanlib.Span) -> tuple[Any, ...]:
         t = self.text

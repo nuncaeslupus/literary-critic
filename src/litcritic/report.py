@@ -91,7 +91,7 @@ def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, b
     h = HEADINGS.get(lang, HEADINGS["en"])
     title = (
         str(workspace.Workspace(ws_root).manifest.get("title", ""))
-        if (ws_root / "work.toml").is_file()
+        if (ws_root / workspace.MANIFEST).is_file()
         else ""
     )
     synopsis_file = ws_root / "analysis" / "synopsis.md"

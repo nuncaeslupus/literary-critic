@@ -42,3 +42,27 @@ def test_same_slug_in_two_folders_needs_the_id(tmp_path: Path) -> None:
     with pytest.raises(workspace.WorkspaceError, match="give one of these ids"):
         workspace.resolve("book", home)
     assert workspace.resolve(str(a.manifest["id"]), home).root == a.root
+
+
+def test_discovery_survives_loops_broken_works_and_copies(tmp_path: Path) -> None:
+    home = tmp_path / "home"
+    ws = workspace.create("good", "Good", "es", home)
+    (home / "loop").symlink_to(home, target_is_directory=True)
+    broken = home / "broken"
+    broken.mkdir()
+    (broken / workspace.MANIFEST).write_text("not = [valid", encoding="utf-8")
+    assert workspace.resolve("good", home).root == ws.root
+    copy = home / "backup"
+    shutil.copytree(ws.root, copy)
+    with pytest.raises(workspace.WorkspaceError, match="share the id"):
+        workspace.resolve(str(ws.manifest["id"]), home)
+
+
+def test_unpack_finds_the_work_by_id(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    home = tmp_path / "home"
+    ws = workspace.create("book", "Book", "es", home / "shelf")
+    zip_path = tmp_path / "book.zip"
+    assert main(["pack", "--workspace", str(ws.root), "--out", str(zip_path)]) == 0
+    (ws.root / "log" / "note.txt").write_text("x", encoding="utf-8")
+    assert main(["unpack", str(zip_path), "--home", str(home), "--force"]) == 0
+    assert not (home / "book").exists() and not (ws.root / "log" / "note.txt").exists()

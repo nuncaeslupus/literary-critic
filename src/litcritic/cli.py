@@ -245,7 +245,10 @@ def _cmd_unpack(args: argparse.Namespace) -> int:
             ref = Path(args.workspace).expanduser()
             target = ref if (ref.is_absolute() or len(ref.parts) > 1) else base / ref
         else:
-            target = base / slug
+            raw = loaded[1].get(workspace.MANIFEST, b"")
+            wid = str(tomllib.loads(raw.decode("utf-8")).get("id", "")) if raw else ""
+            same = workspace.find_id(wid, args.home) if wid else []
+            target = same[0].root if len(same) == 1 else base / slug
         result = pack.unpack(Path(args.zip), target, force=args.force, loaded=loaded)
     except (workspace.WorkspaceError, pack.PackError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)

@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from litcritic import checklist, locate, query, structure, validate
-from litcritic.workspace import repo_root
+from litcritic.workspace import MANIFEST, repo_root
 
 LEVELS = ("structural", "scene", "line")
 SEVERITY = {"high": 3.0, "medium": 2.0, "low": 1.0}
@@ -95,7 +95,7 @@ def language(ws_root: Path) -> str:
     profile = load_profile(ws_root)
     if profile.get("language"):
         return str(profile["language"])
-    manifest = ws_root / "work.toml"
+    manifest = ws_root / MANIFEST
     if manifest.is_file():
         return str(tomllib.loads(manifest.read_text(encoding="utf-8")).get("language", "en"))
     return "en"
