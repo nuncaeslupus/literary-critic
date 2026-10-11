@@ -8,7 +8,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from litcritic import __version__, checklist, corpus, guard, synth, workspace
+from litcritic import __version__, checklist, corpus, guard, synth, validate, workspace
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -111,6 +111,20 @@ def _cmd_synth(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_validate(args: argparse.Namespace) -> int:
+    try:
+        data = validate.load_file(args.kind, Path(args.file))
+    except (OSError, ValueError) as exc:  # JSON and TOML decode errors are ValueErrors
+        print(f"error: cannot read {args.file}: {exc}", file=sys.stderr)
+        return 2
+    cat = None if args.no_catalogue else checklist.load(workspace.repo_root() / "checklist")
+    errors = validate.validate(args.kind, data, cat)
+    for err in errors:
+        print(err, file=sys.stderr)
+    print(f"{args.kind}: {args.file}: {len(errors)} error(s)")
+    return 1 if errors else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="lc", description="literary-critic toolkit")
     parser.add_argument("--version", action="version", version=__version__)
@@ -145,6 +159,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_synth.add_argument("--rate", type=float, default=0.05, help="share of paragraphs edited")
     p_synth.add_argument("--out", type=Path, required=True, help="output directory")
     p_synth.set_defaults(func=_cmd_synth)
+
+    p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
+    p_val.add_argument("kind", choices=validate.KINDS)
+    p_val.add_argument("file", help="JSON file (one object or a list), or TOML for a profile")
+    p_val.add_argument(
+        "--no-catalogue", action="store_true", help="skip check-id/trait cross-checks"
+    )
+    p_val.set_defaults(func=_cmd_validate)
     return parser
 
 

@@ -1,0 +1,17 @@
+{
+ "schema_version": 1,
+ "kind": "characters",
+ "entries": [
+  {
+   "id": "traveller",
+   "name": "Traveller",
+   "aliases": [
+    "the stranger"
+   ],
+   "anchors": [
+    "c01.s1",
+    "c02.s1"
+   ]
+  }
+ ]
+}

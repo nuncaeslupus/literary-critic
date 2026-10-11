@@ -79,7 +79,7 @@ manuscript (.docx/.odt/.md/.txt)
 
 **Status legend**: ☐ not started · ◐ in progress · ☑ merged
 
-T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T4–T15 ☐ (queued as `arsenal/tasks/`, issues #3–#14)
+T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T8 ◐ · other T4–T15 ☐ (queued as `arsenal/tasks/`, issues #3–#14)
 
 **Merge order**: T1 → T2 → T3 → T4 → T5 → (T6, T7, T8) → T9 → T10 → T11 → (T12, T13) → T14 → T15
 **Branch pattern**: `claude/<slug>` per task PR
@@ -91,6 +91,7 @@ T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T4–T15 ☐ (queued as `arsenal/t
 | T1 | `guard_false_negatives == 0` | 0 | `uv run pytest tests/test_guard.py` | 9e6cf92 | [HERE] | 2026-10-10 |
 | T2 | `checklist_errors == 0` | 0 (23 areas, 201 checks after critical pass) | `uv run lc checklist validate` | 9e6cf92 | [HERE] | 2026-10-10 |
 | T3 | `corpus_sources_documented == 1.0` | 1.0 (2 texts: es 50.5k words, en 25.6k words) | `uv run lc corpus check` | a440478 | [HERE] | 2026-10-10 |
+| T8 | `schema_validity_on_fixtures == 1.0` | 1.0 (19 fixtures, 5 kinds) | `uv run pytest tests/test_validate.py` | 741fa89+ | [HERE] | 2026-10-10 |
 
 ### Dependency graph
 

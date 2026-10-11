@@ -1,0 +1,42 @@
+[
+ {
+  "schema_version": 1,
+  "id": "F1",
+  "check_id": "orientation.premise",
+  "anchors": [
+   "c01.s1.p3"
+  ],
+  "evidence": [
+   {
+    "anchor": "c01.s1.p3",
+    "quote": "Se puso el sol."
+   }
+  ],
+  "explanation": "Opening sets time and mood in four words.",
+  "severity": "low",
+  "confidence": 0.8,
+  "effort": "S",
+  "kind": "strength",
+  "status": "open"
+ },
+ {
+  "schema_version": 1,
+  "id": "F2",
+  "check_id": "orientation.premise",
+  "anchors": [
+   "p1.c02"
+  ],
+  "evidence": [
+   {
+    "anchor": "p1.c02",
+    "quote": "x"
+   }
+  ],
+  "explanation": "Opening sets time and mood in four words.",
+  "severity": "high",
+  "confidence": 0.8,
+  "effort": "S",
+  "kind": "problem",
+  "status": "open"
+ }
+]

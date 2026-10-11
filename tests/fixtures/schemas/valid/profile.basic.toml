@@ -1,0 +1,8 @@
+schema_version = 1
+mode = "revision"
+language = "es"
+traits = ["first_person"]
+disabled = ["orientation.writer-brief"]
+
+[weights]
+architecture = 1.5

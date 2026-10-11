@@ -1,0 +1,17 @@
+{
+ "schema_version": 1,
+ "id": "F1",
+ "check_id": "orientation.premise",
+ "evidence": [
+  {
+   "anchor": "c01.s1.p3",
+   "quote": "Se puso el sol."
+  }
+ ],
+ "explanation": "Opening sets time and mood in four words.",
+ "severity": "low",
+ "confidence": 0.8,
+ "effort": "S",
+ "kind": "strength",
+ "status": "open"
+}
