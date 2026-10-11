@@ -8,7 +8,17 @@ import sys
 import tomllib
 from pathlib import Path
 
-from litcritic import __version__, checklist, corpus, guard, ingest, synth, validate, workspace
+from litcritic import (
+    __version__,
+    checklist,
+    corpus,
+    guard,
+    ingest,
+    structure,
+    synth,
+    validate,
+    workspace,
+)
 
 
 def _cmd_init(args: argparse.Namespace) -> int:
@@ -125,6 +135,20 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_anchor(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        out, s, errors = structure.build(ws.root, args.version)
+    except (workspace.WorkspaceError, OSError, ValueError, KeyError, TypeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    for err in errors:
+        print(f"override rejected: {err}", file=sys.stderr)
+    print("; ".join(s.notes))
+    print(f"wrote {out}")
+    return 1 if errors else 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -179,6 +203,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_ing.add_argument("--workspace", required=True, help="workspace folder or slug")
     p_ing.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_ing.set_defaults(func=_cmd_ingest)
+
+    p_anc = sub.add_parser("anchor", help="detect parts/chapters/scenes and anchor paragraphs")
+    p_anc.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_anc.add_argument("--version", default=None, help="draft version, e.g. v002 (default latest)")
+    p_anc.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_anc.set_defaults(func=_cmd_anchor)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)
