@@ -154,11 +154,13 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
         out, _, data = diff.build(ws.root, args.old, args.new)
-    except (workspace.WorkspaceError, OSError, ValueError) as exc:
+    except (workspace.WorkspaceError, OSError, ValueError, KeyError, TypeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     counts = ", ".join(f"{k} {v}" for k, v in data["counts"].items())
     print(f"{args.old} -> {args.new}: {counts}")
+    for note in data["notes"]:
+        print(f"note: {note}")
     print(f"stale scenes: {len(data['stale_scenes'])}; wrote {out}")
     return 0
 

@@ -93,3 +93,23 @@ def test_cli_diff(tmp_path: Path) -> None:
     data = json.loads((ws / "index" / "v002" / "alignment.json").read_text(encoding="utf-8"))
     assert data["counts"]["unchanged"] > 300 and data["stale_scenes"]
     assert data["old"][2]["a"] == "c01.s0.p1" and data["old"][2]["new"] == ["c01.s0.p1"]
+
+
+def test_review_regressions() -> None:
+    a, b, c = "Alpha one two three.", "Beta four five six.", "Gamma seven eight nine."
+    # Repeated scene-break lines pair with their own copies.
+    al = diff.align([a, "* * *", b, "* * *", c], ["* * *", a, "* * *", b, "* * *", c])
+    assert [e["status"] for e in al.old] == ["unchanged"] * 5
+    assert al.old[1]["new"] == [2] and al.new[0]["status"] == "inserted"
+    # Unrelated drafts stay fast (banded comparison) and say so.
+    import random
+    import time
+
+    rng = random.Random(1)
+    vocab = [f"w{k}" for k in range(3000)]
+    old = [" ".join(rng.choices(vocab, k=30)) for _ in range(1500)]
+    new = [" ".join(rng.choices(vocab, k=30)) for _ in range(1500)]
+    start = time.monotonic()
+    al = diff.align(old, new)
+    assert time.monotonic() - start < 15
+    assert al.notes
