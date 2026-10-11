@@ -12,7 +12,7 @@ before line-level work.
    - `L0`: `<ws>/analysis/synopsis.md` and the profile;
    - `L1`: `lc show --workspace <slug>` (table of contents);
    - `L2`: the Codex's `scene` items
-     (`lc codex sql "SELECT * FROM scene" --workspace <slug>`, or `lc context`
+     (`lc codex sql "SELECT * FROM v_scene" --workspace <slug>`, or `lc context`
      for one scene);
    - `L3`: `lc find "<phrase>" --workspace <slug>`,
      `lc context c05.s1.p3 --workspace <slug>`, or

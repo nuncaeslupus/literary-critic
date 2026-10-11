@@ -216,10 +216,12 @@ class Codex:
         text = "".join(json.dumps(i.as_json(), ensure_ascii=False) + "\n" for i in rows)
         _write_atomic(self.root / "items" / f"{type_name}.jsonl", text)
 
-    def _log(self, op: str, item: Item, before: dict[str, Any] | None, by: str) -> None:
+    def _log(
+        self, op: str, item: Item, before: dict[str, Any] | None, by: str, draft: str = ""
+    ) -> None:
         entry = {
             "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "draft": self.draft,
+            "draft": draft or self.draft,
             "item": item.id,
             "op": op,
             "by": by,
@@ -353,12 +355,18 @@ class Codex:
         self._log(op, item, before, by)
 
     def replace_all(
-        self, items: list[Item], op: str = "sync", by: str = "script", updated: str = ""
+        self,
+        items: list[Item],
+        op: str = "sync",
+        by: str = "script",
+        updated: str = "",
+        draft: str = "",
     ) -> None:
         """Write many changed items at once (sync), validated like single writes.
 
         Each changed item gets its ``rev`` bumped and ``updated`` set to ``updated``
-        (default: the synced draft); each touched type file is rewritten once.
+        (default: the synced draft); each touched type file is rewritten once. The
+        change log records ``draft`` (default: the synced draft).
         """
         errs = [e for item in items for e in self._problems(item)]
         if errs:
@@ -374,7 +382,7 @@ class Codex:
         for t in sorted({i.type for i, _ in changed}):
             self._save(t)
         for item, before in changed:
-            self._log(op, item, before, by)
+            self._log(op, item, before, by, draft)
 
     # -- reading --------------------------------------------------------------
 

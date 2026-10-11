@@ -57,6 +57,8 @@ def test_sync_single_edit_flags_only_reached_items(
     assert after.draft == "v002" and after.check() == []
     queue = [json.loads(x) for x in (root / "codex" / "reread.jsonl").read_text().splitlines()]
     assert {q["item"] for q in queue} == set(report.flagged)
+    log = [json.loads(x) for x in (root / "codex" / "changes.jsonl").read_text().splitlines()]
+    assert {e["draft"] for e in log if e["op"] == "sync"} == {"v002"}
 
 
 def test_sync_rename_keeps_entity_id(work: tuple[Path, dict[str, str]], tmp_path: Path) -> None:

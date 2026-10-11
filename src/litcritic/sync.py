@@ -180,7 +180,9 @@ def sync(work_root: Path, to: str | None = None, cx: Codex | None = None) -> Rep
     _rename_entities(cx, _renames(cx, old, new, al), updates, report)
     # Items first, the synced draft last: a crash in between leaves spans that a
     # re-run relocates again (their draft no longer matches), never a false "synced".
-    cx.replace_all(list(updates.values()), op="sync", by="script", updated=new_draft)
+    cx.replace_all(
+        list(updates.values()), op="sync", by="script", updated=new_draft, draft=new_draft
+    )
     reasons = {i: "changed" for i in report.changed}
     reasons.update({i: "lost" for i in report.lost})
     reasons.update({i: "depends" for i in report.dependents})

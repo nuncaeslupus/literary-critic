@@ -41,6 +41,12 @@ it holds the rules that matter most (the writer writes; never edit their
 manuscript without permission; plain language; locate everything; one change
 per message). Where a procedure says `lc`, run `python lc.py`.
 
+What you learn about the novel goes into its Codex, inside the workspace, so
+the next conversation starts from it instead of re-reading the book: record
+scenes, characters and findings as Codex items (`prompts/20-codex-items.md`)
+and answer the writer's questions from it (`prompts/35-ask.md`). Start each conversation
+with `python lc.py codex check --workspace <slug> --home ./home`.
+
 Before the conversation ends, always save the work:
 
 ```
@@ -54,6 +60,7 @@ Google Drive) and upload it next time with this kit.
 
 Without code you cannot ingest, anchor, measure or validate. Say so to the
 writer, then follow the procedures in `prompts/` by reading the text the writer
-pastes: work chapter by chapter, keep your own notes in the same formats
-(scenes, characters, findings), locate every comment by chapter and the quoted first
+pastes: work chapter by chapter, keep your own notes on scenes, characters
+and findings (the same fields as the Codex items in `prompts/20-codex-items.md`),
+locate every comment by chapter and the quoted first
 and last words of the paragraph, and never claim a metric you did not compute.

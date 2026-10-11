@@ -78,6 +78,25 @@ COMPUTED: dict[str, tuple[tuple[str, ...], str, str]] = {
         "a",
         "pairs of entities mentioned in the same scene (a < b)",
     ),
+    "changes": (
+        (
+            "at",
+            "draft",
+            "item",
+            "type",
+            "op",
+            "by",
+            "status",
+            "text",
+            "fields_json",
+            "before_status",
+            "before_text",
+            "before_fields_json",
+        ),
+        "item",
+        "the Codex change log: op is add, update or sync (a retirement is an update to"
+        " status 'retired'); before_* are NULL for an add",
+    ),
 }
 STRING = re.compile(r"'(?:[^']|'')*'")
 TABLE_REF = re.compile(r"\b(?:from|join)\s+\"?(\w+)", re.I)
@@ -105,7 +124,7 @@ class View:
     def __init__(self, work_root: Path, cx: Codex | None = None) -> None:
         self.root = work_root
         self.cx = cx or Codex(work_root)
-        ix = query.load(work_root, self.cx.draft)
+        ix = query.load(work_root, self.cx.draft, codex=False)
         self.text = spanlib.Text(ix.paragraphs, ix.anchors, self.cx.draft)
         self.structure = json.loads(
             (work_root / "index" / self.cx.draft / "structure.json").read_text(encoding="utf-8")
@@ -248,6 +267,37 @@ class View:
             self.built.add(name)
         finally:
             self._seal()
+
+    def _build_changes(self) -> None:
+        def cell(x: Any) -> Any:
+            ok = x is None or isinstance(x, (str, int, float))
+            return x if ok else json.dumps(x, ensure_ascii=False)
+
+        rows = []
+        log = self.cx.root / "changes.jsonl"
+        lines = log.read_text(encoding="utf-8").splitlines() if log.is_file() else []
+        for line in lines:
+            try:
+                e = json.loads(line)
+                after, before = e.get("after") or {}, e.get("before") or {}
+                row = (
+                    e["at"],
+                    e.get("draft"),
+                    e["item"],
+                    after.get("type"),
+                    e["op"],
+                    e.get("by"),
+                    after.get("status"),
+                    after.get("text"),
+                    after.get("fields", {}),
+                    before.get("status"),
+                    before.get("text"),
+                    before.get("fields"),
+                )
+            except (ValueError, KeyError, TypeError, AttributeError):
+                continue  # a damaged log line is skipped; `lc codex check` reports the Codex
+            rows.append(tuple(cell(x) for x in row))
+        self.conn.executemany(f"INSERT INTO changes VALUES ({','.join('?' * 12)})", rows)
 
     def _build_tokens(self) -> None:
         rows = []

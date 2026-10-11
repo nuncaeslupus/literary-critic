@@ -154,3 +154,25 @@ def test_view_computed_tables_only_built_when_used(work: Path) -> None:
         " ON t.para_idx = g.para_idx AND t.pos = g.pos WHERE g.n = 2 LIMIT 200"
     )
     assert all(g.split()[0] == t for g, t in rows)
+
+
+def test_documented_query_schema_names_every_table(work: Path) -> None:
+    doc = (Path(__file__).parents[1] / "docs" / "codex" / "README.md").read_text(encoding="utf-8")
+    v = view.View(work)
+    for line in v.schema().splitlines()[1:]:
+        name = line.split("(", 1)[0]
+        assert f"`{'v_<type>' if name.startswith('v_') else name}`" in doc or (
+            name in ("chapters", "scenes") and "`chapters`, `scenes`" in doc
+        ), name
+
+
+def test_changes_table_reads_the_log(work: Path) -> None:
+    cx = codex.Codex(work)
+    item = cx.add("entity", "Someone.", {"kind": "character", "name": "Someone"})
+    cx.retire(item.id)
+    with (work / "codex" / "changes.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write('{"at": "x", "item": "y", "op": "update", "by": {"odd": 1}}\nnot json\n')
+    sql = "SELECT op, before_status, status FROM changes WHERE item = ? ORDER BY rowid"
+    rows = view.View(work).run(sql, [item.id])[1]
+    assert rows == [("add", None, "active"), ("update", "active", "retired")]
+    assert view.View(work).run("SELECT by FROM changes WHERE item = 'y'")[1] == [('{"odd": 1}',)]
