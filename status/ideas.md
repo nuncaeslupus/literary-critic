@@ -74,3 +74,4 @@ Efficiency: scripts first, the LLM only reads what changed.
 | 6 | 2026-10-11 | The knowledge base is the core (sub-project S0) and comes before S1-S3. |
 | 7 | 2026-10-11 | The knowledge base is the Codex; "bible" is its characters-and-world layer. |
 | 8 | 2026-10-11 | No fixed sentence level. Every piece of knowledge is anchored to a span of any length (a word, a sentence, a dialogue, a scene, a multi-page digression). Spans also measure information density (knowledge per word) to find rhythm and excess. |
+| 9 | 2026-10-11 | Spans keep their place with paragraph address + character offsets (fast path) and a W3C text-quote selector (exact text + prefix/suffix), as Hypothesis does. Text under the span changed or not found -> flagged for re-reading, never moved silently. Its own module. |
