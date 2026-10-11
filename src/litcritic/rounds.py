@@ -17,17 +17,10 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, locate, query, validate
+from litcritic import checklist, locate, query, structure, validate
 from litcritic.workspace import repo_root
 
 LEVELS = ("structural", "scene", "line")
-STAGE_LEVEL = {
-    "orientation": "structural",
-    "developmental": "structural",
-    "scene": "scene",
-    "line": "line",
-    "verification": "line",
-}
 SEVERITY = {"high": 3.0, "medium": 2.0, "low": 1.0}
 EFFORT = {"S": 1.0, "M": 1.5, "L": 2.0}
 QUOTE = re.compile(r"«([^»]+)»|“([^”]+)”|\"([^\"]+)\"")
@@ -52,13 +45,12 @@ def round_dirs(ws_root: Path) -> list[Path]:
     return sorted(p for p in base.glob("round-[0-9][0-9]") if p.is_dir()) if base.is_dir() else []
 
 
-def level_of(finding: dict[str, Any], checks: dict[str, checklist.Check]) -> str:
+def level_of(finding: dict[str, Any], checks: dict[str, checklist.Check]) -> str | None:
+    """The round level of a finding; None for checks that produce no action."""
     check = checks.get(finding["check_id"])
     if check is None:
         return "scene"
-    if check.action_level in LEVELS:
-        return check.action_level
-    return STAGE_LEVEL.get(check.stage, "scene")
+    return check.action_level if check.action_level in LEVELS else None
 
 
 def score(
@@ -90,15 +82,48 @@ def prose_flags(action: dict[str, Any], draft_text: str) -> list[str]:
 
 
 def _paragraph_anchor(ix: query.Index, anchor: str) -> str:
-    return ix.anchors[query._range(ix, anchor).start]
+    return ix.anchors[query.paragraph_range(ix, anchor).start]
+
+
+def load_profile(ws_root: Path) -> dict[str, Any]:
+    f = ws_root / "analysis" / "profile.toml"
+    return tomllib.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+
+
+def language(ws_root: Path) -> str:
+    """The novel's language: the profile's, else the workspace manifest's, else English."""
+    profile = load_profile(ws_root)
+    if profile.get("language"):
+        return str(profile["language"])
+    manifest = ws_root / "workspace.toml"
+    if manifest.is_file():
+        return str(tomllib.loads(manifest.read_text(encoding="utf-8")).get("language", "en"))
+    return "en"
+
+
+def _decided(ws_root: Path, skip: Path | None = None) -> set[str]:
+    """Findings that already have a decision (any action status but pending)."""
+    out: set[str] = set()
+    for d in round_dirs(ws_root):
+        if d == skip:
+            continue
+        for a in _load_json(d / "actions.json", []):
+            if a["status"] != "pending":
+                out.update(a["finding_ids"])
+    return out
 
 
 def build(
     ws_root: Path, version: str | None = None, level: str | None = None
 ) -> tuple[Path, list[dict[str, Any]], list[str]]:
-    """Write the next round's actions; returns (path, actions, warnings)."""
+    """Write the next round's actions; returns (path, actions, warnings).
+
+    A latest round whose actions are all still pending has not been put to the
+    writer yet, so it is rebuilt in place (same number) rather than followed by
+    a new one.
+    """
+    version = version or structure.latest_version(ws_root)
     ix = query.load(ws_root, version)
-    version = version or _latest(ws_root)
     findings = _load_json(ws_root / "analysis" / "findings.json", None)
     if findings is None:
         raise RoundError("no analysis/findings.json yet; run the checks first")
@@ -107,13 +132,21 @@ def build(
     if errors:
         raise RoundError("findings are invalid: " + "; ".join(errors[:5]))
     checks = {c.id: c for c in cat.checks}
-    profile_file = ws_root / "analysis" / "profile.toml"
-    profile = (
-        tomllib.loads(profile_file.read_text(encoding="utf-8")) if profile_file.is_file() else {}
-    )
-    weights = {str(k): float(v) for k, v in profile.get("weights", {}).items()}
-    lang = _language(ws_root, profile)
-    problems = [f for f in findings if f["kind"] == "problem" and f["status"] == "open"]
+    weights = {str(k): float(v) for k, v in load_profile(ws_root).get("weights", {}).items()}
+    lang = language(ws_root)
+    dirs = round_dirs(ws_root)
+    reuse = None
+    if dirs and all(a["status"] == "pending" for a in _load_json(dirs[-1] / "actions.json", [])):
+        reuse = dirs[-1]
+    decided = _decided(ws_root, skip=reuse)
+    problems = [
+        f
+        for f in findings
+        if f["kind"] == "problem"
+        and f["status"] == "open"
+        and f["id"] not in decided
+        and level_of(f, checks) is not None
+    ]
     if level is None:
         level = next(
             (lv for lv in LEVELS if any(level_of(f, checks) == lv for f in problems)), None
@@ -121,11 +154,13 @@ def build(
         if level is None:
             raise RoundError("no open problem findings: nothing for a new round")
     chosen = [f for f in problems if level_of(f, checks) == level]
+    if not chosen:
+        raise RoundError(f"no open {level} findings without a decision")
     chosen.sort(key=lambda f: -score(f, weights, checks.get(f["check_id"])))
-    previous = [a for d in round_dirs(ws_root) for a in _load_json(d / "actions.json", [])]
+    previous = [a for d in dirs if d != reuse for a in _load_json(d / "actions.json", [])]
     next_id = 1 + max((int(a["id"][1:]) for a in previous), default=0)
-    number = len(round_dirs(ws_root)) + 1
-    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version))
+    number = int(reuse.name.split("-")[1]) if reuse else len(dirs) + 1
+    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
     actions = []
     for k, f in enumerate(chosen):
         check = checks.get(f["check_id"])
@@ -147,27 +182,14 @@ def build(
     errors = validate.validate("action", actions)
     if errors:
         raise RoundError("actions are invalid: " + "; ".join(errors[:5]))
-    warnings = [w for a in actions for w in prose_flags(a, "\n".join(ix.paragraphs))]
+    warnings = [w for a in actions for w in prose_flags(a, loc.text)]
     out_dir = ws_root / "revisions" / f"round-{number:02d}"
     out_dir.mkdir(parents=True, exist_ok=True)
     out = out_dir / "actions.json"
     out.write_text(json.dumps(actions, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    meta = {"round": number, "level": level, "version": version, "language": lang}
+    (out_dir / "round.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
     return out, actions, warnings
-
-
-def _latest(ws_root: Path) -> str:
-    from litcritic import structure
-
-    return structure.latest_version(ws_root)
-
-
-def _language(ws_root: Path, profile: dict[str, Any]) -> str:
-    if profile.get("language"):
-        return str(profile["language"])
-    manifest = ws_root / "workspace.toml"
-    if manifest.is_file():
-        return str(tomllib.loads(manifest.read_text(encoding="utf-8")).get("language", "en"))
-    return "en"
 
 
 def latest_round(ws_root: Path) -> Path:
@@ -191,8 +213,29 @@ def mark(ws_root: Path, action_id: str, status: str) -> dict[str, Any]:
                 path.write_text(
                     json.dumps(actions, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
                 )
+                _sync_findings(ws_root, a["finding_ids"], status)
                 return dict(a)
     raise RoundError(f"no action {action_id!r}")
+
+
+FINDING_STATUS = {
+    "accepted": "accepted",
+    "rejected": "rejected",
+    "done": "resolved",
+    "deferred": "open",
+}
+
+
+def _sync_findings(ws_root: Path, ids: list[str], action_status: str) -> None:
+    """Mirror a decision on the findings it came from."""
+    path = ws_root / "analysis" / "findings.json"
+    findings = _load_json(path, None)
+    if not isinstance(findings, list) or action_status not in FINDING_STATUS:
+        return
+    for f in findings:
+        if f.get("id") in ids:
+            f["status"] = FINDING_STATUS[action_status]
+    path.write_text(json.dumps(findings, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
 def status(ws_root: Path) -> dict[str, Any]:
@@ -263,17 +306,13 @@ TEXT: dict[str, dict[str, Any]] = {
 
 
 def letter(ws_root: Path, version: str | None = None) -> Path:
+    """Render the latest round's letter from the places stored with its actions."""
     d = latest_round(ws_root)
     actions = _load_json(d / "actions.json", [])
-    profile_file = ws_root / "analysis" / "profile.toml"
-    profile = (
-        tomllib.loads(profile_file.read_text(encoding="utf-8")) if profile_file.is_file() else {}
-    )
-    lang = _language(ws_root, profile)
+    meta = _load_json(d / "round.json", {})
+    lang = str(meta.get("language") or language(ws_root))
     t = TEXT.get(lang, TEXT["en"])
-    ix = query.load(ws_root, version)
-    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version or _latest(ws_root)))
-    level = actions[0]["level"] if actions else "structural"
+    level = actions[0]["level"] if actions else str(meta.get("level", "structural"))
     level_name = t["levels"][level]
     n = int(d.name.split("-")[1])
     lines = [
@@ -282,17 +321,12 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
         t["intro"].format(level=level_name),
         "",
     ]
-    findings = _load_json(ws_root / "analysis" / "findings.json", [])
-    strengths = [f for f in findings if f["kind"] == "strength" and f["status"] != "rejected"]
+    strengths = _strength_lines(ws_root, str(meta.get("version") or version or ""), lang)
     if strengths:
-        lines += [f"## {t['strengths']}", ""]
-        for f in strengths:
-            where = locate.describe(loc.locate(_paragraph_anchor(ix, f["anchors"][0])), lang)
-            lines.append(f"- {f.get('explanation', '')} ({where})")
-        lines.append("")
+        lines += [f"## {t['strengths']}", "", *strengths, ""]
     lines += [f"## {t['actions']}", ""]
     for k, a in enumerate(actions, 1):
-        where = locate.describe(loc.locate(a["where"]["anchor"]), lang)
+        where = locate.describe(locate.from_where(a["where"]), lang)
         lines += [
             f"### {k}. {a['what']}",
             "",
@@ -306,4 +340,25 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
         ]
     out = d / "letter.md"
     out.write_text("\n".join(lines), encoding="utf-8")
+    return out
+
+
+def _strength_lines(ws_root: Path, version: str, lang: str) -> list[str]:
+    """Open or accepted strengths whose place still exists in the round's draft."""
+    findings = _load_json(ws_root / "analysis" / "findings.json", [])
+    strengths = [
+        f for f in findings if f["kind"] == "strength" and f["status"] in ("open", "accepted")
+    ]
+    if not strengths:
+        return []
+    version = version or structure.latest_version(ws_root)
+    ix = query.load(ws_root, version)
+    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
+    out = []
+    for f in strengths:
+        try:
+            where = locate.describe(loc.locate(_paragraph_anchor(ix, f["anchors"][0])), lang)
+        except KeyError:
+            continue
+        out.append(f"- {f.get('explanation', '')} ({where})")
     return out

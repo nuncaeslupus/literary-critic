@@ -19,6 +19,10 @@ from litcritic import query
 MIN_WORDS = 4
 MAX_WORDS = 12
 WORDS_PER_PAGE = 300
+LABELS = {
+    "es": {"front": "preliminares", "scene": "escena"},
+    "en": {"front": "front matter", "scene": "scene"},
+}
 
 
 @dataclass
@@ -45,11 +49,14 @@ class Locator:
             out["section"] = self.section
         if self.page:
             out["page"] = self.page
+            out["page_exact"] = self.page_exact
+        if self.after:
+            out["after"] = self.after
         return out
 
 
 def _occurrences(haystack: str, needle: str) -> int:
-    return len(re.findall(re.escape(needle), haystack))
+    return haystack.count(needle)
 
 
 def _unique_run(words: list[str], text: str, from_end: bool) -> tuple[str, bool]:
@@ -64,8 +71,11 @@ def _unique_run(words: list[str], text: str, from_end: bool) -> tuple[str, bool]
 
 
 class LocatorBuilder:
-    def __init__(self, ix: query.Index, meta: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self, ix: query.Index, meta: list[dict[str, Any]] | None = None, lang: str = "en"
+    ) -> None:
         self.ix = ix
+        self.lang = lang
         self.text = "\n".join(ix.paragraphs)
         self.meta = meta if meta and len(meta) == len(ix.paragraphs) else []
         self.pages_known = any(m.get("page") for m in self.meta)
@@ -74,25 +84,28 @@ class LocatorBuilder:
         for p in ix.paragraphs:
             self.words_before.append(total)
             total += len(p.split())
-        self.chapter_by_key = {query._chapter_key(c["id"]): c for c in ix.chapters}
+        self.chapter_by_key = {query.chapter_key(c["id"]): c for c in ix.chapters}
 
     def locate(self, anchor: str) -> Locator:
-        i = query._range(self.ix, anchor).start
+        i = query.paragraph_range(self.ix, anchor).start
         a = self.ix.anchors[i]
         words = self.ix.paragraphs[i].split()
         first, ok1 = _unique_run(words, self.text, from_end=False)
         last, ok2 = _unique_run(words, self.text, from_end=True)
-        chapter = self.chapter_by_key.get(query._chapter_key(a), {})
+        chapter = self.chapter_by_key.get(query.chapter_key(a), {})
         m = re.search(r"c(\d+)", a)
         number = int(m.group(1)) if m else 0
         title = str(chapter.get("title") or "")
-        chapter_label = f"{number}" + (f" ({title})" if title else "") if number else "front matter"
+        labels = LABELS.get(self.lang, LABELS["en"])
+        chapter_label = (
+            f"{number}" + (f" ({title})" if title else "") if number else labels["front"]
+        )
         scene = re.search(r"\.s(\d+)", a)
-        section = f"scene {scene.group(1)}" if scene and scene.group(1) != "0" else ""
-        if self.pages_known:
-            page, exact = int(self.meta[i].get("page") or 0), True
-        else:
-            page, exact = self.words_before[i] // WORDS_PER_PAGE + 1, False
+        section = f"{labels['scene']} {scene.group(1)}" if scene and scene.group(1) != "0" else ""
+        page = int(self.meta[i].get("page") or 0) if self.pages_known else 0
+        exact = page > 0
+        if not exact:
+            page = self.words_before[i] // WORDS_PER_PAGE + 1
         after = ""
         if not (ok1 and ok2) and i > 0:
             after, _ = _unique_run(self.ix.paragraphs[i - 1].split(), self.text, from_end=False)
@@ -112,9 +125,7 @@ def describe(loc: Locator, lang: str = "en") -> str:
     """One line a writer can follow."""
     approx = "" if loc.page_exact else "≈"
     if lang == "es":
-        where = f"Capítulo {loc.chapter}" + (
-            f", escena {loc.section.split()[-1]}" if loc.section else ""
-        )
+        where = f"Capítulo {loc.chapter}" + (f", {loc.section}" if loc.section else "")
         line = (
             f"{where}, pág. {approx}{loc.page}: el párrafo que empieza «{loc.first_words}…» "
             f"y termina «…{loc.last_words}»"
@@ -126,6 +137,21 @@ def describe(loc: Locator, lang: str = "en") -> str:
         f"and ends “…{loc.last_words}”"
     )
     return line + (f", right after the one that starts “{loc.after}…”" if loc.after else "")
+
+
+def from_where(where: dict[str, Any]) -> Locator:
+    """A locator rebuilt from an action's stored ``where`` (no draft needed)."""
+    return Locator(
+        anchor=where["anchor"],
+        chapter=where["chapter"],
+        section=where.get("section", ""),
+        page=int(where.get("page", 0)),
+        page_exact=bool(where.get("page_exact", False)),
+        first_words=where["first_words"],
+        last_words=where["last_words"],
+        unique=True,
+        after=where.get("after", ""),
+    )
 
 
 def as_json(loc: Locator) -> str:

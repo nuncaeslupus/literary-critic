@@ -14,7 +14,8 @@ be cut is wasted.
 2. Render the letter: `lc round letter --workspace <slug>` writes
    `<ws>/revisions/round-NN/letter.md` in the novel's language. Read it before
    sending; improve the `what`, `why` and `options` wording in the findings if
-   something reads badly, then rebuild.
+   something reads badly, then rebuild: while every action is still pending, a
+   rebuild replaces the round instead of starting a new one.
 3. Walk the writer through it **one action at a time**. For each, describe the
    place as the letter does (chapter, page, first and last words), the
    problem, why it matters and the options. Record their decision:

@@ -268,8 +268,10 @@ def _cmd_locate(args: argparse.Namespace) -> int:
         ws = workspace.resolve(args.workspace, args.home)
         version = args.version or structure.latest_version(ws.root)
         ix = query.load(ws.root, version)
-        loc = locate.LocatorBuilder(ix, locate.load_meta(ws.root, version)).locate(args.anchor)
-        lang = str(ws.manifest.get("language", "en"))
+        lang = rounds.language(ws.root)
+        loc = locate.LocatorBuilder(ix, locate.load_meta(ws.root, version), lang).locate(
+            args.anchor
+        )
     except (workspace.WorkspaceError, OSError, ValueError, KeyError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

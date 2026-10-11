@@ -102,7 +102,7 @@ def load(ws_root: Path, version: str | None = None) -> Index:
     )
 
 
-def _chapter_key(anchor: str) -> str:
+def chapter_key(anchor: str) -> str:
     """'p1.c03.s2.p4' -> 'c03' (chapter ids carry no part prefix in lookups)."""
     m = re.search(r"c\d+", anchor)
     return m.group() if m else anchor
@@ -112,7 +112,7 @@ def _bare(anchor: str) -> str:
     return re.sub(r"^p\d+\.", "", anchor.strip())
 
 
-def _range(ix: Index, unit: str) -> range:
+def paragraph_range(ix: Index, unit: str) -> range:
     """Paragraph indices of a chapter ('c03'), scene ('c03.s2') or paragraph anchor."""
     u = _bare(unit)
     hits = [i for i, a in enumerate(ix.anchors) if _bare(a) == u or _bare(a).startswith(u + ".")]
@@ -126,7 +126,7 @@ def toc(ix: Index, budget: int = DEFAULT_BUDGET) -> str:
     out.add("chapter | words | scenes | title — summary")
     shown = 0
     for c in ix.chapters:
-        summary = ix.summaries.get(c["id"]) or ix.summaries.get(_chapter_key(c["id"]), "")
+        summary = ix.summaries.get(c["id"]) or ix.summaries.get(chapter_key(c["id"]), "")
         line = f"{c['id']} | {c['words']} | {len(c['scenes'])} | {c['title']}"
         if summary:
             line += f" — {summary}"
@@ -138,7 +138,7 @@ def toc(ix: Index, budget: int = DEFAULT_BUDGET) -> str:
 
 
 def show(ix: Index, unit: str, budget: int = DEFAULT_BUDGET, fingerprints: bool = False) -> str:
-    r = _range(ix, unit)
+    r = paragraph_range(ix, unit)
     out = Out(budget)
     last = r.start - 1
     for i in r:
@@ -158,8 +158,8 @@ def show(ix: Index, unit: str, budget: int = DEFAULT_BUDGET, fingerprints: bool 
 
 def show_from(ix: Index, anchor: str, budget: int = DEFAULT_BUDGET) -> str:
     """Continue reading from ``anchor`` to the end of its chapter."""
-    start = _range(ix, anchor.rstrip("-")).start
-    chapter = _range(ix, _chapter_key(ix.anchors[start]))
+    start = paragraph_range(ix, anchor.rstrip("-")).start
+    chapter = paragraph_range(ix, chapter_key(ix.anchors[start]))
     out = Out(budget)
     last = start - 1
     for i in range(start, chapter.stop):
@@ -186,7 +186,7 @@ def find(ix: Index, query: str, budget: int = DEFAULT_BUDGET, within: str = "") 
         raise ValueError("empty search; give one or more words")
     phrase = q.startswith('"') and q.endswith('"') and len(q) > 1
     terms = [_fold(q.strip('"'))] if phrase else [_fold(t) for t in q.split()]
-    scope = _range(ix, within) if within else range(len(ix.paragraphs))
+    scope = paragraph_range(ix, within) if within else range(len(ix.paragraphs))
     hits = [i for i in scope if all(t in _fold(ix.paragraphs[i]) for t in terms)]
     out = Out(budget)
     out.add(f"{len(hits)} paragraphs match {query!r}")
@@ -209,11 +209,11 @@ def _snippet(text: str, term: str, width: int = 30) -> str:
 
 def context(ix: Index, anchor: str, budget: int = DEFAULT_BUDGET) -> str:
     """Where a paragraph sits: chapter, scene card, then the text around it."""
-    r = _range(ix, anchor)
+    r = paragraph_range(ix, anchor)
     centre = r.start
     out = Out(budget)
-    ckey = _chapter_key(ix.anchors[centre])
-    chapter = next((c for c in ix.chapters if _chapter_key(c["id"]) == ckey), None)
+    ckey = chapter_key(ix.anchors[centre])
+    chapter = next((c for c in ix.chapters if chapter_key(c["id"]) == ckey), None)
     if chapter:
         title = chapter["title"] or "(untitled)"
         out.add(f"chapter {chapter['id']}: {title} — {chapter['words']} words")

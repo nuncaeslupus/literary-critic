@@ -124,3 +124,35 @@ def test_short_paragraph_points_to_its_neighbour() -> None:
     loc = locate.LocatorBuilder(ix).locate("c01.s1.p4")
     assert not loc.unique and loc.after == "Otra cosa distinta."
     assert "justo después del que empieza «Otra cosa distinta.…»" in locate.describe(loc, "es")
+
+
+def test_round_lifecycle_regressions(tmp_path: Path) -> None:
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "workspace.toml").write_text('slug = "ws"\nlanguage = "es"\n', encoding="utf-8")
+    assert main(["ingest", str(corpus.get("marianela").path), "--workspace", str(root)]) == 0
+    assert main(["anchor", "--workspace", str(root)]) == 0
+    (root / "analysis").mkdir()
+    findings = _findings()
+    inventory = dict(findings[0]) | {"id": "F9", "check_id": "scene-craft.scene-inventory"}
+    (root / "analysis" / "findings.json").write_text(json.dumps([*findings, inventory]))
+    _, first, _ = rounds.build(root)
+    # Rebuilding before anything is decided replaces the round instead of adding one.
+    _, again, _ = rounds.build(root)
+    assert [d.name for d in rounds.round_dirs(root)] == ["round-01"]
+    assert [a["id"] for a in again] == [a["id"] for a in first]
+    # A decision is mirrored on the finding and keeps it out of later rounds.
+    rounds.mark(root, first[0]["id"], "done")
+    saved = json.loads((root / "analysis" / "findings.json").read_text(encoding="utf-8"))
+    assert next(f for f in saved if f["id"] == "F3")["status"] == "resolved"
+    _, scene_round, _ = rounds.build(root)
+    ids = {fid for a in scene_round for fid in a["finding_ids"]}
+    assert "F3" not in ids and "F9" not in ids  # decided; and a no-action check
+    with pytest.raises(rounds.RoundError, match="no open line"):
+        rounds.build(root, level="line")
+    # The letter quotes the places stored with the actions.
+    text = rounds.letter(root).read_text(encoding="utf-8")
+    assert all(a["where"]["first_words"] in text for a in scene_round)
+    # Spanish labels in locators.
+    ix = query.load(root)
+    assert locate.LocatorBuilder(ix, lang="es").locate("c00.s1.p1").chapter == "preliminares"
