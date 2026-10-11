@@ -1,0 +1,15 @@
+# The writer's decision on an issue; links about -> the issue.
+type = "decision"
+prefix = "de"
+links = ["about"]
+columns = ["verdict"]
+spans_required = false
+
+[schema]
+type = "object"
+required = ["verdict"]
+additionalProperties = false
+[schema.properties.verdict]
+enum = ["accepted", "rejected", "done_differently", "done"]
+[schema.properties.reason]
+type = "string"

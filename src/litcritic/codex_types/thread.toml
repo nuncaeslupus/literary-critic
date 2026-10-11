@@ -1,0 +1,17 @@
+# A storyline; its spans are the passages that advance it.
+type = "thread"
+prefix = "th"
+links = ["part_of", "depends_on", "about"]
+columns = ["name", "role"]
+spans_required = false
+standalone = true
+
+[schema]
+type = "object"
+required = ["name"]
+additionalProperties = false
+[schema.properties.name]
+type = "string"
+minLength = 1
+[schema.properties.role]
+enum = ["main", "subplot"]

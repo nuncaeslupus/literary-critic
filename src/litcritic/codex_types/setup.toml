@@ -1,0 +1,16 @@
+# Something planted for later; links pays_off from the payoff item.
+type = "setup"
+prefix = "su"
+links = ["pays_off", "refers_to", "about", "part_of"]
+columns = ["label", "side"]
+spans_required = true
+
+[schema]
+type = "object"
+required = ["label", "side"]
+additionalProperties = false
+[schema.properties.label]
+type = "string"
+minLength = 1
+[schema.properties.side]
+enum = ["setup", "payoff"]

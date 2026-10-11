@@ -1,0 +1,16 @@
+# Who speaks in a stretch of dialogue, and to whom (entity ids).
+type = "dialogue"
+prefix = "dl"
+links = ["refers_to", "depends_on", "about"]
+columns = ["speaker", "addressee"]
+spans_required = true
+
+[schema]
+type = "object"
+required = ["speaker"]
+additionalProperties = false
+[schema.properties.speaker]
+type = "string"
+minLength = 1
+[schema.properties.addressee]
+type = "string"

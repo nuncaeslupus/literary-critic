@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="e92b4901ca61bfc517e3584980edf126583c5519ee67162f6f25425fa25ca746">
+<meta name="arsenal-source-sha256" content="24d0272cbecad432a5fb9302eab74b4427ea6b5c22d1c2ac4e89b20f3587fb9e">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -761,7 +761,8 @@ round actions) are not produced any more (D-18).</p></div>
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Item types (data, not code)</span></h4>
 <div class="sec-body"><p>Each type is one file, <code>src/litcritic/codex_types/&lt;type&gt;.toml</code>. It holds the id
 prefix, the typed fields with their JSON-schema fragment, the allowed link
-relations, and which fields the SQL view exposes as columns. Adding a type adds
+relations, which fields the SQL view exposes as columns, whether spans are
+required, and whether an item may stand alone (no spans, no links). Adding a type adds
 one file (criterion <code>new_type_core_changes == 0</code>).</p>
 <p>Types shipped first:</p>
 <table>
@@ -800,8 +801,8 @@ one file (criterion <code>new_type_core_changes == 0</code>).</p>
 </tr>
 <tr>
 <td><code>setup</code></td>
-<td><code>label</code>, <code>paid_by</code></td>
-<td>Setups and payoffs</td>
+<td><code>label</code>, <code>side</code> (setup, payoff)</td>
+<td>Setups and payoffs; a payoff links <code>pays_off</code> to its setup</td>
 </tr>
 <tr>
 <td><code>issue</code></td>
@@ -810,8 +811,8 @@ one file (criterion <code>new_type_core_changes == 0</code>).</p>
 </tr>
 <tr>
 <td><code>decision</code></td>
-<td><code>issue</code>, <code>verdict</code> (accepted, rejected, done_differently), <code>reason</code></td>
-<td>The writer's decisions</td>
+<td><code>verdict</code> (accepted, rejected, done_differently, done), <code>reason</code></td>
+<td>The writer's decisions; links <code>about</code> to the issue</td>
 </tr>
 </tbody>
 </table>

@@ -1,0 +1,21 @@
+# Scene card: what happens in a scene, whose eyes, where and when.
+type = "scene"
+prefix = "sc"
+links = ["part_of", "refers_to", "depends_on", "about"]
+columns = ["pov", "location", "time"]
+spans_required = true
+
+[schema]
+type = "object"
+required = ["summary"]
+additionalProperties = false
+[schema.properties.summary]
+type = "string"
+minLength = 1
+x-maxWords = 80
+[schema.properties.pov]
+type = "string"
+[schema.properties.location]
+type = "string"
+[schema.properties.time]
+type = "string"

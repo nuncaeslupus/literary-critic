@@ -277,7 +277,8 @@ round actions) are not produced any more (D-18).
 
 Each type is one file, `src/litcritic/codex_types/<type>.toml`. It holds the id
 prefix, the typed fields with their JSON-schema fragment, the allowed link
-relations, and which fields the SQL view exposes as columns. Adding a type adds
+relations, which fields the SQL view exposes as columns, whether spans are
+required, and whether an item may stand alone (no spans, no links). Adding a type adds
 one file (criterion `new_type_core_changes == 0`).
 
 Types shipped first:
@@ -289,9 +290,9 @@ Types shipped first:
 | `dialogue` | `speaker`, `addressee` | Who speaks, on dialogue spans |
 | `fact` | `claim`, `known_by` | Events and world facts; drive "who knows what" |
 | `thread` | `name`, `role` (main, subplot) | Storylines; their spans are the passages that advance them |
-| `setup` | `label`, `paid_by` | Setups and payoffs |
+| `setup` | `label`, `side` (setup, payoff) | Setups and payoffs; a payoff links `pays_off` to its setup |
 | `issue` | `level`, `severity`, `check`, `question` | Findings at any level |
-| `decision` | `issue`, `verdict` (accepted, rejected, done_differently), `reason` | The writer's decisions |
+| `decision` | `verdict` (accepted, rejected, done_differently, done), `reason` | The writer's decisions; links `about` to the issue |
 
 Kinds may add types (`poem`: `stanza_form`, `motif`).
 
