@@ -36,7 +36,7 @@ class RoundError(Exception):
     """Findings or rounds cannot be processed."""
 
 
-def _load_json(path: Path, default: Any) -> Any:
+def load_json(path: Path, default: Any) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else default
 
 
@@ -107,7 +107,7 @@ def _decided(ws_root: Path, skip: Path | None = None) -> set[str]:
     for d in round_dirs(ws_root):
         if d == skip:
             continue
-        for a in _load_json(d / "actions.json", []):
+        for a in load_json(d / "actions.json", []):
             if a["status"] != "pending":
                 out.update(a["finding_ids"])
     return out
@@ -124,7 +124,7 @@ def build(
     """
     version = version or structure.latest_version(ws_root)
     ix = query.load(ws_root, version)
-    findings = _load_json(ws_root / "analysis" / "findings.json", None)
+    findings = load_json(ws_root / "analysis" / "findings.json", None)
     if findings is None:
         raise RoundError("no analysis/findings.json yet; run the checks first")
     cat = checklist.load(repo_root() / "checklist")
@@ -136,7 +136,7 @@ def build(
     lang = language(ws_root)
     dirs = round_dirs(ws_root)
     reuse = None
-    if dirs and all(a["status"] == "pending" for a in _load_json(dirs[-1] / "actions.json", [])):
+    if dirs and all(a["status"] == "pending" for a in load_json(dirs[-1] / "actions.json", [])):
         reuse = dirs[-1]
     decided = _decided(ws_root, skip=reuse)
     problems = [
@@ -157,7 +157,7 @@ def build(
     if not chosen:
         raise RoundError(f"no open {level} findings without a decision")
     chosen.sort(key=lambda f: -score(f, weights, checks.get(f["check_id"])))
-    previous = [a for d in dirs if d != reuse for a in _load_json(d / "actions.json", [])]
+    previous = [a for d in dirs if d != reuse for a in load_json(d / "actions.json", [])]
     next_id = 1 + max((int(a["id"][1:]) for a in previous), default=0)
     number = int(reuse.name.split("-")[1]) if reuse else len(dirs) + 1
     loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
@@ -203,7 +203,7 @@ def mark(ws_root: Path, action_id: str, status: str) -> dict[str, Any]:
     """Set an action's status (pending/accepted/rejected/done/deferred) in its round."""
     for d in reversed(round_dirs(ws_root)):
         path = d / "actions.json"
-        actions = _load_json(path, [])
+        actions = load_json(path, [])
         for a in actions:
             if a["id"] == action_id:
                 a["status"] = status
@@ -229,7 +229,7 @@ FINDING_STATUS = {
 def _sync_findings(ws_root: Path, ids: list[str], action_status: str) -> None:
     """Mirror a decision on the findings it came from."""
     path = ws_root / "analysis" / "findings.json"
-    findings = _load_json(path, None)
+    findings = load_json(path, None)
     if not isinstance(findings, list) or action_status not in FINDING_STATUS:
         return
     for f in findings:
@@ -240,11 +240,11 @@ def _sync_findings(ws_root: Path, ids: list[str], action_status: str) -> None:
 
 def status(ws_root: Path) -> dict[str, Any]:
     d = latest_round(ws_root)
-    actions = _load_json(d / "actions.json", [])
+    actions = load_json(d / "actions.json", [])
     counts: dict[str, int] = {}
     for a in actions:
         counts[a["status"]] = counts.get(a["status"], 0) + 1
-    findings = {f["id"]: f for f in _load_json(ws_root / "analysis" / "findings.json", [])}
+    findings = {f["id"]: f for f in load_json(ws_root / "analysis" / "findings.json", [])}
     open_high = [
         a["id"]
         for a in actions
@@ -308,8 +308,8 @@ TEXT: dict[str, dict[str, Any]] = {
 def letter(ws_root: Path, version: str | None = None) -> Path:
     """Render the latest round's letter from the places stored with its actions."""
     d = latest_round(ws_root)
-    actions = _load_json(d / "actions.json", [])
-    meta = _load_json(d / "round.json", {})
+    actions = load_json(d / "actions.json", [])
+    meta = load_json(d / "round.json", {})
     lang = str(meta.get("language") or language(ws_root))
     t = TEXT.get(lang, TEXT["en"])
     level = actions[0]["level"] if actions else str(meta.get("level", "structural"))
@@ -343,9 +343,20 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
     return out
 
 
+def located_line(
+    ix: query.Index, loc: locate.LocatorBuilder, finding: dict[str, Any], lang: str
+) -> str | None:
+    """'- explanation (where)' for a finding, or None when its place is gone."""
+    try:
+        where = locate.describe(loc.locate(finding["anchors"][0]), lang)
+    except KeyError:
+        return None
+    return f"- {finding.get('explanation', '')} ({where})"
+
+
 def _strength_lines(ws_root: Path, version: str, lang: str) -> list[str]:
     """Open or accepted strengths whose place still exists in the round's draft."""
-    findings = _load_json(ws_root / "analysis" / "findings.json", [])
+    findings = load_json(ws_root / "analysis" / "findings.json", [])
     strengths = [
         f for f in findings if f["kind"] == "strength" and f["status"] in ("open", "accepted")
     ]
@@ -354,11 +365,4 @@ def _strength_lines(ws_root: Path, version: str, lang: str) -> list[str]:
     version = version or structure.latest_version(ws_root)
     ix = query.load(ws_root, version)
     loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
-    out = []
-    for f in strengths:
-        try:
-            where = locate.describe(loc.locate(_paragraph_anchor(ix, f["anchors"][0])), lang)
-        except KeyError:
-            continue
-        out.append(f"- {f.get('explanation', '')} ({where})")
-    return out
+    return [line for f in strengths if (line := located_line(ix, loc, f, lang))]

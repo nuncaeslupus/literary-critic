@@ -21,6 +21,7 @@ message.
 | analysis, feedback, "what's wrong with it" | `prompts/40-checks.md` |
 | look at a new draft | `prompts/50-new-draft.md` |
 | a revision round, the editorial letter, recording decisions | `prompts/60-rounds.md` |
+| an agency/editor assessment, a reader report | `prompts/70-reader-report.md` |
 
 Workspaces live outside this repo (`$LITCRITIC_HOME/<slug>/`). Before any
 commit, run `make guard`; nothing from a working novel may enter the repo

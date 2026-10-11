@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "report",
+  "title": "Reader report (reader-report mode): the assessment an agency or editor writes",
+  "type": "object",
+  "required": ["schema_version", "logline", "genre", "readership", "comparables", "market_fit", "verdict", "verdict_reason"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 1},
+    "logline": {"type": "string", "minLength": 1, "x-maxWords": 50},
+    "genre": {"type": "string", "minLength": 1},
+    "readership": {"type": "string", "minLength": 1},
+    "comparables": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "market_fit": {"type": "string", "minLength": 1},
+    "verdict": {"enum": ["recommend", "consider", "pass"]},
+    "verdict_reason": {"type": "string", "minLength": 1},
+    "notes": {"type": "string"}
+  }
+}

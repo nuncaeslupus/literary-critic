@@ -18,7 +18,7 @@ from typing import Any
 from litcritic import checklist
 from litcritic.workspace import repo_root
 
-KINDS = ("scene-card", "register", "finding", "action", "profile")
+KINDS = ("scene-card", "register", "finding", "action", "profile", "report")
 TYPES: dict[str, tuple[type, ...]] = {
     "object": (dict,),
     "array": (list,),
