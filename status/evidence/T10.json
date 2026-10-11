@@ -1,0 +1,18 @@
+{
+  "metric": "prompts_reference_valid_commands",
+  "value": 1.0,
+  "references": 37,
+  "documents": [
+    "prompts/README.md",
+    "prompts/00-guide.md",
+    "prompts/10-ingest-and-structure.md",
+    "prompts/20-scene-cards.md",
+    "prompts/25-summaries.md",
+    "prompts/30-orientation.md",
+    "prompts/40-checks.md",
+    "prompts/50-new-draft.md",
+    ".claude/skills/litcritic/SKILL.md"
+  ],
+  "method": "every `lc ...` command in inline code and fenced blocks of the prompts and the litcritic skill is parsed by the real CLI parser (placeholders stand for any value): unknown commands, flags, invalid choices and missing required options fail; a bare mention only has to name a command",
+  "command": "uv run pytest tests/test_prompts.py"
+}

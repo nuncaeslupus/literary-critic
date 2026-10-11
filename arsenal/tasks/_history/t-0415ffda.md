@@ -4,6 +4,7 @@ title: "T10: Procedures: orientation, scene-card extraction, check execution, co
 label: "procedures and prompts"
 priority: 5
 deps: [t-ca8ccb83]
+status: merged
 ---
 
 # T10: Procedures: orientation, scene-card extraction, check execution, conversational guide; skills wrapping them
