@@ -56,6 +56,8 @@ severity = { high = "A contradiction affects a clue, a payoff or the plot.", med
 
 [[check]]
 id = "continuity.gaps-jumps"
+measurable = true
+codex_question = "thread-gaps"
 title = "Involuntary gaps and jumps"
 question = "Is a link missing in the chain of events: an unexplained arrival or exit, a decision with no scene, an object or fact appearing without its cause?"
 look_for = ["a character appearing without arriving", "a decision with no scene", "a change of place with no movement between"]

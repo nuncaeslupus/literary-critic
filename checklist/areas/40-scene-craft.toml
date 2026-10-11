@@ -6,6 +6,8 @@ purpose = "Examine each scene as a unit: what it is for, what changes in it, whe
 
 [[check]]
 id = "scene-craft.scene-inventory"
+measurable = true
+codex_question = "scenes-per-chapter"
 title = "Scene inventory"
 question = "What are the scenes, with place, time, viewpoint, characters, goal, outcome and value shift?"
 look_for = ["scenes with no clear boundary", "scene cards missing for some chapters", "one scene card covering unrelated events", "scenes far longer or shorter than the book's norm"]

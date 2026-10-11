@@ -32,6 +32,8 @@ severity = { high = "The reader cannot orient, or is overwhelmed, in the first c
 
 [[check]]
 id = "opening.introductions"
+measurable = true
+codex_question = "character-appearances"
 title = "Introduction of main characters"
 question = "Are the main characters introduced at a pace the reader can follow, each with something that makes them distinct and memorable?"
 look_for = ["many names in the first chapter", "the protagonist absent or indistinct in the opening", "introduction by a list of traits or a mirror description", "a key character first named long after their role matters"]

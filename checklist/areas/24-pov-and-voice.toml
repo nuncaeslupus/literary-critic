@@ -121,6 +121,8 @@ severity = { high = "The unreliability is undetectable until a reveal that feels
 
 [[check]]
 id = "pov-and-voice.voice-differentiation"
+measurable = true
+codex_question = "speech-share"
 title = "Distinct voices of narrators and viewpoints"
 question = "When several narrators, viewpoint characters or document writers carry the telling, could a reader tell them apart without the chapter label?"
 look_for = ["first-person narrators with the same diction and rhythm", "documents by different writers in one style", "a quoted narrator slipping into the frame narrator's diction", "a viewpoint whose perceptions reveal nothing of who they are"]

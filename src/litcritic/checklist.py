@@ -165,6 +165,10 @@ def load(root: Path) -> Catalogue:
                 not isinstance(sev, dict) or sorted(sev) != sorted(SEVERITIES)
             ):
                 errs.append("diagnostic checks need severity.high/medium/low")
+            if c.get("measurable") and not isinstance(c.get("codex_question"), str):
+                errs.append("measurable checks must name their codex_question")
+            if "codex_question" in c and not c.get("measurable"):
+                errs.append("codex_question needs measurable = true")
             if not isinstance(c.get("look_for", []), list):
                 errs.append("look_for must be a list")
             errors.extend(f"{ctx}: {e}" for e in errs)

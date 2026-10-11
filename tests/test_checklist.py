@@ -1,4 +1,7 @@
+import shutil
 from pathlib import Path
+
+import pytest
 
 from litcritic import checklist
 from litcritic.workspace import repo_root
@@ -76,3 +79,22 @@ def test_repo_catalogue_is_valid() -> None:
     assert len(cat.areas) >= 20
     stages = {c.stage for c in cat.checks}
     assert stages == set(checklist.STAGES)
+
+
+def test_every_measurable_check_has_a_question(capsys: pytest.CaptureFixture[str]) -> None:
+    from litcritic import codex_cli, questions
+    from litcritic.cli import main
+
+    measurable, problems = codex_cli.coverage()
+    assert problems == [] and len(measurable) >= 20
+    assert len(questions.load()) >= 20
+    assert main(["codex", "questions", "--coverage"]) == 0
+    assert f"coverage: {len(measurable)}/{len(measurable)}" in capsys.readouterr().out
+
+
+def test_measurable_without_question_is_invalid(tmp_path: Path) -> None:
+    root = tmp_path / "cat"
+    shutil.copytree(repo_root() / "checklist", root)
+    f = root / "areas" / "52-lexicon-and-sound.toml"
+    f.write_text(f.read_text().replace('codex_question = "near-repeats"\n', "", 1))
+    assert any("codex_question" in e for e in checklist.load(root).errors)

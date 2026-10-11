@@ -30,6 +30,8 @@ severity = { high = "Current order blocks comprehension or spends a key effect b
 
 [[check]]
 id = "architecture.proportion"
+measurable = true
+codex_question = "chapter-lengths"
 title = "Proportion between parts"
 question = "Does each part get space in proportion to its weight in the story and its payoff for the reader?"
 look_for = ["a pivotal block much shorter than preparatory ones", "one block several times longer than comparable ones", "the final movement compressed against the rest"]

@@ -56,15 +56,39 @@ def _params(raw: list[str] | None) -> dict[str, int | float | str]:
     return out
 
 
-def _list_questions() -> int:
+def coverage(root: Path | None = None) -> tuple[list[str], list[str]]:
+    """(measurable check ids, problems): every measurable check must name a known question."""
+    from litcritic import checklist, kinds
+
+    qs = questions.load()
+    cat = checklist.load(root or kinds.get(kinds.DEFAULT).CHECKLIST)
+    measurable, problems = [], []
+    for c in cat.checks:
+        if not c.raw.get("measurable"):
+            continue
+        measurable.append(c.id)
+        q = c.raw.get("codex_question")
+        if q not in qs:
+            problems.append(f"{c.id}: codex_question {q!r} is not a named question")
+    return measurable, problems
+
+
+def _list_questions(show_coverage: bool = False) -> int:
     try:
         qs = questions.load()
+        measurable, problems = coverage() if show_coverage else ([], [])
     except questions.QuestionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     for q in qs.values():
         params = ", ".join(f"{k}={q.defaults[k]}" if k in q.defaults else k for k in q.params)
         print(f"{q.id} [{q.family}] {q.title}" + (f"  ({params})" if params else ""))
+    if show_coverage:
+        for p in problems:
+            print(f"problem: {p}")
+        ok = len(measurable) - len(problems)
+        print(f"coverage: {ok}/{len(measurable)} measurable checks have a named question")
+        return 1 if problems else 0
     return 0
 
 
@@ -100,7 +124,7 @@ def _line(item: Item) -> str:
 
 def _run(args: argparse.Namespace) -> int:
     if args.codex_cmd == "questions":
-        return _list_questions()
+        return _list_questions(args.coverage)
     try:
         ws = workspace.resolve(args.workspace, args.home)
         if args.codex_cmd == "init":
@@ -276,6 +300,7 @@ def register(sub: Any) -> None:
     p_ask.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
     common(p_ask)
     p_qs = csub.add_parser("questions", help="list the named questions")
+    p_qs.add_argument("--coverage", action="store_true", help="check measurable checklist checks")
     p_qs.set_defaults(func=_run)
     p_sync = csub.add_parser("sync", help="bring the Codex up to the latest (or given) draft")
     p_sync.add_argument("--version", default=None, help="draft to sync to (default latest)")

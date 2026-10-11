@@ -6,6 +6,8 @@ purpose = "Look at word choice and sound: the book's characteristic vocabulary, 
 
 [[check]]
 id = "lexicon-and-sound.characteristic-vocabulary"
+measurable = true
+codex_question = "top-phrases"
 title = "Characteristic vocabulary"
 question = "Which words, semantic fields and registers make this book sound like itself?"
 look_for = ["a distinctive semantic field", "favourite words", "terms from a specialist domain"]
@@ -30,6 +32,8 @@ severity = { high = "Imprecision alters meaning at important points.", medium = 
 
 [[check]]
 id = "lexicon-and-sound.echoes-crutch-words"
+measurable = true
+codex_question = "near-repeats"
 title = "Echoes and crutch words"
 question = "Which words repeat too close together, and which favourite words or tics recur across the book until they wear thin?"
 look_for = ["the same content word twice in a sentence or paragraph", "a favourite adjective or verb in every chapter", "'suddenly' or 'something' as a reflex", "a repeated gesture (nodding, sighing, smiling)"]

@@ -6,6 +6,8 @@ purpose = "Check that characters function in the story, give the reader a reason
 
 [[check]]
 id = "characters.cast-register"
+measurable = true
+codex_question = "character-appearances"
 title = "Character register"
 question = "Who are the named and unnamed characters, with aliases, roles, first and last chapter present, and their weight?"
 look_for = ["the same person under several names", "named characters who appear once", "a crowd of names introduced in one chapter"]
@@ -90,6 +92,8 @@ severity = { high = "Several main characters are indistinguishable.", medium = "
 
 [[check]]
 id = "characters.secondary-cast"
+measurable = true
+codex_question = "character-absences"
 title = "Secondary characters and cast economy"
 question = "Does each secondary character justify their place, and could any be merged or cut without loss?"
 look_for = ["two characters with the same function", "walk-on characters with long introductions", "characters appearing in one block and never again"]

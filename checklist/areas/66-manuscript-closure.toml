@@ -19,6 +19,8 @@ severity = { high = "A change reached the manuscript without the writer's confir
 
 [[check]]
 id = "manuscript-closure.post-change-recheck"
+measurable = true
+codex_question = "needs-reread"
 title = "Re-check after changes"
 question = "At every changed location, do sense, joins, continuity, references and time or level markers still hold, and if the opening, ending or title was touched, do they still answer each other?"
 look_for = ["a reference to a cut event", "a broken transition or half-edited sentence", "a ledger entry orphaned by a cut", "a flashback cue removed with its passage", "opening or ending revised without re-reading its echo in the other, or the title"]
@@ -33,6 +35,8 @@ severity = { high = "A change breaks sense or introduces a plot-relevant contrad
 
 [[check]]
 id = "manuscript-closure.orthotypography"
+measurable = true
+codex_question = "spacing"
 title = "Orthotypographic consistency"
 question = "Are quotation marks, dashes, ellipses, spacing, italics, numbers and capitalisation applied consistently according to the language's conventions and the book's chosen style?"
 look_for = ["mixed quote styles outside dialogue (citations, titles, irony: « », “ ”, straight quotes)", "hyphen used where a dash is required", "inconsistent spacing around dashes, ellipses or punctuation", "numbers in figures and words without a rule"]

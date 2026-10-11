@@ -6,6 +6,8 @@ purpose = "Check the rhythm of the whole and of each block: the alternation of m
 
 [[check]]
 id = "pacing.rhythm-profile"
+measurable = true
+codex_question = "scenes-per-chapter"
 title = "Rhythm profile"
 question = "How are chapter length, scene length, dialogue share, scene-versus-summary share and sentence length distributed across the book?"
 look_for = ["long stretches of identical chapter length", "dialogue near zero for many chapters", "a chapter far from the book's own baseline", "a part whose profile differs sharply from the others"]
@@ -18,6 +20,8 @@ evidence = "Per-chapter table of the metrics with outliers marked against the bo
 
 [[check]]
 id = "pacing.mode-alternation"
+measurable = true
+codex_question = "dialogue-share"
 title = "Alternation of modes"
 question = "Does the book alternate action, dialogue, memory and reflection in a way that keeps the reader engaged, or does it run long in one mode where that costs attention?"
 look_for = ["many consecutive chapters of reflection or memory", "chapter after chapter of summary with few dramatised scenes", "a long run of action chapters with no pause to absorb them", "the same chapter pattern repeated block after block"]

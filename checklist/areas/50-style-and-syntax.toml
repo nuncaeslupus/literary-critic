@@ -6,6 +6,8 @@ purpose = "Judge prose at sentence and paragraph level against the voice the boo
 
 [[check]]
 id = "style-and-syntax.hotspot-map"
+measurable = true
+codex_question = "near-repeats"
 title = "Line-level hotspot map"
 question = "Which chapters and passages deviate most from the book's own baseline on line-level metrics, and so deserve close reading first?"
 look_for = ["chapters far above the book's sentence-length or long-sentence baseline", "clusters of echoes, crutch words or filter words", "passages where several signals coincide"]
@@ -44,6 +46,8 @@ severity = { high = "Rhythm is monotonous or mismatched to content across large 
 
 [[check]]
 id = "style-and-syntax.paragraphing"
+measurable = true
+codex_question = "long-paragraphs"
 title = "Paragraphing and white space"
 question = "Do paragraph breaks follow shifts of speaker, focus, time or action, and does the page give the reader air where the scene needs it?"
 look_for = ["walls of text in action or dialogue scenes", "two speakers in one paragraph", "one-line paragraphs used so often they lose force", "a break that splits one beat in two"]

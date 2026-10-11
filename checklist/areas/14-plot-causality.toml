@@ -66,6 +66,8 @@ severity = { high = "A climax or resolution depends on a helping coincidence.", 
 
 [[check]]
 id = "plot-causality.subplots"
+measurable = true
+codex_question = "thread-chapters"
 title = "Subplots and convergence"
 question = "Does each subplot have its own movement, touch the main line, and converge with it rather than run beside it?"
 look_for = ["a thread that vanishes mid-book", "a subplot that only delays the main line", "a subplot that never touches the main line in event or meaning"]
