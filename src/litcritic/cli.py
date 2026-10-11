@@ -15,6 +15,7 @@ from litcritic import (
     diff,
     guard,
     ingest,
+    metrics,
     structure,
     synth,
     validate,
@@ -165,6 +166,21 @@ def _cmd_diff(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_metrics(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        version = args.version or structure.latest_version(ws.root)
+        lang = args.language or str(ws.manifest.get("language", "en"))
+        out, results = metrics.build(ws.root, version, lang)
+    except (workspace.WorkspaceError, OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    unmeasured = sorted(k for k, v in results.items() if "unmeasured" in v)
+    print(f"{len(results) - len(unmeasured)} metrics measured, {len(unmeasured)} need more input")
+    print(f"wrote {out}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -232,6 +248,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_diff.add_argument("--workspace", required=True, help="workspace folder or slug")
     p_diff.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_diff.set_defaults(func=_cmd_diff)
+
+    p_met = sub.add_parser("metrics", help="measure a draft (registry: checklist/metrics.toml)")
+    p_met.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_met.add_argument("--version", default=None, help="draft version (default latest)")
+    p_met.add_argument("--language", default=None, help="override the workspace language")
+    p_met.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_met.set_defaults(func=_cmd_metrics)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

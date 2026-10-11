@@ -4,6 +4,7 @@ title: "T7: Metrics engine (es, en) for the registry in `checklist/metrics.toml`
 label: "metrics engine"
 priority: 5
 deps: [t-22f7049e]
+status: merged
 ---
 
 # T7: Metrics engine (es, en) for the registry in `checklist/metrics.toml`

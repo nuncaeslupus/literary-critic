@@ -1,0 +1,19 @@
+# English word lists for script metrics. Lower case; multi-word entries match as phrases.
+stopwords = ["a", "about", "after", "again", "all", "an", "and", "any", "are", "as", "at", "be", "been", "before", "but", "by", "can", "could", "did", "do", "for", "from", "had", "has", "have", "he", "her", "him", "his", "how", "i", "if", "in", "into", "is", "it", "its", "me", "more", "my", "no", "not", "now", "of", "on", "one", "or", "our", "out", "she", "so", "some", "than", "that", "the", "their", "them", "then", "there", "they", "this", "to", "up", "upon", "was", "we", "were", "what", "when", "which", "who", "will", "with", "would", "you", "your"]
+filter_words = ["saw", "see", "sees", "seeing", "watched", "looked", "heard", "hear", "felt", "feel", "feels", "noticed", "notice", "seemed", "seem", "seems", "thought", "wondered", "realized", "realised", "knew", "decided", "observed", "smelled", "tasted"]
+crutch_words = ["just", "very", "really", "suddenly", "began to", "started to", "somehow", "something", "thing", "things", "quite", "rather", "actually", "basically", "simply", "literally", "a bit", "a little", "almost", "then", "even", "totally", "absolutely"]
+said_verbs = ["said", "says", "asked", "asks", "replied", "answered", "told"]
+tag_verbs = ["said", "says", "asked", "asks", "replied", "answered", "told", "cried", "shouted", "whispered", "murmured", "muttered", "exclaimed", "snapped", "growled", "sighed", "laughed", "sobbed", "hissed", "insisted", "added", "explained", "demanded", "begged", "yelled", "called", "breathed", "stammered"]
+comparison_markers = ["as if", "as though", "like", "as a", "as an", "resembling", "similar to"]
+adverb_suffix = "ly"
+adverb_exclude = ["only", "family", "early", "likely", "lonely", "lovely", "ugly", "holy", "reply", "supply", "apply", "fly", "july", "italy", "belly", "jelly", "bully", "ally", "rely", "daily", "friendly", "silly", "lily", "sly", "unlikely", "elderly", "costly", "deadly", "kindly", "orderly", "scholarly", "ghastly", "jolly", "folly", "rally", "tally", "anomaly", "assembly", "comply", "fully"]
+sensory.sight = ["see", "saw", "look", "looked", "light", "shadow", "dark", "darkness", "bright", "colour", "color", "red", "blue", "green", "white", "black", "grey", "gray", "yellow", "glow", "gleam", "glitter"]
+sensory.sound = ["hear", "heard", "sound", "noise", "silence", "voice", "cry", "whisper", "echo", "creak", "knock", "bang", "murmur", "bell", "ring"]
+sensory.smell = ["smell", "smelled", "smelt", "scent", "odour", "odor", "stench", "perfume", "fragrance", "reek"]
+sensory.touch = ["touch", "touched", "soft", "rough", "smooth", "skin", "brush", "brushed", "stroke", "stroked", "grip", "gripped", "sticky"]
+sensory.taste = ["taste", "tasted", "sweet", "bitter", "salty", "sour", "tongue", "flavour", "flavor"]
+sensory.temperature = ["cold", "chill", "chilly", "hot", "heat", "warm", "warmth", "icy", "freezing", "sweat", "shiver"]
+cliches = ["a shiver ran down", "blood ran cold", "heart skipped a beat", "held her breath", "held his breath", "let out a breath", "a lump in her throat", "a lump in his throat", "in the blink of an eye", "white as snow", "cold as ice", "time stood still", "deafening silence", "heart pounded", "knees went weak", "hair stood on end", "dead of night"]
+spelling_pairs = [["colour", "color"], ["honour", "honor"], ["favour", "favor"], ["grey", "gray"], ["realise", "realize"], ["realised", "realized"], ["organise", "organize"], ["centre", "center"], ["theatre", "theater"], ["travelled", "traveled"], ["towards", "toward"], ["whilst", "while"], ["amongst", "among"]]
+long_sentence_words = 40
+note_markers = ["TODO", "TK", "XXX", "FIXME", "CHECK", "NOTE", "??"]
