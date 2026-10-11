@@ -5,6 +5,7 @@ label: "remove phase-1 formats"
 priority: 5
 deps: [t-ae1f0186, t-590ae869]
 workspace: codex
+status: merged
 ---
 
 # C11: Remove phase-1 per-type formats, schemas, `index.py` registers and their docs; update `docs/`

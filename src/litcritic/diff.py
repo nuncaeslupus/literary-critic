@@ -13,7 +13,7 @@ mirror status or ``inserted``. Matching runs in passes, each on what is left:
 4. similar paragraphs anywhere (``modified`` far from home, i.e. moved+edited).
 
 Stale scenes are the new scenes holding any paragraph that is not unchanged or
-moved; their scene cards need re-reading.
+moved; their Codex items need re-reading.
 """
 
 from __future__ import annotations

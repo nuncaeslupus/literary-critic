@@ -127,6 +127,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 | C6 | `question_catalogue_expressible >= 0.9` | 0.928 (64/69 run on the fixture, 6 checked for exact answers; 5 name missing data: learns-fact items, flashback flag, per-passage POV, syllables in the view, alignment table) | `uv run pytest tests/test_codex_catalogue.py` | [HERE] | local | 2026-10-11 |
 | C12 | `measurable_checks_with_query == 1.0` | 1.0 (22/22 measurable checks name a known question that runs without parameters, across all kinds); `named_questions` = 22 | `uv run pytest tests/test_checklist.py -k measurable` | [HERE] | local | 2026-10-11 |
 | C10 | `phase1_round_paths == 0` | 0 (rounds, letters, status, Word comments and the reader report read Codex issue/decision items; no findings.json or actions.json in src/) | `uv run pytest tests/test_rounds.py tests/test_docx_out.py tests/test_report.py` | [HERE] | local | 2026-10-11 |
+| C11 | `phase1_leftovers == 0` | 0 (index.py, scene-card/register/finding/action schemas, `lc index` and the scene-card and summaries prompts removed; metrics, `lc context` read Codex entity/setup/scene items; no old file name, schema or command in tracked files outside status/ and arsenal/) | `uv run pytest tests/test_codex_cleanup.py` | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 

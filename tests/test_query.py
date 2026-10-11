@@ -1,10 +1,9 @@
-import json
 import statistics
 from pathlib import Path
 
 import pytest
 
-from litcritic import corpus, index, query
+from litcritic import corpus, query
 from litcritic.cli import main
 
 
@@ -70,45 +69,6 @@ def test_show_find_context_content(ws: Path) -> None:
         query.show(ix, "c99")
 
 
-def test_index_builds_registers_from_cards(ws: Path) -> None:
-    base = ws / "index" / "v001"
-    with pytest.raises(FileNotFoundError):
-        index.build(ws)
-    card = {
-        "schema_version": 1,
-        "anchor": "c01.s1",
-        "summary": "A traveller is lost at dusk.",
-        "pov": "omniscient",
-        "characters": ["Teodoro", "teodoro", "Nela"],
-        "location": "Socartes",
-        "story_time": "Day 1, dusk",
-        "events": ["Gets lost"],
-        "setups": ["the mines"],
-        "payoffs": [],
-    }
-    later = card | {
-        "anchor": "c03.s1",
-        "characters": ["Nela"],
-        "setups": [],
-        "payoffs": ["the mines"],
-    }
-    (base / "scene_cards.json").write_text(json.dumps([card, card | {"anchor": "c99.s1"}]))
-    written, errors = index.build(ws)
-    assert written == [] and "no scene 'c99.s1'" in errors[0]
-    (base / "scene_cards.json").write_text(json.dumps([card, later]))
-    written, errors = index.build(ws)
-    assert errors == [] and len(written) == 4
-    chars = json.loads((base / "registers" / "characters.json").read_text(encoding="utf-8"))
-    nela = next(e for e in chars["entries"] if e["name"] == "Nela")
-    assert nela["anchors"] == ["c01.s1", "c03.s1"]
-    teo = next(e for e in chars["entries"] if e["id"] == "teodoro")
-    assert teo["aliases"] == ["teodoro"]
-    setups = json.loads((base / "registers" / "setups.json").read_text(encoding="utf-8"))
-    assert setups["entries"][0]["status"] == "paid_off"
-    ix = query.load(ws)
-    assert "scene c01.s1: A traveller is lost" in query.context(ix, "c01.s1.p2")
-
-
 def test_cli_queries(ws: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["show", "--workspace", str(ws), "--budget", "300"]) == 0
     assert "chapter | words" in capsys.readouterr().out
@@ -121,9 +81,7 @@ def test_cli_queries(ws: Path, capsys: pytest.CaptureFixture[str]) -> None:
 def test_review_regressions(ws: Path) -> None:
     ix = query.load(ws)
     # A paragraph longer than the budget is shown cut, and the hint moves on.
-    long_ix = query.Index(
-        ["x " * 3000, "next one"], ["c01.s1.p1", "c01.s1.p2"], ["a", "b"], [], {}, {}
-    )
+    long_ix = query.Index(["x " * 3000, "next one"], ["c01.s1.p1", "c01.s1.p2"], ["a", "b"], [])
     text = query.show(long_ix, "c01", budget=200)
     assert text.startswith("[c01.s1.p1] x x") and "lc show c01.s1.p2-" in text
     assert query.estimate_tokens(text) <= 200
@@ -131,31 +89,3 @@ def test_review_regressions(ws: Path) -> None:
         query.find(ix, "  ")
     with pytest.raises(ValueError, match="at least"):
         query.toc(ix, budget=10)
-    # Payoff listed before its setup still pairs; two payoffs alone stay open.
-    base = {
-        "schema_version": 1,
-        "summary": "s",
-        "pov": "none",
-        "characters": [],
-        "location": "",
-        "story_time": "",
-        "events": ["e"],
-    }
-    regs = index.registers_from_cards(
-        [
-            base | {"anchor": "c05.s1", "payoffs": ["the letter", "the key"]},
-            base | {"anchor": "c02.s1", "setups": ["the letter", "the mines", "the mines!"]},
-            base | {"anchor": "c06.s1", "payoffs": ["the key"]},
-        ]
-    )
-    entries = {e["name"]: e for e in regs["setups"]["entries"]}
-    assert entries["the letter"]["status"] == "paid_off"
-    assert entries["the key"]["status"] == "open"
-    assert len({e["id"] for e in regs["setups"]["entries"]}) == len(entries)
-    # The same scene with and without its part prefix is one card.
-    assert any(
-        "two cards" in e
-        for e in index.check_cards(
-            [base | {"anchor": "c01.s1"}, base | {"anchor": "p1.c01.s1"}], {"c01.s1"}
-        )
-    )

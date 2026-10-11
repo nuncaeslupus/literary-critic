@@ -11,7 +11,7 @@ type = "object"
 required = ["kind", "name"]
 additionalProperties = false
 [schema.properties.kind]
-enum = ["character", "place", "object", "group", "rule"]
+enum = ["character", "place", "object", "group", "rule", "motif"]
 [schema.properties.name]
 type = "string"
 minLength = 1

@@ -4,7 +4,7 @@ Use this when the profile's mode is `reader-report`: the user is assessing a
 manuscript, not revising their own. The same index, metrics and findings are
 used; the output is an assessment, not a revision plan.
 
-1. Make sure L0 exists (`<ws>/analysis/synopsis.md`, see `25-summaries.md`)
+1. Make sure L0 exists (`<ws>/analysis/synopsis.md`, see `20-codex-items.md`)
    and that the developmental and holistic checks have been run
    (`40-checks.md`), including strength checks.
 2. Write your judgment to `<ws>/analysis/report.json`:

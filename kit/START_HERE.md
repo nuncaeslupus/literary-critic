@@ -55,5 +55,5 @@ Google Drive) and upload it next time with this kit.
 Without code you cannot ingest, anchor, measure or validate. Say so to the
 writer, then follow the procedures in `prompts/` by reading the text the writer
 pastes: work chapter by chapter, keep your own notes in the same formats
-(scene cards, findings), locate every comment by chapter and the quoted first
+(scenes, characters, findings), locate every comment by chapter and the quoted first
 and last words of the paragraph, and never claim a metric you did not compute.

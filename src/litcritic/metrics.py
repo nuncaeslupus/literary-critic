@@ -3,7 +3,7 @@
 Each metric is a function ``(ctx) -> dict`` registered with ``@metric(id)``. A
 result may hold ``book`` (a number or small dict), ``chapters`` / ``scenes``
 (id -> value), ``items`` (located findings, each with an ``anchor``) and
-``note``. A metric whose inputs are missing (a register, scene cards, LLM
+``note``. A metric whose inputs are missing (Codex items, LLM
 labels) returns ``{"unmeasured": reason}`` instead of guessing.
 """
 
@@ -21,6 +21,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+from litcritic import codex
 from litcritic import textstats as ts
 
 Result = dict[str, Any]
@@ -824,7 +825,7 @@ def _mentions(ctx: Context, terms: list[str], r: Iterable[int]) -> int:
 def character_presence_matrix(ctx: Context) -> Result:
     names = _names_from_register(ctx)
     if not names:
-        return {"unmeasured": "needs the characters register (index/<v>/registers/characters.json)"}
+        return {"unmeasured": "needs character entities in the Codex"}
     matrix = {}
     for n, terms in names.items():
 
@@ -931,7 +932,7 @@ def name_variant_count(ctx: Context) -> Result:
 @metric("pov_distribution")
 def pov_distribution(ctx: Context) -> Result:
     if not ctx.scene_cards:
-        return {"unmeasured": "needs scene cards (index/<v>/scene_cards.json)"}
+        return {"unmeasured": "needs scene items in the Codex"}
     scene_words = dict(ctx.per_unit("scenes", ctx.words_in))
     words: Counter[str] = Counter()
     scenes: Counter[str] = Counter()
@@ -946,7 +947,7 @@ def pov_distribution(ctx: Context) -> Result:
 def motif_occurrences(ctx: Context) -> Result:
     motifs = ctx.registers.get("motifs", [])
     if not motifs:
-        return {"unmeasured": "needs the motifs register"}
+        return {"unmeasured": "needs motif entities in the Codex"}
     book = {}
     for m in motifs:
         terms = [m["name"], *m.get("aliases", [])]
@@ -966,7 +967,7 @@ def _chapter_index(ctx: Context) -> dict[str, int]:
 def setup_payoff_distance(ctx: Context) -> Result:
     setups = ctx.registers.get("setups", [])
     if not setups:
-        return {"unmeasured": "needs the setups register"}
+        return {"unmeasured": "needs setup items in the Codex"}
     idx = _chapter_index(ctx)
     pos = {a: k for k, a in enumerate(ctx.anchors)}
     total = ctx.words_in(ctx.all)
@@ -1002,7 +1003,7 @@ def setup_payoff_distance(ctx: Context) -> Result:
 def open_thread_count(ctx: Context) -> Result:
     setups = ctx.registers.get("setups", [])
     if not setups:
-        return {"unmeasured": "needs the setups register (threads with anchors and status)"}
+        return {"unmeasured": "needs setup items in the Codex"}
     idx = _chapter_index(ctx)
     per: dict[str, int] = {}
     stale = []
@@ -1156,6 +1157,61 @@ def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
 
 
+def codex_registers(
+    ws_root: Path, version: str, anchors: list[str]
+) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
+    """Characters, motifs, setups and scenes from the Codex, when it is synced to ``version``.
+
+    Names that differ only in case or accents are one entry. Setups pair with
+    payoffs through ``pays_off`` links; their anchors are paragraph anchors of
+    the draft, in text order. A payoff with no live setup is listed on its own.
+    """
+    cx = codex.synced(ws_root, version)
+    if cx is None:
+        return {}, []
+    pos = {a: i for i, a in enumerate(anchors)}
+    registers: dict[str, list[dict[str, Any]]] = {}
+    named: dict[tuple[str, str], dict[str, Any]] = {}
+    for e in cx.live("entity"):
+        kind = {"character": "characters", "motif": "motifs"}.get(e.fields["kind"])
+        if not kind:
+            continue
+        key = (kind, " ".join(ts.strip_accents(e.fields["name"]).casefold().split()))
+        if key not in named:
+            named[key] = {"name": e.fields["name"], "aliases": []}
+            registers.setdefault(kind, []).append(named[key])
+        entry = named[key]
+        for alias in [e.fields["name"], *e.fields.get("aliases", [])]:
+            if alias != entry["name"] and alias not in entry["aliases"]:
+                entry["aliases"].append(alias)
+    setups = {i.id: i for i in cx.live("setup")}
+    labels: Counter[str] = Counter(i.fields["label"] for i in setups.values())
+
+    def anchored(*items: Any) -> list[str]:
+        paras = {sp.start.para for x in items for sp in x.spans} & pos.keys()
+        return sorted(paras, key=pos.__getitem__)
+
+    for item in setups.values():
+        label = item.fields["label"]
+        uid = label if labels[label] == 1 else f"{label} ({item.id})"
+        if item.fields["side"] == "setup":
+            payoffs = [
+                i for i, rel in cx.linked_to(item.id) if rel == "pays_off" and i.id in setups
+            ]
+            status = "paid_off" if payoffs else "open"
+            entry = {"id": uid, "anchors": anchored(item, *payoffs), "status": status}
+        elif not any(lk["rel"] == "pays_off" and lk["to"] in setups for lk in item.links):
+            entry = {"id": uid, "anchors": anchored(item), "status": "paid_off"}
+        else:
+            continue
+        registers.setdefault("setups", []).append(entry)
+    cards = [
+        {"anchor": unit, "pov": item.fields.get("pov", "?")}
+        for unit, item in cx.scenes_by_unit(anchors).items()
+    ]
+    return registers, cards
+
+
 def context_for(ws_root: Path, version: str, lang: str) -> Context:
     text = (ws_root / "text" / f"{version}.txt").read_text(encoding="utf-8")
     paras = text.split("\n")[:-1] if text.endswith("\n") else text.split("\n")
@@ -1163,13 +1219,7 @@ def context_for(ws_root: Path, version: str, lang: str) -> Context:
     if struct is None:
         raise FileNotFoundError(f"no structure for {version}; run `lc anchor` first")
     meta = (_load_json(ws_root / "text" / f"{version}.meta.json") or {}).get("paragraphs", [])
-    reg_dir = ws_root / "index" / version / "registers"
-    registers = {}
-    if reg_dir.is_dir():
-        for f in reg_dir.glob("*.json"):
-            data = _load_json(f)
-            registers[data.get("kind", f.stem)] = data.get("entries", [])
-    cards = _load_json(ws_root / "index" / version / "scene_cards.json") or []
+    registers, cards = codex_registers(ws_root, version, [a for a, _ in struct["paragraphs"]])
     labels = _load_json(ws_root / "analysis" / "labels.json") or {}
     return Context(
         paragraphs=paras,

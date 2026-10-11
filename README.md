@@ -4,9 +4,9 @@ Tooling that lets an LLM work through a full novel manuscript as a professional
 editor would — and that keeps working across many chat sessions and drafts.
 
 1. **Index** — turn the manuscript into stable anchors (part → chapter → scene →
-   paragraph) and a layered index (synopsis, chapter summaries, scene cards,
-   characters, relationships, timeline, setups/payoffs) so the LLM can find and
-   relate anything without loading the whole book.
+   paragraph) and a Codex — a knowledge base of scenes, characters, places,
+   facts, setups/payoffs and findings, each tied to its text — so the LLM can
+   find and relate anything without loading the whole book.
 2. **Analyse** — run a generic catalogue of checks (structure, characters, plot,
    scenes, POV, prose, dialogue, continuity, …), adapted to each novel, with
    evidence anchored to the text and script-measured metrics wherever possible.

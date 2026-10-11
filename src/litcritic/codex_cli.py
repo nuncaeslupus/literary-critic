@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -15,14 +16,24 @@ from litcritic.view import ViewError
 
 
 def _text(ws_root: Path, draft: str) -> spanlib.Text:
-    ix = query.load(ws_root, draft)
+    ix = query.load(ws_root, draft, codex=False)
     return spanlib.Text(ix.paragraphs, ix.anchors, draft)
 
 
 def _spans(args: argparse.Namespace, cx: Codex, root: Path) -> list[spanlib.Span]:
     out = []
-    if args.span or args.quote:
+    if args.span or args.quote or args.unit:
         text = _text(root, cx.draft)
+        for unit in args.unit or []:
+            if re.search(r"\.p\d+$", unit):
+                raise CodexError(f"--unit {unit!r}: name a chapter or scene, not a paragraph")
+            try:
+                r = query.paragraph_range(query.Index(text.paragraphs, text.anchors, [], []), unit)
+                last = r[-1]
+                end = (text.anchors[last], len(text.paragraphs[last]))
+                out.append(spanlib.make(text, cx.draft, text.anchors[r[0]], 0, *end))
+            except (KeyError, spanlib.SpanError) as exc:
+                raise CodexError(f"--unit {unit!r}: not a chapter or scene with text") from exc
         for raw in args.span or []:
             try:
                 a, b = raw.split("-", 1)
@@ -268,6 +279,7 @@ def register(sub: Any) -> None:
         sp.add_argument("--span", action="append", help="ANCHOR:OFF-ANCHOR:OFF (repeatable)")
         sp.add_argument("--quote", action="append", help="exact text, found once (repeatable)")
         sp.add_argument("--within", default=None, help="limit --quote to a chapter or scene")
+        sp.add_argument("--unit", action="append", help="a whole chapter or scene (repeatable)")
         sp.add_argument("--link", action="append", help="REL:ITEM_ID (repeatable)")
         sp.add_argument("--by", choices=("llm", "writer", "script"), default="llm")
 
