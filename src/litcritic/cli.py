@@ -21,6 +21,7 @@ from litcritic import (
     metrics,
     pack,
     query,
+    report,
     rounds,
     structure,
     synth,
@@ -321,6 +322,20 @@ def _cmd_docx_comments(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_report(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        out, complete = report.render(ws.root, args.version)
+    except (workspace.WorkspaceError, report.ReportError, OSError, ValueError, KeyError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1 if isinstance(exc, report.ReportError) else 2
+    missing = [name for name, ok in complete.items() if not ok]
+    if missing:
+        print(f"warning: sections without content: {', '.join(missing)}", file=sys.stderr)
+    print(f"wrote {out}")
+    return 0
+
+
 def _cmd_validate(args: argparse.Namespace) -> int:
     try:
         data = validate.load_file(args.kind, Path(args.file))
@@ -465,6 +480,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_dc.add_argument("--version", default=None)
     p_dc.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_dc.set_defaults(func=_cmd_docx_comments)
+
+    p_rep = sub.add_parser("report", help="render the reader report (reader-report mode)")
+    p_rep.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_rep.add_argument("--version", default=None)
+    p_rep.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_rep.set_defaults(func=_cmd_report)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
     p_val.add_argument("kind", choices=validate.KINDS)

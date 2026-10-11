@@ -16,6 +16,7 @@ validation were not run.
 | `40-checks.md` | Run the checklist and record findings with evidence. |
 | `50-new-draft.md` | Bring in the next draft and see what changed. |
 | `60-rounds.md` | Turn findings into a revision round, the letter, and the writer's decisions. |
+| `70-reader-report.md` | Assess a manuscript for an agency or publisher (reader-report mode). |
 
 Index layers: **L0** profile and synopsis · **L1** chapter summaries · **L2**
 scene cards · **L3** the text itself, read through `lc show`, `lc find` and

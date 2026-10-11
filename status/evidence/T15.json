@@ -1,0 +1,7 @@
+{
+  "metric": "reader_report_sections_complete",
+  "value": 1.0,
+  "sections": ["summary", "synopsis", "strengths", "weaknesses", "market", "facts", "verdict"],
+  "method": "a reader report rendered from a schema-valid report.json, a synopsis and findings on the Spanish corpus text has every required section with content; missing input is refused, empty sections are warned about",
+  "command": "uv run pytest tests/test_report.py"
+}
