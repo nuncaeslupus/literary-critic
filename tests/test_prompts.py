@@ -134,8 +134,14 @@ def test_prompt_commands_parse(tmp_path: Path) -> None:
 
     build(tmp_path)
     v = view.View(tmp_path)
-    sql_args = [shlex.split(c)[3] for c in commands if c.startswith('lc codex sql "')]
-    queries = [q for q in sql_args if "<" not in q]
+    queries = []
+    for c in commands:
+        if c.startswith('lc codex sql "'):
+            tokens = shlex.split(c)
+            given = [tokens[i + 1] for i, t in enumerate(tokens) if t == "--param"]
+            params = dict(g.split("=", 1) for g in given)
+            if "<" not in tokens[3]:
+                queries.append((tokens[3], params))
     assert queries
-    for sql in queries:
-        v.run(sql)
+    for sql, params in queries:
+        v.run(sql, params)

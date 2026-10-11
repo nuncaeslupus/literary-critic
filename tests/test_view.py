@@ -170,6 +170,9 @@ def test_changes_table_reads_the_log(work: Path) -> None:
     cx = codex.Codex(work)
     item = cx.add("entity", "Someone.", {"kind": "character", "name": "Someone"})
     cx.retire(item.id)
-    sql = "SELECT op, type, text FROM changes WHERE item = ? ORDER BY rowid"
+    with (work / "codex" / "changes.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write('{"at": "x", "item": "y", "op": "update", "by": {"odd": 1}}\nnot json\n')
+    sql = "SELECT op, before_status, status FROM changes WHERE item = ? ORDER BY rowid"
     rows = view.View(work).run(sql, [item.id])[1]
-    assert rows == [("add", "entity", "Someone."), ("update", "entity", "Someone.")]
+    assert rows == [("add", None, "active"), ("update", "active", "retired")]
+    assert view.View(work).run("SELECT by FROM changes WHERE item = 'y'")[1] == [('{"odd": 1}',)]

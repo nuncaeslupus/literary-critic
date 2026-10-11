@@ -14,14 +14,15 @@ exact, cheap, and can be repeated on the next draft.
    items (leave out `--type` to search every type; it searches text and fields);
    `lc codex show <id> --workspace <slug>` prints one item with its fields,
    where it is in the text (anchor, span state, quoted words) and its links
-   both ways (`->` what it points to, `<-` what points to it). Where a name
-   appears in the text: `lc codex ask character-appearances --workspace <slug>`.
+   both ways (`->` what it points to, `<-` what points to it). Every place an
+   entity's name or alias appears in the text:
+   `lc codex sql "SELECT p.anchor, m.form FROM mentions m JOIN paragraphs p ON p.idx = m.para_idx WHERE m.entity_id = :id" --param id=<id> --workspace <slug>`.
 3. What changed since the last draft? `lc codex sync --workspace <slug>`
    prints it when a draft is brought in. Afterwards, the items whose text
    moved, changed or disappeared:
-   `lc codex sql "SELECT i.id, i.type, i.text, s.state FROM spans s JOIN items i ON i.id = s.item_id WHERE s.state != 'ok'" --workspace <slug>`;
+   `lc codex sql "SELECT DISTINCT i.id, i.type, i.text, s.state FROM spans s JOIN items i ON i.id = s.item_id WHERE s.state != 'ok' AND i.status != 'retired'" --workspace <slug>`;
    and the change log (who changed what, when):
-   `lc codex sql "SELECT at, draft, op, type, text FROM changes ORDER BY at DESC" --workspace <slug>`.
+   `lc codex sql "SELECT at, draft, op, type, before_text, text, status FROM changes ORDER BY at DESC" --workspace <slug>`.
 4. No named question fits: write one read-only SQL query. See the tables and
    views first with `lc codex sql --schema --workspace <slug>`, then run it:
    `lc codex sql "<query>" --workspace <slug>`. Use `norm(text)` to compare

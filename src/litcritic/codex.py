@@ -355,12 +355,18 @@ class Codex:
         self._log(op, item, before, by)
 
     def replace_all(
-        self, items: list[Item], op: str = "sync", by: str = "script", updated: str = ""
+        self,
+        items: list[Item],
+        op: str = "sync",
+        by: str = "script",
+        updated: str = "",
+        draft: str = "",
     ) -> None:
         """Write many changed items at once (sync), validated like single writes.
 
         Each changed item gets its ``rev`` bumped and ``updated`` set to ``updated``
-        (default: the synced draft); each touched type file is rewritten once.
+        (default: the synced draft); each touched type file is rewritten once. The
+        change log records ``draft`` (default: the synced draft).
         """
         errs = [e for item in items for e in self._problems(item)]
         if errs:
@@ -376,7 +382,7 @@ class Codex:
         for t in sorted({i.type for i, _ in changed}):
             self._save(t)
         for item, before in changed:
-            self._log(op, item, before, by, updated)
+            self._log(op, item, before, by, draft)
 
     # -- reading --------------------------------------------------------------
 

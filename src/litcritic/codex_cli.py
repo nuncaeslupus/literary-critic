@@ -190,17 +190,19 @@ def _run(args: argparse.Namespace) -> int:
             if item.fields:
                 out.add("fields: " + json.dumps(item.fields, ensure_ascii=False))
             for s in item.spans:
-                where = s.start.para + (f"-{s.end.para}" if s.end.para != s.start.para else "")
+                last = s.end.off > 0 and s.end.para != s.start.para  # end is exclusive
+                where = s.start.para + (f"-{s.end.para}" if last else "")
                 words = " ".join((s.exact or f"{s.head} … {s.tail}").split())
                 cut = words if len(words) <= 80 else words[:77] + "..."
                 out.add(f'at {where} [{s.state}, {s.draft}]: "{cut}"')
-            if not item.links and not cx.linked_to(item.id):
+            incoming = cx.linked_to(item.id)
+            if not item.links and not incoming:
                 out.add("links: none")
             for link in item.links:
                 target = cx.items.get(link["to"])
                 label = _line(target) if target else f"{link['to']} (missing)"
                 out.add(f"-> {link['rel']} {label}")
-            for src, rel in cx.linked_to(item.id):
+            for src, rel in incoming:
                 out.add(f"<- {rel} {_line(src)}")
             print(out.finish(), end="")
         elif args.codex_cmd == "find":

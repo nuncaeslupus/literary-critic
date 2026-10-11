@@ -53,7 +53,8 @@ Computed tables are built only when a query names them.
 |-------|---------|
 | `works` | id, title, author, kind, series, language, draft |
 | `paragraphs` | idx, anchor, part, chapter, scene, words, text |
-| `chapters`, `scenes` | id, (chapter,) idx, words, first_idx, last_idx |
+| `chapters` | id, idx, title, words, first_idx, last_idx |
+| `scenes` | id, chapter, idx, words, first_idx, last_idx |
 | `para_pos` | idx, word0 (words before it), words |
 | `items` | id, type, status, text, by, rev, fields_json |
 | `spans` | item_id, k, start_idx, start_off, end_idx, end_off, words, state |
@@ -63,7 +64,7 @@ Computed tables are built only when a query names them.
 | `ngrams` | n, norm, para_idx, pos (computed) |
 | `mentions` | entity_id, para_idx, off, form (computed) |
 | `copresence` | a, b, scene, chapter (computed) |
-| `changes` | at, draft, item, type, op, by, text, fields_json (computed, from the change log) |
+| `changes` | at, draft, item, type, op (add, update, sync; a retirement is an update), by, status, text, fields_json, before_status, before_text, before_fields_json (computed, from the change log) |
 
 SQL functions: `norm(x)` (lower case, no accents) and `phrase(x)` (words of x
 in `ngrams.norm` form). Named questions (`lc codex questions`, `lc codex ask`)
