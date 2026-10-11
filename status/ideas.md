@@ -72,3 +72,5 @@ Efficiency: scripts first, the LLM only reads what changed.
 | 4 | 2026-10-11 | Shape the critical report (S1) first; then session flow and memory (S2); then Claude packaging (S3). |
 | 5 | 2026-10-11 | Working notes (many files) are separate from what the writer gets. Writer-facing output is a per-session view chosen by the session's goal; summarise status, let the writer choose, never repeat settled points. |
 | 6 | 2026-10-11 | The knowledge base is the core (sub-project S0) and comes before S1-S3. |
+| 7 | 2026-10-11 | The knowledge base is the Codex; "bible" is its characters-and-world layer. |
+| 8 | 2026-10-11 | No fixed sentence level. Every piece of knowledge is anchored to a span of any length (a word, a sentence, a dialogue, a scene, a multi-page digression). Spans also measure information density (knowledge per word) to find rhythm and excess. |
