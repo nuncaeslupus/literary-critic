@@ -79,7 +79,7 @@ manuscript (.docx/.odt/.md/.txt)
 
 **Status legend**: ☐ not started · ◐ in progress · ☑ merged
 
-T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T8 ☑ (PR #16) · T4 ◐ · other T5–T15 ☐ (queued as `arsenal/tasks/`, issues #3–#14)
+T1–T15 ☑ (PRs #1, #2, #16–#27); evidence in `status/evidence/` and the log below
 
 **Merge order**: T1 → T2 → T3 → T4 → T5 → (T6, T7, T8) → T9 → T10 → T11 → (T12, T13) → T14 → T15
 **Branch pattern**: `claude/<slug>` per task PR
@@ -101,6 +101,7 @@ T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T8 ☑ (PR #16) · T4 ◐ · other
 | T11 | `writer_locators_complete == 1.0` | 1.0 (corpus sample; private draft also 1.0) | `uv run pytest tests/test_locate.py` | T10+ | [HERE] | 2026-10-11 |
 | T12 | `docx_comment_anchor_accuracy == 1.0` | 1.0 (corpus twin; private draft copy also 1.0) | `uv run pytest tests/test_docx_out.py` | T11+ | [HERE] | 2026-10-11 |
 | T15 | `reader_report_sections_complete == 1.0` | 1.0 (7/7 sections) | `uv run pytest tests/test_report.py` | T12+ | [HERE] | 2026-10-11 |
+| T14 | `runtime_third_party_imports == 0` | 0 (extracted kit passes doctor, init, pack) | `uv run pytest tests/test_stdlib_only.py` | T15+ | [HERE] | 2026-10-11 |
 | T8 | `schema_validity_on_fixtures == 1.0` | 1.0 (19 fixtures, 5 kinds) | `uv run pytest tests/test_validate.py` | 741fa89+ | [HERE] | 2026-10-10 |
 
 ### Dependency graph

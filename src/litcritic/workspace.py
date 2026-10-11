@@ -80,10 +80,15 @@ def _git_toplevel(path: Path) -> Path | None:
 
 
 def check_location(path: Path) -> None:
-    """Refuse workspaces inside this repo's work tree."""
+    """Refuse workspaces inside this repo's work tree.
+
+    An unpacked chat kit is not a work tree (nothing there is committed), so
+    its own folder may hold workspaces; a git checkout of the tool may not.
+    """
     resolved = path.expanduser().resolve()
     tool = repo_root().resolve()
-    if resolved == tool or tool in resolved.parents:
+    inside = resolved == tool or tool in resolved.parents
+    if inside and (tool / ".git").exists():
         raise WorkspaceError(f"workspace {resolved} is inside the tool repo {tool}")
     top = _git_toplevel(resolved)
     if top is not None and top == tool:

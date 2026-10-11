@@ -1,9 +1,10 @@
 # Handover
 
-**Last session (2026-10-10):** bootstrap + part 2 merged (PR #1); T3 corpus merged (PR #2); plan approved and T4–T15 seeded as tasks (issues #3–#14).
+**Last session (2026-10-10/11, overnight, autonomous):** the whole plan (T1–T15) is implemented and merged, one PR per task, each with its own review (CodeRabbit was rate-limited, so `code-review` ran on every PR and its findings were fixed before merge).
 
-- Done: arsenal base, AGENTS.md rules, `lc init/guard/checklist`, spec r2 approved, plan (T1–T15), checklist 23 areas / 201 checks after critical pass, Apache-2.0.
-- T3: `corpus/marianela` (es) and `corpus/jekyll-hyde` (en) with `source.toml`; `lc corpus check`, `lc synth`. gutenberg.org is blocked by the proxy; `raw.githubusercontent.com/GITenberg/<Title>_<id>/master/<id>-8.txt` works.
-- Next: `task_select.py` → T4 ingest (t-d77a64a4) and T8 schemas (t-83a5f678) are unblocked.
-- A working novel is in progress; its details stay in local, git-ignored notes. Keep its terms in a local, git-ignored `.litcritic-guard-terms` (recreate in a fresh container) or in the workspace `guard-terms.txt`; never commit novel content.
-- CodeRabbit does not review this repo reliably (free-tier limits); use own review (`code-review` skill).
+- Tool surface: `lc init / ingest / anchor / diff / metrics / index / show / find / context / locate / round / docx-comments / report / validate / checklist / pack / unpack / kit / doctor / corpus / synth / guard`. Procedures in `prompts/`, Claude Code skill `.claude/skills/litcritic`.
+- Gates: all in `status/evidence/`; plan evidence log updated.
+- A working novel is in progress; its details stay in local, git-ignored notes. Keep its terms in a local, git-ignored `.litcritic-guard-terms` (recreate in a fresh container) or in the workspace `guard-terms.txt`; never commit novel content. Evidence files and PR texts must not describe it (rule 1) — say "a private working draft".
+- Environment notes: gutenberg.org is blocked by the proxy (GITenberg mirror on raw.githubusercontent.com works); GitHub REST token cannot create refs (use the MCP `create_branch` for claims); CodeRabbit free tier rate-limits after ~1 review/hour.
+- Arsenal issues filed: nuncaeslupus/claude-arsenal #500–#503.
+- Next: real use on the working novel (orientation → scene cards → checks → round 1), driven by the writer; then a retrospective (spec success criterion: usability on the first working novel).
