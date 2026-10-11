@@ -12,7 +12,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, kinds, locate, query, rounds, structure, validate, workspace
+from litcritic import locate, query, rounds, validate, workspace
+from litcritic.codex import Codex, CodexError, Item
 
 SECTIONS = ("summary", "synopsis", "strengths", "weaknesses", "market", "facts", "verdict")
 MAX_WEAKNESSES = 10
@@ -76,17 +77,19 @@ class ReportError(Exception):
 
 def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, bool]]:
     """Write the report; returns its path and which required sections have real content."""
-    version = version or structure.latest_version(ws_root)
     judgment = rounds.load_json(ws_root / "analysis" / "report.json", None)
     if judgment is None:
         raise ReportError("no analysis/report.json yet; write it with the reader-report procedure")
     errors = validate.validate("report", judgment)
-    findings = rounds.load_json(ws_root / "analysis" / "findings.json", [])
-    errors += validate.validate(
-        "finding", findings, checklist.load(kinds.of_work(ws_root).CHECKLIST)
-    )
     if errors:
-        raise ReportError("report.json or findings.json is invalid: " + "; ".join(errors[:5]))
+        raise ReportError("report.json is invalid: " + "; ".join(errors[:5]))
+    try:
+        cx = Codex(ws_root)
+    except CodexError as exc:
+        raise ReportError(f"{exc}; strengths and weaknesses come from its issues") from exc
+    if version and version != cx.draft:
+        raise ReportError(f"the Codex is synced to {cx.draft}; run `lc codex sync` first")
+    version = cx.draft
     lang = rounds.language(ws_root)
     h = HEADINGS.get(lang, HEADINGS["en"])
     title = (
@@ -97,17 +100,18 @@ def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, b
     synopsis_file = ws_root / "analysis" / "synopsis.md"
     synopsis = synopsis_file.read_text(encoding="utf-8").strip() if synopsis_file.is_file() else ""
     ix = query.load(ws_root, version)
-    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
+    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, cx.draft), lang)
 
-    def lines_for(items: list[dict[str, Any]]) -> list[str]:
-        return [line for f in items if (line := rounds.located_line(ix, loc, f, lang))]
+    def lines_for(items: list[Item]) -> list[str]:
+        return [line for i in items if (line := rounds.located_line(cx, i, loc, lang))]
 
-    strengths = lines_for(
-        [f for f in findings if f["kind"] == "strength" and f["status"] in ("open", "accepted")]
-    )
+    strengths = lines_for(rounds.live(cx, "strength"))
     problems = sorted(
-        (f for f in findings if f["kind"] == "problem" and f["status"] in ("open", "accepted")),
-        key=lambda f: (-rounds.SEVERITY.get(f["severity"], 0), -float(f["confidence"])),
+        rounds.live(cx, "problem"),
+        key=lambda i: (
+            -rounds.SEVERITY.get(str(i.fields.get("severity")), 0),
+            -float(i.fields.get("confidence", 1.0)),
+        ),
     )
     weaknesses = lines_for(problems)
     if len(weaknesses) > MAX_WEAKNESSES:

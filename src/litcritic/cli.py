@@ -11,6 +11,7 @@ from pathlib import Path
 from litcritic import (
     __version__,
     checklist,
+    codex,
     codex_cli,
     corpus,
     diff,
@@ -334,12 +335,19 @@ def _cmd_round(args: argparse.Namespace) -> int:
         elif args.action == "mark":
             if not args.action_id or not args.status:
                 raise rounds.RoundError("usage: lc round mark --id A3 --status accepted")
-            a = rounds.mark(ws.root, args.action_id, args.status)
+            a = rounds.mark(ws.root, args.action_id, args.status, args.reason or "")
             print(f"{a['id']}: {a['status']}")
         else:
             st = rounds.status(ws.root)
             print(json.dumps(st, ensure_ascii=False))
-    except (workspace.WorkspaceError, rounds.RoundError, OSError, ValueError, KeyError) as exc:
+    except (
+        workspace.WorkspaceError,
+        rounds.RoundError,
+        codex.CodexError,
+        OSError,
+        ValueError,
+        KeyError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1 if isinstance(exc, rounds.RoundError) else 2
     return 0
@@ -353,6 +361,7 @@ def _cmd_docx_comments(args: argparse.Namespace) -> int:
         workspace.WorkspaceError,
         docx_out.DocxError,
         rounds.RoundError,
+        codex.CodexError,
         OSError,
         ValueError,
     ) as exc:
@@ -544,6 +553,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_round.add_argument(
         "--status", choices=["pending", "accepted", "rejected", "done", "deferred"], default=None
     )
+    p_round.add_argument("--reason", default=None, help="why (for mark), in the writer's words")
     p_round.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_round.set_defaults(func=_cmd_round)
 

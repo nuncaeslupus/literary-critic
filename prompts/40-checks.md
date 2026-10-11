@@ -23,33 +23,24 @@ before line-level work.
    - `relationships`, `motifs`: registers you write yourself in the same
      folder (`relationships.json`, `motifs.json`, schema `register`) when a
      check first needs them;
-   - `findings`: `<ws>/analysis/findings.json`; `backlog`: the actions of past
-     rounds in `<ws>/revisions/`;
+   - `findings`: the Codex's `issue` items
+     (`lc codex find "<words>" --type issue --workspace <slug>`);
+     `backlog`: past rounds and the writer's `decision` items
+     (`lc codex ask open-issues --workspace <slug>`,
+     `lc codex ask rejected --workspace <slug>`);
    - `metrics`: `<ws>/metrics/<version>.json` (script-measured; trust them over
      impressions, and say when a metric was `unmeasured`).
 3. Decide. A deliberate choice is not a defect; separate error, licence and a
    character's belief. Strength checks record what works.
-4. Record each finding in `<ws>/analysis/findings.json` (a JSON list):
+4. Record each finding as a Codex `issue`, on the passage it is about:
 
-   ```json
-   {
-     "schema_version": 1,
-     "id": "F12",
-     "check_id": "scene-craft.value-shift",
-     "anchors": ["c07.s2"],
-     "evidence": [{"anchor": "c07.s2.p4", "quote": "at most 25 words copied from the text"}],
-     "explanation": "What the problem (or strength) is and why it matters.",
-     "what": "One line: what the writer could change (no replacement prose).",
-     "options": ["Ways to address it, described, never written out"],
-     "severity": "medium",
-     "confidence": 0.7,
-     "effort": "M",
-     "kind": "problem",
-     "status": "open"
-   }
+   ```
+   lc codex add issue --workspace <slug> --text "What the writer could change" --quote "exact words from the passage" --within c07.s2 --fields '{"level": "scene", "severity": "medium", "kind": "problem", "check": "scene-craft.value-shift", "confidence": 0.7, "effort": "M", "why": "Why it matters.", "options": ["Ways to address it, never written out"]}'
    ```
 
-5. Validate after each batch: `lc validate finding <ws>/analysis/findings.json`.
+   `kind` is `problem` or `strength`; `level` is one of book, part, chapter,
+   scene, paragraph, line, mechanics; severity is high, medium or low.
+5. Check after each batch: `lc codex check --workspace <slug>`.
 
 ## Rules
 

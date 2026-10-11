@@ -99,14 +99,10 @@ def build(root: Path) -> dict[str, str]:
         "setup", "A star.", {"label": "star", "side": "setup"}, [whole(text, star)]
     ).id
     i1 = cx.add(
-        "issue", "Slow opening.", {"level": "chapter", "severity": "major"}, [whole(text, 10)]
+        "issue", "Slow opening.", {"level": "chapter", "severity": "high"}, [whole(text, 10)]
     )
-    i2 = cx.add(
-        "issue", "Repeated word.", {"level": "line", "severity": "minor"}, [whole(text, 20)]
-    )
-    cx.add(
-        "issue", "Unclear time jump.", {"level": "scene", "severity": "minor"}, [whole(text, 30)]
-    )
+    i2 = cx.add("issue", "Repeated word.", {"level": "line", "severity": "low"}, [whole(text, 20)])
+    cx.add("issue", "Unclear time jump.", {"level": "scene", "severity": "low"}, [whole(text, 30)])
     cx.add(
         "decision",
         "Keep it.",

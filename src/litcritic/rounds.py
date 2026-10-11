@@ -1,12 +1,13 @@
-"""Revision rounds: findings become prioritised, located actions and a letter.
+"""Revision rounds: open issues in the Codex become located actions and a letter.
 
 Rounds follow editorial order: structural first, then scene and character,
-then prose and dialogue. ``build`` takes the open problem findings of the
-earliest level that still has any, scores them (severity x confidence x the
-profile's weight / effort) and writes ``revisions/round-NN/actions.json``.
-``letter`` renders the writer-facing ``letter.md`` in the novel's language.
-The script only arranges what the findings say; it never writes prose for the
-novel, and it flags quoted passages in actions that are not in the manuscript.
+then prose and dialogue. ``build`` takes the active problem issues of the
+earliest level that still has any undecided, scores them (severity x
+confidence x the profile's weight / effort) and records the round in
+``revisions/round-NN/round.json``. An action's status is the writer's latest
+decision on its issue (a ``decision`` item); ``mark`` records one. ``letter``
+renders the writer-facing ``letter.md`` in the work's language. The script only
+arranges what the issues say; it never writes prose for the work.
 """
 
 from __future__ import annotations
@@ -14,10 +15,12 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, kinds, locate, query, structure, validate
+from litcritic import checklist, kinds, locate, query, structure
+from litcritic.codex import Codex, CodexError, Item
 from litcritic.workspace import MANIFEST
 
 LEVELS = ("structural", "scene", "line")
@@ -25,6 +28,23 @@ SEVERITY = {"high": 3.0, "medium": 2.0, "low": 1.0}
 EFFORT = {"S": 1.0, "M": 1.5, "L": 2.0}
 QUOTE = re.compile(r"«([^»]+)»|“([^”]+)”|\"([^\"]+)\"")
 MAX_QUOTE_WORDS = 12
+ISSUE_LEVEL = {
+    "book": "structural",
+    "part": "structural",
+    "chapter": "structural",
+    "scene": "scene",
+    "paragraph": "line",
+    "line": "line",
+    "mechanics": "line",
+}
+VERDICT_STATUS = {
+    "accepted": "accepted",
+    "rejected": "rejected",
+    "done": "done",
+    "done_differently": "done",
+    "deferred": "deferred",
+}
+STATUSES = ("pending", "accepted", "rejected", "done", "deferred")
 
 DEFAULT_OPTIONS = {
     "es": ["Mantenerlo así (si es deliberado, dime por qué)", "Revisarlo como se describe"],
@@ -33,7 +53,7 @@ DEFAULT_OPTIONS = {
 
 
 class RoundError(Exception):
-    """Findings or rounds cannot be processed."""
+    """A round cannot be built, marked or rendered."""
 
 
 def load_json(path: Path, default: Any) -> Any:
@@ -45,26 +65,20 @@ def round_dirs(ws_root: Path) -> list[Path]:
     return sorted(p for p in base.glob("round-[0-9][0-9]") if p.is_dir()) if base.is_dir() else []
 
 
-def level_of(finding: dict[str, Any], checks: dict[str, checklist.Check]) -> str | None:
-    """The round level of a finding; None for checks that produce no action."""
-    check = checks.get(finding["check_id"])
-    if check is None:
-        return "scene"
-    return check.action_level if check.action_level in LEVELS else None
+def load_profile(ws_root: Path) -> dict[str, Any]:
+    f = ws_root / "analysis" / "profile.toml"
+    return tomllib.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
 
 
-def score(
-    finding: dict[str, Any], weights: dict[str, float], check: checklist.Check | None
-) -> float:
-    weight = 1.0
-    if check is not None:
-        weight = float(weights.get(check.id, weights.get(check.area, 1.0)))
-    return (
-        SEVERITY.get(finding["severity"], 1.0)
-        * float(finding["confidence"])
-        * weight
-        / EFFORT.get(finding["effort"], 1.5)
-    )
+def language(ws_root: Path) -> str:
+    """The work's language: the profile's, else the work manifest's, else English."""
+    profile = load_profile(ws_root)
+    if profile.get("language"):
+        return str(profile["language"])
+    manifest = ws_root / MANIFEST
+    if manifest.is_file():
+        return str(tomllib.loads(manifest.read_text(encoding="utf-8")).get("language", "en"))
+    return "en"
 
 
 def prose_flags(action: dict[str, Any], draft_text: str) -> list[str]:
@@ -81,114 +95,179 @@ def prose_flags(action: dict[str, Any], draft_text: str) -> list[str]:
     return flags
 
 
-def _paragraph_anchor(ix: query.Index, anchor: str) -> str:
-    return ix.anchors[query.paragraph_range(ix, anchor).start]
+# --- issues and decisions ----------------------------------------------------------
 
 
-def load_profile(ws_root: Path) -> dict[str, Any]:
-    f = ws_root / "analysis" / "profile.toml"
-    return tomllib.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+def decision(cx: Codex, issue_id: str) -> Item | None:
+    """The writer's latest active decision on an issue."""
+    found = [
+        src
+        for src, rel in cx.linked_to(issue_id)
+        if rel == "about" and src.type == "decision" and src.status != "retired"
+    ]
+    return max(found, key=lambda d: (str(d.fields.get("at", "")), d.rev, d.id)) if found else None
 
 
-def language(ws_root: Path) -> str:
-    """The novel's language: the profile's, else the workspace manifest's, else English."""
-    profile = load_profile(ws_root)
-    if profile.get("language"):
-        return str(profile["language"])
-    manifest = ws_root / MANIFEST
-    if manifest.is_file():
-        return str(tomllib.loads(manifest.read_text(encoding="utf-8")).get("language", "en"))
-    return "en"
+def action_status(cx: Codex, issue_id: str) -> str:
+    d = decision(cx, issue_id)
+    return VERDICT_STATUS.get(str(d.fields.get("verdict")), "pending") if d else "pending"
 
 
-def _decided(ws_root: Path, skip: Path | None = None) -> set[str]:
-    """Findings that already have a decision (any action status but pending)."""
-    out: set[str] = set()
-    for d in round_dirs(ws_root):
-        if d == skip:
+def level_of(issue: Item, checks: dict[str, checklist.Check]) -> str | None:
+    """The round level of an issue; None for checks that produce no action."""
+    check = checks.get(str(issue.fields.get("check", "")))
+    if check is not None:
+        return check.action_level if check.action_level in LEVELS else None
+    return ISSUE_LEVEL.get(str(issue.fields.get("level")), "scene")
+
+
+def score(issue: Item, weights: dict[str, float], check: checklist.Check | None) -> float:
+    weight = 1.0
+    if check is not None:
+        weight = float(weights.get(check.id, weights.get(check.area, 1.0)))
+    f = issue.fields
+    return (
+        SEVERITY.get(str(f.get("severity")), 1.0)
+        * float(f.get("confidence", 1.0))
+        * weight
+        / EFFORT.get(str(f.get("effort", "M")), 1.5)
+    )
+
+
+def _anchor(issue: Item) -> str | None:
+    return issue.spans[0].start.para if issue.spans else None
+
+
+def located(cx: Codex, issue: Item, loc: locate.LocatorBuilder) -> locate.Locator | None:
+    """Where an issue is, for the writer; None when it has no place in the synced draft."""
+    a = _anchor(issue)
+    if a is None or issue.spans[0].draft != cx.draft:
+        return None
+    try:
+        return loc.locate(a)
+    except KeyError:
+        return None
+
+
+def _locator(ws_root: Path, cx: Codex, lang: str) -> tuple[query.Index, locate.LocatorBuilder]:
+    ix = query.load(ws_root, cx.draft)
+    return ix, locate.LocatorBuilder(ix, locate.load_meta(ws_root, cx.draft), lang)
+
+
+def _round_meta(d: Path) -> dict[str, Any]:
+    return dict(load_json(d / "round.json", {}))
+
+
+def round_actions(
+    ws_root: Path,
+    d: Path,
+    cx: Codex | None = None,
+    loc: locate.LocatorBuilder | None = None,
+) -> list[dict[str, Any]]:
+    """A round's actions with their issue's current text, place and status.
+
+    A retired issue's action reads ``withdrawn``; one whose passage changed has
+    no place until it is re-read.
+    """
+    cx = cx or Codex(ws_root)
+    meta = _round_meta(d)
+    lang = str(meta.get("language") or language(ws_root))
+    if loc is None:
+        _, loc = _locator(ws_root, cx, lang)
+    out = []
+    for entry in meta.get("actions", []):
+        try:
+            issue = cx.get(entry["issue"])
+        except CodexError:
             continue
-        for a in load_json(d / "actions.json", []):
-            if a["status"] != "pending":
-                out.update(a["finding_ids"])
+        where = located(cx, issue, loc) if issue.status == "active" else None
+        f = issue.fields
+        out.append(
+            {
+                "id": entry["id"],
+                "issue": issue.id,
+                "level": meta.get("level"),
+                "round": meta.get("round"),
+                "what": issue.text,
+                "why": str(f.get("why") or ""),
+                "where": where.as_where() if where else None,
+                "options": list(
+                    f.get("options") or DEFAULT_OPTIONS.get(lang, DEFAULT_OPTIONS["en"])
+                ),
+                "severity": f.get("severity"),
+                "status": "withdrawn" if issue.status == "retired" else action_status(cx, issue.id),
+            }
+        )
     return out
+
+
+# --- rounds -------------------------------------------------------------------------
 
 
 def build(
     ws_root: Path, version: str | None = None, level: str | None = None
 ) -> tuple[Path, list[dict[str, Any]], list[str]]:
-    """Write the next round's actions; returns (path, actions, warnings).
+    """Record the next round; returns (round.json path, actions, warnings).
 
-    A latest round whose actions are all still pending has not been put to the
-    writer yet, so it is rebuilt in place (same number) rather than followed by
-    a new one.
+    A latest round with no decision on any of its issues has not been put to the
+    writer yet, so it is rebuilt in place (same number) rather than followed.
+    ``version`` is accepted for the CLI and must be the Codex's synced draft.
     """
-    version = version or structure.latest_version(ws_root)
-    ix = query.load(ws_root, version)
-    findings = load_json(ws_root / "analysis" / "findings.json", None)
-    if findings is None:
-        raise RoundError("no analysis/findings.json yet; run the checks first")
+    cx = Codex(ws_root)
+    if version and version != cx.draft:
+        raise RoundError(f"the Codex is synced to {cx.draft}; run `lc codex sync` first")
     cat = checklist.load(kinds.of_work(ws_root).CHECKLIST)
-    errors = validate.validate("finding", findings, cat)
-    if errors:
-        raise RoundError("findings are invalid: " + "; ".join(errors[:5]))
     checks = {c.id: c for c in cat.checks}
     weights = {str(k): float(v) for k, v in load_profile(ws_root).get("weights", {}).items()}
     lang = language(ws_root)
     dirs = round_dirs(ws_root)
     reuse = None
-    if dirs and all(a["status"] == "pending" for a in load_json(dirs[-1] / "actions.json", [])):
-        reuse = dirs[-1]
-    decided = _decided(ws_root, skip=reuse)
+    if dirs:
+        last = _round_meta(dirs[-1]).get("actions") or []
+        if last and all(decision(cx, a["issue"]) is None for a in last):
+            reuse = dirs[-1]
+    in_rounds = {a["issue"] for d in dirs if d != reuse for a in _round_meta(d).get("actions", [])}
     problems = [
-        f
-        for f in findings
-        if f["kind"] == "problem"
-        and f["status"] == "open"
-        and f["id"] not in decided
-        and level_of(f, checks) is not None
+        i
+        for i in cx.of_type("issue")
+        if i.status == "active"
+        and i.fields.get("kind", "problem") == "problem"
+        and decision(cx, i.id) is None
+        and i.id not in in_rounds
+        and level_of(i, checks) is not None
     ]
     if level is None:
         level = next(
-            (lv for lv in LEVELS if any(level_of(f, checks) == lv for f in problems)), None
+            (lv for lv in LEVELS if any(level_of(i, checks) == lv for i in problems)), None
         )
         if level is None:
-            raise RoundError("no open problem findings: nothing for a new round")
-    chosen = [f for f in problems if level_of(f, checks) == level]
+            raise RoundError("no open problem issues: nothing for a new round")
+    chosen = [i for i in problems if level_of(i, checks) == level]
     if not chosen:
-        raise RoundError(f"no open {level} findings without a decision")
-    chosen.sort(key=lambda f: -score(f, weights, checks.get(f["check_id"])))
-    previous = [a for d in dirs if d != reuse for a in load_json(d / "actions.json", [])]
+        raise RoundError(f"no open {level} issues without a decision")
+    chosen.sort(key=lambda i: -score(i, weights, checks.get(str(i.fields.get("check", "")))))
+    previous = [a for d in dirs if d != reuse for a in _round_meta(d).get("actions", [])]
     next_id = 1 + max((int(a["id"][1:]) for a in previous), default=0)
     number = int(reuse.name.split("-")[1]) if reuse else len(dirs) + 1
-    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
-    actions = []
-    for k, f in enumerate(chosen):
-        check = checks.get(f["check_id"])
-        where = loc.locate(_paragraph_anchor(ix, f["anchors"][0])).as_where()
-        actions.append(
-            {
-                "schema_version": 1,
-                "id": f"A{next_id + k}",
-                "finding_ids": [f["id"]],
-                "level": level,
-                "round": number,
-                "what": f.get("what") or (check.title if check else f["check_id"]),
-                "why": f.get("explanation") or (check.question if check else ""),
-                "where": where,
-                "options": f.get("options") or DEFAULT_OPTIONS.get(lang, DEFAULT_OPTIONS["en"]),
-                "status": "pending",
-            }
-        )
-    errors = validate.validate("action", actions)
-    if errors:
-        raise RoundError("actions are invalid: " + "; ".join(errors[:5]))
-    warnings = [w for a in actions for w in prose_flags(a, loc.text)]
     out_dir = ws_root / "revisions" / f"round-{number:02d}"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "actions.json"
-    out.write_text(json.dumps(actions, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    meta = {"round": number, "level": level, "version": version, "language": lang}
-    (out_dir / "round.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    meta = {
+        "round": number,
+        "level": level,
+        "version": cx.draft,
+        "language": lang,
+        "actions": [{"id": f"A{next_id + k}", "issue": i.id} for k, i in enumerate(chosen)],
+    }
+    out = out_dir / "round.json"
+    out.write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    ix, loc = _locator(ws_root, cx, lang)
+    actions = round_actions(ws_root, out_dir, cx, loc)
+    text = "\n".join(ix.paragraphs)
+    warnings = [w for a in actions for w in prose_flags(a, text)]
+    latest = structure.latest_version(ws_root)
+    if latest != cx.draft:
+        warnings.append(f"{latest} is ingested but the Codex is on {cx.draft}: run `lc codex sync`")
+    warnings += [f"{a['id']}: its place is gone from {cx.draft}" for a in actions if not a["where"]]
     return out, actions, warnings
 
 
@@ -199,61 +278,46 @@ def latest_round(ws_root: Path) -> Path:
     return dirs[-1]
 
 
-def mark(ws_root: Path, action_id: str, status: str) -> dict[str, Any]:
-    """Set an action's status (pending/accepted/rejected/done/deferred) in its round."""
+def mark(ws_root: Path, action_id: str, status: str, reason: str = "") -> dict[str, Any]:
+    """Record the writer's decision on an action's issue (``pending`` withdraws it)."""
+    if status not in STATUSES:
+        raise RoundError(f"status must be one of {STATUSES}")
+    cx = Codex(ws_root)
     for d in reversed(round_dirs(ws_root)):
-        path = d / "actions.json"
-        actions = load_json(path, [])
-        for a in actions:
-            if a["id"] == action_id:
-                a["status"] = status
-                errors = validate.validate("action", a)
-                if errors:
-                    raise RoundError("; ".join(errors))
-                path.write_text(
-                    json.dumps(actions, ensure_ascii=False, indent=1) + "\n", encoding="utf-8"
+        for entry in _round_meta(d).get("actions", []):
+            if entry["id"] != action_id:
+                continue
+            current = decision(cx, entry["issue"])
+            if current is not None:
+                cx.retire(current.id, by="writer")
+            if status != "pending":
+                at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                fields = {"verdict": status, "at": at, **({"reason": reason} if reason else {})}
+                cx.add(
+                    "decision",
+                    f"{action_id}: {status}",
+                    fields,
+                    links=[{"rel": "about", "to": entry["issue"]}],
+                    by="writer",
                 )
-                _sync_findings(ws_root, a["finding_ids"], status)
-                return dict(a)
+            return next(a for a in round_actions(ws_root, d, cx) if a["id"] == action_id)
     raise RoundError(f"no action {action_id!r}")
-
-
-FINDING_STATUS = {
-    "accepted": "accepted",
-    "rejected": "rejected",
-    "done": "resolved",
-    "deferred": "open",
-}
-
-
-def _sync_findings(ws_root: Path, ids: list[str], action_status: str) -> None:
-    """Mirror a decision on the findings it came from."""
-    path = ws_root / "analysis" / "findings.json"
-    findings = load_json(path, None)
-    if not isinstance(findings, list) or action_status not in FINDING_STATUS:
-        return
-    for f in findings:
-        if f.get("id") in ids:
-            f["status"] = FINDING_STATUS[action_status]
-    path.write_text(json.dumps(findings, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 
 
 def status(ws_root: Path) -> dict[str, Any]:
     d = latest_round(ws_root)
-    actions = load_json(d / "actions.json", [])
+    actions = round_actions(ws_root, d)
     counts: dict[str, int] = {}
     for a in actions:
         counts[a["status"]] = counts.get(a["status"], 0) + 1
-    findings = {f["id"]: f for f in load_json(ws_root / "analysis" / "findings.json", [])}
     open_high = [
         a["id"]
         for a in actions
-        if a["status"] in ("pending", "accepted")
-        and any(findings.get(fid, {}).get("severity") == "high" for fid in a["finding_ids"])
+        if a["status"] in ("pending", "accepted") and a["severity"] == "high" and a["where"]
     ]
     return {
         "round": d.name,
-        "level": actions[0]["level"] if actions else None,
+        "level": _round_meta(d).get("level"),
         "actions": len(actions),
         "by_status": counts,
         "open_high": open_high,
@@ -306,14 +370,15 @@ TEXT: dict[str, dict[str, Any]] = {
 
 
 def letter(ws_root: Path, version: str | None = None) -> Path:
-    """Render the latest round's letter from the places stored with its actions."""
+    """Render the latest round's letter from the Codex's issues."""
     d = latest_round(ws_root)
-    actions = load_json(d / "actions.json", [])
-    meta = load_json(d / "round.json", {})
+    cx = Codex(ws_root)
+    meta = _round_meta(d)
     lang = str(meta.get("language") or language(ws_root))
+    _, loc = _locator(ws_root, cx, lang)
+    actions = [a for a in round_actions(ws_root, d, cx, loc) if a["where"]]
     t = TEXT.get(lang, TEXT["en"])
-    level = actions[0]["level"] if actions else str(meta.get("level", "structural"))
-    level_name = t["levels"][level]
+    level_name = t["levels"][str(meta.get("level", "structural"))]
     n = int(d.name.split("-")[1])
     lines = [
         f"# {t['title'].format(n=n, level=level_name)}",
@@ -321,11 +386,11 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
         t["intro"].format(level=level_name),
         "",
     ]
-    strengths = _strength_lines(ws_root, str(meta.get("version") or version or ""), lang)
+    strengths = strength_lines(ws_root, cx, lang, loc)
     if strengths:
         lines += [f"## {t['strengths']}", "", *strengths, ""]
     lines += [f"## {t['actions']}", ""]
-    for k, a in enumerate(actions, 1):
+    for k, a in enumerate(actions, 1):  # actions without a place wait in the re-read queue
         where = locate.describe(locate.from_where(a["where"]), lang)
         lines += [
             f"### {k}. {a['what']}",
@@ -343,26 +408,31 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
     return out
 
 
-def located_line(
-    ix: query.Index, loc: locate.LocatorBuilder, finding: dict[str, Any], lang: str
-) -> str | None:
-    """'- explanation (where)' for a finding, or None when its place is gone."""
-    try:
-        where = locate.describe(loc.locate(finding["anchors"][0]), lang)
-    except KeyError:
+def located_line(cx: Codex, issue: Item, loc: locate.LocatorBuilder, lang: str) -> str | None:
+    """'- why (where)' for an issue, or None when its place is gone."""
+    where = located(cx, issue, loc)
+    if where is None:
         return None
-    return f"- {finding.get('explanation', '')} ({where})"
+    return f"- {issue.fields.get('why') or issue.text} ({locate.describe(where, lang)})"
 
 
-def _strength_lines(ws_root: Path, version: str, lang: str) -> list[str]:
-    """Open or accepted strengths whose place still exists in the round's draft."""
-    findings = load_json(ws_root / "analysis" / "findings.json", [])
-    strengths = [
-        f for f in findings if f["kind"] == "strength" and f["status"] in ("open", "accepted")
+def live(cx: Codex, kind: str) -> list[Item]:
+    """Active issues of a kind (problem or strength) the writer has not rejected or closed."""
+    return [
+        i
+        for i in cx.of_type("issue")
+        if i.status == "active"
+        and i.fields.get("kind", "problem") == kind
+        and action_status(cx, i.id) in ("pending", "accepted", "deferred")
     ]
+
+
+def strength_lines(
+    ws_root: Path, cx: Codex, lang: str, loc: locate.LocatorBuilder | None = None
+) -> list[str]:
+    strengths = live(cx, "strength")
     if not strengths:
         return []
-    version = version or structure.latest_version(ws_root)
-    ix = query.load(ws_root, version)
-    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
-    return [line for f in strengths if (line := located_line(ix, loc, f, lang))]
+    if loc is None:
+        _, loc = _locator(ws_root, cx, lang)
+    return [line for i in strengths if (line := located_line(cx, i, loc, lang))]
