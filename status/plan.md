@@ -98,6 +98,7 @@ T1 ☑ · T2 ☑ (PR #1) · T3 ☑ (PR #2) · T8 ☑ (PR #16) · T4 ◐ · other
 | T13 | `stale_overwrite_blocked == 1.0` | 1.0 (4/4 stale cases refused) | `uv run pytest tests/test_pack.py` | T7+ | [HERE] | 2026-10-11 |
 | T9 | `index_query_tokens_p95 <= 2500` | 1929 (125 queries, default budget 2000) | `uv run pytest tests/test_query.py` | T13+ | [HERE] | 2026-10-11 |
 | T10 | `prompts_reference_valid_commands == 1.0` | 1.0 (37 references, 9 documents) | `uv run pytest tests/test_prompts.py` | T9+ | [HERE] | 2026-10-11 |
+| T11 | `writer_locators_complete == 1.0` | 1.0 (corpus sample; private draft also 1.0) | `uv run pytest tests/test_locate.py` | T10+ | [HERE] | 2026-10-11 |
 | T8 | `schema_validity_on_fixtures == 1.0` | 1.0 (19 fixtures, 5 kinds) | `uv run pytest tests/test_validate.py` | 741fa89+ | [HERE] | 2026-10-10 |
 
 ### Dependency graph

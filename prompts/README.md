@@ -15,6 +15,7 @@ validation were not run.
 | `30-orientation.md` | First reading: writer's brief, profile, traits, what the novel is trying to do. |
 | `40-checks.md` | Run the checklist and record findings with evidence. |
 | `50-new-draft.md` | Bring in the next draft and see what changed. |
+| `60-rounds.md` | Turn findings into a revision round, the letter, and the writer's decisions. |
 
 Index layers: **L0** profile and synopsis · **L1** chapter summaries · **L2**
 scene cards · **L3** the text itself, read through `lc show`, `lc find` and

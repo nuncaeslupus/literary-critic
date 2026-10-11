@@ -3,31 +3,118 @@
   "$id": "action",
   "title": "Writer-facing revision action. Explains what, why and where; never contains replacement prose.",
   "type": "object",
-  "required": ["schema_version", "id", "finding_ids", "level", "round", "what", "why", "where", "options", "status"],
+  "required": [
+    "schema_version",
+    "id",
+    "finding_ids",
+    "level",
+    "round",
+    "what",
+    "why",
+    "where",
+    "options",
+    "status"
+  ],
   "additionalProperties": false,
   "properties": {
-    "schema_version": {"const": 1},
-    "id": {"type": "string", "pattern": "^A[0-9]+$"},
-    "finding_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "pattern": "^F[0-9]+$"}},
-    "level": {"enum": ["structural", "scene", "line"]},
-    "round": {"type": "integer", "minimum": 1},
-    "what": {"type": "string", "minLength": 1},
-    "why": {"type": "string", "minLength": 1},
-    "where": {
-      "type": "object",
-      "required": ["anchor", "chapter", "first_words", "last_words"],
-      "additionalProperties": false,
-      "properties": {
-        "anchor": {"type": "string", "pattern": "^(p[0-9]+\\.)?c[0-9]+(\\.s[0-9]+(\\.p[0-9]+)?)?$"},
-        "chapter": {"type": "string", "minLength": 1},
-        "section": {"type": "string"},
-        "page": {"type": "integer", "minimum": 1},
-        "first_words": {"type": "string", "minLength": 1, "x-maxWords": 12},
-        "last_words": {"type": "string", "minLength": 1, "x-maxWords": 12}
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^A[0-9]+$"
+    },
+    "finding_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^F[0-9]+$"
       }
     },
-    "options": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
-    "status": {"enum": ["pending", "accepted", "rejected", "done", "deferred"]},
-    "verified_in": {"type": "string", "pattern": "^v[0-9]{3}$"}
+    "level": {
+      "enum": [
+        "structural",
+        "scene",
+        "line"
+      ]
+    },
+    "round": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "what": {
+      "type": "string",
+      "minLength": 1
+    },
+    "why": {
+      "type": "string",
+      "minLength": 1
+    },
+    "where": {
+      "type": "object",
+      "required": [
+        "anchor",
+        "chapter",
+        "first_words",
+        "last_words"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "type": "string",
+          "pattern": "^(p[0-9]+\\.)?c[0-9]+(\\.s[0-9]+(\\.p[0-9]+)?)?$"
+        },
+        "chapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "section": {
+          "type": "string"
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "first_words": {
+          "type": "string",
+          "minLength": 1,
+          "x-maxWords": 12
+        },
+        "last_words": {
+          "type": "string",
+          "minLength": 1,
+          "x-maxWords": 12
+        },
+        "page_exact": {
+          "type": "boolean"
+        },
+        "after": {
+          "type": "string",
+          "x-maxWords": 12
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "accepted",
+        "rejected",
+        "done",
+        "deferred"
+      ]
+    },
+    "verified_in": {
+      "type": "string",
+      "pattern": "^v[0-9]{3}$"
+    }
   }
 }

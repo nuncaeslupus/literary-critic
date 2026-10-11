@@ -1,0 +1,8 @@
+{
+  "metric": "writer_locators_complete",
+  "value": 1.0,
+  "method": "every 5th paragraph of 8+ words in the Spanish corpus text: chapter, page and first/last word runs present, each run occurring exactly once in the draft and matching the paragraph's start/end; shorter paragraphs get the neighbouring paragraph as an extra cue",
+  "also": "rounds: structural before scene before line; priority by severity x confidence x weight / effort; quoted passages in actions that are not in the manuscript are flagged (generated_manuscript_prose_in_actions)",
+  "real_draft_check": "also run locally on a private working draft (no details recorded)",
+  "command": "uv run pytest tests/test_locate.py"
+}
