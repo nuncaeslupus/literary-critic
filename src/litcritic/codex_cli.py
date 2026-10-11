@@ -92,7 +92,8 @@ def _run(args: argparse.Namespace) -> int:
             new_spans = _spans(args, cx, ws.root)
             if new_spans:
                 changes["spans"] = new_spans
-                changes["status"] = "active"
+                if cx.get(args.id).status == "needs_reread":
+                    changes["status"] = "active"
             if args.link:
                 changes["links"] = cx.get(args.id).links + _links(args.link)
             print(cx.update(args.id, by=args.by, **changes).id)
@@ -108,7 +109,9 @@ def _run(args: argparse.Namespace) -> int:
             if item.fields:
                 out.add("fields: " + json.dumps(item.fields, ensure_ascii=False))
             for link in item.links:
-                out.add(f"-> {link['rel']} {_line(cx.get(link['to']))}")
+                target = cx.items.get(link["to"])
+                label = _line(target) if target else f"{link['to']} (missing)"
+                out.add(f"-> {link['rel']} {label}")
             for src, rel in cx.linked_to(item.id):
                 out.add(f"<- {rel} {_line(src)}")
             print(out.finish(), end="")
@@ -136,7 +139,6 @@ def _run(args: argparse.Namespace) -> int:
         workspace.WorkspaceError,
         OSError,
         ValueError,
-        KeyError,
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import tomllib
 from collections import defaultdict
@@ -30,6 +31,7 @@ DIR = "codex"
 STATUSES = ("active", "needs_reread", "retired")
 BY = ("llm", "writer", "script")
 TYPES_DIR = Path(__file__).parent / "codex_types"
+DRAFT = re.compile(r"^v\d{3,}$")
 
 
 class CodexError(Exception):
@@ -101,6 +103,16 @@ class Item:
 
     @classmethod
     def from_json(cls, d: dict[str, Any]) -> Item:
+        if not isinstance(d, dict) or not isinstance(d.get("id"), str):
+            raise ValueError("not an item object")
+        links = d.get("links", [])
+        if not isinstance(links, list) or not all(
+            isinstance(x, dict) and isinstance(x.get("rel"), str) and isinstance(x.get("to"), str)
+            for x in links
+        ):
+            raise ValueError("links must be a list of {rel, to}")
+        if not isinstance(d.get("spans", []), list) or not isinstance(d.get("fields", {}), dict):
+            raise ValueError("spans must be a list and fields an object")
         return cls(
             id=d["id"],
             type=d["type"],
@@ -134,17 +146,20 @@ class Codex:
         self.types = types or load_types()
         self.items: dict[str, Item] = {}
         self.load_errors: list[str] = []
+        self.damaged: set[str] = set()  # type files with rows we could not load: never rewritten
         for f in sorted((self.root / "items").glob("*.jsonl")):
             for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1):
                 if not line.strip():
                     continue
                 try:
                     item = Item.from_json(json.loads(line))
-                except (ValueError, KeyError, spanlib.SpanError) as exc:
+                except (ValueError, KeyError, TypeError, AttributeError, spanlib.SpanError) as exc:
                     self.load_errors.append(f"{f.name}:{n}: unreadable item ({exc})")
+                    self.damaged.add(f.stem)
                     continue
                 if item.id in self.items:
                     self.load_errors.append(f"{f.name}:{n}: duplicate id {item.id}")
+                    self.damaged.add(f.stem)
                     continue
                 self.items[item.id] = item
         self._reindex()
@@ -156,26 +171,30 @@ class Codex:
         root = work_root / DIR
         if (root / "codex.toml").exists():
             raise CodexError(f"a Codex already exists in {work_root}")
+        _check_draft(work_root, draft)
         (root / "items").mkdir(parents=True, exist_ok=True)
-        _write_atomic(
-            root / "codex.toml",
-            f'codex_schema = {SCHEMA_VERSION}\nsynced_draft = "{draft}"\n',
-        )
+        meta = {"codex_schema": SCHEMA_VERSION, "synced_draft": draft}
+        _write_atomic(root / "codex.toml", _toml(meta))
         return Codex(work_root)
 
     @property
     def draft(self) -> str:
         return str(self.meta.get("synced_draft", ""))
 
-    def set_draft(self, draft: str) -> None:
-        self.meta["synced_draft"] = draft
-        _write_atomic(
-            self.root / "codex.toml",
-            f"codex_schema = {self.meta.get('codex_schema', SCHEMA_VERSION)}\n"
-            f'synced_draft = "{draft}"\n',
-        )
+    def set_meta(self, **values: str | int) -> None:
+        """Change keys in ``codex.toml``, keeping every other key."""
+        if "synced_draft" in values:
+            _check_draft(self.root.parent, str(values["synced_draft"]))
+        self.meta.update(values)
+        _write_atomic(self.root / "codex.toml", _toml(self.meta))
 
     def _save(self, type_name: str) -> None:
+        if type_name in self.damaged:
+            bad = [e for e in self.load_errors if e.startswith(f"{type_name}.jsonl:")]
+            raise CodexError(
+                f"codex/items/{type_name}.jsonl has rows that could not be read; "
+                f"fix them before writing ({'; '.join(bad[:3])})"
+            )
         rows = sorted((i for i in self.items.values() if i.type == type_name), key=lambda i: i.id)
         text = "".join(json.dumps(i.as_json(), ensure_ascii=False) + "\n" for i in rows)
         _write_atomic(self.root / "items" / f"{type_name}.jsonl", text)
@@ -195,16 +214,22 @@ class Codex:
             fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
     def _reindex(self) -> None:
-        self.by_type: dict[str, list[str]] = defaultdict(list)
-        self.by_para: dict[str, set[str]] = defaultdict(set)
+        self.by_type: dict[str, set[str]] = defaultdict(set)
         self.links_in: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for item in self.items.values():
-            self.by_type[item.type].append(item.id)
-            for s in item.spans:
-                self.by_para[s.start.para].add(item.id)
-                self.by_para[s.end.para].add(item.id)
-            for link in item.links:
-                self.links_in[link["to"]].append((item.id, link["rel"]))
+            self._index(item)
+
+    def _index(self, item: Item) -> None:
+        self.by_type[item.type].add(item.id)
+        for link in item.links:
+            self.links_in[link["to"]].append((item.id, link["rel"]))
+
+    def _unindex(self, item: Item) -> None:
+        self.by_type[item.type].discard(item.id)
+        for link in item.links:
+            entries = self.links_in.get(link["to"], [])
+            if (item.id, link["rel"]) in entries:
+                entries.remove((item.id, link["rel"]))
 
     # -- writing --------------------------------------------------------------
 
@@ -275,31 +300,62 @@ class Codex:
     def retire(self, item_id: str, by: str = "llm") -> Item:
         return self.update(item_id, by=by, status="retired")
 
-    def _commit(self, op: str, item: Item, before: dict[str, Any] | None, by: str) -> None:
+    def _problems(self, item: Item) -> list[str]:
         errs = self.errors_for(item)
-        errs += [
+        return errs + [
             f"{item.id}: link to unknown item {link['to']}"
             for link in item.links
             if link["to"] not in self.items and link["to"] != item.id
         ]
+
+    def _put(self, item: Item) -> dict[str, Any] | None:
+        old = self.items.get(item.id)
+        if old is not None:
+            self._unindex(old)
+        self.items[item.id] = item
+        self._index(item)
+        return old.as_json() if old is not None else None
+
+    def _commit(self, op: str, item: Item, before: dict[str, Any] | None, by: str) -> None:
+        errs = self._problems(item)
         if errs:
             raise CodexError("; ".join(errs))
-        self.items[item.id] = item
-        self._save(item.type)
+        if item.type in self.damaged:
+            self._save(item.type)  # raises: a file with unread rows is never rewritten
+        previous = self.items.get(item.id)
+        self._put(item)
+        try:
+            self._save(item.type)
+        except OSError:
+            if previous is None:
+                self._unindex(item)
+                del self.items[item.id]
+            else:
+                self._put(previous)
+            raise
         self._log(op, item, before, by)
-        self._reindex()
 
     def replace_all(self, items: list[Item], op: str = "sync", by: str = "script") -> None:
-        """Write many changed items at once (sync); each type file is rewritten once."""
-        changed_types = set()
+        """Write many changed items at once (sync), validated like single writes.
+
+        Each changed item gets its ``rev`` bumped and ``updated`` set to the
+        synced draft; each touched type file is rewritten once.
+        """
+        errs = [e for item in items for e in self._problems(item)]
+        if errs:
+            raise CodexError("; ".join(errs[:10]))
+        changed: list[tuple[Item, dict[str, Any] | None]] = []
         for item in items:
-            before = self.items[item.id].as_json() if item.id in self.items else None
-            self.items[item.id] = item
-            changed_types.add(item.type)
-            self._log(op, item, before, by)
-        for t in sorted(changed_types):
+            old = self.items.get(item.id)
+            if old is not None and old.as_json() == item.as_json():
+                continue
+            if old is not None:
+                item.rev, item.updated = old.rev + 1, self.draft
+            changed.append((item, self._put(item)))
+        for t in sorted({i.type for i, _ in changed}):
             self._save(t)
-        self._reindex()
+        for item, before in changed:
+            self._log(op, item, before, by)
 
     # -- reading --------------------------------------------------------------
 
@@ -310,10 +366,24 @@ class Codex:
             raise CodexError(f"no item {item_id!r}") from None
 
     def of_type(self, type_name: str) -> list[Item]:
-        return [self.items[i] for i in sorted(self.by_type.get(type_name, []))]
+        return [self.items[i] for i in sorted(self.by_type.get(type_name, set()))]
 
-    def at_paragraph(self, anchor: str) -> list[Item]:
-        return [self.items[i] for i in sorted(self.by_para.get(anchor, set()))]
+    def covering(self, text: spanlib.Text, anchors: set[str]) -> list[Item]:
+        """Items with a span that starts, ends or runs through any of ``anchors``.
+
+        ``text`` is the draft the spans point into; spans of another draft are skipped.
+        """
+        wanted = {text.index[a] for a in anchors if a in text.index}
+        out = []
+        for item in self.items.values():
+            for s in item.spans:
+                if text.draft and s.draft != text.draft:
+                    continue
+                i0, i1 = text.index.get(s.start.para), text.index.get(s.end.para)
+                if i0 is not None and i1 is not None and any(i0 <= w <= i1 for w in wanted):
+                    out.append(item)
+                    break
+        return sorted(out, key=lambda i: i.id)
 
     def linked_to(self, item_id: str) -> list[tuple[Item, str]]:
         return [(self.items[src], rel) for src, rel in self.links_in.get(item_id, [])]
@@ -353,3 +423,20 @@ class Codex:
                         f"{item.id}: stale span ({s.state}, {s.draft}) not marked needs_reread"
                     )
         return problems
+
+
+def _check_draft(work_root: Path, draft: str) -> None:
+    if not DRAFT.match(draft):
+        raise CodexError(f"draft {draft!r} must look like v001")
+    if not (work_root / "text" / f"{draft}.txt").is_file():
+        raise CodexError(f"draft {draft} has not been ingested in {work_root}")
+
+
+def _toml(meta: dict[str, Any]) -> str:
+    """codex.toml holds flat scalars only."""
+    lines = []
+    for k, v in meta.items():
+        if isinstance(v, bool) or not isinstance(v, (int, str)):
+            raise CodexError(f"codex.toml value for {k!r} must be a string or an integer")
+        lines.append(f"{k} = {json.dumps(v) if isinstance(v, str) else v}")
+    return "\n".join(lines) + "\n"

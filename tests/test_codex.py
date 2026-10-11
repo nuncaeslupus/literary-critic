@@ -48,7 +48,8 @@ def test_codex_items_round_trip_and_reload(work: Path) -> None:
     assert again.get(scene.id).links == [{"rel": "about", "to": nela.id}]
     assert again.get(scene.id).rev == 2
     assert next(i for i, _ in again.linked_to(nela.id)).id == scene.id
-    assert again.at_paragraph(again.get(scene.id).spans[0].start.para)[0].id == scene.id
+    text = _text(work)
+    assert again.covering(text, {again.get(scene.id).spans[0].start.para})[0].id == scene.id
     log = (work / "codex" / "changes.jsonl").read_text(encoding="utf-8").splitlines()
     assert [json.loads(x)["op"] for x in log] == ["add", "add", "update"]
     assert again.check() == []
@@ -181,3 +182,50 @@ def test_codex_cli_add_show_find_check(work: Path, capsys: pytest.CaptureFixture
     capsys.readouterr()
     assert main(["codex", "check", *w]) == 1
     assert "links to retired" in capsys.readouterr().out
+
+
+def test_codex_covering_finds_spans_running_through(work: Path) -> None:
+    cx = codex.Codex(work)
+    text = _text(work)
+    scene = cx.add(
+        "scene",
+        "Long.",
+        {"summary": "x"},
+        [spanlib.make(text, "v001", text.anchors[2], 0, text.anchors[6], 3)],
+    )
+    assert [i.id for i in cx.covering(text, {text.anchors[4]})] == [scene.id]
+    assert cx.covering(text, {text.anchors[8]}) == []
+
+
+def test_codex_never_rewrites_a_damaged_file(work: Path) -> None:
+    cx = codex.Codex(work)
+    cx.add("entity", "One.", {"kind": "character", "name": "A"})
+    path = work / "codex" / "items" / "entity.jsonl"
+    path.write_text(path.read_text() + "null\n" + '{"id": "en-1", "links": [{"rel": "x"}]}\n')
+    damaged = codex.Codex(work)
+    assert len(damaged.load_errors) == 2
+    with pytest.raises(codex.CodexError, match="could not be read"):
+        damaged.add("entity", "Two.", {"kind": "character", "name": "B"})
+    assert path.read_text().count("\n") == 3
+
+
+def test_codex_meta_keeps_other_keys_and_rejects_bad_drafts(work: Path) -> None:
+    cx = codex.Codex(work)
+    cx.set_meta(last_sync="2026-10-11")
+    cx.set_meta(synced_draft="v001")
+    assert codex.Codex(work).meta["last_sync"] == "2026-10-11"
+    with pytest.raises(codex.CodexError):
+        cx.set_meta(synced_draft='v"1')
+    with pytest.raises(codex.CodexError, match="not been ingested"):
+        cx.set_meta(synced_draft="v999")
+
+
+def test_codex_replace_all_validates_and_bumps_rev(work: Path) -> None:
+    cx = codex.Codex(work)
+    ent = cx.add("entity", "One.", {"kind": "character", "name": "A"})
+    changed = codex.Item.from_json({**ent.as_json(), "status": "needs_reread"})
+    cx.replace_all([changed])
+    assert codex.Codex(work).get(ent.id).rev == 2
+    broken = codex.Item.from_json({**ent.as_json(), "links": [{"rel": "knows", "to": "en-0"}]})
+    with pytest.raises(codex.CodexError, match="unknown item"):
+        cx.replace_all([broken])
