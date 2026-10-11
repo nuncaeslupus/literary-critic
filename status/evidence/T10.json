@@ -1,0 +1,8 @@
+{
+  "metric": "prompts_reference_valid_commands",
+  "value": 1.0,
+  "references": 34,
+  "documents": ["prompts/00-guide.md", "prompts/10-ingest-and-structure.md", "prompts/20-scene-cards.md", "prompts/25-summaries.md", "prompts/30-orientation.md", "prompts/40-checks.md", "prompts/50-new-draft.md", ".claude/skills/litcritic/SKILL.md"],
+  "method": "every 'lc <command> --flags' in prompts and the litcritic skill is checked against the argparse definition",
+  "command": "uv run pytest tests/test_prompts.py"
+}
