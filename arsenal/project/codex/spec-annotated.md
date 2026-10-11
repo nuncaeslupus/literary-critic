@@ -12,7 +12,7 @@
 **Ticket / PR**: phase 2, sub-project S0 (from `status/ideas.md`)
 **Author**: imarcos + Claude
 **Revision**: 3
-**Status**: approved (2026-10-11, revision 3)
+**Status**: approved (2026-10-11, revision 3) — without annotations
 **Revision log**:
 - r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)
 - r2 — applied `literary-critic-spec-notes-2026-10-11-r1.md`: no migration (phase-1 formats and docs are replaced, not converted); skills built with skill-workshop; the Codex answers questions through a query API, and checks and proactive feedback are named questions (D-16…D-18)
@@ -283,11 +283,218 @@ The documented table layout is the API, versioned like a schema, so the Codex st
 | D-18 | No migration: phase-1 per-type formats and docs are replaced; the tool is rebuilt on the Codex from corpus examples; real novels may add item types later | agreed (spec notes r1) | 2026-10-11 |
 | D-19 | Query surface: read-only SQL over an in-memory view (stdlib `sqlite3`, never persisted), with named questions on top; what the Codex stores and computes is derived from a catalogue of writer questions, so translations have enough to work with | agreed | 2026-10-11 |
 
-
-> Sections 5–6 (contracts, risks) are appended by `design`.
-
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+The Codex has no network API. Its contracts are the item files, the span
+format, the SQL view and the CLI. The SQL view and the CLI are the surface
+other tools and the LLM depend on, and they carry a `codex_schema` version.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §5`
+> _(your notes here — replace this line)_
+
+### Files in a work (plain text, only codex.py reads or writes them)
+
+```text
+<work>/
+  work.toml                 # id, title, author, kind, series, tags, language, schema_version
+  manuscript/ text/         # unchanged: snapshots and normalised text per draft
+  index/vNNN/structure.json # unchanged: anchors and fingerprints (input to spans and sync)
+  codex/
+    codex.toml              # codex_schema, synced_draft, last_sync
+    items/<type>.jsonl      # one item per line, sorted by id; one file per item type
+    changes.jsonl           # append-only: {at, draft, item, op, before?, after?, by}
+    reread.jsonl            # current re-read queue (rebuilt by sync; never edited by hand)
+```
+
+Files that phase 1 wrote (scene cards, chapter summaries, registers, findings,
+round actions) are not produced any more (D-18).
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Files in a work (plain text, only codex.py reads or writes them)`
+> _(your notes here — replace this line)_
+
+### Item envelope (D-12)
+
+```json
+{"id": "ch-7f3a91c2", "type": "entity",
+ "text": "Retired sea captain; narrator's uncle.",
+ "spans": [{"draft": "v003", "start": {"para": "c01.s1.p2", "off": 0}, "end": {"para": "c01.s1.p2", "off": 48}, "exact": "the quoted text", "prefix": "", "suffix": "", "state": "ok"}],
+ "links": [{"rel": "knows", "to": "ch-02b4e811"}],
+ "status": "active",
+ "fields": {"kind": "character", "name": "Captain X", "aliases": ["the captain"]},
+ "by": "llm", "rev": 3, "created": "v001", "updated": "v003"}
+```
+
+- `id`: a type prefix plus 8 random hex characters. Never reused or renamed.
+- `status`: one of `active`, `needs_reread`, `retired`. An item is retired, never deleted, while anything still links to it.
+- `by`: one of `llm`, `writer`, `script`. Script-derived knowledge (mentions found from aliases, token counts) is computed on load and never stored (D-11).
+- `fields`: validated against the item type's definition.
+- History lives in `changes.jsonl`; `rev` counts changes.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Item envelope (D-12)`
+> _(your notes here — replace this line)_
+
+### Item types (data, not code)
+
+Each type is one file, `src/litcritic/codex_types/<type>.toml`. It holds the id
+prefix, the typed fields with their JSON-schema fragment, the allowed link
+relations, and which fields the SQL view exposes as columns. Adding a type adds
+one file (criterion `new_type_core_changes == 0`).
+
+Types shipped first:
+
+| Type | Fields | What it is for |
+|---|---|---|
+| `entity` | `kind` (character, place, object, group, rule), `name`, `aliases` | The bible |
+| `scene` | `summary`, `pov`, `location`, `time` | Scene cards |
+| `dialogue` | `speaker`, `addressee` | Who speaks, on dialogue spans |
+| `fact` | `claim`, `known_by` | Events and world facts; drive "who knows what" |
+| `thread` | `name`, `role` (main, subplot) | Storylines; their spans are the passages that advance them |
+| `setup` | `label`, `paid_by` | Setups and payoffs |
+| `issue` | `level`, `severity`, `check`, `question` | Findings at any level |
+| `decision` | `issue`, `verdict` (accepted, rejected, done_differently), `reason` | The writer's decisions |
+
+Kinds may add types (`poem`: `stanza_form`, `motif`).
+
+Link relations: `refers_to`, `depends_on`, `pays_off`, `contradicts`, `knows`,
+`part_of`, `about`.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Item types (data, not code)`
+> _(your notes here — replace this line)_
+
+### Span (D-9)
+
+```json
+{"draft": "v003",
+ "start": {"para": "c03.s2.p4", "off": 120}, "end": {"para": "c03.s3.p1", "off": 40},
+ "exact": "the quoted text", "prefix": "32 chars before", "suffix": "32 chars after",
+ "state": "ok"}
+```
+
+- `exact` stores the full text up to 300 characters. Longer spans store `head` (first 150), `tail` (last 150), `len` and `sha1` instead.
+- `state` is one of `ok`, `moved`, `changed`, `lost`.
+- Relocation order:
+  1. the alignment from `diff.py`;
+  2. offsets checked against the stored text;
+  3. if they don't match, a search on the text quote (exact text plus prefix and suffix);
+  4. otherwise `changed` or `lost`, and the item becomes `needs_reread`.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Span (D-9)`
+> _(your notes here — replace this line)_
+
+### SQL view (codex_schema = 1, read-only, in memory, built on load)
+
+```sql
+works(id, title, author, kind, series, language, draft)
+paragraphs(idx, anchor, part, chapter, scene, words, text)
+chapters(id, idx, title, words, first_idx, last_idx)
+scenes(id, chapter, idx, words, first_idx, last_idx)
+tokens(para_idx, pos, form, norm, is_word)                         -- computed
+ngrams(n, norm, para_idx, pos)                                     -- computed, n = 2..4
+items(id, type, status, text, by, rev, fields_json)
+spans(item_id, k, start_idx, start_off, end_idx, end_off, words, state)
+links(src, rel, dst)
+mentions(entity_id, para_idx, off, form)                           -- computed from names and aliases
+copresence(a, b, scene, chapter)                                   -- computed: entities in the same scene
+-- one view per type exposes its fields as columns, e.g.
+v_entity(id, kind, name, status) v_dialogue(id, speaker, addressee, para_idx, words)
+v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status)
+```
+
+- The connection is opened with `PRAGMA query_only = ON` and an authorizer that denies writes and attachments.
+- A progress handler stops any query after 2 seconds.
+- Results are cut to the token budget, with a footer saying what was left out.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › SQL view (codex_schema = 1, read-only, in memory, built on load)`
+> _(your notes here — replace this line)_
+
+### Named questions
+
+One file per question, `src/litcritic/questions/<id>.sql`, with a TOML header
+in a leading comment:
+
+```sql
+-- id = "speech-chapters"
+-- title = "In how many chapters does a character speak?"
+-- params = { character = "entity id or name" }
+-- checks = ["dialogue.voice-distinct"]
+SELECT COUNT(DISTINCT p.chapter) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx
+WHERE d.speaker = :character;
+```
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Named questions`
+> _(your notes here — replace this line)_
+
+### CLI
+
+| Command | What it does |
+|---|---|
+| `lc codex init` | Create `codex/` for a work |
+| `lc codex add/update/retire <type> --json <item>` | Write items (validated) |
+| `lc codex sync` | Bring the Codex up to the latest draft; prints what changed and the re-read queue |
+| `lc codex check` | Find dead links, orphans, stale spans, duplicate ids, schema failures; exit 1 on any |
+| `lc codex show <id>`, `lc codex find <text>` | Bounded views for the LLM |
+| `lc codex sql "<query>"` | Run one read-only query; `--schema` prints the documented tables |
+| `lc codex ask <question> [--param k=v]` | Run a named question |
+| `lc codex questions [--coverage]` | List named questions; show which `measurable` checks have none |
+| `lc library [--by author\|kind\|series\|tag]` | List works found under the home folder |
+
+Every command takes `--workspace <id|path>` and `--budget`. Output is plain
+text; `--json` gives JSON.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › CLI`
+> _(your notes here — replace this line)_
+
+### Kind plug-in
+
+`src/litcritic/kinds/<kind>.py` exposes:
+- `detect_structure(paragraphs, meta, overrides) -> Structure`
+- `ITEM_TYPES` (extra type files)
+- `CHECKLIST` (path)
+- `extra_tables(conn, work)` (optional)
+
+The core imports kinds through a registry and never by name.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Kind plug-in`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| Span relocation places a span at the wrong text after heavy edits | Medium | High | Offsets are never trusted without the text check; a failed quote match marks the span `changed` or `lost`, never moved | unit and property tests on scripted edits (`silent_misanchors == 0`) |
+| The SQL table layout leaks implementation details and becomes hard to change | Medium | Medium | Tables are documented as the API with `codex_schema`; views per type hide storage; the question catalogue is the regression suite | integration: catalogue SQL runs against every schema version |
+| Computed tables (tokens, n-grams, mentions) make load slow on long works | Medium | Medium | Build lazily per table on first use; n-grams only n = 2..4 | perf test `codex_load_seconds_20k <= 1`, `query_seconds_typical <= 0.5` |
+| Sync over-flags (everything near an edit needs re-reading), so the LLM re-reads too much | Medium | Medium | Flag only items whose spans reach changed paragraphs, plus one hop over `depends_on`/`refers_to`/`pays_off` | metric `sync_touched_ratio <= 1.5` |
+| LLM writes queries that run but answer the wrong question | Medium | Medium | Named questions for common needs; `--schema` with examples; results always show counts and anchors so they can be checked | scripted prompt-and-answer review |
+| Removing phase-1 formats breaks a command still in use | Low | Medium | Removal task greps for every old path and name; prompts are rewritten in the same plan | `phase1_leftovers == 0` test |
+| Mention detection by alias produces false hits (common words as names) | Medium | Low | Aliases marked `exact_case`; ambiguous aliases need context; mentions carry the alias that matched | unit tests on corpus names |
+| JSONL files edited concurrently (two sessions, Drive sync) | Low | Medium | Atomic replace per file; `changes.jsonl` is append-only; pack/unpack lineage still guards whole workspaces | test: interrupted write leaves the old file intact |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="cde894f34c1256b5442d831a7de454fc27977a7242c6ddaee8253c89a55d1ffb">
+<meta name="arsenal-source-sha256" content="e92b4901ca61bfc517e3584980edf126583c5519ee67162f6f25425fa25ca746">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -130,7 +130,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 10 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 20 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -161,6 +161,16 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-query-surface-part-of-option-b">Query surface (part of Option B)</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-files-in-a-work-plain-text-only">Files in a work (plain text, only codex.py reads or writes them)</a></li>
+<li><a href="#s-spec-item-envelope-d-12">Item envelope (D-12)</a></li>
+<li><a href="#s-spec-item-types-data-not-code">Item types (data, not code)</a></li>
+<li><a href="#s-spec-span-d-9">Span (D-9)</a></li>
+<li><a href="#s-spec-sql-view-codex-schema-1-read-onl">SQL view (codex_schema = 1, read-only, in memory, built on load)</a></li>
+<li><a href="#s-spec-named-questions">Named questions</a></li>
+<li><a href="#s-spec-cli">CLI</a></li>
+<li><a href="#s-spec-kind-plug-in">Kind plug-in</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -171,7 +181,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <strong>Ticket / PR</strong>: phase 2, sub-project S0 (from <code>status/ideas.md</code>)
 <strong>Author</strong>: imarcos + Claude
 <strong>Revision</strong>: 3
-<strong>Status</strong>: approved (2026-10-11, revision 3)
+<strong>Status</strong>: approved (2026-10-11, revision 3) — without annotations
 <strong>Revision log</strong>:
 - r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)
 - r2 — applied <code>literary-critic-spec-notes-2026-10-11-r1.md</code>: no migration (phase-1 formats and docs are replaced, not converted); skills built with skill-workshop; the Codex answers questions through a query API, and checks and proactive feedback are named questions (D-16…D-18)
@@ -702,11 +712,305 @@ queries with parameters, and the checks and proactive feedback use them.</p></di
 <td>2026-10-11</td>
 </tr>
 </tbody>
-</table>
-<blockquote>
-<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
-</blockquote></div>
+</table></div>
 <div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="sec-body"><p>The Codex has no network API. Its contracts are the item files, the span
+format, the SQL view and the CLI. The SQL view and the CLI are the surface
+other tools and the LLM depend on, and they carry a <code>codex_schema</code> version.</p></div>
+<div class="note" data-for="s-spec-5"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></div><textarea class="note-ta" data-key="s-spec-5" data-label="§5 Contracts" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-files-in-a-work-plain-text-only">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Files in a work (plain text, only <code>codex.py</code> reads or writes them)</span></h4>
+<div class="sec-body"><pre><code class="language-text">&lt;work&gt;/
+  work.toml                 # id, title, author, kind, series, tags, language, schema_version
+  manuscript/ text/         # unchanged: snapshots and normalised text per draft
+  index/vNNN/structure.json # unchanged: anchors and fingerprints (input to spans and sync)
+  codex/
+    codex.toml              # codex_schema, synced_draft, last_sync
+    items/&lt;type&gt;.jsonl      # one item per line, sorted by id; one file per item type
+    changes.jsonl           # append-only: {at, draft, item, op, before?, after?, by}
+    reread.jsonl            # current re-read queue (rebuilt by sync; never edited by hand)
+</code></pre>
+<p>Files that phase 1 wrote (scene cards, chapter summaries, registers, findings,
+round actions) are not produced any more (D-18).</p></div>
+<div class="note" data-for="s-spec-files-in-a-work-plain-text-only"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Files in a work (plain text, only codex.py reads or writes them)</span></div><textarea class="note-ta" data-key="s-spec-files-in-a-work-plain-text-only" data-label="Files in a work (plain text, only codex.py reads or writes them)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-item-envelope-d-12">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Item envelope (D-12)</span></h4>
+<div class="sec-body"><pre><code class="language-json">{&quot;id&quot;: &quot;ch-7f3a91c2&quot;, &quot;type&quot;: &quot;entity&quot;,
+ &quot;text&quot;: &quot;Retired sea captain; narrator's uncle.&quot;,
+ &quot;spans&quot;: [{&quot;draft&quot;: &quot;v003&quot;, &quot;start&quot;: {&quot;para&quot;: &quot;c01.s1.p2&quot;, &quot;off&quot;: 0}, &quot;end&quot;: {&quot;para&quot;: &quot;c01.s1.p2&quot;, &quot;off&quot;: 48}, &quot;exact&quot;: &quot;the quoted text&quot;, &quot;prefix&quot;: &quot;&quot;, &quot;suffix&quot;: &quot;&quot;, &quot;state&quot;: &quot;ok&quot;}],
+ &quot;links&quot;: [{&quot;rel&quot;: &quot;knows&quot;, &quot;to&quot;: &quot;ch-02b4e811&quot;}],
+ &quot;status&quot;: &quot;active&quot;,
+ &quot;fields&quot;: {&quot;kind&quot;: &quot;character&quot;, &quot;name&quot;: &quot;Captain X&quot;, &quot;aliases&quot;: [&quot;the captain&quot;]},
+ &quot;by&quot;: &quot;llm&quot;, &quot;rev&quot;: 3, &quot;created&quot;: &quot;v001&quot;, &quot;updated&quot;: &quot;v003&quot;}
+</code></pre>
+<ul>
+<li><code>id</code>: a type prefix plus 8 random hex characters. Never reused or renamed.</li>
+<li><code>status</code>: one of <code>active</code>, <code>needs_reread</code>, <code>retired</code>. An item is retired, never deleted, while anything still links to it.</li>
+<li><code>by</code>: one of <code>llm</code>, <code>writer</code>, <code>script</code>. Script-derived knowledge (mentions found from aliases, token counts) is computed on load and never stored (D-11).</li>
+<li><code>fields</code>: validated against the item type's definition.</li>
+<li>History lives in <code>changes.jsonl</code>; <code>rev</code> counts changes.</li>
+</ul></div>
+<div class="note" data-for="s-spec-item-envelope-d-12"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Item envelope (D-12)</span></div><textarea class="note-ta" data-key="s-spec-item-envelope-d-12" data-label="Item envelope (D-12)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-item-types-data-not-code">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Item types (data, not code)</span></h4>
+<div class="sec-body"><p>Each type is one file, <code>src/litcritic/codex_types/&lt;type&gt;.toml</code>. It holds the id
+prefix, the typed fields with their JSON-schema fragment, the allowed link
+relations, and which fields the SQL view exposes as columns. Adding a type adds
+one file (criterion <code>new_type_core_changes == 0</code>).</p>
+<p>Types shipped first:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Fields</th>
+<th>What it is for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>entity</code></td>
+<td><code>kind</code> (character, place, object, group, rule), <code>name</code>, <code>aliases</code></td>
+<td>The bible</td>
+</tr>
+<tr>
+<td><code>scene</code></td>
+<td><code>summary</code>, <code>pov</code>, <code>location</code>, <code>time</code></td>
+<td>Scene cards</td>
+</tr>
+<tr>
+<td><code>dialogue</code></td>
+<td><code>speaker</code>, <code>addressee</code></td>
+<td>Who speaks, on dialogue spans</td>
+</tr>
+<tr>
+<td><code>fact</code></td>
+<td><code>claim</code>, <code>known_by</code></td>
+<td>Events and world facts; drive "who knows what"</td>
+</tr>
+<tr>
+<td><code>thread</code></td>
+<td><code>name</code>, <code>role</code> (main, subplot)</td>
+<td>Storylines; their spans are the passages that advance them</td>
+</tr>
+<tr>
+<td><code>setup</code></td>
+<td><code>label</code>, <code>paid_by</code></td>
+<td>Setups and payoffs</td>
+</tr>
+<tr>
+<td><code>issue</code></td>
+<td><code>level</code>, <code>severity</code>, <code>check</code>, <code>question</code></td>
+<td>Findings at any level</td>
+</tr>
+<tr>
+<td><code>decision</code></td>
+<td><code>issue</code>, <code>verdict</code> (accepted, rejected, done_differently), <code>reason</code></td>
+<td>The writer's decisions</td>
+</tr>
+</tbody>
+</table>
+<p>Kinds may add types (<code>poem</code>: <code>stanza_form</code>, <code>motif</code>).</p>
+<p>Link relations: <code>refers_to</code>, <code>depends_on</code>, <code>pays_off</code>, <code>contradicts</code>, <code>knows</code>,
+<code>part_of</code>, <code>about</code>.</p></div>
+<div class="note" data-for="s-spec-item-types-data-not-code"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Item types (data, not code)</span></div><textarea class="note-ta" data-key="s-spec-item-types-data-not-code" data-label="Item types (data, not code)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-span-d-9">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Span (D-9)</span></h4>
+<div class="sec-body"><pre><code class="language-json">{&quot;draft&quot;: &quot;v003&quot;,
+ &quot;start&quot;: {&quot;para&quot;: &quot;c03.s2.p4&quot;, &quot;off&quot;: 120}, &quot;end&quot;: {&quot;para&quot;: &quot;c03.s3.p1&quot;, &quot;off&quot;: 40},
+ &quot;exact&quot;: &quot;the quoted text&quot;, &quot;prefix&quot;: &quot;32 chars before&quot;, &quot;suffix&quot;: &quot;32 chars after&quot;,
+ &quot;state&quot;: &quot;ok&quot;}
+</code></pre>
+<ul>
+<li><code>exact</code> stores the full text up to 300 characters. Longer spans store <code>head</code> (first 150), <code>tail</code> (last 150), <code>len</code> and <code>sha1</code> instead.</li>
+<li><code>state</code> is one of <code>ok</code>, <code>moved</code>, <code>changed</code>, <code>lost</code>.</li>
+<li>Relocation order:<ol>
+<li>the alignment from <code>diff.py</code>;</li>
+<li>offsets checked against the stored text;</li>
+<li>if they don't match, a search on the text quote (exact text plus prefix and suffix);</li>
+<li>otherwise <code>changed</code> or <code>lost</code>, and the item becomes <code>needs_reread</code>.</li>
+</ol>
+</li>
+</ul></div>
+<div class="note" data-for="s-spec-span-d-9"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Span (D-9)</span></div><textarea class="note-ta" data-key="s-spec-span-d-9" data-label="Span (D-9)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-sql-view-codex-schema-1-read-onl">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">SQL view (<code>codex_schema = 1</code>, read-only, in memory, built on load)</span></h4>
+<div class="sec-body"><pre><code class="language-sql">works(id, title, author, kind, series, language, draft)
+paragraphs(idx, anchor, part, chapter, scene, words, text)
+chapters(id, idx, title, words, first_idx, last_idx)
+scenes(id, chapter, idx, words, first_idx, last_idx)
+tokens(para_idx, pos, form, norm, is_word)                         -- computed
+ngrams(n, norm, para_idx, pos)                                     -- computed, n = 2..4
+items(id, type, status, text, by, rev, fields_json)
+spans(item_id, k, start_idx, start_off, end_idx, end_off, words, state)
+links(src, rel, dst)
+mentions(entity_id, para_idx, off, form)                           -- computed from names and aliases
+copresence(a, b, scene, chapter)                                   -- computed: entities in the same scene
+-- one view per type exposes its fields as columns, e.g.
+v_entity(id, kind, name, status) v_dialogue(id, speaker, addressee, para_idx, words)
+v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status)
+</code></pre>
+<ul>
+<li>The connection is opened with <code>PRAGMA query_only = ON</code> and an authorizer that denies writes and attachments.</li>
+<li>A progress handler stops any query after 2 seconds.</li>
+<li>Results are cut to the token budget, with a footer saying what was left out.</li>
+</ul></div>
+<div class="note" data-for="s-spec-sql-view-codex-schema-1-read-onl"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › SQL view (codex_schema = 1, read-only, in memory, built on load)</span></div><textarea class="note-ta" data-key="s-spec-sql-view-codex-schema-1-read-onl" data-label="SQL view (codex_schema = 1, read-only, in memory, built on load)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-named-questions">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Named questions</span></h4>
+<div class="sec-body"><p>One file per question, <code>src/litcritic/questions/&lt;id&gt;.sql</code>, with a TOML header
+in a leading comment:</p>
+<pre><code class="language-sql">-- id = &quot;speech-chapters&quot;
+-- title = &quot;In how many chapters does a character speak?&quot;
+-- params = { character = &quot;entity id or name&quot; }
+-- checks = [&quot;dialogue.voice-distinct&quot;]
+SELECT COUNT(DISTINCT p.chapter) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx
+WHERE d.speaker = :character;
+</code></pre></div>
+<div class="note" data-for="s-spec-named-questions"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Named questions</span></div><textarea class="note-ta" data-key="s-spec-named-questions" data-label="Named questions" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-cli">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Command</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lc codex init</code></td>
+<td>Create <code>codex/</code> for a work</td>
+</tr>
+<tr>
+<td><code>lc codex add/update/retire &lt;type&gt; --json &lt;item&gt;</code></td>
+<td>Write items (validated)</td>
+</tr>
+<tr>
+<td><code>lc codex sync</code></td>
+<td>Bring the Codex up to the latest draft; prints what changed and the re-read queue</td>
+</tr>
+<tr>
+<td><code>lc codex check</code></td>
+<td>Find dead links, orphans, stale spans, duplicate ids, schema failures; exit 1 on any</td>
+</tr>
+<tr>
+<td><code>lc codex show &lt;id&gt;</code>, <code>lc codex find &lt;text&gt;</code></td>
+<td>Bounded views for the LLM</td>
+</tr>
+<tr>
+<td><code>lc codex sql "&lt;query&gt;"</code></td>
+<td>Run one read-only query; <code>--schema</code> prints the documented tables</td>
+</tr>
+<tr>
+<td><code>lc codex ask &lt;question&gt; [--param k=v]</code></td>
+<td>Run a named question</td>
+</tr>
+<tr>
+<td><code>lc codex questions [--coverage]</code></td>
+<td>List named questions; show which <code>measurable</code> checks have none</td>
+</tr>
+<tr>
+<td><code>lc library [--by author\|kind\|series\|tag]</code></td>
+<td>List works found under the home folder</td>
+</tr>
+</tbody>
+</table>
+<p>Every command takes <code>--workspace &lt;id|path&gt;</code> and <code>--budget</code>. Output is plain
+text; <code>--json</code> gives JSON.</p></div>
+<div class="note" data-for="s-spec-cli"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI</span></div><textarea class="note-ta" data-key="s-spec-cli" data-label="CLI" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-kind-plug-in">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Kind plug-in</span></h4>
+<div class="sec-body"><p><code>src/litcritic/kinds/&lt;kind&gt;.py</code> exposes:
+- <code>detect_structure(paragraphs, meta, overrides) -&gt; Structure</code>
+- <code>ITEM_TYPES</code> (extra type files)
+- <code>CHECKLIST</code> (path)
+- <code>extra_tables(conn, work)</code> (optional)</p>
+<p>The core imports kinds through a registry and never by name.</p></div>
+<div class="note" data-for="s-spec-kind-plug-in"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Kind plug-in</span></div><textarea class="note-ta" data-key="s-spec-kind-plug-in" data-label="Kind plug-in" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Span relocation places a span at the wrong text after heavy edits</td>
+<td>Medium</td>
+<td>High</td>
+<td>Offsets are never trusted without the text check; a failed quote match marks the span <code>changed</code> or <code>lost</code>, never moved</td>
+<td>unit and property tests on scripted edits (<code>silent_misanchors == 0</code>)</td>
+</tr>
+<tr>
+<td>The SQL table layout leaks implementation details and becomes hard to change</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Tables are documented as the API with <code>codex_schema</code>; views per type hide storage; the question catalogue is the regression suite</td>
+<td>integration: catalogue SQL runs against every schema version</td>
+</tr>
+<tr>
+<td>Computed tables (tokens, n-grams, mentions) make load slow on long works</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Build lazily per table on first use; n-grams only n = 2..4</td>
+<td>perf test <code>codex_load_seconds_20k &lt;= 1</code>, <code>query_seconds_typical &lt;= 0.5</code></td>
+</tr>
+<tr>
+<td>Sync over-flags (everything near an edit needs re-reading), so the LLM re-reads too much</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Flag only items whose spans reach changed paragraphs, plus one hop over <code>depends_on</code>/<code>refers_to</code>/<code>pays_off</code></td>
+<td>metric <code>sync_touched_ratio &lt;= 1.5</code></td>
+</tr>
+<tr>
+<td>LLM writes queries that run but answer the wrong question</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Named questions for common needs; <code>--schema</code> with examples; results always show counts and anchors so they can be checked</td>
+<td>scripted prompt-and-answer review</td>
+</tr>
+<tr>
+<td>Removing phase-1 formats breaks a command still in use</td>
+<td>Low</td>
+<td>Medium</td>
+<td>Removal task greps for every old path and name; prompts are rewritten in the same plan</td>
+<td><code>phase1_leftovers == 0</code> test</td>
+</tr>
+<tr>
+<td>Mention detection by alias produces false hits (common words as names)</td>
+<td>Medium</td>
+<td>Low</td>
+<td>Aliases marked <code>exact_case</code>; ambiguous aliases need context; mentions carry the alias that matched</td>
+<td>unit tests on corpus names</td>
+</tr>
+<tr>
+<td>JSONL files edited concurrently (two sessions, Drive sync)</td>
+<td>Low</td>
+<td>Medium</td>
+<td>Atomic replace per file; <code>changes.jsonl</code> is append-only; pack/unpack lineage still guards whole workspaces</td>
+<td>test: interrupted write leaves the old file intact</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></div><textarea class="note-ta" data-key="s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 </section>
 </div>
