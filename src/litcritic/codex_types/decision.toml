@@ -13,3 +13,5 @@ additionalProperties = false
 enum = ["accepted", "rejected", "done_differently", "done", "deferred"]
 [schema.properties.reason]
 type = "string"
+[schema.properties.at]
+type = "string"

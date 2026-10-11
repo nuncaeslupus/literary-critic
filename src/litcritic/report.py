@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from litcritic import locate, query, rounds, structure, validate, workspace
+from litcritic import locate, query, rounds, validate, workspace
 from litcritic.codex import Codex, CodexError, Item
 
 SECTIONS = ("summary", "synopsis", "strengths", "weaknesses", "market", "facts", "verdict")
@@ -77,7 +77,6 @@ class ReportError(Exception):
 
 def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, bool]]:
     """Write the report; returns its path and which required sections have real content."""
-    version = version or structure.latest_version(ws_root)
     judgment = rounds.load_json(ws_root / "analysis" / "report.json", None)
     if judgment is None:
         raise ReportError("no analysis/report.json yet; write it with the reader-report procedure")
@@ -88,6 +87,9 @@ def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, b
         cx = Codex(ws_root)
     except CodexError as exc:
         raise ReportError(f"{exc}; strengths and weaknesses come from its issues") from exc
+    if version and version != cx.draft:
+        raise ReportError(f"the Codex is synced to {cx.draft}; run `lc codex sync` first")
+    version = cx.draft
     lang = rounds.language(ws_root)
     h = HEADINGS.get(lang, HEADINGS["en"])
     title = (

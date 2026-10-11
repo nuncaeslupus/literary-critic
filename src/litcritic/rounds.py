@@ -15,10 +15,11 @@ from __future__ import annotations
 import json
 import re
 import tomllib
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, kinds, locate, query
+from litcritic import checklist, kinds, locate, query, structure
 from litcritic.codex import Codex, CodexError, Item
 from litcritic.workspace import MANIFEST
 
@@ -104,7 +105,7 @@ def decision(cx: Codex, issue_id: str) -> Item | None:
         for src, rel in cx.linked_to(issue_id)
         if rel == "about" and src.type == "decision" and src.status != "retired"
     ]
-    return max(found, key=lambda d: (d.rev, d.id)) if found else None
+    return max(found, key=lambda d: (str(d.fields.get("at", "")), d.rev, d.id)) if found else None
 
 
 def action_status(cx: Codex, issue_id: str) -> str:
@@ -157,19 +158,29 @@ def _round_meta(d: Path) -> dict[str, Any]:
     return dict(load_json(d / "round.json", {}))
 
 
-def round_actions(ws_root: Path, d: Path, cx: Codex | None = None) -> list[dict[str, Any]]:
-    """A round's actions with their issue's current text, place and status."""
+def round_actions(
+    ws_root: Path,
+    d: Path,
+    cx: Codex | None = None,
+    loc: locate.LocatorBuilder | None = None,
+) -> list[dict[str, Any]]:
+    """A round's actions with their issue's current text, place and status.
+
+    A retired issue's action reads ``withdrawn``; one whose passage changed has
+    no place until it is re-read.
+    """
     cx = cx or Codex(ws_root)
     meta = _round_meta(d)
     lang = str(meta.get("language") or language(ws_root))
-    _, loc = _locator(ws_root, cx, lang)
+    if loc is None:
+        _, loc = _locator(ws_root, cx, lang)
     out = []
     for entry in meta.get("actions", []):
         try:
             issue = cx.get(entry["issue"])
         except CodexError:
             continue
-        where = located(cx, issue, loc)
+        where = located(cx, issue, loc) if issue.status == "active" else None
         f = issue.fields
         out.append(
             {
@@ -184,7 +195,7 @@ def round_actions(ws_root: Path, d: Path, cx: Codex | None = None) -> list[dict[
                     f.get("options") or DEFAULT_OPTIONS.get(lang, DEFAULT_OPTIONS["en"])
                 ),
                 "severity": f.get("severity"),
-                "status": action_status(cx, issue.id),
+                "status": "withdrawn" if issue.status == "retired" else action_status(cx, issue.id),
             }
         )
     return out
@@ -212,8 +223,8 @@ def build(
     dirs = round_dirs(ws_root)
     reuse = None
     if dirs:
-        last = _round_meta(dirs[-1]).get("actions", [])
-        if all(decision(cx, a["issue"]) is None for a in last):
+        last = _round_meta(dirs[-1]).get("actions") or []
+        if last and all(decision(cx, a["issue"]) is None for a in last):
             reuse = dirs[-1]
     in_rounds = {a["issue"] for d in dirs if d != reuse for a in _round_meta(d).get("actions", [])}
     problems = [
@@ -249,10 +260,13 @@ def build(
     }
     out = out_dir / "round.json"
     out.write_text(json.dumps(meta, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
-    actions = round_actions(ws_root, out_dir, cx)
-    ix, _ = _locator(ws_root, cx, lang)
+    ix, loc = _locator(ws_root, cx, lang)
+    actions = round_actions(ws_root, out_dir, cx, loc)
     text = "\n".join(ix.paragraphs)
     warnings = [w for a in actions for w in prose_flags(a, text)]
+    latest = structure.latest_version(ws_root)
+    if latest != cx.draft:
+        warnings.append(f"{latest} is ingested but the Codex is on {cx.draft}: run `lc codex sync`")
     warnings += [f"{a['id']}: its place is gone from {cx.draft}" for a in actions if not a["where"]]
     return out, actions, warnings
 
@@ -277,7 +291,8 @@ def mark(ws_root: Path, action_id: str, status: str, reason: str = "") -> dict[s
             if current is not None:
                 cx.retire(current.id, by="writer")
             if status != "pending":
-                fields = {"verdict": status, **({"reason": reason} if reason else {})}
+                at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                fields = {"verdict": status, "at": at, **({"reason": reason} if reason else {})}
                 cx.add(
                     "decision",
                     f"{action_id}: {status}",
@@ -298,7 +313,7 @@ def status(ws_root: Path) -> dict[str, Any]:
     open_high = [
         a["id"]
         for a in actions
-        if a["status"] in ("pending", "accepted") and a["severity"] == "high"
+        if a["status"] in ("pending", "accepted") and a["severity"] == "high" and a["where"]
     ]
     return {
         "round": d.name,
@@ -358,9 +373,10 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
     """Render the latest round's letter from the Codex's issues."""
     d = latest_round(ws_root)
     cx = Codex(ws_root)
-    actions = round_actions(ws_root, d, cx)
     meta = _round_meta(d)
     lang = str(meta.get("language") or language(ws_root))
+    _, loc = _locator(ws_root, cx, lang)
+    actions = [a for a in round_actions(ws_root, d, cx, loc) if a["where"]]
     t = TEXT.get(lang, TEXT["en"])
     level_name = t["levels"][str(meta.get("level", "structural"))]
     n = int(d.name.split("-")[1])
@@ -370,13 +386,11 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
         t["intro"].format(level=level_name),
         "",
     ]
-    strengths = strength_lines(ws_root, cx, lang)
+    strengths = strength_lines(ws_root, cx, lang, loc)
     if strengths:
         lines += [f"## {t['strengths']}", "", *strengths, ""]
     lines += [f"## {t['actions']}", ""]
-    for k, a in enumerate(actions, 1):
-        if a["where"] is None:
-            continue  # its passage is gone: it waits in the re-read queue
+    for k, a in enumerate(actions, 1):  # actions without a place wait in the re-read queue
         where = locate.describe(locate.from_where(a["where"]), lang)
         lines += [
             f"### {k}. {a['what']}",
@@ -413,9 +427,12 @@ def live(cx: Codex, kind: str) -> list[Item]:
     ]
 
 
-def strength_lines(ws_root: Path, cx: Codex, lang: str) -> list[str]:
+def strength_lines(
+    ws_root: Path, cx: Codex, lang: str, loc: locate.LocatorBuilder | None = None
+) -> list[str]:
     strengths = live(cx, "strength")
     if not strengths:
         return []
-    _, loc = _locator(ws_root, cx, lang)
+    if loc is None:
+        _, loc = _locator(ws_root, cx, lang)
     return [line for i in strengths if (line := located_line(cx, i, loc, lang))]

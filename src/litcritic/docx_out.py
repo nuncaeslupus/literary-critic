@@ -192,6 +192,8 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, int]:
     """
     round_dir = rounds.latest_round(ws_root)
     cx = Codex(ws_root)
+    if version and version != cx.draft:
+        raise DocxError(f"the Codex is synced to {cx.draft}; run `lc codex sync` first")
     version = cx.draft
     snapshot = ws_root / "manuscript" / f"{version}.docx"
     if not snapshot.is_file():

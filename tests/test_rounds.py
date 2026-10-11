@@ -81,7 +81,8 @@ def test_round_built_from_issue_items(ws: Path) -> None:
     assert rounds.mark(ws, actions[0]["id"], "rejected", "it is the point")["status"] == "rejected"
     cx = codex.Codex(ws)
     d = rounds.decision(cx, ids["F3"])
-    assert d is not None and d.fields == {"verdict": "rejected", "reason": "it is the point"}
+    assert d is not None and d.fields["verdict"] == "rejected"
+    assert d.fields["reason"] == "it is the point" and d.fields["at"]
     rounds.mark(ws, actions[1]["id"], "done")
     assert rounds.status(ws)["can_close"] is True
     _, scene_round, _ = rounds.build(ws)

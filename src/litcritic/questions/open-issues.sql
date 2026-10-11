@@ -4,7 +4,7 @@
 -- params = {}
 SELECT level, severity, COUNT(*) AS open
 FROM v_issue i
-WHERE i.status = 'active'
+WHERE i.status = 'active' AND COALESCE(i.kind, 'problem') = 'problem'
   AND NOT EXISTS (
     SELECT 1 FROM links l JOIN items d ON d.id = l.src
     WHERE l.dst = i.id AND l.rel = 'about' AND d.type = 'decision' AND d.status != 'retired'

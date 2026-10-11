@@ -107,12 +107,13 @@ Queries print at most `--budget` tokens (default 2000) and say how to continue:
 
 ## Rounds, letters and locators
 
-`lc round build` turns open findings (`analysis/findings.json`) into the next
-round's `revisions/round-NN/actions.json`: one action per finding of the
-earliest level with open problems (structural, then scene, then line), sorted
-by severity × confidence × profile weight ÷ effort. `lc round letter` writes
-`letter.md` in the novel's language; `lc round mark --id A3 --status accepted`
-records decisions; `lc round status` says whether the round can close.
+`lc round build` turns the Codex's open problem `issue` items into the next
+round (`revisions/round-NN/round.json`): one action per issue of the earliest
+level with undecided problems (structural, then scene, then line), sorted by
+severity × confidence × profile weight ÷ effort. `lc round letter` writes
+`letter.md` in the work's language; `lc round mark --id A3 --status accepted`
+records the writer's decision as a `decision` item; `lc round status` says
+whether the round can close.
 
 Every action carries a writer locator from `lc locate <anchor>`: chapter,
 scene, page (exact when the source recorded pages, else ≈ at 300 words per

@@ -2,7 +2,7 @@
 type = "issue"
 prefix = "is"
 links = ["about", "refers_to", "depends_on"]
-columns = ["level", "severity", "check", "question"]
+columns = ["level", "severity", "kind", "check", "question"]
 spans_required = false
 
 [schema]

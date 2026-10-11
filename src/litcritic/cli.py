@@ -361,6 +361,7 @@ def _cmd_docx_comments(args: argparse.Namespace) -> int:
         workspace.WorkspaceError,
         docx_out.DocxError,
         rounds.RoundError,
+        codex.CodexError,
         OSError,
         ValueError,
     ) as exc:
