@@ -46,6 +46,16 @@ def _value(raw: str) -> int | float | str:
     return raw
 
 
+def _params(raw: list[str] | None) -> dict[str, int | float | str]:
+    out = {}
+    for entry in raw or []:
+        name, sep, value = entry.partition("=")
+        if not sep or not name:
+            raise CodexError(f"--param {entry!r}: use NAME=VALUE")
+        out[name] = _value(value)
+    return out
+
+
 def _list_questions() -> int:
     try:
         qs = questions.load()
@@ -158,7 +168,7 @@ def _run(args: argparse.Namespace) -> int:
                 return 0
             if not args.query:
                 raise CodexError("give a query, or --schema to see the tables")
-            params = {k: _value(v) for k, v in (p.split("=", 1) for p in args.param or [])}
+            params = _params(args.param)
             cap = view.max_rows(args.budget)
             cols, rows = v.run(args.query, params, max_rows=cap)
             more = len(rows) > cap
@@ -179,8 +189,9 @@ def _run(args: argparse.Namespace) -> int:
             if args.question not in qs:
                 raise CodexError(f"unknown question {args.question!r}; see `lc codex questions`")
             q = qs[args.question]
+            given = _params(args.param)
+            questions.bind(q, given)  # fail fast, before the view is built
             v = view.View(ws.root, cx)
-            given = {k: _value(x) for k, x in (p.split("=", 1) for p in args.param or [])}
             cap = view.max_rows(args.budget)
             cols, rows = questions.ask(v, q, given, max_rows=cap)
             print(f"{q.title}")

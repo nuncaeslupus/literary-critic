@@ -83,7 +83,8 @@ def test_progress_questions_on_fixture(work: tuple[Path, dict[str, str]], v: vie
     assert [r[0] for r in _ask(v, "setups-without-payoff")] == [ids["open-setup"]]
     rejected = _ask(v, "rejected")
     assert rejected == [(ids["rejected-issue"], "Slow opening.", "intended pace")]
-    assert dict(((r[0], r[1]), r[2]) for r in _ask(v, "open-issues")) == {("scene", "minor"): 1}
+    open_issues = {(r[0], r[1]): r[2] for r in _ask(v, "open-issues")}
+    assert open_issues == {("line", "minor"): 1, ("scene", "minor"): 1}  # accepted != done
 
 
 def test_question_params_validated(v: view.View) -> None:
@@ -108,3 +109,21 @@ def test_ask_and_questions_cli(
     assert out[0].startswith("Which characters") and out[2].startswith("Pablo |")
     assert main(["codex", "ask", "relevance", *w]) == 2
     assert "needs character" in capsys.readouterr().err
+
+
+def test_question_lookups_ignore_case_and_accents(v: view.View) -> None:
+    assert int(str(_ask(v, "speech-chapters", character="SOFIA")[0][0])) > 0
+    assert _ask(v, "relevance", character="celipin")
+
+
+def test_question_limits_answer_with_an_error_row(v: view.View) -> None:
+    assert str(_ask(v, "top-phrases", n=5, min_uses=1)[0][0]).startswith("error")
+    rows = _ask(v, "expression-use", expression="uno dos tres cuatro cinco")
+    assert str(rows[0][0]).startswith("error")
+    hyphen = _ask(v, "expression-use", expression="los-ojos,")
+    assert hyphen == _ask(v, "expression-use", expression="los ojos")
+
+
+def test_absences_include_characters_who_never_return(v: view.View) -> None:
+    kinds = {r[1] for r in _ask(v, "character-absences", min_words=1)}
+    assert {"before first", "after last", "between"} <= kinds

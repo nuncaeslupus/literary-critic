@@ -2,7 +2,7 @@
 -- title = "Which characters matter most to a given character?"
 -- family = "relationships"
 -- params = { character = "entity id or name" }
-WITH who AS (SELECT id FROM v_entity WHERE id = :character OR lower(name) = lower(:character)),
+WITH who AS (SELECT id FROM v_entity WHERE id = :character OR norm(name) = norm(:character)),
 together AS (
   SELECT CASE WHEN a IN (SELECT id FROM who) THEN b ELSE a END AS other, COUNT(DISTINCT scene) AS n
   FROM copresence WHERE a IN (SELECT id FROM who) OR b IN (SELECT id FROM who)

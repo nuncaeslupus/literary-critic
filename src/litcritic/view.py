@@ -91,6 +91,11 @@ def norm(word: str) -> str:
     return strip_accents(word).casefold()
 
 
+def _phrase_sql(text: Any) -> str | None:
+    """SQL ``phrase(x)``: the words of x in norm form, as ngrams.norm stores them."""
+    return None if text is None else " ".join(norm(w) for w in WORD.findall(str(text)))
+
+
 def _norm_sql(text: Any) -> str | None:
     """SQL ``norm(x)``: lower case, no accents, single spaces (as tokens.norm)."""
     return None if text is None else " ".join(norm(str(text)).split())
@@ -111,6 +116,7 @@ class View:
         self._writable = True
         self.conn.set_authorizer(self._authorize)
         self.conn.create_function("norm", 1, _norm_sql, deterministic=True)
+        self.conn.create_function("phrase", 1, _phrase_sql, deterministic=True)
         self.conn.executescript(BASE)
         self._fill_base()
         self._views()
