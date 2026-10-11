@@ -42,6 +42,11 @@ def load_schema(kind: str) -> dict[str, Any]:
     return data
 
 
+def _same(a: Any, b: Any) -> bool:
+    """JSON equality: unlike Python, true is not 1."""
+    return a == b and isinstance(a, bool) == isinstance(b, bool)
+
+
 def check(value: Any, schema: dict[str, Any], root: dict[str, Any], path: str = "$") -> list[str]:
     """Errors for ``value`` against ``schema``; ``root`` resolves ``#/...`` refs."""
     if "$ref" in schema:
@@ -49,9 +54,9 @@ def check(value: Any, schema: dict[str, Any], root: dict[str, Any], path: str = 
         for part in schema["$ref"].removeprefix("#/").split("/"):
             target = target[part]
         return check(value, target, root, path)
-    if "const" in schema and value != schema["const"]:
+    if "const" in schema and not _same(value, schema["const"]):
         return [f"{path}: must be {schema['const']!r}"]
-    if "enum" in schema and value not in schema["enum"]:
+    if "enum" in schema and not any(_same(value, e) for e in schema["enum"]):
         return [f"{path}: {value!r} not one of {schema['enum']}"]
     expected = schema.get("type")
     if expected:

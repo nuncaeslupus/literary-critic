@@ -68,3 +68,9 @@ def test_cli_exit_codes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> N
     assert main(["validate", "finding", str(broken)]) == 2
     unknown = FIXTURES / "invalid" / "finding.unknown-check.json"
     assert main(["validate", "finding", "--no-catalogue", str(unknown)]) == 0
+
+
+def test_boolean_is_not_one() -> None:
+    schema = validate.load_schema("register")
+    data = {"schema_version": True, "kind": "motifs", "entries": []}
+    assert validate.check(data, schema, schema) == ["$.schema_version: must be 1"]
