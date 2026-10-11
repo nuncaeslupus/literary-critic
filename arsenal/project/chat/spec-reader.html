@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="cc8fbd7fd2edd5842a18ff58919b97d2944fb623ca0cb0f5596eb1d2db502fa2">
+<meta name="arsenal-source-sha256" content="af6fe253e61034c6182c460939c46d925b9d7391554ab42a08db9be555a9b651">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -156,8 +156,8 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
 <li><a href="#s-spec-3">§3 Options</a></li>
 <li><a href="#s-spec-option-a-wizard-prompt-and-comme">Option A: Wizard prompt and commented copies (Conservative)</a></li>
-<li><a href="#s-spec-option-b-cowork-first-wizard-saf">Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)</a></li>
-<li><a href="#s-spec-option-c-word-panel-first">Option C: Word-panel-first</a></li>
+<li><a href="#s-spec-option-b-cowork-does-everything">Option B: Cowork does everything; computer use reaches the open Word (Recommended)</a></li>
+<li><a href="#s-spec-option-c-build-the-word-control">Option C: Build the Word-control extension now</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
 </ul></details>
@@ -169,10 +169,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-11
 <strong>Ticket / PR</strong>: workspace <code>chat</code>
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 1
+<strong>Revision</strong>: 2
 <strong>Status</strong>: draft
 <strong>Revision log</strong>:
-- r1 — first draft, from the explore-idea decisions log D-1…D-18</p>
+- r1 — first draft, from the explore-idea decisions log D-1…D-18
+- r2 — owner's decision in conversation (no notes export): the Word 365 side panel leaves the main path; Cowork does everything, reaching the open Word through computer use; a live Word-control extension becomes a separate project, with its interface defined here (D-19…D-21)</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied
@@ -190,22 +191,23 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 - A setup wizard checks what the writer's Claude and computer can do, says exactly what to turn on, finds the novel and its versions, and prepares a working folder.
 - The tool then guides the writer through a plan in short, targeted messages. The writer accepts, changes or rejects each step.
 - Accepted changes land in the writer's own <code>.docx</code> as tracked changes, safely, without new copies.
-- Writers with Microsoft 365 can work from a Claude side panel inside Word, with the text changing live in front of them.</p>
+- When the writer needs to work on a passage, Claude brings Word to the front at that exact paragraph, so the writer never has to search for it.</p>
 <p>This is a planned improvement. It decides whether the tool is usable by its target users at all.</p>
 <p><strong>Success criteria (measurable)</strong></p>
 <ul>
 <li>[ ] <code>writer_setup_actions &lt;= 5</code> on the main path (Pro plan, Cowork). These are the actions the writer performs between "I want to use literary-critic for my novel" and the first feedback on the novel: toggles, folder picks, uploads and permission clicks. Counted on a scripted walkthrough checklist.</li>
-<li>[ ] <code>wizard_capability_misreports == 0</code> over the scripted environment cases: code execution on/off, folder connected or not, computer use on/off, Word 365 or perpetual Word, Windows Home, Free plan.</li>
+<li>[ ] <code>wizard_capability_misreports == 0</code> over the scripted environment cases: code execution on/off, folder connected or not, computer use on/off, Windows Home or Intel Mac (no Cowork), Free plan.</li>
 <li>[ ] <code>novel_discovery_accuracy == 1.0</code> on a fixture folder with drafts, copies, backups and unrelated <code>.docx</code> files. The wizard names the latest draft and lists the other versions in date order.</li>
 <li>[ ] <code>unintended_docx_changes == 0</code>: across a corpus of fixture manuscripts, the text diff after an approved edit batch equals exactly the approved edits, and styles, comments and other parts are byte-identical outside the edited runs.</li>
 <li>[ ] <code>edits_as_tracked_revisions == 1.0</code>: every applied edit is a native Word revision (<code>w:ins</code> / <code>w:del</code>) that can be rejected one by one. Checked by script, and opening in Word 2016-compatible OOXML is validated.</li>
 <li>[ ] <code>backup_before_edit == 1.0</code> and <code>restore_on_failure == 1.0</code>, with failures injected at each step of the safe-edit protocol.</li>
 <li>[ ] <code>open_document_overwrites == 0</code>: an edit never writes a file that Word holds open (Word's <code>~$</code> lock file) or that changed on disk since it was last read.</li>
-<li>[ ] <code>bridge_roundtrip_accuracy == 1.0</code>: round actions written as tagged comments (<code>[LC A3]</code>), with decisions written as replies in those threads, are read back into Codex <code>decision</code> items exactly, on fixture documents.</li>
+<li>[ ] <code>live_locate_success &gt;= 0.9</code>: in hand tests with computer use on Mac and Windows, Claude brings Word to the front at the exact paragraph, using Find on its first words, for at least 9 out of 10 located actions. When it fails, it falls back to the plain locator (chapter, page, first and last words) and tells the writer.</li>
+<li>[ ] <code>word_helper_interface_documented == 1</code>: the interface the separate Word-control project must provide is written in <code>docs/</code> and used by the tool through one adapter, so plugging the extension in later needs no change elsewhere.</li>
 <li>[ ] <code>prose_suggestions_default_off == 1</code>: a new workspace never proposes wording until the writer turns the setting on. Tested.</li>
 <li>[ ] <code>skill_workshop_errors == 0</code> for the litcritic skill (validate.py and audit_library).</li>
-<li>[ ] Usability, judged by a scripted walkthrough: a fresh assistant plays a non-technical writer persona from the first sentence to an applied round-1 change on the main path, and a second run on the Word-panel path. The reviewer checks that every instruction to the writer is plain, located and one step at a time. Median writer-facing reply is at most 120 words.</li>
-<li>[ ] The hand tests D-14, D-16 and D-18 are run and recorded in <code>status/evidence/</code> before any task that depends on their answer is designed.</li>
+<li>[ ] Usability, judged by a scripted walkthrough: a fresh assistant plays a non-technical writer persona from the first sentence to an applied round-1 change on the main path, and a second run where Word is open throughout. The reviewer checks that every instruction to the writer is plain, located and one step at a time. Median writer-facing reply is at most 120 words.</li>
+<li>[ ] The hand test D-18 and the D-7 path-B test are run and recorded in <code>status/evidence/</code> before any task that depends on their answer is designed.</li>
 </ul></div>
 <div class="note" data-for="s-spec-1"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></div><textarea class="note-ta" data-key="s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
@@ -240,25 +242,25 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <td>High</td>
 </tr>
 <tr>
-<td>Comment bridge (<code>docx_out</code> + <code>rounds</code>)</td>
+<td>Live Word helper (prompt procedure plus one adapter)</td>
 <td>Primary</td>
-<td>Writes round actions as tagged comments into the master, reads reply decisions back into the Codex, removes finished comments</td>
+<td>Brings the open Word to a paragraph and saves, closes or reopens it, using computer use today and the future Word-control extension later</td>
 <td>Yes</td>
-<td>Links Cowork with the Word side panel</td>
+<td>What makes the work visual: the writer sees the exact place</td>
 <td>Med</td>
 </tr>
 <tr>
 <td>litcritic Skill and packaging (<code>kit.py</code>, <code>.claude/skills/litcritic</code>)</td>
 <td>Primary</td>
-<td>Entry instructions for chat, Cowork and the Word panel; builds the Skill zip with the kit bundled</td>
+<td>Entry instructions for chat and Cowork; builds the Skill zip with the kit bundled</td>
 <td>Yes</td>
 <td>How the tool is installed and recognised in each surface</td>
 <td>Med</td>
 </tr>
 <tr>
-<td>Prompts (<code>00-guide</code>, new <code>05-setup</code>, new <code>80-word-panel</code>)</td>
+<td>Prompts (<code>00-guide</code>, new <code>05-setup</code>, new <code>80-live-word</code>)</td>
 <td>Dependent</td>
-<td>Guided flow, short answers, one change per message, Word-panel procedure</td>
+<td>Guided flow, short answers, one change per message, live Word procedure</td>
 <td>Yes</td>
 <td>What the writer experiences</td>
 <td>Med</td>
@@ -280,12 +282,20 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <td>Low</td>
 </tr>
 <tr>
-<td>Claude surfaces (chat, Cowork, computer use, Claude for Word, Drive connector)</td>
+<td>Claude surfaces (chat, Cowork, computer use, Drive connector)</td>
 <td>Infrastructure (external)</td>
 <td>Where the tool runs; not ours to change</td>
 <td>No (validation)</td>
-<td>Their limits shape the design: Cowork needs a paid plan and an Apple Silicon Mac or Windows Pro/Enterprise/Education; the Word panel needs Word 365 or Word on the web</td>
+<td>Their limits shape the design: Cowork needs a paid plan and an Apple Silicon Mac or Windows Pro/Enterprise/Education; computer use is a preview on Pro and Max</td>
 <td>High</td>
+</tr>
+<tr>
+<td>Word-control extension (separate future project)</td>
+<td>Dependent (external)</td>
+<td>A local extension that controls the open Word directly (COM on Windows, AppleScript on Mac): select a passage, apply tracked edits live, rename, save</td>
+<td>No: interface only, defined here</td>
+<td>Replaces computer use later without changes elsewhere</td>
+<td>Low</td>
 </tr>
 <tr>
 <td>docx-fixer (separate repo)</td>
@@ -313,42 +323,47 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <article class="sec" id="s-spec-option-a-wizard-prompt-and-comme">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Wizard prompt and commented copies (Conservative)</span></h4>
 <div class="sec-body"><ul>
-<li><strong>Description</strong>: Add a setup prompt and plain-language install docs on top of the current kit. Feedback reaches Word only as a commented <strong>copy</strong> of the manuscript; there are no in-place edits and no Word-panel bridge.</li>
+<li><strong>Description</strong>: Add a setup prompt and plain-language install docs on top of the current kit. Feedback reaches Word only as a commented <strong>copy</strong> of the manuscript; there are no in-place edits and no live Word.</li>
 <li><strong>Scope</strong>: <code>prompts/</code>, <code>kit/START_HERE.md</code>, docs, small <code>docx_out</code> changes.</li>
 <li><strong>Effort</strong>: Small</li>
-<li><strong>Tradeoffs</strong>: Lowest risk to the manuscript. It contradicts D-9/D-11: copies multiply versions, the writer still searches and types every change, and the 365 side panel is unused.</li>
+<li><strong>Tradeoffs</strong>: Lowest risk to the manuscript. It contradicts D-19: copies multiply versions, and the writer still searches for and types every change.</li>
 <li><strong>Compatibility</strong>: Fully backward compatible.</li>
 </ul></div>
 <div class="note" data-for="s-spec-option-a-wizard-prompt-and-comme"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Wizard prompt and commented copies (Conservative)</span></div><textarea class="note-ta" data-key="s-spec-option-a-wizard-prompt-and-comme" data-label="Option A: Wizard prompt and commented copies (Conservative)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
-<article class="sec" id="s-spec-option-b-cowork-first-wizard-saf">
-<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)</span></h4>
+<article class="sec" id="s-spec-option-b-cowork-does-everything">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Cowork does everything; computer use reaches the open Word (Recommended)</span></h4>
 <div class="sec-body"><ul>
 <li><strong>Description</strong>:<ul>
 <li>The wizard runs in chat or Cowork. Claude fetches the tool itself, or falls back to the Skill zip.</li>
 <li>In Cowork it finds the novel, prepares <code>MyNovel/literary-critic/</code>, and runs the guided rounds.</li>
-<li>Approved edits and renames are applied to the master <code>.docx</code> as tracked changes through the safe-edit protocol. When computer use is on, it saves, closes and reopens Word for the writer.</li>
-<li>For Word 365 users, round actions travel as tagged comments in the master. The Skill tells the Word panel how to work through them live, and the replies come back into the Codex.</li>
+<li>Approved edits and renames are applied to the master <code>.docx</code> as tracked changes through the safe-edit protocol.</li>
+<li>With computer use, Claude saves, closes and reopens Word for the writer, and brings Word to the front at the exact paragraph being discussed.</li>
+<li>All of this goes through one adapter, whose interface a future Word-control extension will implement.</li>
 <li>Free plan: basic mode with the existing kit (upload and workspace zip).</li>
 </ul>
 </li>
-<li><strong>Scope</strong>: new setup module and prompt, new safe docx editor, comment bridge in <code>docx_out</code>/<code>rounds</code>, Skill and packaging, prompts, profile setting, rule 5, docs.</li>
+<li><strong>Scope</strong>: new setup module and prompt, new safe docx editor, live Word helper adapter and procedure, Skill and packaging, prompts, profile setting, rule 5, docs.</li>
 <li><strong>Effort</strong>: Large</li>
-<li><strong>Tradeoffs</strong>: Meets every agreed decision, and the heavy analysis stays where scripts can run. The cost is the most code, and it writes the writer's own manuscript, which is acceptable only with the safe-edit gates above. Computer use is a preview, so every step it helps with must also work without it.</li>
+<li><strong>Tradeoffs</strong>:<ul>
+<li>Plus: one place where everything happens, with the full Codex, and it works with any Word version.</li>
+<li>Minus: it writes the writer's own manuscript, which is acceptable only with the safe-edit gates above. Computer use is slower and still a preview, so every step it helps with also works without it.</li>
+</ul>
+</li>
 <li><strong>Compatibility</strong>: Backward compatible: existing CLI, Codex and rounds are unchanged; the new commands are additive.</li>
 </ul></div>
-<div class="note" data-for="s-spec-option-b-cowork-first-wizard-saf"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-cowork-first-wizard-saf" data-label="Option B: Cowork-first wizard, safe in-place editing, Word-panel bridge (Recommended)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+<div class="note" data-for="s-spec-option-b-cowork-does-everything"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Cowork does everything; computer use reaches the open Word (Recommended)</span></div><textarea class="note-ta" data-key="s-spec-option-b-cowork-does-everything" data-label="Option B: Cowork does everything; computer use reaches the open Word (Recommended)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
-<article class="sec" id="s-spec-option-c-word-panel-first">
-<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Word-panel-first</span></h4>
+<article class="sec" id="s-spec-option-c-build-the-word-control">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Build the Word-control extension now</span></h4>
 <div class="sec-body"><ul>
-<li><strong>Description</strong>: Make the Word side panel the main surface. All analysis runs inside the add-in, and the state travels inside the document.</li>
-<li><strong>Scope</strong>: Skill and prompts; the analysis is re-expressed for the add-in.</li>
-<li><strong>Effort</strong>: Large</li>
-<li><strong>Tradeoffs</strong>: The best live experience, but it depends on D-16 (scripts may not run in the panel), loses the Codex (the panel cannot read the folder), excludes perpetual Word and Free, and is bounded by the panel's limits (it sees only open documents, its history is per device).</li>
-<li><strong>Compatibility</strong>: Breaks the script-first rule (<code>AGENTS.md</code> rule 7) unless D-16 proves scripts run there.</li>
+<li><strong>Description</strong>: As option B, but reach Word through our own local extension (COM on Windows, AppleScript on Mac) instead of computer use. It edits the open document live with Track Changes, selects passages instantly, and never closes Word.</li>
+<li><strong>Scope</strong>: option B plus a Windows and Mac extension, its packaging and its install step.</li>
+<li><strong>Effort</strong>: Large+ (a project in itself)</li>
+<li><strong>Tradeoffs</strong>: The best live experience on any Word version. But the writer has one more install, and we take on two platform codebases before the core flow is proven.</li>
+<li><strong>Compatibility</strong>: Additive; the extension implements the same interface option B defines.</li>
 </ul></div>
-<div class="note" data-for="s-spec-option-c-word-panel-first"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Word-panel-first</span></div><textarea class="note-ta" data-key="s-spec-option-c-word-panel-first" data-label="Option C: Word-panel-first" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+<div class="note" data-for="s-spec-option-c-build-the-word-control"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Build the Word-control extension now</span></div><textarea class="note-ta" data-key="s-spec-option-c-build-the-word-control" data-label="Option C: Build the Word-control extension now" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-spec-comparison">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
@@ -366,31 +381,31 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <td>Effort</td>
 <td>Small</td>
 <td>Large</td>
-<td>Large</td>
+<td>Large+</td>
 </tr>
 <tr>
 <td>Risk</td>
 <td>Low</td>
-<td>Medium (manuscript writes, gated)</td>
-<td>High (unverified platform)</td>
+<td>Medium (manuscript writes, gated; preview tool)</td>
+<td>Medium-high (two platform codebases)</td>
 </tr>
 <tr>
 <td>Completeness</td>
-<td>Low: no in-place edits, no side panel</td>
-<td>High: every agreed decision</td>
-<td>Partial: 365 only, no Codex</td>
+<td>Low: no in-place edits, no live Word</td>
+<td>High: every agreed decision; live Word via computer use</td>
+<td>Highest: instant live editing</td>
 </tr>
 <tr>
 <td>Compatibility</td>
 <td>Full</td>
 <td>Full (additive)</td>
-<td>Conflicts with rule 7 unless D-16 passes</td>
+<td>Full (additive)</td>
 </tr>
 <tr>
 <td>Maintenance</td>
 <td>Low</td>
 <td>Medium</td>
-<td>High (tracks a moving add-in)</td>
+<td>High</td>
 </tr>
 </tbody>
 </table></div>
@@ -398,15 +413,14 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 </article>
 <article class="sec" id="s-spec-4">
 <h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
-<div class="sec-body"><p><strong>Recommended option</strong>: Option B. It is the only option that delivers the owner's vision on every plan the writer may have, keeps the analysis in scripts (rule 7), and still gives Word 365 users the live side panel the owner cares about most. The bridge works whether or not D-16 passes.</p>
-<p><strong>Immediate next action</strong>: run the three hand tests below and record them in <code>status/evidence/</code>. D-16 decides how much the Word panel can do on its own. Then <code>design</code> the plan, starting with the safe docx editor, since every later task writes through it.</p>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B. One place where everything happens (Cowork), with the full Codex, the safe in-place editor, and the writer taken to the exact paragraph in Word, on any Word version. The live Word helper is one adapter, so the separate Word-control project (option C's extension) can replace computer use later without changes elsewhere.</p>
+<p><strong>Immediate next action</strong>: <code>design</code> the plan, starting with the safe docx editor, since every later task writes through it. In parallel, run the D-18 and D-7 path-B tests.</p>
 <p><strong>Open questions</strong>:
-- [ ] <strong>D-14:</strong> does the Claude for Word add-in install and work in free Word on the web with a personal Microsoft account? This is a hand test by the owner.
-- [ ] <strong>D-16:</strong> can an uploaded Skill run its scripts inside the Word panel, and can the panel read comment replies and resolved state? This is a hand test.
 - [ ] <strong>D-18:</strong> are custom Skills available on the Free plan? The help center says yes, the docs say Pro and up. Verify.
 - [ ] <strong>D-7 path B:</strong> can Claude in a chat, or in Cowork, download the tool from GitHub itself? Test it; the Skill zip is the fallback either way.
 - [ ] <strong>docx-fixer:</strong> reuse its logic as a vendored, stdlib-only module, or reimplement the minimal editor here? Decided in <code>design</code>. docx-fixer stays a separate repo.
-- [ ] <strong>Windows Home and Intel Macs (no Cowork):</strong> confirm the fallback (web chat with the Skill, plus the Word panel or basic mode) is acceptable as documented.</p>
+- [ ] <strong>Windows Home and Intel Macs (no Cowork):</strong> confirm the fallback (web chat with the Skill, or basic mode) is acceptable as documented.
+- [ ] <strong>Word-control project (D-21):</strong> a new repository, or grow docx-fixer into it? This is the owner's choice; it does not block this plan.</p>
 <p><strong>Decisions log</strong> (carried unchanged from <code>explore-idea</code>):</p>
 <table>
 <thead>
@@ -481,7 +495,7 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <tr>
 <td>D-11</td>
 <td>Edit the same manuscript on approval: tracked changes, backup, computer use for live fixes, 365 add-in when available</td>
-<td>agreed</td>
+<td>superseded by D-19</td>
 <td>2026-10-11</td>
 </tr>
 <tr>
@@ -499,7 +513,7 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <tr>
 <td>D-14</td>
 <td>Free route: Word add-in on free Word for the web</td>
-<td>open (test by hand)</td>
+<td>dropped (no 365 path, D-19)</td>
 <td>2026-10-11</td>
 </tr>
 <tr>
@@ -511,19 +525,37 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <tr>
 <td>D-16</td>
 <td>Can Skill scripts run inside the Word add-in?</td>
-<td>open (test)</td>
+<td>dropped (no 365 path, D-19)</td>
 <td>2026-10-11</td>
 </tr>
 <tr>
 <td>D-17</td>
 <td>Cowork↔Word bridge: round actions as tagged comments in the master; decisions back as thread replies</td>
-<td>agreed (pending spec approval)</td>
+<td>superseded by D-19</td>
 <td>2026-10-11</td>
 </tr>
 <tr>
 <td>D-18</td>
 <td>Skills on the Free plan: sources disagree</td>
 <td>open (verify)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-19</td>
+<td>Main path: Cowork does everything. Edits land in the master <code>.docx</code> as tracked changes; Claude takes the writer to the exact paragraph in Word; no Microsoft 365 dependency</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-20</td>
+<td>How Cowork reaches the open Word: computer use now (A); our own Word-control extension (B) is built later</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-21</td>
+<td>The Word-control extension is a separate project; this spec defines the interface it must implement (find and select a passage, apply tracked edits live, rename across the document, save, close, reopen)</td>
+<td>agreed</td>
 <td>2026-10-11</td>
 </tr>
 </tbody>
@@ -653,7 +685,7 @@ no notes for that revision, add <code>— without annotations</code>.</p>
   document.getElementById('btn-export').addEventListener('click',function(){
     var r=buildExport();
     if(r.n===0){toast('No notes yet — add some first.');return;}
-    var name='literary-critic-spec-notes-'+today()+'-r1.md';
+    var name='literary-critic-spec-notes-'+today()+'-r2.md';
     var saved=download(name,r.text);openModal(r.text);
     try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
     if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
@@ -675,7 +707,7 @@ no notes for that revision, add <code>— without annotations</code>.</p>
     if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
     else{report(false);}
   });
-  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
   document.getElementById('modal-close').addEventListener('click',closeModal);
   modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
 
