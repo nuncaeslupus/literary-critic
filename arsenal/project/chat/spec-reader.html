@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="af6fe253e61034c6182c460939c46d925b9d7391554ab42a08db9be555a9b651">
+<meta name="arsenal-source-sha256" content="a2028c21ff74d9a317879f0f84241b449257b45a1c25d4b1295433e4ae5be385">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -170,7 +170,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <strong>Ticket / PR</strong>: workspace <code>chat</code>
 <strong>Author</strong>: Claude (with the owner)
 <strong>Revision</strong>: 2
-<strong>Status</strong>: draft
+<strong>Status</strong>: approved (2026-10-11, revision 2) — without annotations
 <strong>Revision log</strong>:
 - r1 — first draft, from the explore-idea decisions log D-1…D-18
 - r2 — owner's decision in conversation (no notes export): the Word 365 side panel leaves the main path; Cowork does everything, reaching the open Word through computer use; a live Word-control extension becomes a separate project, with its interface defined here (D-19…D-21)</p>
@@ -204,7 +204,7 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <li>[ ] <code>open_document_overwrites == 0</code>: an edit never writes a file that Word holds open (Word's <code>~$</code> lock file) or that changed on disk since it was last read.</li>
 <li>[ ] <code>live_locate_success &gt;= 0.9</code>: in hand tests with computer use on Mac and Windows, Claude brings Word to the front at the exact paragraph, using Find on its first words, for at least 9 out of 10 located actions. When it fails, it falls back to the plain locator (chapter, page, first and last words) and tells the writer.</li>
 <li>[ ] <code>word_helper_interface_documented == 1</code>: the interface the separate Word-control project must provide is written in <code>docs/</code> and used by the tool through one adapter, so plugging the extension in later needs no change elsewhere.</li>
-<li>[ ] <code>prose_suggestions_default_off == 1</code>: a new workspace never proposes wording until the writer turns the setting on. Tested.</li>
+<li>[ ] <code>prose_suggestions_default_off == 1</code>: a new workspace never proposes wording until the writer turns the setting on, and turning it on always shows the AI-text notice first (D-22). Tested.</li>
 <li>[ ] <code>skill_workshop_errors == 0</code> for the litcritic skill (validate.py and audit_library).</li>
 <li>[ ] Usability, judged by a scripted walkthrough: a fresh assistant plays a non-technical writer persona from the first sentence to an applied round-1 change on the main path, and a second run where Word is open throughout. The reviewer checks that every instruction to the writer is plain, located and one step at a time. Median writer-facing reply is at most 120 words.</li>
 <li>[ ] The hand test D-18 and the D-7 path-B test are run and recorded in <code>status/evidence/</code> before any task that depends on their answer is designed.</li>
@@ -549,6 +549,12 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <tr>
 <td>D-20</td>
 <td>How Cowork reaches the open Word: computer use now (A); our own Word-control extension (B) is built later</td>
+<td>agreed</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-22</td>
+<td>Turning on prose suggestions first shows a plain notice: AI-written text may later be identified as AI-written (by detection tools, and by watermarks if a provider adds them); publishers, contests and agents may require disclosure or refuse it; authorship and rights questions follow. The tool recommends that the writer does the writing. If the writer still turns it on, even to write a novel with AI, that is the writer's choice, and the notice is recorded in the workspace</td>
 <td>agreed</td>
 <td>2026-10-11</td>
 </tr>
