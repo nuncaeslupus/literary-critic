@@ -21,8 +21,8 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+from litcritic import codex
 from litcritic import textstats as ts
-from litcritic.codex import Codex, CodexError
 
 Result = dict[str, Any]
 REGISTRY: dict[str, Callable[[Context], Result]] = {}
@@ -1158,43 +1158,56 @@ def _load_json(path: Path) -> Any:
 
 
 def codex_registers(
-    ws_root: Path, version: str
+    ws_root: Path, version: str, anchors: list[str]
 ) -> tuple[dict[str, list[dict[str, Any]]], list[dict[str, Any]]]:
     """Characters, motifs, setups and scenes from the Codex, when it is synced to ``version``.
 
-    Setups pair with payoffs through ``pays_off`` links; anchors are paragraph anchors.
+    Names that differ only in case or accents are one entry. Setups pair with
+    payoffs through ``pays_off`` links; their anchors are paragraph anchors of
+    the draft, in text order. A payoff with no live setup is listed on its own.
     """
-    try:
-        cx = Codex(ws_root)
-    except CodexError:
+    cx = codex.synced(ws_root, version)
+    if cx is None:
         return {}, []
-    if cx.draft != version:
-        return {}, []
-
-    def live(type_name: str) -> list[Any]:
-        return [i for i in cx.of_type(type_name) if i.status != "retired"]
-
+    pos = {a: i for i, a in enumerate(anchors)}
     registers: dict[str, list[dict[str, Any]]] = {}
-    for e in live("entity"):
+    named: dict[tuple[str, str], dict[str, Any]] = {}
+    for e in cx.live("entity"):
         kind = {"character": "characters", "motif": "motifs"}.get(e.fields["kind"])
-        if kind:
-            entry = {"name": e.fields["name"], "aliases": e.fields.get("aliases", [])}
-            registers.setdefault(kind, []).append(entry)
-    for s in live("setup"):
-        if s.fields["side"] != "setup":
+        if not kind:
             continue
-        payoffs = [
-            i for i, rel in cx.linked_to(s.id) if rel == "pays_off" and i.status != "retired"
-        ]
-        anchors = [sp.start.para for x in [s, *payoffs] for sp in x.spans]
-        status = "paid_off" if payoffs else "open"
-        registers.setdefault("setups", []).append(
-            {"id": s.fields["label"], "anchors": anchors, "status": status}
-        )
+        key = (kind, " ".join(ts.strip_accents(e.fields["name"]).casefold().split()))
+        if key not in named:
+            named[key] = {"name": e.fields["name"], "aliases": []}
+            registers.setdefault(kind, []).append(named[key])
+        entry = named[key]
+        for alias in [e.fields["name"], *e.fields.get("aliases", [])]:
+            if alias != entry["name"] and alias not in entry["aliases"]:
+                entry["aliases"].append(alias)
+    setups = {i.id: i for i in cx.live("setup")}
+    labels: Counter[str] = Counter(i.fields["label"] for i in setups.values())
+
+    def anchored(*items: Any) -> list[str]:
+        paras = {sp.start.para for x in items for sp in x.spans} & pos.keys()
+        return sorted(paras, key=pos.__getitem__)
+
+    for item in setups.values():
+        label = item.fields["label"]
+        uid = label if labels[label] == 1 else f"{label} ({item.id})"
+        if item.fields["side"] == "setup":
+            payoffs = [
+                i for i, rel in cx.linked_to(item.id) if rel == "pays_off" and i.id in setups
+            ]
+            status = "paid_off" if payoffs else "open"
+            entry = {"id": uid, "anchors": anchored(item, *payoffs), "status": status}
+        elif not any(lk["rel"] == "pays_off" and lk["to"] in setups for lk in item.links):
+            entry = {"id": uid, "anchors": anchored(item), "status": "paid_off"}
+        else:
+            continue
+        registers.setdefault("setups", []).append(entry)
     cards = [
-        {"anchor": sc.spans[0].start.para.rsplit(".p", 1)[0], "pov": sc.fields.get("pov", "?")}
-        for sc in live("scene")
-        if sc.spans
+        {"anchor": unit, "pov": item.fields.get("pov", "?")}
+        for unit, item in cx.scenes_by_unit(anchors).items()
     ]
     return registers, cards
 
@@ -1206,7 +1219,7 @@ def context_for(ws_root: Path, version: str, lang: str) -> Context:
     if struct is None:
         raise FileNotFoundError(f"no structure for {version}; run `lc anchor` first")
     meta = (_load_json(ws_root / "text" / f"{version}.meta.json") or {}).get("paragraphs", [])
-    registers, cards = codex_registers(ws_root, version)
+    registers, cards = codex_registers(ws_root, version, [a for a, _ in struct["paragraphs"]])
     labels = _load_json(ws_root / "analysis" / "labels.json") or {}
     return Context(
         paragraphs=paras,

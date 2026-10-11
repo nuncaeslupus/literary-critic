@@ -76,15 +76,30 @@ def test_metrics_and_context_read_the_codex(
     args = ["codex", "add", "scene", "--text", "Arrival.", "--unit", scene, "--fields", fields]
     assert main([*args, *w]) == 0
     assert main(["codex", "add", "scene", "--text", "x", "--unit", "c99", *w]) == 2
-    assert "no such chapter or scene" in capsys.readouterr().err
+    assert "not a chapter or scene" in capsys.readouterr().err
     motif = '{"kind": "motif", "name": "ojos"}'
     assert main(["codex", "add", "entity", "--text", "Eyes.", "--fields", motif, *w]) == 0
 
+    assert main(["codex", "add", "scene", "--text", "x", "--unit", f"{scene}.p1", *w]) == 2
+    nela = '{"kind": "character", "name": "NELA", "aliases": ["la hija de la Canela"]}'
+    assert main(["codex", "add", "entity", "--text", "Again.", "--fields", nela, *w]) == 0
+    lone = '{"label": "sight", "side": "payoff"}'
+    quote = ["--quote", ix.paragraphs[40][:40]]
+    assert main(["codex", "add", "setup", "--text", "P.", "--fields", lone, *quote, *w]) == 0
+
     ctx = metrics.context_for(root, "v001", "es")
-    assert {e["name"] for e in ctx.registers["characters"]} >= {"Nela", "Pablo"}
+    merged = [e for e in ctx.registers["characters"] if e["name"].casefold() == "nela"]
+    assert len(merged) == 1 and "la hija de la Canela" in merged[0]["aliases"]
+    assert {e["name"].casefold() for e in ctx.registers["characters"]} >= {"nela", "pablo"}
     assert ctx.registers["motifs"] == [{"name": "ojos", "aliases": []}]
-    status = {e["id"]: e["status"] for e in ctx.registers["setups"]}
-    assert status == {"sight": "paid_off", "star": "open"}
+    setups = {e["id"].split(" (")[0]: e for e in ctx.registers["setups"]}
+    assert len(ctx.registers["setups"]) == 3 and setups["star"]["status"] == "open"
+    pos = {a: i for i, a in enumerate(ctx.anchors)}
+    for e in ctx.registers["setups"]:
+        assert [pos[a] for a in e["anchors"]] == sorted(pos[a] for a in e["anchors"])
+    distance = metrics.compute(ctx, ["setup_payoff_distance"])["setup_payoff_distance"]
+    statuses = sorted(x.get("status", "paid") for x in distance["items"])
+    assert statuses == ["paid", "unpaid", "unplanted"]
     assert ctx.scene_cards == [{"anchor": scene, "pov": "omniscient"}]
     res = metrics.compute(ctx, ["pov_distribution", "motif_occurrences"])
     assert res["pov_distribution"]["book"]["scenes"] == {"omniscient": 1}
@@ -93,4 +108,4 @@ def test_metrics_and_context_read_the_codex(
     shown = query.context(query.load(root, "v001"), ix.anchors[0])
     assert f"scene {query._bare(scene)}: Arrival at dusk. | POV omniscient | dusk" in shown
     # A Codex synced to another draft feeds nothing.
-    assert metrics.codex_registers(root, "v002") == ({}, [])
+    assert metrics.codex_registers(root, "v002", ctx.anchors) == ({}, [])

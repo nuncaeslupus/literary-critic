@@ -72,7 +72,7 @@ class Index:
         return self.anchors[i].rsplit(".p", 1)[0]
 
 
-def load(ws_root: Path, version: str | None = None) -> Index:
+def load(ws_root: Path, version: str | None = None, codex: bool = True) -> Index:
     version = version or structure.latest_version(ws_root)
     text = (ws_root / "text" / f"{version}.txt").read_text(encoding="utf-8")
     paras = text.split("\n")[:-1] if text.endswith("\n") else text.split("\n")
@@ -86,28 +86,22 @@ def load(ws_root: Path, version: str | None = None) -> Index:
     ):
         raise ValueError(f"structure for {version} is out of date; run `lc anchor`")
     anchors = [a for a, _ in data["paragraphs"]]
-    return Index(paras, anchors, fps, data["chapters"], _codex_scenes(ws_root, version, anchors))
+    scenes = _codex_scenes(ws_root, version, anchors) if codex else {}
+    return Index(paras, anchors, fps, data["chapters"], scenes)
 
 
 def _codex_scenes(ws_root: Path, version: str, anchors: list[str]) -> dict[str, str]:
-    """One line per Codex scene item, keyed by the scene its first span starts in."""
-    from litcritic.codex import Codex, CodexError  # codex -> spans -> query
+    """One line per scene that a Codex ``scene`` item spans."""
+    from litcritic import codex  # codex -> spans -> query
 
-    try:
-        cx = Codex(ws_root)
-    except CodexError:
+    cx = codex.synced(ws_root, version)
+    if cx is None:
         return {}
-    if cx.draft != version:
-        return {}
-    known = set(anchors)
-    out: dict[str, str] = {}
-    for item in cx.of_type("scene"):
-        if item.status == "retired" or not item.spans or item.spans[0].start.para not in known:
-            continue
+    out = {}
+    for unit, item in cx.scenes_by_unit(anchors).items():
         f = item.fields
         line = f"{f.get('summary', item.text)} | POV {f.get('pov', '?')}"
-        line += "".join(f" | {f[k]}" for k in ("location", "time") if f.get(k))
-        out.setdefault(_bare(item.spans[0].start.para.rsplit(".p", 1)[0]), line)
+        out[_bare(unit)] = line + "".join(f" | {f[k]}" for k in ("location", "time") if f.get(k))
     return out
 
 

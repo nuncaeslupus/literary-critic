@@ -139,6 +139,19 @@ def _write_atomic(path: Path, text: str) -> None:
     os.replace(tmp, path)
 
 
+def synced(work_root: Path, draft: str) -> Codex | None:
+    """The work's Codex when it loads and is synced to ``draft``; otherwise None.
+
+    For readers that only enrich their answer with the Codex: a missing or
+    damaged Codex must not break them.
+    """
+    try:
+        cx = Codex(work_root)
+    except (CodexError, ValueError, OSError):
+        return None
+    return cx if cx.draft == draft else None
+
+
 class Codex:
     """A work's Codex, loaded into memory with indexes by id, type, paragraph and link."""
 
@@ -373,6 +386,25 @@ class Codex:
 
     def of_type(self, type_name: str) -> list[Item]:
         return [self.items[i] for i in sorted(self.by_type.get(type_name, set()))]
+
+    def live(self, type_name: str) -> list[Item]:
+        return [i for i in self.of_type(type_name) if i.status != "retired"]
+
+    def scenes_by_unit(self, anchors: list[str]) -> dict[str, Item]:
+        """Live ``scene`` items keyed by every scene of the draft (``anchors``) they span.
+
+        A scene spanned by two items keeps the one with the lower id.
+        """
+        pos = {a: i for i, a in enumerate(anchors)}
+        out: dict[str, Item] = {}
+        for item in self.live("scene"):
+            for s in item.spans:
+                i0, i1 = pos.get(s.start.para), pos.get(s.end.para)
+                if i0 is None or i1 is None:
+                    continue
+                for a in anchors[i0 : i1 + 1]:
+                    out.setdefault(a.rsplit(".p", 1)[0], item)
+        return out
 
     def covering(self, text: spanlib.Text, anchors: set[str]) -> list[Item]:
         """Items with a span that starts, ends or runs through any of ``anchors``.
