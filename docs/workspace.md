@@ -86,12 +86,14 @@ Some metrics aggregate what the LLM or the registers provide and report
 | Chat without code | Upload the latest `index/` summaries and `log/`; reduced mode. |
 
 `lc pack --workspace <slug>` writes `<slug>-gNNN.zip` with a manifest of
-SHA-256 checksums and a generation number that grows with every pack.
-`lc unpack <zip>` restores it (to `$LITCRITIC_HOME/<slug>` unless
-`--workspace` says otherwise) and refuses, unless `--force`, when that would
-lose work: the zip is older than the workspace, both continue the same
-generation with different content, or the workspace changed since it was last
-packed or unpacked. Damaged zips and unsafe paths are always rejected.
+SHA-256 checksums, a generation number and a lineage (the ids of the packs it
+descends from). `lc unpack <zip>` restores it to `$LITCRITIC_HOME/<slug>`
+(`--workspace` names another folder) only as a fast-forward: it refuses,
+unless `--force`, an older zip, a zip from a line of work that went separate
+ways from this workspace, or a newer zip when this workspace has changes that
+were never packed. `--force` makes the workspace an exact copy of the zip.
+Damaged zips, unsafe names and unsafe paths are always rejected, and files are
+staged before the workspace is touched.
 
 ## Rules
 

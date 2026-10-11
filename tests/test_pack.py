@@ -34,28 +34,63 @@ def test_unpack_refuses_older_zip(tmp_path: Path) -> None:
 
 def test_stale_overwrite_blocked_in_every_case(tmp_path: Path) -> None:
     """Gate stale_overwrite_blocked: each way of losing work is refused."""
+    refused = 0
     ws = _ws(tmp_path)
-    z1, _ = pack.pack(ws, tmp_path / "a.zip")
-    copy = tmp_path / "elsewhere"
-    pack.unpack(z1, copy)
-    _edit(copy, "session B")
-    zb, _ = pack.pack(copy, tmp_path / "b.zip")  # generation 2 from the copy
-    _edit(ws, "session A")
-    za, _ = pack.pack(ws, tmp_path / "a2.zip")  # generation 2 from the original
-    cases = []
-    with pytest.raises(pack.PackError, match="both continue"):
-        pack.unpack(zb, ws)  # diverged: same generation, different content
-    cases.append(True)
-    _edit(copy, "more B, not packed")
-    _, _ = pack.pack(ws, tmp_path / "a3.zip")
-    with pytest.raises(pack.PackError, match="changed since"):
-        pack.unpack(tmp_path / "a3.zip", copy)  # newer zip, unsaved local edits
-    cases.append(True)
+    z1, _ = pack.pack(ws, tmp_path / "a1.zip")
+    other = tmp_path / "b"
+    pack.unpack(z1, other)
+    # 1. Older zip over newer work.
+    _edit(ws, "A1")
+    pack.pack(ws, tmp_path / "a2.zip")
     with pytest.raises(pack.PackError, match="older"):
         pack.unpack(z1, ws)
-    cases.append(True)
-    assert sum(cases) / 3 == 1.0
-    assert za.exists()
+    refused += 1
+    # 2. Diverged at the same generation.
+    _edit(other, "B1")
+    zb, _ = pack.pack(other, tmp_path / "b2.zip")
+    with pytest.raises(pack.PackError, match="separate ways"):
+        pack.unpack(zb, ws)
+    refused += 1
+    # 3. Diverged at different generations (A packed twice, B once).
+    _edit(ws, "A2")
+    za3, m3 = pack.pack(ws, tmp_path / "a3.zip")
+    assert m3["generation"] == 3
+    with pytest.raises(pack.PackError, match="separate ways"):
+        pack.unpack(za3, other)
+    refused += 1
+    # 4. Newer zip of the same line over unsaved local changes.
+    third = tmp_path / "c"
+    pack.unpack(za3, third)
+    _edit(ws, "A3")
+    za4, _ = pack.pack(ws, tmp_path / "a4.zip")
+    _edit(third, "C unsaved")
+    with pytest.raises(pack.PackError, match="changed since"):
+        pack.unpack(za4, third)
+    refused += 1
+    assert refused / 4 == 1.0
+    # A clean fast-forward goes through.
+    fourth = tmp_path / "d"
+    pack.unpack(za3, fourth)
+    assert pack.unpack(za4, fourth).action == "updated"
+
+
+def test_force_makes_an_exact_copy(tmp_path: Path) -> None:
+    ws = _ws(tmp_path)
+    z1, _ = pack.pack(ws, tmp_path / "g1.zip")
+    (ws / "analysis" / "new.md").write_text("local only", encoding="utf-8")
+    pack.pack(ws, tmp_path / "g2.zip")
+    (ws / "analysis" / "extra.md").write_text("unsaved", encoding="utf-8")
+    result = pack.unpack(z1, ws, force=True)
+    assert result.action == "updated" and result.removed == 2
+    assert not (ws / "analysis" / "new.md").exists()
+    assert pack.unpack(z1, ws).action == "unchanged"
+
+
+def test_failed_pack_leaves_state_alone(tmp_path: Path) -> None:
+    ws = _ws(tmp_path)
+    with pytest.raises(OSError):
+        pack.pack(ws, tmp_path / "missing-dir" / "x.zip")
+    assert not (ws / pack.STATE).exists()
 
 
 def test_round_trip_and_new_target(tmp_path: Path) -> None:
@@ -85,7 +120,9 @@ def test_corrupt_or_unsafe_zips_rejected(tmp_path: Path) -> None:
         pack.read_zip(bad)
     evil = tmp_path / "evil.zip"
     with zipfile.ZipFile(evil, "w") as zf:
-        zf.writestr(pack.ZIP_MANIFEST, json.dumps({"generation": 1, "files": {"../x": "0"}}))
+        zf.writestr(
+            pack.ZIP_MANIFEST, json.dumps({"generation": 1, "slug": "e", "files": {"../x": "0"}})
+        )
     with pytest.raises(pack.PackError, match="unsafe"):
         pack.read_zip(evil)
     plain = tmp_path / "plain.zip"
@@ -93,6 +130,20 @@ def test_corrupt_or_unsafe_zips_rejected(tmp_path: Path) -> None:
         zf.writestr("a.txt", "x")
     with pytest.raises(pack.PackError, match="manifest"):
         pack.read_zip(plain)
+    for manifest in ("{not json", '{"files": [], "slug": "x", "generation": 1}'):
+        damaged = tmp_path / "damaged.zip"
+        with zipfile.ZipFile(damaged, "w") as zf:
+            zf.writestr(pack.ZIP_MANIFEST, manifest)
+        with pytest.raises(pack.PackError, match="damaged"):
+            pack.read_zip(damaged)
+    for slug in ("../../x", "/tmp/x"):
+        crafted = tmp_path / "crafted.zip"
+        with zipfile.ZipFile(crafted, "w") as zf:
+            zf.writestr(pack.ZIP_MANIFEST, json.dumps({"files": {}, "slug": slug, "generation": 1}))
+        with pytest.raises(pack.PackError, match="unsafe workspace name"):
+            pack.read_zip(crafted)
+    assert not pack._safe("..\\..\\evil.txt") and not pack._safe("C:evil.txt")
+    assert pack._safe("text/v001.txt")
 
 
 def test_cli_pack_unpack(tmp_path: Path) -> None:
@@ -104,3 +155,5 @@ def test_cli_pack_unpack(tmp_path: Path) -> None:
     _edit(ws, "x")
     assert main(["pack", "--workspace", str(ws), "--out", str(tmp_path / "w2.zip")]) == 0
     assert main(["unpack", str(out), "--workspace", str(ws)]) == 1
+    assert main(["unpack", str(out), "--workspace", "renamed", "--home", str(tmp_path / "h")]) == 0
+    assert (tmp_path / "h" / "renamed" / "workspace.toml").is_file()

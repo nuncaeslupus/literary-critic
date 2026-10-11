@@ -49,7 +49,8 @@ def registry_file() -> Path:
     return Path(base) / "litcritic" / "workspaces.txt"
 
 
-def _register(root: Path) -> None:
+def register(root: Path) -> None:
+    """Remember a workspace created outside the default home, so slugs find it."""
     reg = registry_file()
     known = reg.read_text(encoding="utf-8").splitlines() if reg.is_file() else []
     if str(root) not in known:
@@ -111,7 +112,7 @@ def create(slug: str, title: str, language: str, base: Path | None = None) -> Wo
         f"{' '.join(title.split())}\n",
         encoding="utf-8",
     )
-    _register(root)
+    register(root)
     return Workspace(root)
 
 

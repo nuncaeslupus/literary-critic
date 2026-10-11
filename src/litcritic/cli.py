@@ -196,13 +196,15 @@ def _cmd_pack(args: argparse.Namespace) -> int:
 
 def _cmd_unpack(args: argparse.Namespace) -> int:
     try:
-        manifest, _ = pack.read_zip(Path(args.zip))
-        target = (
-            Path(args.workspace)
-            if args.workspace
-            else (args.home or workspace.home()) / str(manifest["slug"])
-        )
-        result = pack.unpack(Path(args.zip), target, force=args.force)
+        loaded = pack.read_zip(Path(args.zip))
+        slug = str(loaded[0]["slug"])
+        base = (args.home or workspace.home()).expanduser()
+        if args.workspace:
+            ref = Path(args.workspace).expanduser()
+            target = ref if (ref.is_absolute() or len(ref.parts) > 1) else base / ref
+        else:
+            target = base / slug
+        result = pack.unpack(Path(args.zip), target, force=args.force, loaded=loaded)
     except (workspace.WorkspaceError, pack.PackError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1 if isinstance(exc, pack.PackError) else 2
@@ -293,7 +295,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_unp = sub.add_parser("unpack", help="restore a workspace zip; refuses to lose newer work")
     p_unp.add_argument("zip")
-    p_unp.add_argument("--workspace", default=None, help="target folder (default home/<slug>)")
+    p_unp.add_argument(
+        "--workspace", default=None, help="target folder, or a name under home (default: the zip's)"
+    )
     p_unp.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_unp.add_argument("--force", action="store_true", help="overwrite even newer/diverged work")
     p_unp.set_defaults(func=_cmd_unpack)

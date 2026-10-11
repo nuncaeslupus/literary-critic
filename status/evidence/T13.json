@@ -1,7 +1,12 @@
 {
   "metric": "stale_overwrite_blocked",
   "value": 1.0,
-  "cases": ["older zip over newer workspace", "two sessions diverged from one zip (same generation)", "newer zip over unsaved local changes"],
-  "also": "tampered file (checksum), unsafe paths (zip slip) and zips without a manifest are rejected; --force overrides only the staleness refusals",
+  "cases": [
+    "older zip over newer workspace",
+    "diverged at the same generation",
+    "diverged at different generations",
+    "newer zip over unsaved local changes"
+  ],
+  "also": "lineage ids make staleness independent of generation numbers; tampered files, malformed manifests, unsafe workspace names and unsafe paths (POSIX and Windows) are rejected; packs and unpacks are staged so a failure changes nothing",
   "command": "uv run pytest tests/test_pack.py"
 }
