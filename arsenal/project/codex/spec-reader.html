@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="e02ffd90d08bf274a93ce06d0591ebc444916ae42927987e1c06f390922689d5">
+<meta name="arsenal-source-sha256" content="cde894f34c1256b5442d831a7de454fc27977a7242c6ddaee8253c89a55d1ffb">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -170,11 +170,12 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-11
 <strong>Ticket / PR</strong>: phase 2, sub-project S0 (from <code>status/ideas.md</code>)
 <strong>Author</strong>: imarcos + Claude
-<strong>Revision</strong>: 2
-<strong>Status</strong>: draft
+<strong>Revision</strong>: 3
+<strong>Status</strong>: approved (2026-10-11, revision 3)
 <strong>Revision log</strong>:
 - r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)
-- r2 — applied <code>literary-critic-spec-notes-2026-10-11-r1.md</code>: no migration (phase-1 formats and docs are replaced, not converted); skills built with skill-workshop; the Codex answers questions through a query API, and checks and proactive feedback are named questions (D-16…D-18)</p>
+- r2 — applied <code>literary-critic-spec-notes-2026-10-11-r1.md</code>: no migration (phase-1 formats and docs are replaced, not converted); skills built with skill-workshop; the Codex answers questions through a query API, and checks and proactive feedback are named questions (D-16…D-18)
+- r3 — conversation note: Q-c chosen, with the table layout derived from a catalogue of writer questions so the LLM's translations have enough to work with (D-19). Approved.</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied, and commit that
@@ -230,6 +231,7 @@ added as new item types.</p>
 <li>[ ] <code>example_questions_answered == 1.0</code>. On a hand-built fixture Codex of a corpus text, the named questions answer the four example families exactly as expected: speech per character per chapter; expression frequency and distribution; relevance between two characters (co-presence, interaction, mentions); subplot continuity gaps.</li>
 <li>[ ] <code>named_questions &gt;= 20</code> at first release, each with parameters, a description in plain words and a test.</li>
 <li>[ ] <code>measurable_checks_with_query == 1.0</code>. Every catalogue check tagged <code>measurable</code> maps to a named question. <code>lc codex questions --coverage</code> reports any check without one.</li>
+<li>[ ] <code>question_catalogue_expressible &gt;= 0.9</code>. A catalogue of at least 60 writer questions in plain words (structure, characters, relationships, plot threads, time, dialogue, style, lexicon, rhythm and density, mechanics) is written before the tables. At least 90% of them translate into SQL against the documented tables, checked by a test. Each question that cannot be translated names the missing data, and that gap feeds the next item types.</li>
 <li>[ ] <code>query_seconds_typical &lt;= 0.5</code> for any named question on a 100k-word work with 20k items, after load.</li>
 <li>[ ] <code>new_type_core_changes == 0</code>. Adding an item type takes one type definition (fields and schema) and no change to core modules (judged by a test that registers a dummy type).</li>
 <li>[ ] <code>new_kind_core_changes == 0</code>. A second text kind (minimal poetry: stanzas and lines) plugs in its structure detection, item types and checklist without touching core modules.</li>
@@ -557,7 +559,7 @@ queries with parameters, and the checks and proactive feedback use them.</p></di
 - The engine is in the standard library, so we build only the tables.
 - Storage stays plain text (D-10), because the view lives only in memory.
 - Questions nobody planned for still work.</p>
-<p>The documented table layout is the API, versioned like a schema, so the Codex stays replaceable (D-10). Pending owner confirmation (D-19).</p>
+<p>The documented table layout is the API, versioned like a schema, so the Codex stays replaceable (D-10). Agreed in D-19.</p>
 <p><strong>Immediate next action</strong>: <code>design</code> splits B into tasks, in this order:
 1. <code>spans.py</code> with its relocation test corpus (it carries the riskiest criteria).
 2. The <code>codex.py</code> envelope, type registry and check.
@@ -695,8 +697,8 @@ queries with parameters, and the checks and proactive feedback use them.</p></di
 </tr>
 <tr>
 <td>D-19</td>
-<td>Query surface: read-only SQL over an in-memory view (stdlib <code>sqlite3</code>, never persisted), with named questions on top</td>
-<td>open (recommended, awaiting owner)</td>
+<td>Query surface: read-only SQL over an in-memory view (stdlib <code>sqlite3</code>, never persisted), with named questions on top; what the Codex stores and computes is derived from a catalogue of writer questions, so translations have enough to work with</td>
+<td>agreed</td>
 <td>2026-10-11</td>
 </tr>
 </tbody>
@@ -826,7 +828,7 @@ queries with parameters, and the checks and proactive feedback use them.</p></di
   document.getElementById('btn-export').addEventListener('click',function(){
     var r=buildExport();
     if(r.n===0){toast('No notes yet — add some first.');return;}
-    var name='literary-critic-spec-notes-'+today()+'-r2.md';
+    var name='literary-critic-spec-notes-'+today()+'-r3.md';
     var saved=download(name,r.text);openModal(r.text);
     try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
     if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
@@ -848,7 +850,7 @@ queries with parameters, and the checks and proactive feedback use them.</p></di
     if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
     else{report(false);}
   });
-  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r3.md',modalTa.value);toast('Download started');});
   document.getElementById('modal-close').addEventListener('click',closeModal);
   modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
 

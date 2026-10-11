@@ -3,11 +3,12 @@
 **Date**: 2026-10-11
 **Ticket / PR**: phase 2, sub-project S0 (from `status/ideas.md`)
 **Author**: imarcos + Claude
-**Revision**: 2
-**Status**: draft
+**Revision**: 3
+**Status**: approved (2026-10-11, revision 3)
 **Revision log**:
 - r1 — first draft, from the explore-idea session approved 2026-10-11 (D-1…D-15)
 - r2 — applied `literary-critic-spec-notes-2026-10-11-r1.md`: no migration (phase-1 formats and docs are replaced, not converted); skills built with skill-workshop; the Codex answers questions through a query API, and checks and proactive feedback are named questions (D-16…D-18)
+- r3 — conversation note: Q-c chosen, with the table layout derived from a catalogue of writer questions so the LLM's translations have enough to work with (D-19). Approved.
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied, and commit that
@@ -69,6 +70,7 @@ added as new item types.
 - [ ] `example_questions_answered == 1.0`. On a hand-built fixture Codex of a corpus text, the named questions answer the four example families exactly as expected: speech per character per chapter; expression frequency and distribution; relevance between two characters (co-presence, interaction, mentions); subplot continuity gaps.
 - [ ] `named_questions >= 20` at first release, each with parameters, a description in plain words and a test.
 - [ ] `measurable_checks_with_query == 1.0`. Every catalogue check tagged `measurable` maps to a named question. `lc codex questions --coverage` reports any check without one.
+- [ ] `question_catalogue_expressible >= 0.9`. A catalogue of at least 60 writer questions in plain words (structure, characters, relationships, plot threads, time, dialogue, style, lexicon, rhythm and density, mechanics) is written before the tables. At least 90% of them translate into SQL against the documented tables, checked by a test. Each question that cannot be translated names the missing data, and that gap feeds the next item types.
 - [ ] `query_seconds_typical <= 0.5` for any named question on a 100k-word work with 20k items, after load.
 - [ ] `new_type_core_changes == 0`. Adding an item type takes one type definition (fields and schema) and no change to core modules (judged by a test that registers a dummy type).
 - [ ] `new_kind_core_changes == 0`. A second text kind (minimal poetry: stanzas and lines) plugs in its structure detection, item types and checklist without touching core modules.
@@ -184,7 +186,7 @@ queries with parameters, and the checks and proactive feedback use them.
 - Storage stays plain text (D-10), because the view lives only in memory.
 - Questions nobody planned for still work.
 
-The documented table layout is the API, versioned like a schema, so the Codex stays replaceable (D-10). Pending owner confirmation (D-19).
+The documented table layout is the API, versioned like a schema, so the Codex stays replaceable (D-10). Agreed in D-19.
 
 **Immediate next action**: `design` splits B into tasks, in this order:
 1. `spans.py` with its relocation test corpus (it carries the riskiest criteria).
@@ -226,7 +228,7 @@ The documented table layout is the API, versioned like a schema, so the Codex st
 | D-16 | The Codex answers questions through a query API (the LLM turns a question into a query), like a database | agreed (spec notes r1) | 2026-10-11 |
 | D-17 | Measurable checks and proactive feedback are named questions run against the Codex | agreed (spec notes r1) | 2026-10-11 |
 | D-18 | No migration: phase-1 per-type formats and docs are replaced; the tool is rebuilt on the Codex from corpus examples; real novels may add item types later | agreed (spec notes r1) | 2026-10-11 |
-| D-19 | Query surface: read-only SQL over an in-memory view (stdlib `sqlite3`, never persisted), with named questions on top | open (recommended, awaiting owner) | 2026-10-11 |
+| D-19 | Query surface: read-only SQL over an in-memory view (stdlib `sqlite3`, never persisted), with named questions on top; what the Codex stores and computes is derived from a catalogue of writer questions, so translations have enough to work with | agreed | 2026-10-11 |
 
 ---
 

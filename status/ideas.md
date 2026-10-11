@@ -84,3 +84,4 @@ Efficiency: scripts first, the LLM only reads what changed.
 | 16 | 2026-10-11 | The Codex answers questions through a query API; the LLM turns a writer's question into a query. |
 | 17 | 2026-10-11 | Measurable checks and proactive feedback are named questions run against the Codex. |
 | 18 | 2026-10-11 | No migration: phase-1 per-type formats and docs are replaced; the tool is rebuilt on the Codex from corpus examples. |
+| 19 | 2026-10-11 | Query surface: read-only SQL over an in-memory view (stdlib sqlite3, never persisted) plus named questions; the stored/computed data is derived from a catalogue of writer questions. Spec approved (r3). |
