@@ -59,3 +59,4 @@ until it reaches a spec and a plan.
 | 1 | 2026-10-11 | First surface is Claude. |
 | 2 | 2026-10-11 | docx-fixer stays a separate repo; may be used as a tool/API or merged later. |
 | 3 | 2026-10-11 | First priority: report and session flow. Editing real files comes later. |
+| 4 | 2026-10-11 | Shape the critical report (S1) first; then session flow and memory (S2); then Claude packaging (S3). |
