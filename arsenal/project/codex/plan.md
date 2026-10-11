@@ -120,6 +120,7 @@ draft file ─> ingest ─> text/vNNN.txt ─> kind.detect_structure ─> struct
 | C2 | `span_relocation_accuracy >= 0.98` | 1.0 (3386/3386 spans with a known new home, 2 corpus texts, 5 seeds, edit rates 0.05–0.3); `silent_misanchors` = 0 | `uv run pytest tests/test_spans.py -k relocated` (RUNS: 5 seeds, rates 0.05–0.3) | [HERE] | local | 2026-10-11 |
 | C3 | `check_detection_rate == 1.0` | 1.0 (5/5 injected defect kinds: dead link, orphan, stale span, duplicate id, schema failure); `new_type_core_changes` = 0 | `uv run pytest tests/test_codex.py` | [HERE] | local | 2026-10-11 |
 | C4 | `codex_load_seconds_20k <= 1` | 0.47 s (20,000 items + base tables, best of 3); writes, ATTACH, PRAGMA and DDL refused | `uv run pytest tests/test_view.py` | [HERE] | local | 2026-10-11 |
+| C5 | `example_questions_answered == 1.0` | 1.0 (4/4 families exact on the Marianela fixture Codex: speech per chapter, expression per chapter, relevance, storyline gaps); 21 named questions run | `uv run pytest tests/test_questions.py` | [HERE] | local | 2026-10-11 |
 
 ### Dependency graph
 

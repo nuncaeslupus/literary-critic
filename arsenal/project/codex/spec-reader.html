@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="24d0272cbecad432a5fb9302eab74b4427ea6b5c22d1c2ac4e89b20f3587fb9e">
+<meta name="arsenal-source-sha256" content="91ca24047b35cc46648bc1876cf9c47005157bc4b52419a6982294eebd21ed01">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -845,6 +845,7 @@ one file (criterion <code>new_type_core_changes == 0</code>).</p>
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">SQL view (<code>codex_schema = 1</code>, read-only, in memory, built on load)</span></h4>
 <div class="sec-body"><pre><code class="language-sql">works(id, title, author, kind, series, language, draft)
 paragraphs(idx, anchor, part, chapter, scene, words, text)
+para_pos(idx, word0, words)                                        -- word offset of each paragraph
 chapters(id, idx, title, words, first_idx, last_idx)
 scenes(id, chapter, idx, words, first_idx, last_idx)
 tokens(para_idx, pos, form, norm, is_word)                         -- computed
@@ -859,7 +860,8 @@ v_entity(id, kind, name, status) v_dialogue(id, speaker, addressee, para_idx, wo
 v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status)
 </code></pre>
 <ul>
-<li>The connection is opened with <code>PRAGMA query_only = ON</code> and an authorizer that denies writes and attachments.</li>
+<li>The connection has no statement cache and an authorizer that allows only reads, functions and recursive CTEs (writes, DDL, ATTACH and PRAGMA are refused).</li>
+<li>SQL function <code>norm(text)</code>: lower case, no accents, single spaces (the form <code>tokens.norm</code> and <code>ngrams.norm</code> use).</li>
 <li>A progress handler stops any query after 2 seconds.</li>
 <li>Results are cut to the token budget, with a footer saying what was left out.</li>
 </ul></div>
@@ -871,7 +873,9 @@ v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status
 in a leading comment:</p>
 <pre><code class="language-sql">-- id = &quot;speech-chapters&quot;
 -- title = &quot;In how many chapters does a character speak?&quot;
+-- family = &quot;characters&quot;
 -- params = { character = &quot;entity id or name&quot; }
+-- defaults = {}
 -- checks = [&quot;dialogue.voice-distinct&quot;]
 SELECT COUNT(DISTINCT p.chapter) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx
 WHERE d.speaker = :character;

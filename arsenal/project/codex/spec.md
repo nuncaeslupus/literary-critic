@@ -321,6 +321,7 @@ Link relations: `refers_to`, `depends_on`, `pays_off`, `contradicts`, `knows`,
 ```sql
 works(id, title, author, kind, series, language, draft)
 paragraphs(idx, anchor, part, chapter, scene, words, text)
+para_pos(idx, word0, words)                                        -- word offset of each paragraph
 chapters(id, idx, title, words, first_idx, last_idx)
 scenes(id, chapter, idx, words, first_idx, last_idx)
 tokens(para_idx, pos, form, norm, is_word)                         -- computed
@@ -335,7 +336,8 @@ v_entity(id, kind, name, status) v_dialogue(id, speaker, addressee, para_idx, wo
 v_thread(id, name, role) v_issue(id, level, severity, check_id, question, status)
 ```
 
-- The connection is opened with `PRAGMA query_only = ON` and an authorizer that denies writes and attachments.
+- The connection has no statement cache and an authorizer that allows only reads, functions and recursive CTEs (writes, DDL, ATTACH and PRAGMA are refused).
+- SQL function `norm(text)`: lower case, no accents, single spaces (the form `tokens.norm` and `ngrams.norm` use).
 - A progress handler stops any query after 2 seconds.
 - Results are cut to the token budget, with a footer saying what was left out.
 
@@ -347,7 +349,9 @@ in a leading comment:
 ```sql
 -- id = "speech-chapters"
 -- title = "In how many chapters does a character speak?"
+-- family = "characters"
 -- params = { character = "entity id or name" }
+-- defaults = {}
 -- checks = ["dialogue.voice-distinct"]
 SELECT COUNT(DISTINCT p.chapter) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx
 WHERE d.speaker = :character;

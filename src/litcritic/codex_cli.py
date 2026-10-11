@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from litcritic import query, structure, view, workspace
+from litcritic import query, questions, structure, view, workspace
 from litcritic import spans as spanlib
 from litcritic.codex import Codex, CodexError, Item
 from litcritic.view import ViewError
@@ -46,6 +46,28 @@ def _value(raw: str) -> int | float | str:
     return raw
 
 
+def _params(raw: list[str] | None) -> dict[str, int | float | str]:
+    out = {}
+    for entry in raw or []:
+        name, sep, value = entry.partition("=")
+        if not sep or not name:
+            raise CodexError(f"--param {entry!r}: use NAME=VALUE")
+        out[name] = _value(value)
+    return out
+
+
+def _list_questions() -> int:
+    try:
+        qs = questions.load()
+    except questions.QuestionError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    for q in qs.values():
+        params = ", ".join(f"{k}={q.defaults[k]}" if k in q.defaults else k for k in q.params)
+        print(f"{q.id} [{q.family}] {q.title}" + (f"  ({params})" if params else ""))
+    return 0
+
+
 def _links(raw: list[str] | None) -> list[dict[str, str]]:
     out = []
     for entry in raw or []:
@@ -77,6 +99,8 @@ def _line(item: Item) -> str:
 
 
 def _run(args: argparse.Namespace) -> int:
+    if args.codex_cmd == "questions":
+        return _list_questions()
     try:
         ws = workspace.resolve(args.workspace, args.home)
         if args.codex_cmd == "init":
@@ -144,7 +168,7 @@ def _run(args: argparse.Namespace) -> int:
                 return 0
             if not args.query:
                 raise CodexError("give a query, or --schema to see the tables")
-            params = {k: _value(v) for k, v in (p.split("=", 1) for p in args.param or [])}
+            params = _params(args.param)
             cap = view.max_rows(args.budget)
             cols, rows = v.run(args.query, params, max_rows=cap)
             more = len(rows) > cap
@@ -160,6 +184,18 @@ def _run(args: argparse.Namespace) -> int:
                 print(json.dumps(payload, ensure_ascii=False))
             else:
                 print(view.table(cols, rows, args.budget, more), end="")
+        elif args.codex_cmd == "ask":
+            qs = questions.load()
+            if args.question not in qs:
+                raise CodexError(f"unknown question {args.question!r}; see `lc codex questions`")
+            q = qs[args.question]
+            given = _params(args.param)
+            questions.bind(q, given)  # fail fast, before the view is built
+            v = view.View(ws.root, cx)
+            cap = view.max_rows(args.budget)
+            cols, rows = questions.ask(v, q, given, max_rows=cap)
+            print(f"{q.title}")
+            print(view.table(cols, rows[:cap], args.budget, len(rows) > cap), end="")
         elif args.codex_cmd == "check":
             problems = cx.check()
             for p in problems:
@@ -172,6 +208,7 @@ def _run(args: argparse.Namespace) -> int:
         spanlib.SpanError,
         workspace.WorkspaceError,
         ViewError,
+        questions.QuestionError,
         OSError,
         ValueError,
     ) as exc:
@@ -230,5 +267,12 @@ def register(sub: Any) -> None:
     p_sql.add_argument("--json", action="store_true")
     p_sql.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
     common(p_sql)
+    p_ask = csub.add_parser("ask", help="run a named question (see `lc codex questions`)")
+    p_ask.add_argument("question")
+    p_ask.add_argument("--param", action="append", help="NAME=VALUE")
+    p_ask.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
+    common(p_ask)
+    p_qs = csub.add_parser("questions", help="list the named questions")
+    p_qs.set_defaults(func=_run)
     p_chk = csub.add_parser("check", help="dead links, orphans, stale spans, bad items")
     common(p_chk)

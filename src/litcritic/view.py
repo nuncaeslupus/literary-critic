@@ -46,6 +46,8 @@ CREATE TABLE items(id TEXT PRIMARY KEY, type TEXT, status TEXT, text TEXT, by TE
 CREATE TABLE spans(item_id TEXT, k INTEGER, start_idx INTEGER, start_off INTEGER,
                    end_idx INTEGER, end_off INTEGER, words INTEGER, state TEXT);
 CREATE TABLE links(src TEXT, rel TEXT, dst TEXT);
+CREATE VIEW para_pos AS
+  SELECT idx, SUM(words) OVER (ORDER BY idx) - words AS word0, words FROM paragraphs;
 CREATE INDEX spans_item ON spans(item_id);
 CREATE INDEX spans_start ON spans(start_idx);
 CREATE INDEX links_src ON links(src);
@@ -89,6 +91,16 @@ def norm(word: str) -> str:
     return strip_accents(word).casefold()
 
 
+def _phrase_sql(text: Any) -> str | None:
+    """SQL ``phrase(x)``: the words of x in norm form, as ngrams.norm stores them."""
+    return None if text is None else " ".join(norm(w) for w in WORD.findall(str(text)))
+
+
+def _norm_sql(text: Any) -> str | None:
+    """SQL ``norm(x)``: lower case, no accents, single spaces (as tokens.norm)."""
+    return None if text is None else " ".join(norm(str(text)).split())
+
+
 class View:
     def __init__(self, work_root: Path, cx: Codex | None = None) -> None:
         self.root = work_root
@@ -103,6 +115,8 @@ class View:
         self.built: set[str] = set()
         self._writable = True
         self.conn.set_authorizer(self._authorize)
+        self.conn.create_function("norm", 1, _norm_sql, deterministic=True)
+        self.conn.create_function("phrase", 1, _phrase_sql, deterministic=True)
         self.conn.executescript(BASE)
         self._fill_base()
         self._views()
