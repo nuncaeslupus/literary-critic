@@ -52,8 +52,6 @@ class Para:
             value = getattr(self, key)
             if value:
                 out[key] = value
-        if self.src >= 0:
-            out["src"] = self.src
         return out
 
 

@@ -61,9 +61,10 @@ def docx_comment_anchor_accuracy(
     hits = 0
     for c in comments.iter(f"{W}comment"):
         body = "".join(t.text or "" for t in c.iter(f"{W}t"))
-        action = next(a for a in actions if body.startswith(f"[{a['id']}]"))
-        target = ix.paragraphs[ix.anchors.index(action["where"]["anchor"])]  # type: ignore[index]
-        hits += by_src.get(ordinal_of[c.get(f"{W}id")]) == target
+        for action in actions:
+            if f"[{action['id']}]" in body:
+                target = ix.paragraphs[ix.anchors.index(str(action["where"]["anchor"]))]  # type: ignore[index]
+                hits += by_src.get(ordinal_of[c.get(f"{W}id")]) == target
     return hits / len(actions)
 
 
@@ -87,28 +88,65 @@ def test_comments_attach_to_target_paragraphs(ws: Path) -> None:
     assert "Motivo 1 &amp; &lt;detalle&gt;." in z.read("word/comments.xml").decode()
 
 
-def test_existing_comments_are_kept() -> None:
-    w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+def _docx(body: str, comments: str | None = None, prefix: str = "w") -> bytes:
+    ns = f'xmlns:{prefix}="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr(
             "word/document.xml",
-            f'<w:document {w}><w:body><w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
-            "<w:r><w:t>Uno</w:t></w:r></w:p><w:p/><w:p><w:r><w:t>Dos</w:t></w:r></w:p></w:body></w:document>",
+            f"<{prefix}:document {ns}><{prefix}:body>{body}</{prefix}:body></{prefix}:document>",
         )
-        zf.writestr(
-            "word/comments.xml",
-            f'<w:comments {w}><w:comment w:id="4"><w:p/></w:comment></w:comments>',
-        )
-        zf.writestr("word/_rels/document.xml.rels", "<Relationships/>")
+        if comments is not None:
+            zf.writestr("word/comments.xml", comments.replace("NS", ns))
+        zf.writestr("word/_rels/document.xml.rels", "<Relationships></Relationships>")
         zf.writestr("[Content_Types].xml", "<Types></Types>")
-    out, placed = docx_out.add_comments(buf.getvalue(), {0: ["a"], 2: ["b"]})
-    assert placed == {5: 0, 6: 2}
-    z = zipfile.ZipFile(io.BytesIO(out))
+    return buf.getvalue()
+
+
+def test_existing_comments_and_odd_markup() -> None:
+    body = (
+        '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Uno</w:t></w:r></w:p><w:p/>'
+        "<w:p><w:pPr/><w:r><w:t>Dos</w:t><w:txbxContent><w:p><w:pPr><w:jc/></w:pPr></w:p>"
+        "</w:txbxContent></w:r></w:p>"
+    )
+    kept = _docx(body, '<w:comments NS><w:comment w:id="4"><w:p/></w:comment></w:comments>')
+    z = zipfile.ZipFile(io.BytesIO(docx_out.add_comments(kept, {0: ["a"], 2: ["b"]})))
     doc = z.read("word/document.xml").decode()
     assert '</w:pPr><w:commentRangeStart w:id="5"/>' in doc
+    assert '<w:pPr/><w:commentRangeStart w:id="6"/>' in doc  # not inside the text box
     assert z.read("word/comments.xml").decode().count("<w:comment ") == 3
     ET.fromstring(doc)
+    # An emptied comments part (self-closing) is extended, not ignored.
+    emptied = _docx(body, "<w:comments NS/>")
+    comments = zipfile.ZipFile(io.BytesIO(docx_out.add_comments(emptied, {0: ["a"]}))).read(
+        "word/comments.xml"
+    )
+    assert ET.fromstring(comments).find(f"{W}comment") is not None
+    # Another prefix for the main namespace.
+    other = _docx("<x:p><x:r><x:t>Uno</x:t></x:r></x:p>", prefix="x")
+    other_xml = zipfile.ZipFile(io.BytesIO(docx_out.add_comments(other, {0: ["a"]}))).read(
+        "word/document.xml"
+    )
+    assert b'<x:commentRangeStart x:id="0"/>' in other_xml
+    with pytest.raises(docx_out.DocxError, match="empty"):
+        docx_out.add_comments(kept, {1: ["a"]})
+
+
+def test_round_draft_and_statuses(ws: Path) -> None:
+    ix = query.load(ws)
+    anchors = [ix.anchors[i] for i in (40, 41, 300)]
+    (ws / "analysis" / "findings.json").write_text(json.dumps(_findings(anchors)), encoding="utf-8")
+    _, actions, _ = rounds.build(ws, level="scene")
+    rounds.mark(ws, actions[1]["id"], "deferred")
+    out_path, n = docx_out.build(ws)
+    assert n == 2  # the deferred action is not commented
+    assert docx_comment_anchor_accuracy(out_path.read_bytes(), ix, [actions[0], actions[2]]) == 1.0
+    # A newer draft does not move the round's comments: they stay on its own draft.
+    newer = ws.parent / "novela-v2.docx"
+    newer.write_bytes(docgen.docx([("Texto nuevo al principio.", False)] * 3, seed=1))
+    assert main(["ingest", str(newer), "--workspace", str(ws)]) == 0
+    assert main(["anchor", "--workspace", str(ws)]) == 0
+    assert docx_out.build(ws)[0].name == "v001-comments.docx"
 
 
 def test_non_docx_draft_is_refused(tmp_path: Path) -> None:
