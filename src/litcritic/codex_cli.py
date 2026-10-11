@@ -8,9 +8,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from litcritic import query, structure, workspace
+from litcritic import query, structure, view, workspace
 from litcritic import spans as spanlib
 from litcritic.codex import Codex, CodexError, Item
+from litcritic.view import ViewError
 
 
 def _text(ws_root: Path, draft: str) -> spanlib.Text:
@@ -33,6 +34,16 @@ def _spans(args: argparse.Namespace, cx: Codex, root: Path) -> list[spanlib.Span
         for q in args.quote or []:
             out.append(spanlib.from_quote(text, cx.draft, q, args.within or ""))
     return out
+
+
+def _value(raw: str) -> int | float | str:
+    """A --param value: numbers bind as numbers, everything else as text."""
+    for kind in (int, float):
+        try:
+            return kind(raw)
+        except ValueError:
+            pass
+    return raw
 
 
 def _links(raw: list[str] | None) -> list[dict[str, str]]:
@@ -126,6 +137,29 @@ def _run(args: argparse.Namespace) -> int:
                 shown += 1
             rest = len(hits) - shown
             print(out.finish(f"… {rest} more; add words or --type" if rest else ""), end="")
+        elif args.codex_cmd == "sql":
+            v = view.View(ws.root, cx)
+            if args.schema:
+                print(v.schema())
+                return 0
+            if not args.query:
+                raise CodexError("give a query, or --schema to see the tables")
+            params = {k: _value(v) for k, v in (p.split("=", 1) for p in args.param or [])}
+            cap = view.max_rows(args.budget)
+            cols, rows = v.run(args.query, params, max_rows=cap)
+            more = len(rows) > cap
+            rows = rows[:cap]
+            if args.json:
+                cells = [[view.cell(x) for x in r] for r in rows]
+                payload: dict[str, Any] = {"columns": cols, "rows": cells}
+                while cells and query.estimate_tokens(json.dumps(payload)) > args.budget:
+                    cells = cells[: len(cells) // 2]
+                    payload["rows"] = cells
+                    more = True
+                payload["more"] = more
+                print(json.dumps(payload, ensure_ascii=False))
+            else:
+                print(view.table(cols, rows, args.budget, more), end="")
         elif args.codex_cmd == "check":
             problems = cx.check()
             for p in problems:
@@ -137,6 +171,7 @@ def _run(args: argparse.Namespace) -> int:
         CodexError,
         spanlib.SpanError,
         workspace.WorkspaceError,
+        ViewError,
         OSError,
         ValueError,
     ) as exc:
@@ -188,5 +223,12 @@ def register(sub: Any) -> None:
     p_find.add_argument("--type", default=None)
     p_find.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
     common(p_find)
+    p_sql = csub.add_parser("sql", help="run one read-only SQL query against the Codex")
+    p_sql.add_argument("query", nargs="?", default=None)
+    p_sql.add_argument("--param", action="append", help="NAME=VALUE for :NAME in the query")
+    p_sql.add_argument("--schema", action="store_true", help="print the tables and views")
+    p_sql.add_argument("--json", action="store_true")
+    p_sql.add_argument("--budget", type=int, default=query.DEFAULT_BUDGET)
+    common(p_sql)
     p_chk = csub.add_parser("check", help="dead links, orphans, stale spans, bad items")
     common(p_chk)
