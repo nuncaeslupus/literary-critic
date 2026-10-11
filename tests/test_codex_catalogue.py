@@ -75,8 +75,8 @@ def test_catalogue_answers_on_fixture(fixture_view: view.View) -> None:
     v = fixture_view
     total = v.run("SELECT SUM(words) FROM paragraphs")[1][0][0]
     assert sum(int(str(r[2])) for r in _rows(v, "structure-03")) == total
-    openers = dict(_rows(v, "mechanics-02"))
-    assert max(openers, key=lambda k: int(str(openers[k]))) == "--" and len(openers) <= 3
+    openers = {str(r[0]): int(str(r[1])) for r in _rows(v, "mechanics-02")}
+    assert max(openers, key=lambda k: openers[k]) == "--" and len(openers) <= 3
     lone = {r[0] for r in _rows(v, "threads-06")}
     named = {r[0] for r in v.run(questions.load()["setups-without-payoff"].sql)[1]}
     assert lone == named and lone
