@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from litcritic import structure, validate
+from litcritic.query import _bare
 from litcritic.textstats import strip_accents
 
 
@@ -42,7 +43,7 @@ def _entries(names: dict[str, list[str]], forms: dict[str, Counter[str]]) -> lis
         entry: dict[str, Any] = {
             "id": slug,
             "name": name,
-            "anchors": sorted(set(anchors), key=anchors.index),
+            "anchors": list(dict.fromkeys(anchors)),
         }
         others = sorted(f for f in forms[key] if f != name)
         if others:
@@ -56,7 +57,9 @@ def registers_from_cards(cards: list[dict[str, Any]]) -> dict[str, dict[str, Any
     people_forms: dict[str, Counter[str]] = defaultdict(Counter)
     places: dict[str, list[str]] = defaultdict(list)
     place_forms: dict[str, Counter[str]] = defaultdict(Counter)
-    setups: dict[str, dict[str, Any]] = {}
+    planted: dict[str, list[str]] = defaultdict(list)
+    paid: dict[str, list[str]] = defaultdict(list)
+    labels: dict[str, str] = {}
     timeline = []
     for card in cards:
         a = card["anchor"]
@@ -69,16 +72,22 @@ def registers_from_cards(cards: list[dict[str, Any]]) -> dict[str, dict[str, Any
         if card.get("story_time"):
             timeline.append({"id": a, "name": card["story_time"], "anchors": [a]})
         for label in card.get("setups", []):
-            e = setups.setdefault(
-                _key(label), {"id": _slug(label), "name": label, "anchors": [], "status": "open"}
-            )
-            e["anchors"].append(a)
+            planted[_key(label)].append(a)
+            labels.setdefault(_key(label), label)
         for label in card.get("payoffs", []):
-            e = setups.setdefault(
-                _key(label), {"id": _slug(label), "name": label, "anchors": [], "status": "open"}
-            )
-            e["anchors"].append(a)
-            e["status"] = "paid_off" if len(e["anchors"]) > 1 else "open"
+            paid[_key(label)].append(a)
+            labels.setdefault(_key(label), label)
+    # Status is decided once every card is read, so card order does not matter.
+    setups = []
+    used: set[str] = set()
+    for key, label in labels.items():
+        slug = _slug(label)
+        while slug in used:
+            slug += "-2"
+        used.add(slug)
+        anchors = list(dict.fromkeys([*planted[key], *paid[key]]))
+        status = "paid_off" if planted[key] and paid[key] else "open"
+        setups.append({"id": slug, "name": label, "anchors": anchors, "status": status})
     return {
         "characters": {
             "schema_version": 1,
@@ -91,7 +100,7 @@ def registers_from_cards(cards: list[dict[str, Any]]) -> dict[str, dict[str, Any
             "entries": _entries(places, place_forms),
         },
         "timeline": {"schema_version": 1, "kind": "timeline", "entries": timeline},
-        "setups": {"schema_version": 1, "kind": "setups", "entries": list(setups.values())},
+        "setups": {"schema_version": 1, "kind": "setups", "entries": setups},
     }
 
 
@@ -104,11 +113,11 @@ def check_cards(cards: Any, scene_ids: set[str]) -> list[str]:
         a = card.get("anchor") if isinstance(card, dict) else None
         if not isinstance(a, str):
             continue
-        if a not in scene_ids:
+        if _bare(a) not in scene_ids:
             errors.append(f"$[{k}].anchor: no scene {a!r} in structure.json")
-        if a in seen:
+        if _bare(a) in seen:
             errors.append(f"$[{k}].anchor: {a!r} has two cards")
-        seen.add(a)
+        seen.add(_bare(a))
     return errors
 
 
@@ -119,8 +128,7 @@ def build(ws_root: Path, version: str | None = None) -> tuple[list[Path], list[s
     if not struct_file.is_file():
         raise FileNotFoundError(f"no structure for {version}; run `lc anchor` first")
     data = json.loads(struct_file.read_text(encoding="utf-8"))
-    scene_ids = {re.sub(r"^p\d+\.", "", s["id"]) for c in data["chapters"] for s in c["scenes"]}
-    scene_ids |= {s["id"] for c in data["chapters"] for s in c["scenes"]}
+    scene_ids = {_bare(s["id"]) for c in data["chapters"] for s in c["scenes"]}
     cards_file = base / "scene_cards.json"
     if not cards_file.is_file():
         raise FileNotFoundError(

@@ -19,6 +19,7 @@ from litcritic.textstats import strip_accents
 
 DEFAULT_BUDGET = 2000
 FOOTER_RESERVE = 40
+MIN_BUDGET = 100
 
 
 def estimate_tokens(text: str) -> int:
@@ -31,6 +32,17 @@ class Out:
     lines: list[str] = field(default_factory=list)
     used: int = 0
     cut: bool = False
+
+    def __post_init__(self) -> None:
+        if self.budget < MIN_BUDGET:
+            raise ValueError(f"--budget must be at least {MIN_BUDGET} tokens")
+
+    def add_cut(self, line: str) -> None:
+        """Add as much of ``line`` as fits (for a paragraph longer than the budget)."""
+        room = int((self.budget - FOOTER_RESERVE - self.used - 2) * 3.5)
+        self.lines.append(line[: max(room, 0)].rstrip() + " […]")
+        self.used = self.budget - FOOTER_RESERVE
+        self.cut = True
 
     def add(self, line: str) -> bool:
         cost = estimate_tokens(line) + 1
@@ -69,18 +81,23 @@ def load(ws_root: Path, version: str | None = None) -> Index:
     if not struct_file.is_file():
         raise FileNotFoundError(f"no structure for {version}; run `lc anchor` first")
     data = json.loads(struct_file.read_text(encoding="utf-8"))
-    if len(data["paragraphs"]) != len(paras):
+    fps = [f for _, f in data["paragraphs"]]
+    if len(fps) != len(paras) or any(
+        structure.fingerprint(t) != f for t, f in zip(paras, fps, strict=True)
+    ):
         raise ValueError(f"structure for {version} is out of date; run `lc anchor`")
     cards_file = ws_root / "index" / version / "scene_cards.json"
     cards = json.loads(cards_file.read_text(encoding="utf-8")) if cards_file.is_file() else []
     sums_file = ws_root / "index" / version / "chapter_summaries.json"
     sums = json.loads(sums_file.read_text(encoding="utf-8")) if sums_file.is_file() else {}
+    if not isinstance(cards, list) or not isinstance(sums, dict):
+        raise ValueError("scene_cards.json must be a list and chapter_summaries.json an object")
     return Index(
         paras,
         [a for a, _ in data["paragraphs"]],
         [f for _, f in data["paragraphs"]],
         data["chapters"],
-        {c["anchor"]: c for c in cards if isinstance(c, dict) and "anchor" in c},
+        {_bare(c["anchor"]): c for c in cards if isinstance(c, dict) and "anchor" in c},
         sums,
     )
 
@@ -126,7 +143,11 @@ def show(ix: Index, unit: str, budget: int = DEFAULT_BUDGET, fingerprints: bool 
     last = r.start - 1
     for i in r:
         tag = f"{ix.anchors[i]} {ix.fps[i]}" if fingerprints else ix.anchors[i]
-        if not out.add(f"[{tag}] {ix.paragraphs[i]}"):
+        line = f"[{tag}] {ix.paragraphs[i]}"
+        if not out.add(line):
+            if i == r.start:  # longer than the whole budget: show its start, move on
+                out.add_cut(line)
+                last = i
             break
         last = i
     if last < r.stop - 1:
@@ -142,7 +163,11 @@ def show_from(ix: Index, anchor: str, budget: int = DEFAULT_BUDGET) -> str:
     out = Out(budget)
     last = start - 1
     for i in range(start, chapter.stop):
-        if not out.add(f"[{ix.anchors[i]}] {ix.paragraphs[i]}"):
+        line = f"[{ix.anchors[i]}] {ix.paragraphs[i]}"
+        if not out.add(line):
+            if i == start:
+                out.add_cut(line)
+                last = i
             break
         last = i
     if last < chapter.stop - 1:
@@ -157,6 +182,8 @@ def _fold(text: str) -> str:
 def find(ix: Index, query: str, budget: int = DEFAULT_BUDGET, within: str = "") -> str:
     """Paragraphs containing every word of ``query`` (or the quoted phrase), accent-blind."""
     q = query.strip()
+    if not q.strip('"').strip():
+        raise ValueError("empty search; give one or more words")
     phrase = q.startswith('"') and q.endswith('"') and len(q) > 1
     terms = [_fold(q.strip('"'))] if phrase else [_fold(t) for t in q.split()]
     scope = _range(ix, within) if within else range(len(ix.paragraphs))
@@ -190,9 +217,10 @@ def context(ix: Index, anchor: str, budget: int = DEFAULT_BUDGET) -> str:
     if chapter:
         title = chapter["title"] or "(untitled)"
         out.add(f"chapter {chapter['id']}: {title} — {chapter['words']} words")
-        if ix.summaries.get(chapter["id"]):
-            out.add(f"chapter summary: {ix.summaries[chapter['id']]}")
-    card = ix.cards.get(ix.scene_of(centre)) or ix.cards.get(ix.scene_of(centre).split(".", 1)[-1])
+        summary = ix.summaries.get(chapter["id"]) or ix.summaries.get(ckey)
+        if summary:
+            out.add(f"chapter summary: {summary}")
+    card = ix.cards.get(_bare(ix.scene_of(centre)))
     if card:
         out.add(
             f"scene {card['anchor']}: {card.get('summary', '')} | POV {card.get('pov', '?')} | "

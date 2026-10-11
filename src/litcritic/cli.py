@@ -246,7 +246,15 @@ def _cmd_query(args: argparse.Namespace) -> int:
             text = query.find(ix, args.query, args.budget, args.within or "")
         else:
             text = query.context(ix, args.anchor, args.budget)
-    except (workspace.WorkspaceError, OSError, ValueError, KeyError) as exc:
+    except (
+        workspace.WorkspaceError,
+        OSError,
+        ValueError,
+        KeyError,
+        TypeError,
+        AttributeError,
+        IndexError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     sys.stdout.write(text)

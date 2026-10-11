@@ -116,3 +116,46 @@ def test_cli_queries(ws: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert "[c02." in capsys.readouterr().out
     assert main(["context", "c02.s1.p3", "--workspace", str(ws)]) == 0
     assert main(["show", "c77", "--workspace", str(ws)]) == 2
+
+
+def test_review_regressions(ws: Path) -> None:
+    ix = query.load(ws)
+    # A paragraph longer than the budget is shown cut, and the hint moves on.
+    long_ix = query.Index(
+        ["x " * 3000, "next one"], ["c01.s1.p1", "c01.s1.p2"], ["a", "b"], [], {}, {}
+    )
+    text = query.show(long_ix, "c01", budget=200)
+    assert text.startswith("[c01.s1.p1] x x") and "lc show c01.s1.p2-" in text
+    assert query.estimate_tokens(text) <= 200
+    with pytest.raises(ValueError, match="empty"):
+        query.find(ix, "  ")
+    with pytest.raises(ValueError, match="at least"):
+        query.toc(ix, budget=10)
+    # Payoff listed before its setup still pairs; two payoffs alone stay open.
+    base = {
+        "schema_version": 1,
+        "summary": "s",
+        "pov": "none",
+        "characters": [],
+        "location": "",
+        "story_time": "",
+        "events": ["e"],
+    }
+    regs = index.registers_from_cards(
+        [
+            base | {"anchor": "c05.s1", "payoffs": ["the letter", "the key"]},
+            base | {"anchor": "c02.s1", "setups": ["the letter", "the mines", "the mines!"]},
+            base | {"anchor": "c06.s1", "payoffs": ["the key"]},
+        ]
+    )
+    entries = {e["name"]: e for e in regs["setups"]["entries"]}
+    assert entries["the letter"]["status"] == "paid_off"
+    assert entries["the key"]["status"] == "open"
+    assert len({e["id"] for e in regs["setups"]["entries"]}) == len(entries)
+    # The same scene with and without its part prefix is one card.
+    assert any(
+        "two cards" in e
+        for e in index.check_cards(
+            [base | {"anchor": "c01.s1"}, base | {"anchor": "p1.c01.s1"}], {"c01.s1"}
+        )
+    )
