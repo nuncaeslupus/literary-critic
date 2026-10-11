@@ -18,6 +18,7 @@ from litcritic import (
     guard,
     index,
     ingest,
+    kinds,
     kit,
     locate,
     metrics,
@@ -424,7 +425,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_init.add_argument("--title", required=True)
     p_init.add_argument("--language", required=True, help="ISO 639-1 code, e.g. es, en")
     p_init.add_argument("--author", default="")
-    p_init.add_argument("--kind", default="novel", help="novel, short-story, poem, script…")
+    p_init.add_argument("--kind", default="novel", choices=kinds.available())
     p_init.add_argument("--series", default="")
     p_init.add_argument("--tag", action="append", help="repeatable")
     p_init.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")

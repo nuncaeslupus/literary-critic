@@ -23,8 +23,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from litcritic import kinds, validate
 from litcritic import spans as spanlib
-from litcritic import validate
 
 SCHEMA_VERSION = 1
 DIR = "codex"
@@ -147,7 +147,7 @@ class Codex:
         if not (self.root / "codex.toml").is_file():
             raise CodexError(f"no Codex in {work_root}; run `lc codex init`")
         self.meta = tomllib.loads((self.root / "codex.toml").read_text(encoding="utf-8"))
-        self.types = types or load_types()
+        self.types = types or load_types(*kinds.type_dirs(work_root))
         self.items: dict[str, Item] = {}
         self.load_errors: list[str] = []
         self.damaged: set[str] = set()  # type files with rows we could not load: never rewritten

@@ -1,0 +1,17 @@
+id = "form"
+title = "Form"
+stage = "line"
+order = 10
+purpose = "Look at how each poem is built: stanza and line lengths, metre and rhyme, and whether breaks of pattern are deliberate."
+
+[[check]]
+id = "form.pattern-breaks"
+title = "Pattern breaks"
+question = "Where does a poem break its own stanza, metre or rhyme pattern, and does the break earn its place?"
+look_for = ["a stanza shorter or longer than its siblings", "a rhyme that drops out", "a line that changes metre"]
+method = "llm"
+kind = "diagnostic"
+action_level = "line"
+inputs = ["L3"]
+evidence = "Quoted lines with the pattern around them and the effect of the break."
+severity = { high = "A break that undoes the poem's music at its key line.", medium = "Breaks that read as slips.", low = "Occasional." }

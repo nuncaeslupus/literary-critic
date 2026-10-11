@@ -17,8 +17,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, locate, query, structure, validate
-from litcritic.workspace import MANIFEST, repo_root
+from litcritic import checklist, kinds, locate, query, structure, validate
+from litcritic.workspace import MANIFEST
 
 LEVELS = ("structural", "scene", "line")
 SEVERITY = {"high": 3.0, "medium": 2.0, "low": 1.0}
@@ -127,7 +127,7 @@ def build(
     findings = load_json(ws_root / "analysis" / "findings.json", None)
     if findings is None:
         raise RoundError("no analysis/findings.json yet; run the checks first")
-    cat = checklist.load(repo_root() / "checklist")
+    cat = checklist.load(kinds.of_work(ws_root).CHECKLIST)
     errors = validate.validate("finding", findings, cat)
     if errors:
         raise RoundError("findings are invalid: " + "; ".join(errors[:5]))

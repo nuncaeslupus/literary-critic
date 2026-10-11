@@ -1,0 +1,18 @@
+# The form of a stanza or poem: lines, metre, rhyme scheme.
+type = "stanza_form"
+prefix = "sf"
+links = ["about", "part_of"]
+columns = ["lines", "metre", "rhyme"]
+spans_required = true
+
+[schema]
+type = "object"
+required = ["lines"]
+additionalProperties = false
+[schema.properties.lines]
+type = "integer"
+minimum = 1
+[schema.properties.metre]
+type = "string"
+[schema.properties.rhyme]
+type = "string"
