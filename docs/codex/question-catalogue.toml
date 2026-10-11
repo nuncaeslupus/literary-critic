@@ -72,7 +72,7 @@ id = "characters-04"
 family = "characters"
 text = "Which named characters appear only once or twice?"
 needs = ["mentions", "item:entity(kind=character)"]
-sql = "SELECT e.name, COUNT(m.para_idx) AS mentions FROM v_entity e LEFT JOIN mentions m ON m.entity_id = e.id WHERE e.kind = 'character' GROUP BY e.id HAVING COUNT(m.para_idx) <= 2"
+sql = "SELECT e.name, COUNT(m.para_idx) AS mentions FROM v_entity e LEFT JOIN mentions m ON m.entity_id = e.id WHERE e.kind = 'character' AND e.status != 'retired' GROUP BY e.id HAVING COUNT(m.para_idx) <= 2"
 
 [[question]]
 id = "characters-05"
@@ -178,7 +178,7 @@ id = "threads-06"
 family = "threads"
 text = "Which setups have no payoff, and which payoffs have no setup?"
 needs = ["item:setup(paid_by)", "links(rel=pays_off)"]
-sql = "SELECT id, label, side FROM v_setup s WHERE (side = 'setup' AND NOT EXISTS (SELECT 1 FROM links l WHERE l.dst = s.id AND l.rel = 'pays_off')) OR (side = 'payoff' AND NOT EXISTS (SELECT 1 FROM links l WHERE l.src = s.id AND l.rel = 'pays_off'))"
+sql = "SELECT id, label, side FROM v_setup s WHERE s.status != 'retired' AND ((side = 'setup' AND NOT EXISTS (SELECT 1 FROM links l WHERE l.dst = s.id AND l.rel = 'pays_off')) OR (side = 'payoff' AND NOT EXISTS (SELECT 1 FROM links l WHERE l.src = s.id AND l.rel = 'pays_off')))"
 
 [[question]]
 id = "threads-07"
@@ -248,7 +248,7 @@ id = "pov_setting-04"
 family = "pov_setting"
 text = "Which places are mentioned but never visited?"
 needs = ["mentions", "item:scene(location)"]
-sql = "SELECT e.name FROM v_entity e WHERE e.kind = 'place' AND EXISTS (SELECT 1 FROM mentions m WHERE m.entity_id = e.id) AND NOT EXISTS (SELECT 1 FROM v_scene sc WHERE norm(sc.location) = norm(e.name))"
+sql = "SELECT e.name FROM v_entity e WHERE e.kind = 'place' AND e.status != 'retired' AND EXISTS (SELECT 1 FROM mentions m WHERE m.entity_id = e.id) AND NOT EXISTS (SELECT 1 FROM v_scene sc WHERE norm(sc.location) = norm(e.name) OR norm(sc.location) IN (SELECT norm(a.value) FROM items i, json_each(i.fields_json, '$.aliases') a WHERE i.id = e.id))"
 
 [[question]]
 id = "pov_setting-05"
@@ -276,7 +276,7 @@ id = "dialogue-03"
 family = "dialogue"
 text = "Which dialogue lines have no clear speaker?"
 needs = ["item:dialogue(speaker)"]
-sql = "SELECT p.anchor FROM paragraphs p WHERE substr(p.text, 1, 1) IN ('—', '-', '«', '\"', '“') AND NOT EXISTS (SELECT 1 FROM v_dialogue d WHERE d.para_idx = p.idx) ORDER BY p.idx"
+sql = "SELECT p.anchor FROM paragraphs p WHERE p.scene NOT LIKE '%.s0' AND (p.text GLOB '--*' OR p.text GLOB '—*' OR p.text GLOB '«*' OR p.text GLOB '“*' OR p.text GLOB '\"*') AND NOT EXISTS (SELECT 1 FROM v_dialogue d JOIN spans s ON s.item_id = d.id WHERE d.status != 'retired' AND p.idx BETWEEN s.start_idx AND s.end_idx) ORDER BY p.idx"
 
 [[question]]
 id = "dialogue-04"
@@ -318,7 +318,7 @@ id = "style-03"
 family = "style"
 text = "How often do sentences open with the same word in a row?"
 needs = ["tokens"]
-sql = "WITH t AS (SELECT para_idx, pos, norm, is_word, LAG(form) OVER (PARTITION BY para_idx ORDER BY pos) AS prev_form FROM tokens), starts AS (SELECT para_idx, pos, norm FROM t WHERE is_word = 1 AND (prev_form IS NULL OR prev_form IN ('.', '?', '!', '…'))), seq AS (SELECT norm, LAG(norm) OVER (ORDER BY para_idx, pos) AS prev FROM starts) SELECT norm, COUNT(*) AS repeats FROM seq WHERE norm = prev GROUP BY norm ORDER BY repeats DESC"
+sql = "WITH t AS (SELECT para_idx, pos, norm, is_word, LAG(form) OVER (PARTITION BY para_idx ORDER BY pos) AS prev_form FROM tokens), starts AS (SELECT para_idx, pos, norm FROM t WHERE is_word = 1 AND (prev_form IS NULL OR prev_form IN ('.', '?', '!', '…', '-', '—', '¿', '¡', '«', '\"', '“'))), seq AS (SELECT norm, LAG(norm) OVER (ORDER BY para_idx, pos) AS prev FROM starts) SELECT norm, COUNT(*) AS repeats FROM seq WHERE norm = prev GROUP BY norm ORDER BY repeats DESC"
 
 [[question]]
 id = "style-04"
@@ -332,7 +332,7 @@ id = "style-05"
 family = "style"
 text = "How often is the passive voice used, by chapter?"
 needs = ["tokens"]
-sql = "SELECT p.chapter, COUNT(*) AS passives FROM ngrams g JOIN paragraphs p ON p.idx = g.para_idx WHERE g.n = 2 AND (g.norm GLOB 'fue *ado' OR g.norm GLOB 'fue *ido' OR g.norm GLOB 'fueron *ados' OR g.norm GLOB 'fueron *idos' OR g.norm GLOB 'was *ed' OR g.norm GLOB 'were *ed') GROUP BY p.chapter ORDER BY passives DESC"
+sql = "SELECT p.chapter, COUNT(*) AS passives FROM ngrams g JOIN paragraphs p ON p.idx = g.para_idx WHERE g.n = 2 AND (g.norm GLOB 'fue *ad[oa]' OR g.norm GLOB 'fue *id[oa]' OR g.norm GLOB 'fueron *ad[oa]s' OR g.norm GLOB 'fueron *id[oa]s' OR g.norm GLOB 'fue *[cs]ho' OR g.norm GLOB 'fue *to' OR g.norm GLOB 'was *ed' OR g.norm GLOB 'were *ed' OR g.norm IN ('was taken', 'was given', 'was seen', 'was made', 'was done', 'was written', 'were taken', 'were given', 'were seen', 'were made')) GROUP BY p.chapter ORDER BY passives DESC"
 
 [[question]]
 id = "style-06"
@@ -389,14 +389,14 @@ id = "rhythm_density-01"
 family = "rhythm_density"
 text = "Which passages carry the most and the least knowledge per word?"
 needs = ["spans", "items", "paragraphs.words"]
-sql = "SELECT c.id, c.words, (SELECT COUNT(*) FROM spans s JOIN paragraphs p ON p.idx = s.start_idx WHERE p.chapter = c.id) AS items, ROUND(1000.0 * (SELECT COUNT(*) FROM spans s JOIN paragraphs p ON p.idx = s.start_idx WHERE p.chapter = c.id) / MAX(c.words, 1), 2) AS per_1000_words FROM chapters c ORDER BY per_1000_words"
+sql = "WITH k AS (SELECT p.chapter, COUNT(*) AS n FROM spans s JOIN items i ON i.id = s.item_id JOIN paragraphs p ON p.idx = s.start_idx WHERE i.status != 'retired' AND i.type NOT IN ('issue', 'decision') GROUP BY p.chapter) SELECT c.id, c.words, COALESCE(k.n, 0) AS items, ROUND(1000.0 * COALESCE(k.n, 0) / MAX(c.words, 1), 2) AS per_1000_words FROM chapters c LEFT JOIN k ON k.chapter = c.id ORDER BY per_1000_words"
 
 [[question]]
 id = "rhythm_density-02"
 family = "rhythm_density"
 text = "Which long passages add no fact, event or thread progress?"
 needs = ["spans", "item:fact", "item:thread", "paragraphs.words"]
-sql = "SELECT s.id, s.words FROM scenes s WHERE s.words > 1000 AND NOT EXISTS (SELECT 1 FROM spans x JOIN items i ON i.id = x.item_id JOIN paragraphs p ON p.idx = x.start_idx WHERE p.scene = s.id AND i.type IN ('fact', 'thread')) ORDER BY s.words DESC"
+sql = "SELECT s.id, s.words FROM scenes s WHERE s.words > 1000 AND NOT EXISTS (SELECT 1 FROM spans x JOIN items i ON i.id = x.item_id JOIN paragraphs p ON p.idx = x.start_idx WHERE p.scene = s.id AND i.type IN ('fact', 'thread') AND i.status != 'retired') ORDER BY s.words DESC"
 
 [[question]]
 id = "rhythm_density-03"
@@ -410,7 +410,7 @@ id = "rhythm_density-04"
 family = "rhythm_density"
 text = "Where do several slow chapters come in a row?"
 needs = ["chapters", "item:fact", "item:dialogue"]
-sql = "WITH r AS (SELECT c.idx, c.id, 1000.0 * ((SELECT COUNT(*) FROM v_fact f JOIN paragraphs p ON p.idx = f.para_idx WHERE p.chapter = c.id) + (SELECT COUNT(*) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx WHERE p.chapter = c.id)) / MAX(c.words, 1) AS pace FROM chapters c WHERE c.id != 'c00'), m AS (SELECT AVG(pace) AS a FROM r) SELECT r.id, ROUND(r.pace, 2) AS pace FROM r, m WHERE r.pace < m.a AND (SELECT r2.pace FROM r r2 WHERE r2.idx = r.idx - 1) < m.a ORDER BY r.idx"
+sql = "WITH r AS (SELECT c.idx, c.id, 1000.0 * ((SELECT COUNT(*) FROM v_fact f JOIN paragraphs p ON p.idx = f.para_idx WHERE p.chapter = c.id AND f.status != 'retired') + (SELECT COUNT(*) FROM v_dialogue d JOIN paragraphs p ON p.idx = d.para_idx WHERE p.chapter = c.id AND d.status != 'retired')) / MAX(c.words, 1) AS pace FROM chapters c WHERE c.id != 'c00'), m AS (SELECT AVG(pace) AS a FROM r), slow AS (SELECT r.idx, r.id, r.pace FROM r, m WHERE r.pace < m.a) SELECT s.id, ROUND(s.pace, 2) AS pace FROM slow s WHERE EXISTS (SELECT 1 FROM slow o WHERE o.idx IN (s.idx - 1, s.idx + 1)) ORDER BY s.idx"
 
 [[question]]
 id = "rhythm_density-05"
@@ -459,7 +459,7 @@ id = "issues_progress-06"
 family = "issues_progress"
 text = "Which chapters have the most open issues?"
 needs = ["item:issue", "spans", "paragraphs.chapter"]
-sql = "SELECT p.chapter, COUNT(*) AS open_issues FROM v_issue i JOIN paragraphs p ON p.idx = i.para_idx WHERE i.status = 'active' GROUP BY p.chapter ORDER BY open_issues DESC"
+sql = "SELECT p.chapter, COUNT(*) AS open_issues FROM v_issue i JOIN paragraphs p ON p.idx = i.para_idx WHERE i.status = 'active' AND NOT EXISTS (SELECT 1 FROM links l JOIN items d ON d.id = l.src WHERE l.dst = i.id AND l.rel = 'about' AND d.type = 'decision' AND d.status != 'retired' AND json_extract(d.fields_json, '$.verdict') IN ('rejected', 'done', 'done_differently')) GROUP BY p.chapter ORDER BY open_issues DESC"
 
 [[question]]
 id = "mechanics-01"
@@ -473,7 +473,7 @@ id = "mechanics-02"
 family = "mechanics"
 text = "Are dialogue dashes and quotation marks used consistently?"
 needs = ["paragraphs.text", "item:dialogue"]
-sql = "SELECT substr(text, 1, 2) AS opener, COUNT(*) AS lines FROM paragraphs WHERE substr(text, 1, 1) IN ('—', '-', '«', '\"', '“') GROUP BY opener ORDER BY lines DESC"
+sql = "SELECT CASE WHEN text GLOB '--*' THEN '--' WHEN text GLOB '—*' THEN '—' WHEN text GLOB '-*' THEN '-' WHEN text GLOB '«*' THEN '«' WHEN text GLOB '“*' THEN '“' ELSE '\"' END AS opener, COUNT(*) AS lines FROM paragraphs WHERE scene NOT LIKE '%.s0' AND (text GLOB '-*' OR text GLOB '—*' OR text GLOB '«*' OR text GLOB '“*' OR text GLOB '\"*') GROUP BY opener ORDER BY lines DESC"
 
 [[question]]
 id = "mechanics-03"
@@ -487,4 +487,4 @@ id = "mechanics-04"
 family = "mechanics"
 text = "Is a given name always spelled the same way?"
 needs = ["item:entity(aliases)", "mentions.form", "tokens"]
-sql = "SELECT e.name, m.form, COUNT(*) AS uses FROM mentions m JOIN v_entity e ON e.id = m.entity_id WHERE m.form != e.name GROUP BY e.id, m.form ORDER BY e.name"
+sql = "SELECT e.name, t.form AS variant, COUNT(*) AS uses FROM v_entity e JOIN tokens t ON t.is_word = 1 AND t.form GLOB '[A-ZÁÉÍÓÚÑ]*' AND substr(t.norm, 1, 3) = substr(norm(e.name), 1, 3) AND abs(length(t.norm) - length(norm(e.name))) <= 1 AND t.norm != norm(e.name) WHERE e.kind = 'character' AND e.status != 'retired' AND instr(e.name, ' ') = 0 AND NOT EXISTS (SELECT 1 FROM items i, json_each(i.fields_json, '$.aliases') a WHERE i.id = e.id AND norm(a.value) = t.norm) GROUP BY e.id, t.form ORDER BY uses DESC"

@@ -62,3 +62,29 @@ def test_catalogue_sql_runs_on_fixture(fixture_view: view.View) -> None:
         assert cols, q["id"]
         expressible += 1
     assert expressible / len(entries) >= 0.9, expressible
+
+
+# Answers the fixture can check exactly (it has characters, dialogue, threads,
+# setups and issues; no scene cards, facts or places with scenes).
+def _rows(v: view.View, qid: str) -> list[tuple[object, ...]]:
+    q = next(e for e in load() if e["id"] == qid)
+    return v.run(q["sql"])[1]
+
+
+def test_catalogue_answers_on_fixture(fixture_view: view.View) -> None:
+    v = fixture_view
+    total = v.run("SELECT SUM(words) FROM paragraphs")[1][0][0]
+    assert sum(int(str(r[2])) for r in _rows(v, "structure-03")) == total
+    openers = dict(_rows(v, "mechanics-02"))
+    assert max(openers, key=lambda k: int(str(openers[k]))) == "--" and len(openers) <= 3
+    lone = {r[0] for r in _rows(v, "threads-06")}
+    named = {r[0] for r in v.run(questions.load()["setups-without-payoff"].sql)[1]}
+    assert lone == named and lone
+    flagged = _rows(v, "dialogue-03")
+    covered = v.run("SELECT COUNT(*) FROM v_dialogue")[1][0][0]
+    assert 0 < len(flagged) < 900 - int(str(covered)) and all(
+        ".s0." not in str(r[0]) for r in flagged
+    )
+    by_chapter = {r[0]: r[1] for r in _rows(v, "issues_progress-06")}
+    assert sum(int(str(n)) for n in by_chapter.values()) == 2  # rejected issue left out
+    assert all(int(str(r[1])) <= 2 for r in _rows(v, "characters-04"))
