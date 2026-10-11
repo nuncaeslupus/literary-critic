@@ -5,6 +5,7 @@ label: "named questions"
 priority: 5
 deps: [t-c05a183b, t-dbfae825]
 workspace: codex
+status: merged
 ---
 
 # C5: Fixture Codex for a corpus text, hand-written items for entities, dialogue speakers, threads and setups; named questions engine and the first 20 questions; `lc codex ask/questions`
