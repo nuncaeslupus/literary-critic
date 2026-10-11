@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="091ae9d45765fcf44fdce5089dcaa05f2198d62d78340eaa253389d8ec331f94">
+<title>Literary Critic — Plan (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#6b6862;--line:#e6e2da;
+  --card:#ffffff;--accent:#0f766e;--accent2:#b45309;--chip:#eef2f1;
+  --note:#fff8ec;--note-line:#f0cf94;--code:#f3f1ec;--link:#0f766e;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#e9e7e2;--muted:#a09c95;--line:#2e2c33;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#26313055;
+    --note:#251f10;--note-line:#6b531c;--code:#26242b;--link:#5eead4;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px}
+a{color:var(--link)}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto}
+pre code{background:none;padding:0}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#b45309}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:22px 0 6px}
+.hero h1{font-size:25px;line-height:1.2;margin:.1em 0 .3em}
+.hero p{color:var(--muted);margin:.3em 0}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:26px 0}
+.part-title{font-size:21px;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 8px;position:sticky;top:54px;background:var(--bg);z-index:10}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+.sec{padding:6px 0 2px;border-bottom:1px solid var(--line);scroll-margin-top:100px}
+.sec:last-child{border-bottom:none}
+.sec-h{margin:10px 0 6px;line-height:1.3;position:sticky;top:94px;background:var(--bg);z-index:5;padding-top:6px}
+h3.sec-h{font-size:18.5px}
+h4.sec-h{font-size:16.5px;color:var(--fg)}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p{margin:.55em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent2);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;width:100%;font-size:13.5px;margin:.6em 0;display:block;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+.note{background:var(--note);border:1px solid var(--note-line);border-radius:10px;
+  padding:8px 11px;margin:10px 0 16px}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.note-ico{color:var(--accent2);font-weight:800}
+.note-label{font-size:12px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.05em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted)}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:15.5px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:.8}
+.note.filled{box-shadow:0 0 0 2px var(--note-line) inset}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Plan<small>annotatable reader · 2026-10-11</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 11 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Plan</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Plan</summary><ul>
+<li><a href="#s-plan-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-plan-technical-solution">Technical solution</a></li>
+<li><a href="#s-plan-architecture-overview">Architecture overview</a></li>
+<li><a href="#s-plan-data-flow">Data flow</a></li>
+<li><a href="#s-plan-state-changes">State changes</a></li>
+<li><a href="#s-plan-technology-choices">Technology choices</a></li>
+<li><a href="#s-plan-out-of-scope">Out of scope</a></li>
+<li><a href="#s-plan-implementation-tasks">Implementation tasks</a></li>
+<li><a href="#s-plan-evidence-log">Evidence log</a></li>
+<li><a href="#s-plan-dependency-graph">Dependency graph</a></li>
+<li><a href="#s-plan-sign-off">Sign-off</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge plan">Plan</span>Plan</h2>
+<article class="sec" id="s-plan-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-11
+<strong>Specification</strong>: <code>arsenal/project/chat/spec.md</code> (approved, revision 2)
+<strong>Author</strong>: imarcos + Claude
+<strong>Revision</strong>: 1
+<strong>Status</strong>: approved (2026-10-11, revision 1) — without annotations (the owner asked to create the tasks and start implementing overnight)
+<strong>Revision log</strong>:
+- r1 — first draft</p>
+<blockquote>
+<p>Review record, kept the way the spec keeps its own: each round of notes bumps
+<strong>Revision</strong> with a log line naming the plan-notes export it applied,
+committed beside this file in the same commit. Approval is
+<code>approved (YYYY-MM-DD, revision N)</code>, plus <code>— without annotations</code> when there
+were none.</p>
+</blockquote></div>
+<div class="note" data-for="s-plan-intro"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN · intro</span></div><textarea class="note-ta" data-key="s-plan-intro" data-label="Preamble &amp; scope" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-technical-solution">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Technical solution</span></h3>
+<div class="note" data-for="s-plan-technical-solution"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Technical solution</span></div><textarea class="note-ta" data-key="s-plan-technical-solution" data-label="Technical solution" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-architecture-overview">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Architecture overview</span></h4>
+<div class="sec-body"><pre><code class="language-text">writer: &quot;I want to use literary-critic for my novel&quot;
+   │
+   ▼
+Skill (litcritic) ── fetch tool (B) / uploaded zip (A)
+   │
+   ▼
+05-setup prompt ── lc setup ── finds manuscript + versions, workspace MyNovel/literary-critic/
+   │
+   ▼
+guided rounds (00-guide, 40, 60) ── Codex, metrics, issues (existing)
+   │ writer approves a change
+   ▼
+lc docx edits / rename ── safe_edit (lock, on-disk change, backup, verify, restore)
+   │                         └── docx_edit (tracked revisions, byte-preserving)
+   ▼
+word_live adapter ── locate / save / close / reopen
+   ├── today: instructions for the agent (computer use + Find), manual fallback
+   └── later: Word-control extension (separate project, same interface)
+</code></pre>
+<ul>
+<li><code>docx_edit.py</code> knows OOXML: paragraphs, runs and revisions. It writes nothing to disk.</li>
+<li><code>safe_edit.py</code> owns the file on disk: locks, hashes, backups, atomic replace, verify, restore. It calls <code>docx_edit</code> and knows nothing about novels.</li>
+<li><code>word_live.py</code> is the one adapter to the open Word.</li>
+<li><code>setup.py</code> handles discovery and the workspace in the novel's folder.</li>
+</ul></div>
+<div class="note" data-for="s-plan-architecture-overview"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Architecture overview</span></div><textarea class="note-ta" data-key="s-plan-architecture-overview" data-label="Architecture overview" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-data-flow">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data flow</span></h4>
+<div class="sec-body"><ol>
+<li><strong>Setup:</strong> <code>lc setup --folder</code> scans the folder, groups versions (name stem plus text similarity of the opening paragraphs), takes the newest as the manuscript, creates the workspace, ingests and anchors it.</li>
+<li><strong>Round:</strong> the writer approves a change. The agent writes <code>edits.json</code> (quote plus context, replacement) and runs <code>lc docx edits</code>. <code>safe_edit</code> checks, backs up, applies, verifies and logs. The result goes to the writer in one short message.</li>
+<li><strong>Live:</strong> <code>lc docx locate</code> gives the unique Find string. The agent uses computer use to bring Word to that passage, or gives the writer the plain locator.</li>
+</ol></div>
+<div class="note" data-for="s-plan-data-flow"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Data flow</span></div><textarea class="note-ta" data-key="s-plan-data-flow" data-label="Data flow" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-state-changes">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">State changes</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Database</th>
+<th>Change</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workspace</td>
+<td><code>state/documents.json</code></td>
+<td>CREATE/UPDATE</td>
+<td>Hash and modification time of each document at its last read</td>
+</tr>
+<tr>
+<td>workspace</td>
+<td><code>backups/</code></td>
+<td>CREATE</td>
+<td>A copy before every write; the last 20 are kept</td>
+</tr>
+<tr>
+<td>workspace</td>
+<td><code>log/edits.jsonl</code></td>
+<td>CREATE</td>
+<td>Append-only record of applied edits and renames</td>
+</tr>
+<tr>
+<td>manuscript</td>
+<td>the writer's <code>.docx</code></td>
+<td>UPDATE</td>
+<td>Tracked revisions only, approved by the writer</td>
+</tr>
+<tr>
+<td>profile</td>
+<td><code>analysis/profile.toml</code></td>
+<td>UPDATE</td>
+<td><code>prose_suggestions</code>, <code>ai_notice_ack</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-state-changes"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › State changes</span></div><textarea class="note-ta" data-key="s-plan-state-changes" data-label="State changes" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-technology-choices">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Technology choices</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>OOXML edited as text with stdlib <code>zipfile</code> + regex/ElementTree, the same approach as <code>docx_out.py</code></td>
+<td>Keeps every untouched byte, runs in chat sandboxes, needs no dependencies (rule 9)</td>
+</tr>
+<tr>
+<td>Tracked revisions (<code>w:ins</code> / <code>w:del</code>, author <code>literary-critic</code>)</td>
+<td>Every Word version shows them and lets the writer reject each one</td>
+</tr>
+<tr>
+<td>Quote plus prefix/suffix addressing (W3C TextQuoteSelector style, as in <code>spans.py</code>)</td>
+<td>Survives edits and refuses ambiguous matches</td>
+</tr>
+<tr>
+<td>Computer use behind an adapter</td>
+<td>Works today with no install; the separate extension can replace it later</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-technology-choices"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Technology choices</span></div><textarea class="note-ta" data-key="s-plan-technology-choices" data-label="Technology choices" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-out-of-scope">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Out of scope</span></h4>
+<div class="sec-body"><ul>
+<li>The Word-control extension itself (separate project; only its interface is defined here).</li>
+<li>The Microsoft 365 side panel, the comment bridge, and Google Docs editing (D-19, D-15).</li>
+<li>Rewriting prose for the writer. Edits apply text the writer approved; wording suggestions only appear when <code>prose_suggestions</code> is on.</li>
+<li><code>.odt</code> editing (read-only, as today).</li>
+</ul></div>
+<div class="note" data-for="s-plan-out-of-scope"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Out of scope</span></div><textarea class="note-ta" data-key="s-plan-out-of-scope" data-label="Out of scope" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-implementation-tasks">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Implementation tasks</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>T#</th>
+<th>Description</th>
+<th>Service</th>
+<th>Size</th>
+<th>Depends</th>
+<th>Gate</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W1</td>
+<td><code>docx_edit.py</code>: apply text edits addressed by quote plus context as tracked revisions (split runs at the boundaries, keep <code>w:rPr</code>, refuse matches that cross fields or existing revisions); whole-word rename; no disk I/O</td>
+<td>lc</td>
+<td>L</td>
+<td>—</td>
+<td><code>unintended_docx_changes == 0</code></td>
+<td><code>test_edits_change_only_target_text</code> in <code>tests/test_docx_edit.py</code> — across docgen fixtures, the text after applying equals the expected text, and every part except <code>document.xml</code> is byte-identical; <code>test_edits_are_tracked_revisions</code> — each edit is a <code>w:del</code> plus <code>w:ins</code> pair, and rejecting all of them restores the original text</td>
+</tr>
+<tr>
+<td>W2</td>
+<td><code>safe_edit.py</code>: lock-file and on-disk-change checks, backup, temp write, atomic replace, verify, automatic restore, <code>state/documents.json</code>, <code>log/edits.jsonl</code></td>
+<td>lc</td>
+<td>M</td>
+<td>W1</td>
+<td><code>restore_on_failure == 1.0</code></td>
+<td><code>test_failure_at_each_step_restores_original</code> in <code>tests/test_safe_edit.py</code> — failures injected after backup, write and verify leave the original byte-identical; <code>test_locked_or_changed_document_is_refused</code> — a <code>~$</code> lock or a changed hash means nothing is written</td>
+</tr>
+<tr>
+<td>W3</td>
+<td>CLI <code>lc docx edits / rename / locate / status</code> with JSON output; the unique Find string for <code>locate</code></td>
+<td>lc</td>
+<td>M</td>
+<td>W2</td>
+<td><code>docx_cli_contract_ok == 1</code></td>
+<td><code>test_docx_cli_contracts</code> in <code>tests/test_docx_cli.py</code> — every command prints the documented JSON keys and exit codes; <code>test_locate_find_string_is_unique</code> — on the corpus, every paragraph's Find string matches exactly once and is at most 255 characters</td>
+</tr>
+<tr>
+<td>W4</td>
+<td><code>lc setup</code>: manuscript and version discovery, environment report, workspace in <code>&lt;folder&gt;/literary-critic/</code>, ingest and anchor</td>
+<td>lc</td>
+<td>M</td>
+<td>—</td>
+<td><code>novel_discovery_accuracy == 1.0</code></td>
+<td><code>test_setup_picks_latest_draft_and_lists_versions</code> in <code>tests/test_setup.py</code> — on a fixture folder with drafts, copies, a backup and an unrelated document, it names the latest draft and lists the versions in date order; <code>test_setup_reuses_existing_workspace</code> — a second run changes nothing</td>
+</tr>
+<tr>
+<td>W5</td>
+<td>Prose-suggestion setting with the AI-text notice (D-22); <code>AGENTS.md</code> rule 5 and the prompts reworded</td>
+<td>lc, prompts</td>
+<td>S</td>
+<td>W4</td>
+<td><code>prose_suggestions_default_off == 1</code></td>
+<td><code>test_prose_suggestions_off_until_notice_acknowledged</code> in <code>tests/test_setup.py</code> — a new workspace has it off, and turning it on without <code>--ack-ai-notice</code> exits 1 and prints the notice</td>
+</tr>
+<tr>
+<td>W6</td>
+<td><code>word_live.py</code> adapter plus <code>docs/word-control-interface.md</code>; <code>80-live-word</code> prompt (computer use: bring Word to a passage, save, close, reopen; manual fallback)</td>
+<td>lc, docs, prompts</td>
+<td>S</td>
+<td>W3</td>
+<td><code>word_helper_interface_documented == 1</code></td>
+<td><code>test_word_live_adapter_matches_interface_doc</code> in <code>tests/test_word_live.py</code> — every operation in the doc exists in the adapter with the same payload keys, and the default implementation returns manual instructions</td>
+</tr>
+<tr>
+<td>W7</td>
+<td>Prompts for the guided flow: <code>05-setup</code> (wizard: capabilities, what to enable, Pro/Cowork vs basic mode, OS limits), <code>00-guide</code> (plan, accept/change/reject, short answers), <code>60-rounds</code> (apply approved edits with <code>lc docx</code>)</td>
+<td>prompts</td>
+<td>M</td>
+<td>W3, W4, W5, W6</td>
+<td><code>prompt_commands_parse == 1</code></td>
+<td><code>test_prompt_commands_parse</code> in <code>tests/test_prompts.py</code> — every <code>lc</code> command in the prompts parses, including the new ones</td>
+</tr>
+<tr>
+<td>W8</td>
+<td>Skill entry and packaging: <code>SKILL.md</code> as the entry point (fetch the tool, else upload steps); <code>lc kit --skill</code> builds a Skill zip with the kit bundled</td>
+<td>skill, lc</td>
+<td>M</td>
+<td>W7</td>
+<td><code>skill_workshop_errors == 0</code></td>
+<td><code>test_skill_zip_builds_and_validates</code> in <code>tests/test_kit.py</code> — the zip has <code>SKILL.md</code> at its root and the kit inside, under 30 MB; skill-workshop <code>validate.py</code> passes on the repo skill</td>
+</tr>
+<tr>
+<td>W9</td>
+<td>Scripted usability walkthrough (writer persona, main path, then Word open the whole time) and hand-test checklists for the owner (D-18, D-7 path B, computer-use locate on Mac/Windows)</td>
+<td>evidence</td>
+<td>M</td>
+<td>W8</td>
+<td><code>writer_setup_actions &lt;= 5</code></td>
+<td>Scripted review recorded in <code>status/evidence/W9-walkthrough.md</code> — setup actions counted, median writer-facing reply at most 120 words, every instruction located and one step at a time</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Status legend</strong>: ☐ not started · ◐ in progress · ☑ merged</p>
+<p><strong>Merge order</strong>: W1 → W2 → W3, with W4 → W5 in parallel; then W6, W7, W8, W9.
+<strong>Branch pattern</strong>: the session's designated branch, one PR per task.</p></div>
+<div class="note" data-for="s-plan-implementation-tasks"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Implementation tasks</span></div><textarea class="note-ta" data-key="s-plan-implementation-tasks" data-label="Implementation tasks" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-evidence-log">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Evidence log</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>T#</th>
+<th>Gate</th>
+<th>Measured</th>
+<th>Command</th>
+<th>SHA</th>
+<th>Env</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-evidence-log"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Evidence log</span></div><textarea class="note-ta" data-key="s-plan-evidence-log" data-label="Evidence log" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-dependency-graph">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Dependency graph</span></h4>
+<div class="sec-body"><pre><code class="language-text">W1 ─&gt; W2 ─&gt; W3 ─┬─&gt; W6 ─┐
+W4 ─&gt; W5 ───────┴───────┴─&gt; W7 ─&gt; W8 ─&gt; W9
+</code></pre></div>
+<div class="note" data-for="s-plan-dependency-graph"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Dependency graph</span></div><textarea class="note-ta" data-key="s-plan-dependency-graph" data-label="Dependency graph" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-plan-sign-off">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Sign-off</span></h3>
+<div class="sec-body"><ul>
+<li>[x] Design reviewed (owner pre-approved execution)</li>
+<li>[x] Contracts agreed (spec §5)</li>
+<li>[x] Migration strategy validated (additive only)</li>
+<li>[x] Ready for execution</li>
+</ul></div>
+<div class="note" data-for="s-plan-sign-off"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Sign-off</span></div><textarea class="note-ta" data-key="s-plan-sign-off" data-label="Sign-off" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-plan-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Plan notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var name='literary-critic-plan-notes-'+today()+'-r1.md';
+    var saved=download(name,r.text);openModal(r.text);
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    dirty=false;setState('✓ Backup saved '+nowStamp(),'ok');
+    toast('Exported '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-plan-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
