@@ -201,11 +201,112 @@ This is a planned improvement. It decides whether the tool is usable by its targ
 | D-22 | Turning on prose suggestions first shows a plain notice: AI-written text may later be identified as AI-written (by detection tools, and by watermarks if a provider adds them); publishers, contests and agents may require disclosure or refuse it; authorship and rights questions follow. The tool recommends that the writer does the writing. If the writer still turns it on, even to write a novel with AI, that is the writer's choice, and the notice is recorded in the workspace | agreed | 2026-10-11 |
 | D-21 | The Word-control extension is a separate project; this spec defines the interface it must implement (find and select a passage, apply tracked edits live, rename across the document, save, close, reopen) | agreed | 2026-10-11 |
 
-
-> Sections 5–6 (contracts, risks) are appended by `design`.
-
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §5`
+> _(your notes here — replace this line)_
+
+### CLI contracts (new, additive)
+
+Every new command prints one JSON object on stdout. Exit codes: 0 means done, 1 means refused (a safety check failed, nothing written), 2 means a usage or input error.
+
+#### `lc setup --folder <dir> [--prose-suggestions on|off --ack-ai-notice]`
+
+- Finds the manuscript and its versions, reports what the script can detect, and creates or reuses `<dir>/literary-critic/` as the workspace.
+- Response:
+  ```json
+  {"status": "ready", "workspace": "MyNovel/literary-critic",
+   "manuscript": {"path": "MyNovel/MyNovel_v3.docx", "modified": "2026-10-01T18:22:00Z"},
+   "versions": [{"path": "MyNovel/MyNovel_v2.docx", "modified": "2026-09-12T10:00:00Z", "similarity": 0.94}],
+   "others": ["MyNovel/notes.docx"],
+   "environment": {"python": "3.12.3", "os": "darwin", "folder_writable": true, "word_lock": false},
+   "settings": {"prose_suggestions": false}}
+  ```
+- Turning prose suggestions on without `--ack-ai-notice` exits 1 and prints the notice (D-22).
+
+#### `lc docx edits --workspace <ws> --edits <edits.json> [--dry-run]`
+
+- Request (`edits.json`):
+  ```json
+  {"document": "MyNovel_v3.docx",
+   "edits": [{"id": "A3", "quote": "dijo Pablo con voz", "prefix": "—Ya voy —", "suffix": " cansada.",
+              "replace": "susurró Pablo con voz", "reason": "approved by the writer"}]}
+  ```
+- Response:
+  ```json
+  {"status": "applied", "applied": ["A3"], "skipped": [],
+   "backup": "literary-critic/backups/MyNovel_v3-20261011T230000Z.docx",
+   "revisions": 1, "author": "literary-critic"}
+  ```
+- Each edit becomes `w:del` and `w:ins` revisions. A quote that is not found exactly once, or a document that is locked or changed on disk, means nothing is written (status `refused`, with the reason per edit).
+
+#### `lc docx rename OLD NEW --workspace <ws> [--case-sensitive] [--dry-run]`
+
+- Whole-word replacement across the manuscript as tracked revisions. Returns `{"status", "count", "backup"}`, and with `--dry-run` the first 20 hits with their locators.
+
+#### `lc docx locate <anchor|"quote"> --workspace <ws>`
+
+- Returns what the agent needs to bring Word to the passage: the shortest unique search string in the document (`find`, at most 255 characters, Word's Find limit), and the plain locator (chapter, page, first and last words) for the writer.
+  ```json
+  {"find": "Ya voy —dijo Pablo con voz", "unique": true,
+   "locator": {"chapter": "7", "page": 112, "first_words": "—Ya voy", "last_words": "voz cansada."}}
+  ```
+
+#### `lc docx status --workspace <ws>`
+
+- `{"document", "locked": bool, "changed_on_disk": bool, "last_read_sha256", "backups": n}`. The agent calls it before asking the writer to save and close.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › CLI contracts (new, additive)`
+> _(your notes here — replace this line)_
+
+### Word-control interface (implemented later by the separate project, D-21)
+
+Documented in `docs/word-control-interface.md`. It has the same operation names as the CLI (`locate`, `apply_edits`, `rename`, `save`, `close`, `reopen`, `selection`), the same JSON payloads, and one adapter in `src/litcritic/word_live.py`. Today the adapter's live operations return `{"status": "manual", "how": "computer-use", ...}` instructions for the agent; once the extension exists they call it.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Word-control interface (implemented later by the separate project, D-21)`
+> _(your notes here — replace this line)_
+
+### Workspace state (forward-compatible additions)
+
+| Path | Change | Reversible | Forward-compatible |
+|------|--------|------------|--------------------|
+| `<folder>/literary-critic/state/documents.json` | new: per document `{path, sha256, mtime, read_at}` written whenever the tool reads it | yes (delete) | yes |
+| `<folder>/literary-critic/backups/` | new: a timestamped copy before every write, the last 20 kept | yes | yes |
+| `<folder>/literary-critic/log/edits.jsonl` | new: one line per applied edit or rename (id, quote, replacement, backup, time) | yes | yes |
+| `analysis/profile.toml` | new key `prose_suggestions = false`, plus `ai_notice_ack = "<time>"` when on | yes | yes (absent means off) |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Workspace state (forward-compatible additions)`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| A write corrupts or loses the writer's manuscript | Low | High | Backup first; write to a temp file and replace atomically; verify the zip opens, every XML part parses, and the text diff equals the approved edits; restore automatically on any failure | unit tests with injected failures at each step; fixture corpus with tricky runs (docgen) |
+| An edit lands in the wrong place (repeated phrases) | Med | High | A quote must match exactly once, using prefix and suffix context; otherwise the edit is refused | unit tests with repeated phrases |
+| Word holds the file open and overwrites our edit, or we overwrite unsaved work | Med | High | Refuse while a `~$` lock exists or the file changed since it was last read; the prompt makes the agent save and close first | unit tests with simulated lock and mtime changes |
+| Runs split oddly (formatting, fields, existing revisions) and break the replacement | Med | Med | Split runs at the match boundaries, keeping each run's `w:rPr`; refuse matches that cross fields or existing revisions | docgen fixtures with fields, soft hyphens and tracked deletions |
+| Computer use (a preview) misbehaves or is unavailable | Med | Low | Every step has a manual fallback (the plain locator, "please save and close") | walkthrough on both paths |
+| Version discovery picks the wrong file | Low | Med | Show the writer the choice and the other versions, and ask for confirmation before the first analysis | discovery fixture test |
+| Prose-suggestion setting enabled by accident | Low | Med | Needs the explicit notice acknowledgement flag; recorded with a time | unit test |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 

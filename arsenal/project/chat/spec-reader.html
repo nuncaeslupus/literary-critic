@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="a2028c21ff74d9a317879f0f84241b449257b45a1c25d4b1295433e4ae5be385">
+<meta name="arsenal-source-sha256" content="f93894952e2d3c67f4943dff2fbe7101ecdfc713a63aa5678e747152ee3a8c3a">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -130,7 +130,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 14 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -160,6 +160,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-option-c-build-the-word-control">Option C: Build the Word-control extension now</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-cli-contracts-new-additive">CLI contracts (new, additive)</a></li>
+<li><a href="#s-spec-word-control-interface-implement">Word-control interface (implemented later by the separate project, D-21)</a></li>
+<li><a href="#s-spec-workspace-state-forward-compatib">Workspace state (forward-compatible additions)</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -565,11 +570,170 @@ no notes for that revision, add <code>— without annotations</code>.</p>
 <td>2026-10-11</td>
 </tr>
 </tbody>
-</table>
-<blockquote>
-<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
-</blockquote></div>
+</table></div>
 <div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="note" data-for="s-spec-5"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></div><textarea class="note-ta" data-key="s-spec-5" data-label="§5 Contracts" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-cli-contracts-new-additive">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI contracts (new, additive)</span></h4>
+<div class="sec-body"><p>Every new command prints one JSON object on stdout. Exit codes: 0 means done, 1 means refused (a safety check failed, nothing written), 2 means a usage or input error.</p>
+<h4><code>lc setup --folder &lt;dir&gt; [--prose-suggestions on|off --ack-ai-notice]</code></h4>
+<ul>
+<li>Finds the manuscript and its versions, reports what the script can detect, and creates or reuses <code>&lt;dir&gt;/literary-critic/</code> as the workspace.</li>
+<li>Response:
+  <code>json
+  {"status": "ready", "workspace": "MyNovel/literary-critic",
+   "manuscript": {"path": "MyNovel/MyNovel_v3.docx", "modified": "2026-10-01T18:22:00Z"},
+   "versions": [{"path": "MyNovel/MyNovel_v2.docx", "modified": "2026-09-12T10:00:00Z", "similarity": 0.94}],
+   "others": ["MyNovel/notes.docx"],
+   "environment": {"python": "3.12.3", "os": "darwin", "folder_writable": true, "word_lock": false},
+   "settings": {"prose_suggestions": false}}</code></li>
+<li>Turning prose suggestions on without <code>--ack-ai-notice</code> exits 1 and prints the notice (D-22).</li>
+</ul>
+<h4><code>lc docx edits --workspace &lt;ws&gt; --edits &lt;edits.json&gt; [--dry-run]</code></h4>
+<ul>
+<li>Request (<code>edits.json</code>):
+  <code>json
+  {"document": "MyNovel_v3.docx",
+   "edits": [{"id": "A3", "quote": "dijo Pablo con voz", "prefix": "—Ya voy —", "suffix": " cansada.",
+              "replace": "susurró Pablo con voz", "reason": "approved by the writer"}]}</code></li>
+<li>Response:
+  <code>json
+  {"status": "applied", "applied": ["A3"], "skipped": [],
+   "backup": "literary-critic/backups/MyNovel_v3-20261011T230000Z.docx",
+   "revisions": 1, "author": "literary-critic"}</code></li>
+<li>Each edit becomes <code>w:del</code> and <code>w:ins</code> revisions. A quote that is not found exactly once, or a document that is locked or changed on disk, means nothing is written (status <code>refused</code>, with the reason per edit).</li>
+</ul>
+<h4><code>lc docx rename OLD NEW --workspace &lt;ws&gt; [--case-sensitive] [--dry-run]</code></h4>
+<ul>
+<li>Whole-word replacement across the manuscript as tracked revisions. Returns <code>{"status", "count", "backup"}</code>, and with <code>--dry-run</code> the first 20 hits with their locators.</li>
+</ul>
+<h4><code>lc docx locate &lt;anchor|"quote"&gt; --workspace &lt;ws&gt;</code></h4>
+<ul>
+<li>Returns what the agent needs to bring Word to the passage: the shortest unique search string in the document (<code>find</code>, at most 255 characters, Word's Find limit), and the plain locator (chapter, page, first and last words) for the writer.
+  <code>json
+  {"find": "Ya voy —dijo Pablo con voz", "unique": true,
+   "locator": {"chapter": "7", "page": 112, "first_words": "—Ya voy", "last_words": "voz cansada."}}</code></li>
+</ul>
+<h4><code>lc docx status --workspace &lt;ws&gt;</code></h4>
+<ul>
+<li><code>{"document", "locked": bool, "changed_on_disk": bool, "last_read_sha256", "backups": n}</code>. The agent calls it before asking the writer to save and close.</li>
+</ul></div>
+<div class="note" data-for="s-spec-cli-contracts-new-additive"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI contracts (new, additive)</span></div><textarea class="note-ta" data-key="s-spec-cli-contracts-new-additive" data-label="CLI contracts (new, additive)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-word-control-interface-implement">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Word-control interface (implemented later by the separate project, D-21)</span></h4>
+<div class="sec-body"><p>Documented in <code>docs/word-control-interface.md</code>. It has the same operation names as the CLI (<code>locate</code>, <code>apply_edits</code>, <code>rename</code>, <code>save</code>, <code>close</code>, <code>reopen</code>, <code>selection</code>), the same JSON payloads, and one adapter in <code>src/litcritic/word_live.py</code>. Today the adapter's live operations return <code>{"status": "manual", "how": "computer-use", ...}</code> instructions for the agent; once the extension exists they call it.</p></div>
+<div class="note" data-for="s-spec-word-control-interface-implement"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Word-control interface (implemented later by the separate project, D-21)</span></div><textarea class="note-ta" data-key="s-spec-word-control-interface-implement" data-label="Word-control interface (implemented later by the separate project, D-21)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-workspace-state-forward-compatib">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Workspace state (forward-compatible additions)</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;folder&gt;/literary-critic/state/documents.json</code></td>
+<td>new: per document <code>{path, sha256, mtime, read_at}</code> written whenever the tool reads it</td>
+<td>yes (delete)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>&lt;folder&gt;/literary-critic/backups/</code></td>
+<td>new: a timestamped copy before every write, the last 20 kept</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>&lt;folder&gt;/literary-critic/log/edits.jsonl</code></td>
+<td>new: one line per applied edit or rename (id, quote, replacement, backup, time)</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>analysis/profile.toml</code></td>
+<td>new key <code>prose_suggestions = false</code>, plus <code>ai_notice_ack = "&lt;time&gt;"</code> when on</td>
+<td>yes</td>
+<td>yes (absent means off)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-workspace-state-forward-compatib"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Workspace state (forward-compatible additions)</span></div><textarea class="note-ta" data-key="s-spec-workspace-state-forward-compatib" data-label="Workspace state (forward-compatible additions)" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A write corrupts or loses the writer's manuscript</td>
+<td>Low</td>
+<td>High</td>
+<td>Backup first; write to a temp file and replace atomically; verify the zip opens, every XML part parses, and the text diff equals the approved edits; restore automatically on any failure</td>
+<td>unit tests with injected failures at each step; fixture corpus with tricky runs (docgen)</td>
+</tr>
+<tr>
+<td>An edit lands in the wrong place (repeated phrases)</td>
+<td>Med</td>
+<td>High</td>
+<td>A quote must match exactly once, using prefix and suffix context; otherwise the edit is refused</td>
+<td>unit tests with repeated phrases</td>
+</tr>
+<tr>
+<td>Word holds the file open and overwrites our edit, or we overwrite unsaved work</td>
+<td>Med</td>
+<td>High</td>
+<td>Refuse while a <code>~$</code> lock exists or the file changed since it was last read; the prompt makes the agent save and close first</td>
+<td>unit tests with simulated lock and mtime changes</td>
+</tr>
+<tr>
+<td>Runs split oddly (formatting, fields, existing revisions) and break the replacement</td>
+<td>Med</td>
+<td>Med</td>
+<td>Split runs at the match boundaries, keeping each run's <code>w:rPr</code>; refuse matches that cross fields or existing revisions</td>
+<td>docgen fixtures with fields, soft hyphens and tracked deletions</td>
+</tr>
+<tr>
+<td>Computer use (a preview) misbehaves or is unavailable</td>
+<td>Med</td>
+<td>Low</td>
+<td>Every step has a manual fallback (the plain locator, "please save and close")</td>
+<td>walkthrough on both paths</td>
+</tr>
+<tr>
+<td>Version discovery picks the wrong file</td>
+<td>Low</td>
+<td>Med</td>
+<td>Show the writer the choice and the other versions, and ask for confirmation before the first analysis</td>
+<td>discovery fixture test</td>
+</tr>
+<tr>
+<td>Prose-suggestion setting enabled by accident</td>
+<td>Low</td>
+<td>Med</td>
+<td>Needs the explicit notice acknowledgement flag; recorded with a time</td>
+<td>unit test</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></div><textarea class="note-ta" data-key="s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 </section>
 </div>
