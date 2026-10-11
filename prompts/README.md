@@ -12,6 +12,7 @@ validation were not run.
 | `10-ingest-and-structure.md` | Bring a draft in, check its structure, correct it with overrides. |
 | `20-codex-items.md` | Record scenes, characters, places, motifs and setups as Codex items; write the synopsis. |
 | `30-orientation.md` | First reading: writer's brief, profile, traits, what the novel is trying to do. |
+| `35-ask.md` | Answer a writer's question from the Codex: named questions, links, changes, SQL. |
 | `40-checks.md` | Run the checklist and record findings with evidence. |
 | `50-new-draft.md` | Bring in the next draft and see what changed. |
 | `60-rounds.md` | Turn findings into a revision round, the letter, and the writer's decisions. |

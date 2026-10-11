@@ -98,3 +98,44 @@ def test_every_prompt_is_listed_in_readme() -> None:
     readme = (repo_root() / "prompts" / "README.md").read_text(encoding="utf-8")
     for doc in (repo_root() / "prompts").glob("[0-9]*.md"):
         assert f"`{doc.name}`" in readme
+
+
+def _codex_commands() -> list[str]:
+    return [
+        c
+        for doc in _documents()
+        for c in _commands(doc.read_text(encoding="utf-8"))
+        if c.startswith("lc codex")
+    ]
+
+
+def test_prompt_commands_parse(tmp_path: Path) -> None:
+    """Gate skill_workshop_errors (prompt side): the procedures drive the Codex, and every
+    `lc codex` call parses; every literal SQL query in them runs on a fixture Codex."""
+    commands = _codex_commands()
+    assert [c for c in commands if check(c)] == []
+    used = {shlex.split(re.sub(r"<[^>]*>", "x", c))[2] for c in commands if len(c.split()) > 2}
+    assert used >= {
+        "init",
+        "add",
+        "update",
+        "retire",
+        "show",
+        "find",
+        "sql",
+        "ask",
+        "questions",
+        "sync",
+        "check",
+    }
+    from codex_fixture import build
+
+    from litcritic import view
+
+    build(tmp_path)
+    v = view.View(tmp_path)
+    sql_args = [shlex.split(c)[3] for c in commands if c.startswith('lc codex sql "')]
+    queries = [q for q in sql_args if "<" not in q]
+    assert queries
+    for sql in queries:
+        v.run(sql)

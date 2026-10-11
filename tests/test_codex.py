@@ -175,6 +175,8 @@ def test_codex_cli_add_show_find_check(work: Path, capsys: pytest.CaptureFixture
     dl = capsys.readouterr().out.strip()
     assert main(["codex", "show", ent, *w]) == 0
     assert f"<- about {dl}" in capsys.readouterr().out
+    assert main(["codex", "show", dl, *w]) == 0
+    assert "at c" in capsys.readouterr().out
     assert main(["codex", "find", "heroine", *w]) == 0
     assert ent in capsys.readouterr().out
     assert main(["codex", "check", *w]) == 0

@@ -189,6 +189,13 @@ def _run(args: argparse.Namespace) -> int:
             out.add(_line(item))
             if item.fields:
                 out.add("fields: " + json.dumps(item.fields, ensure_ascii=False))
+            for s in item.spans:
+                where = s.start.para + (f"-{s.end.para}" if s.end.para != s.start.para else "")
+                words = " ".join((s.exact or f"{s.head} … {s.tail}").split())
+                cut = words if len(words) <= 80 else words[:77] + "..."
+                out.add(f'at {where} [{s.state}, {s.draft}]: "{cut}"')
+            if not item.links and not cx.linked_to(item.id):
+                out.add("links: none")
             for link in item.links:
                 target = cx.items.get(link["to"])
                 label = _line(target) if target else f"{link['to']} (missing)"

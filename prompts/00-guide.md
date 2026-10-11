@@ -7,7 +7,9 @@ and explain; you never write the novel.
 
 1. Ask which workspace (novel) to open if it is not obvious, then read
    `log/` (latest session notes) and `lc show --workspace <slug>` (table of
-   contents). Do not load the whole text.
+   contents). Do not load the whole text. If a newer draft was ingested, bring
+   the Codex up to it first (`50-new-draft.md`), then run
+   `lc codex check --workspace <slug>`.
 2. If this is the first session, ask the writer which **mode** they want:
    - `revision` (default): the writer improves their own novel; you produce
      prioritised, concrete actions in rounds.
@@ -42,13 +44,17 @@ and explain; you never write the novel.
 6. **Evidence.** Every finding cites anchors (`c03.s2.p14`) and short quotes
    (25 words at most each). No anchor, no finding.
 7. **Strengths count.** Say what works and must be protected.
-8. **Budget your reading.** Use `lc show`, `lc find` and `lc context` with
-   `--budget`; read raw text only where a check needs it.
+8. **Ask the Codex before reading.** What is known about the novel lives in
+   its Codex: ask it first (`35-ask.md`), then read with `lc show`, `lc find`
+   and `lc context` with `--budget`, only where an answer needs the text.
+   Record what you learn as Codex items (`20-codex-items.md`), so the next
+   session does not re-read it.
 
 ## Where things live
 
 All working files are in the workspace folder (outside the tool repo); in
 these procedures `<ws>` stands for that folder (`$LITCRITIC_HOME/<slug>`).
+The Codex is `<ws>/codex/`: never edit its files by hand, use `lc codex`.
 Commands that take a file path need the full path, or run them from inside
 `<ws>`. At the
 end of a session, append what was done, decisions and the next step to

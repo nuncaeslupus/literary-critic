@@ -1,0 +1,18 @@
+{
+  "skill": "litcritic",
+  "canary": "litcritic-loaded-2026-10-11-2ebb846e930ff66d",
+  "negative_control": "this skill rewrites the writer's chapters in a better style when asked",
+  "load_prompts": [
+    "Here is my novel's new draft, can you check what changed since the last one?",
+    "In how many chapters does my protagonist speak?",
+    "Give me the editorial letter for the next revision round.",
+    "Write a reader report on this manuscript for the agency.",
+    "Am I overusing the word 'silence' in my book?"
+  ],
+  "no_load_prompts": [
+    "[[Add a new named question to the codex query layer]]",
+    "Fix the failing test in tests/test_view.py.",
+    "Summarise this news article for me.",
+    "Review PR 53 for regressions."
+  ]
+}
