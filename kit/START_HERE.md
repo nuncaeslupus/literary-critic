@@ -5,7 +5,9 @@ a novel, or an editor assess one, using the `lc` tool. Read this file first.
 
 ## 1. Check the platform
 
-Unzip the kit, then from its folder run:
+Unzip the kit, then run it from a folder you can write to (in a Skill
+install, the kit's own folder is read-only: use a scratch folder and give the
+full path to `lc.py`):
 
 ```
 python lc.py doctor --home ./home

@@ -6,6 +6,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+import pytest
+
 from litcritic import kit
 from litcritic.cli import main
 from litcritic.workspace import repo_root
@@ -53,8 +55,10 @@ def test_skill_zip_builds_and_validates(tmp_path: Path) -> None:
     # The installed Skill folder is read-only: the tool still runs from it.
     folder = tmp_path / "skills"
     zipfile.ZipFile(out).extractall(folder)
-    for p in folder.rglob("*"):
-        p.chmod(stat.S_IRUSR | stat.S_IXUSR | (stat.S_IWUSR if p.is_dir() else 0))
+    before = sorted(str(p) for p in folder.rglob("*"))
+    for p in sorted(folder.rglob("*"), reverse=True):  # files first, then their folders
+        p.chmod(stat.S_IRUSR | stat.S_IXUSR)
+    folder.chmod(stat.S_IRUSR | stat.S_IXUSR)
     work = tmp_path / "work"
     work.mkdir()
     env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
@@ -68,10 +72,11 @@ def test_skill_zip_builds_and_validates(tmp_path: Path) -> None:
     )
     if result.returncode != 0 or "ok" not in result.stdout:
         errors.append(f"doctor failed: {result.stdout} {result.stderr}")
-    if any(p.name == "__pycache__" for p in folder.rglob("*")):
-        errors.append("running the tool wrote into the Skill folder")
+    folder.chmod(stat.S_IRWXU)
     for p in folder.rglob("*"):
         p.chmod(stat.S_IRWXU)
+    if sorted(str(p) for p in folder.rglob("*")) != before:
+        errors.append("running the tool wrote into the Skill folder")
     skill_workshop_errors = len(errors)
     assert skill_workshop_errors == 0, errors
 
@@ -81,3 +86,16 @@ def test_repo_skill_passes_the_same_checks(tmp_path: Path) -> None:
     assert _frontmatter_problems(skill.read_text(encoding="utf-8"), "litcritic") == []
     assert main(["kit", "--skill", "--out", str(tmp_path / "s.zip")]) == 0
     assert os.path.getsize(tmp_path / "s.zip") > 0
+
+
+def test_failed_skill_build_keeps_the_previous_zip(tmp_path: Path) -> None:
+    out, _ = kit.build_skill(tmp_path / "skill.zip")
+    good = out.read_bytes()
+    saved = kit.SKILL_MAX_BYTES
+    try:
+        kit.SKILL_MAX_BYTES = 10
+        with pytest.raises(kit.KitError, match="over"):
+            kit.build_skill(out)
+    finally:
+        kit.SKILL_MAX_BYTES = saved
+    assert out.read_bytes() == good and not list(tmp_path.glob("*.partial"))

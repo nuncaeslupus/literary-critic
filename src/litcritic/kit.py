@@ -23,7 +23,7 @@ class KitError(Exception):
 
 
 MIN_PYTHON = (3, 11)  # keep in step with requires-python in pyproject.toml
-CONTENT = ("src/litcritic", "schemas", "checklist", "prompts")
+CONTENT = ("src/litcritic", "schemas", "checklist", "prompts", "docs/codex")
 LAUNCHER = '''"""Run the literary-critic tool from an unpacked kit: python lc.py <command> ..."""
 
 import sys
@@ -47,42 +47,44 @@ SKILL_NAME = "litcritic"
 SKILL_MAX_BYTES = 30 * 1024 * 1024
 
 
-def _entries(root: Path, skip: set[Path]) -> list[tuple[Path | None, str, str]]:
-    """(source file or None, name in the zip, text when generated) of the kit."""
-    out: list[tuple[Path | None, str, str]] = []
+def _files(root: Path) -> dict[str, Path]:
+    """The kit's files from the checkout: name in the zip -> source."""
+    out: dict[str, Path] = {}
     for top in CONTENT:
         for p in sorted((root / top).rglob("*")):
-            if p.resolve() in skip or not p.is_file():
-                continue
-            if "__pycache__" not in p.parts and p.suffix != ".pyc":
-                out.append((p, p.relative_to(root).as_posix(), ""))
-    out.append((root / "kit" / "START_HERE.md", "START_HERE.md", ""))
-    out.append((None, "lc.py", LAUNCHER))
-    out.append((root / "LICENSE", "LICENSE", ""))
+            if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+                out[p.relative_to(root).as_posix()] = p
+    out["START_HERE.md"] = root / "kit" / "START_HERE.md"
+    out["LICENSE"] = root / "LICENSE"
     return out
 
 
-def _write_zip(out: Path, entries: list[tuple[Path | None, str, str]], prefix: str = "") -> int:
+def _build(
+    out: Path, files: dict[str, Path], generated: dict[str, str], prefix: str = "", limit: int = 0
+) -> int:
+    """Write the zip beside ``out`` and move it into place only when complete (and,
+    with ``limit``, small enough): a failed build never removes the previous one."""
     out.parent.mkdir(parents=True, exist_ok=True)
     partial = out.with_name(out.name + ".partial")
     try:
         with zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED) as zf:
-            for src, name, text in entries:
-                if src is None:
-                    zf.writestr(prefix + name, text)
-                else:
-                    zf.write(src, prefix + name)
+            for name, src in files.items():
+                zf.write(src, prefix + name)
+            for name, text in generated.items():
+                zf.writestr(prefix + name, text)
+        if limit and partial.stat().st_size > limit:
+            raise KitError(f"the zip would be over {limit // 2**20} MB")
         os.replace(partial, out)
-    except OSError:
+    finally:
         partial.unlink(missing_ok=True)
-        raise
-    return len(entries)
+    return len(files) + len(generated)
 
 
-def _checkout(extra: tuple[Path, ...] = ()) -> Path:
+def _checkout(*extra: Path) -> Path:
     root = repo_root()
     needed = [root / top for top in CONTENT] + [root / "kit" / "START_HERE.md", root / "LICENSE"]
-    missing = [p.relative_to(root).as_posix() for p in [*needed, *extra] if not p.exists()]
+    needed += [root / e for e in extra]
+    missing = [p.relative_to(root).as_posix() for p in needed if not p.exists()]
     if missing:
         raise KitError(f"not a source checkout of the tool (missing {', '.join(missing)})")
     return root
@@ -92,22 +94,16 @@ def build(out: Path | None = None) -> tuple[Path, int]:
     """Write ``literary-critic-kit-<version>.zip``; returns its path and file count."""
     root = _checkout()
     out = (out or root / "dist" / f"literary-critic-kit-{__version__}.zip").resolve()
-    skip = {out, out.with_name(out.name + ".partial")}
-    return out, _write_zip(out, _entries(root, skip))
+    return out, _build(out, _files(root), {"lc.py": LAUNCHER})
 
 
 def build_skill(out: Path | None = None) -> tuple[Path, int]:
     """Write ``litcritic-skill-<version>.zip``: the ``litcritic/`` Skill folder (its
     SKILL.md at the top) with the whole kit inside, ready to upload to Claude."""
-    root_skill = repo_root() / SKILL
-    root = _checkout((root_skill,))
+    root = _checkout(SKILL)
     out = (out or root / "dist" / f"litcritic-skill-{__version__}.zip").resolve()
-    skip = {out, out.with_name(out.name + ".partial")}
-    entries = [(root_skill, "SKILL.md", ""), *_entries(root, skip)]
-    count = _write_zip(out, entries, prefix=f"{SKILL_NAME}/")
-    if out.stat().st_size > SKILL_MAX_BYTES:
-        out.unlink()
-        raise KitError(f"the Skill zip would be over {SKILL_MAX_BYTES // 2**20} MB")
+    files = {"SKILL.md": root / SKILL, **_files(root)}
+    count = _build(out, files, {"lc.py": LAUNCHER}, f"{SKILL_NAME}/", SKILL_MAX_BYTES)
     return out, count
 
 
