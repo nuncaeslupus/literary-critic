@@ -31,6 +31,7 @@ from litcritic import (
     structure,
     synth,
     validate,
+    word_live,
     workspace,
 )
 
@@ -569,6 +570,7 @@ def build_parser() -> argparse.ArgumentParser:
     codex_cli.register(sub)
     docx_cli.register(sub)
     setup.register(sub)
+    word_live.register(sub)
     return parser
 
 
