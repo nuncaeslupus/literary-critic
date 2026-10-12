@@ -105,18 +105,22 @@ def create(
     kind: str = "novel",
     series: str = "",
     tags: tuple[str, ...] = (),
+    folder: str = "",
 ) -> Workspace:
-    """Create an empty work: a folder named ``slug`` with a unique id in ``work.toml``."""
+    """Create an empty work: a folder named ``folder`` (default ``slug``) with a
+    unique id in ``work.toml``."""
     if not slug or "/" in slug or slug.startswith("."):
         raise WorkspaceError(f"invalid slug: {slug!r}")
-    root = ((base or home()).expanduser() / slug).resolve()
+    root = ((base or home()).expanduser() / (folder or slug)).resolve()
     check_location(root)
     if (root / MANIFEST).exists():
         raise WorkspaceError(f"workspace already exists: {root}")
     for sub in SUBDIRS:
         (root / sub).mkdir(parents=True, exist_ok=True)
     q = json.dumps  # JSON string escaping is valid TOML basic-string escaping
-    taken = {_meta(ws).get("id") for ws in all_workspaces(base)}
+    # A work placed in a chosen folder: check ids against home and the registry,
+    # never by walking that folder (it can be the writer's whole Documents).
+    taken = {_meta(ws).get("id") for ws in all_workspaces(None if folder else base)}
     work_id = f"{slug}-{secrets.token_hex(3)}"
     while work_id in taken:
         work_id = f"{slug}-{secrets.token_hex(3)}"

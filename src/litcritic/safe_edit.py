@@ -117,6 +117,14 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     return digest
 
 
+def is_last_read(ws_root: Path, doc: Path, digest: str) -> bool:
+    """These bytes are what the tool last read, and this is the last document read."""
+    state = _load_state(ws_root)
+    top = max((int(r.get("seq", 0)) for r in state.values()), default=0)
+    known = state.get(_key(doc), {})
+    return known.get("sha256") == digest and int(known.get("seq", 0)) == top
+
+
 def known_documents(ws_root: Path, suffix: str = "") -> list[Path]:
     """Documents the tool has read, oldest read first."""
     rows = sorted(_load_state(ws_root).values(), key=lambda r: int(r.get("seq", 0)))

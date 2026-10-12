@@ -451,7 +451,9 @@ def ingest(path: Path, ws_root: Path) -> Result:
     draft = read(path, data)
     if not draft.paragraphs:
         raise IngestError("no text found")
-    if path.suffix.lower() == ".docx":
+    if path.suffix.lower() == ".docx" and not safe_edit.is_last_read(
+        ws_root, path.resolve(), digest
+    ):
         # What the tool has seen: `lc docx` refuses to edit a file saved since.
         safe_edit.record_read(ws_root, path.resolve(), data)
     version = f"v{int(existing[-1].stem[1:]) + 1:03d}" if existing else "v001"
