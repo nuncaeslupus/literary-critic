@@ -46,17 +46,45 @@ class NoticeRequired(Exception):
     """Turning prose suggestions on needs the AI-text notice acknowledged."""
 
 
+class SettingsError(Exception):
+    """The profile cannot be read, or the setting could not be written safely."""
+
+
+NEEDS_ACK = "turning prose suggestions on needs --ack-ai-notice"
+
+
+def check(prose: str, ack: bool) -> None:
+    """Raise unless the requested change is allowed (``prose`` is "on", "off" or "")."""
+    if prose == "on" and not ack:
+        raise NoticeRequired(NEEDS_ACK)
+    if ack and prose != "on":
+        raise SettingsError("--ack-ai-notice goes with --prose-suggestions on")
+
+
 def notice(lang: str) -> str:
     return AI_NOTICE.get(lang, AI_NOTICE["en"])
 
 
-def load(ws_root: Path) -> dict[str, Any]:
+def _read(ws_root: Path) -> dict[str, Any]:
     f = ws_root / PROFILE
-    profile = tomllib.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+    try:
+        return tomllib.loads(f.read_text(encoding="utf-8")) if f.is_file() else {}
+    except (OSError, ValueError) as exc:
+        raise SettingsError(f"{PROFILE} cannot be read: {exc}") from exc
+
+
+def _settings(profile: dict[str, Any]) -> dict[str, Any]:
+    ack = profile.get("ai_notice_ack")
+    ack = ack if isinstance(ack, str) and ack else ""
+    # On only when written as a real boolean true and with the notice acknowledged.
     return {
-        "prose_suggestions": bool(profile.get("prose_suggestions", False)),
-        "ai_notice_ack": str(profile.get("ai_notice_ack", "")),
+        "prose_suggestions": profile.get("prose_suggestions") is True and bool(ack),
+        "ai_notice_ack": ack,
     }
+
+
+def load(ws_root: Path) -> dict[str, Any]:
+    return _settings(_read(ws_root))
 
 
 def _toml(value: object) -> str:
@@ -65,27 +93,44 @@ def _toml(value: object) -> str:
     return '"' + str(value).replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def _write(ws_root: Path, values: dict[str, object]) -> None:
-    """Set top-level keys in profile.toml, keeping every other line as it is."""
+TABLE = re.compile(r"\s*\[\[?\s*[\w.\"' -]+\s*\]\]?\s*(#.*)?$")
+
+
+def _write(ws_root: Path, values: dict[str, object], language: str) -> None:
+    """Set top-level keys in profile.toml, keeping every other line as it is. A new
+    profile gets the required ``mode`` and ``language`` too."""
     f = ws_root / PROFILE
-    lines = f.read_text(encoding="utf-8").splitlines() if f.is_file() else []
-    first_table = next((i for i, ln in enumerate(lines) if ln.lstrip().startswith("[")), len(lines))
+    lines = (
+        f.read_text(encoding="utf-8").splitlines()
+        if f.is_file()
+        else [
+            'mode = "revision"',
+            f"language = {_toml(language)}",
+        ]
+    )
+    first_table = next((i for i, ln in enumerate(lines) if TABLE.match(ln)), len(lines))
     key = re.compile(r"\s*(" + "|".join(KEYS) + r")\s*=")
     head = [ln for ln in lines[:first_table] if not key.match(ln)]
     new = [f"{k} = {_toml(v)}" for k, v in values.items() if v != ""]
     text = "\n".join([*head, *new, *lines[first_table:]]) + "\n"
-    tomllib.loads(text)  # never leave a profile that does not parse
+    try:
+        written = tomllib.loads(text)
+    except ValueError as exc:
+        raise SettingsError(f"{PROFILE} would not parse; edit it by hand: {exc}") from exc
+    if any(written.get(k, "") != v for k, v in values.items()):
+        raise SettingsError(f"{PROFILE} has a layout this tool cannot edit safely; edit it by hand")
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(text, encoding="utf-8")
 
 
-def set_prose_suggestions(ws_root: Path, on: bool, ack: bool = False) -> dict[str, Any]:
+def set_prose_suggestions(
+    ws_root: Path, on: bool, ack: bool = False, language: str = "en"
+) -> dict[str, Any]:
     """Turn prose suggestions on (needs ``ack``) or off; returns the settings."""
+    check("on" if on else "off", ack if on else False)
     current = load(ws_root)
-    if on and not ack:
-        raise NoticeRequired("turning prose suggestions on needs --ack-ai-notice")
-    if on == current["prose_suggestions"] and (not on or current["ai_notice_ack"]):
+    if on == current["prose_suggestions"] and on == bool(_read(ws_root).get("prose_suggestions")):
         return current
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if on else ""
-    _write(ws_root, {"prose_suggestions": on, "ai_notice_ack": stamp})
+    _write(ws_root, {"prose_suggestions": on, "ai_notice_ack": stamp}, language)
     return load(ws_root)

@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import ingest, metrics, safe_edit, settings, structure, workspace
+from litcritic import ingest, metrics, rounds, safe_edit, settings, structure, workspace
 
 WORKSPACE_DIR = "literary-critic"
 SHINGLE = 5
@@ -214,8 +214,7 @@ def setup(folder: Path, prose: str = "", ack: bool = False) -> dict[str, Any]:
     folder = folder.expanduser().resolve()
     if not folder.is_dir():
         raise SetupError(f"{folder} is not a folder")
-    if prose == "on" and not ack:
-        raise settings.NoticeRequired("turning prose suggestions on needs --ack-ai-notice")
+    settings.check(prose, ack)
     found = discover(folder)
     doc = found.manuscript.path
     root = folder / WORKSPACE_DIR
@@ -234,7 +233,11 @@ def setup(folder: Path, prose: str = "", ack: bool = False) -> dict[str, Any]:
     if not result.unchanged or not structure_file.is_file():
         structure.build(ws.root, result.version)
     if prose:
-        settings.set_prose_suggestions(ws.root, prose == "on", ack)
+        settings.set_prose_suggestions(ws.root, prose == "on", ack, _language(ws.root))
+    try:
+        current: dict[str, Any] = {"prose_suggestions": settings.load(ws.root)["prose_suggestions"]}
+    except settings.SettingsError as exc:  # a hand-edited profile: setup still works
+        current = {"prose_suggestions": False, "profile_error": str(exc)}
     return {
         "status": "ready",
         "workspace": _rel(folder, ws.root),
@@ -244,14 +247,14 @@ def setup(folder: Path, prose: str = "", ack: bool = False) -> dict[str, Any]:
         "others": [_rel(folder, f.path) for f in found.others],
         "environment": environment(folder, doc),
         "language": str(ws.manifest.get("language", "")),
-        "settings": {"prose_suggestions": settings.load(ws.root)["prose_suggestions"]},
+        "settings": current,
     }
 
 
-def _folder_language(folder: Path) -> str:
-    manifest = folder.expanduser() / WORKSPACE_DIR / workspace.MANIFEST
+def _language(ws_root: Path) -> str:
+    """The work's language (profile, then manifest), English when unknown."""
     try:
-        return str(workspace.Workspace(manifest.parent).manifest.get("language", "en"))
+        return rounds.language(ws_root)
     except (OSError, ValueError):
         return "en"
 
@@ -260,11 +263,18 @@ def _cmd(args: argparse.Namespace) -> int:
     try:
         out = setup(args.folder, args.prose_suggestions or "", args.ack_ai_notice)
     except settings.NoticeRequired as exc:
-        lang = args.language or _folder_language(args.folder)
+        lang = args.language or _language(args.folder.expanduser() / WORKSPACE_DIR)
         refused = {"status": "refused", "reason": "ai_notice", "message": str(exc)}
         print(json.dumps({**refused, "notice": settings.notice(lang)}, ensure_ascii=False))
         return 1
-    except (SetupError, workspace.WorkspaceError, ingest.IngestError, OSError, ValueError) as exc:
+    except (
+        SetupError,
+        settings.SettingsError,
+        workspace.WorkspaceError,
+        ingest.IngestError,
+        OSError,
+        ValueError,
+    ) as exc:
         print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False))
         return 2
     print(json.dumps(out, ensure_ascii=False, indent=1))

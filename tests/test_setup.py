@@ -205,6 +205,42 @@ def test_prose_suggestions_off_until_notice_acknowledged(
     assert main(["setup", "--folder", str(folder), "--prose-suggestions", "off"]) == 0
     capsys.readouterr()
     assert settings.load(ws) == {"prose_suggestions": False, "ai_notice_ack": ""}
+    # A profile edited by hand never turns it on without the acknowledgement.
+    for text in ("prose_suggestions = true\n", 'prose_suggestions = "false"\n'):
+        profile.write_text('mode = "revision"\nlanguage = "es"\n' + text)
+        hand_off = settings.load(ws)["prose_suggestions"] is False
+        refused = refused and hand_off
+    # A profile this tool cannot edit safely is left alone.
+    tricky = 'mode = "revision"\nlanguage = "es"\nnote = """\n[not a table]\n"""\n'
+    profile.write_text(tricky)
+    assert main([*argv]) == 2
+    capsys.readouterr()
+    refused = refused and profile.read_text() == tricky
+    # A broken profile does not stop setup.
+    profile.write_text("mode = \n")
+    assert main(["setup", "--folder", str(folder)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    refused = refused and out["settings"]["prose_suggestions"] is False
+    refused = refused and "profile_error" in out["settings"]
+    # The acknowledgement alone is a usage error.
+    assert main(["setup", "--folder", str(folder), "--ack-ai-notice"]) == 2
+    capsys.readouterr()
     prose_suggestions_default_off = int(off_by_default and refused)
     assert prose_suggestions_default_off == 1
     assert "watermark" in settings.notice("en") and settings.notice("fr") == settings.notice("en")
+
+
+def test_notice_on_a_new_folder_and_new_profile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folder = _novel_folder(tmp_path)
+    argv = ["setup", "--folder", str(folder), "--prose-suggestions", "on"]
+    assert main([*argv, "--language", "en"]) == 1
+    assert "watermark" in json.loads(capsys.readouterr().out)["notice"]
+    assert not (folder / "literary-critic").exists()  # nothing was created
+    assert main([*argv, "--ack-ai-notice"]) == 0
+    capsys.readouterr()
+    profile = tomllib.loads((folder / "literary-critic" / "analysis" / "profile.toml").read_text())
+    assert profile["mode"] == "revision" and profile["language"] == "es"
+    assert profile["prose_suggestions"] is True
+    assert main(["validate", "profile", str(folder / "literary-critic/analysis/profile.toml")]) == 0

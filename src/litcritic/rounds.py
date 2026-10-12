@@ -7,7 +7,8 @@ confidence x the profile's weight / effort) and records the round in
 ``revisions/round-NN/round.json``. An action's status is the writer's latest
 decision on its issue (a ``decision`` item); ``mark`` records one. ``letter``
 renders the writer-facing ``letter.md`` in the work's language. The script only
-arranges what the issues say; it never writes prose for the work.
+arranges what the issues say; it never writes prose for the work. Quoted wording
+that is not in the draft is flagged unless the writer turned prose suggestions on.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import checklist, kinds, locate, query, structure
+from litcritic import checklist, kinds, locate, query, settings, structure
 from litcritic.codex import Codex, CodexError, Item
 from litcritic.workspace import MANIFEST
 
@@ -265,7 +266,11 @@ def build(
     ix, loc = _locator(ws_root, cx, lang)
     actions = round_actions(ws_root, out_dir, cx, loc)
     text = "\n".join(ix.paragraphs)
-    warnings = [w for a in actions for w in prose_flags(a, text)]
+    try:
+        prose_on = settings.load(ws_root)["prose_suggestions"]
+    except settings.SettingsError:
+        prose_on = False
+    warnings = [] if prose_on else [w for a in actions for w in prose_flags(a, text)]
     latest = structure.latest_version(ws_root)
     if latest != cx.draft:
         warnings.append(f"{latest} is ingested but the Codex is on {cx.draft}: run `lc codex sync`")
