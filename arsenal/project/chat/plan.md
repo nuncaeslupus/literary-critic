@@ -104,6 +104,7 @@ word_live adapter ── locate / save / close / reopen
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
 | W1 | `unintended_docx_changes == 0` | 0 (8 docgen fixtures × 6 edits; text, other parts and document.xml outside edited paragraphs compared); rejecting all revisions restores the original text | `uv run pytest tests/test_docx_edit.py` | [HERE] | local | 2026-10-12 |
+| W2 | `restore_on_failure == 1.0` | 1.0 (6/6: failures injected after backup, temp write, verification and replace, plus an invalid package and an unexpected change; original byte-identical each time, no temp file left); locked (Word and LibreOffice lock files) and changed-on-disk documents refused | `uv run pytest tests/test_safe_edit.py` | [HERE] | local | 2026-10-12 |
 
 ### Dependency graph
 
