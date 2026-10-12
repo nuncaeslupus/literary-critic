@@ -116,12 +116,14 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     edits.write_text("not json", encoding="utf-8")
     code, out = _lc(capsys, "docx", "edits", "--edits", str(edits), *w)
     ck(code == 2 and out["status"] == "error")
+    code, out = _lc(capsys, "docx", "status", "--document", f"MyNovel/{doc.name}", *w)
+    ck(code == 0 and out["document"] == doc.name)  # the path as `lc setup` prints it
     code, out = _lc(capsys, "docx", "status", "--document", "missing.docx", *w)
     ck(code == 1 and out["reason"] == "missing")
     (ws.parent / "broken.docx").write_bytes(b"not a zip")
     code, out = _lc(capsys, "docx", "locate", "--document", "broken.docx", "x", *w)
     ck(code == 1 and out["reason"] == "unreadable")
-    docx_cli_contract_ok = int(checks == 21 and not failed)
+    docx_cli_contract_ok = int(checks == 22 and not failed)
     assert docx_cli_contract_ok == 1, f"failed checks at lines {failed}"
 
 
