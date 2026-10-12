@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from litcritic import docx_edit, ingest, locate, query, safe_edit, workspace
+from litcritic import docx_edit, ingest, locate, query, safe_edit, structure, workspace
 
 FIND_LIMIT = 255  # Word's Find box takes at most 255 characters
 HITS_SHOWN = 20
@@ -54,52 +54,71 @@ def _shown(ws_root: Path, doc: Path) -> str:
 # -- the Find string ----------------------------------------------------------
 
 
+SPECIAL = {"^": "^^", "\n": "^p", "\t": "^t", "\x0b": "^l", "\x1e": "^~", "\u00a0": "^s"}
+
+
 def _escape(text: str) -> str:
-    return text.replace("^", "^^").replace("\n", "^p")
+    return "".join(SPECIAL.get(c, c) for c in text)
 
 
-def _once(whole: str, needle: str) -> bool:
-    i = whole.find(needle)
-    return i >= 0 and whole.find(needle, i + 1) < 0
+def _fold(text: str) -> str:
+    """Lower case, one character for one (Word's Find ignores case by default)."""
+    return "".join(c if len(c.lower()) != 1 else c.lower() for c in text)
+
+
+class Finder:
+    """Word Find strings for one document (``docx_edit.find_texts``)."""
+
+    def __init__(self, paras: list[str]) -> None:
+        self.offsets = []
+        total = 0
+        for p in paras:
+            self.offsets.append(total)
+            total += len(p) + 1
+        self.whole = "\n".join(paras)
+        self.folded = _fold(self.whole)
+
+    def _once(self, a: int, b: int) -> bool:
+        needle = self.folded[a:b]
+        i = self.folded.find(needle)
+        return i >= 0 and self.folded.find(needle, i + 1) < 0
+
+    def _fits(self, a: int, b: int) -> bool:
+        return len(_escape(self.whole[a:b])) <= FIND_LIMIT
+
+    def find(self, k: int, start: int = 0, min_end: int = 0) -> tuple[str, bool]:
+        """Shortest Find string that occurs once in the document (any case) and
+        starts at character ``start`` of paragraph ``k``, reaching at least ``min_end``.
+
+        It grows word by word, into the next paragraphs (``^p``) when needed, and
+        then backwards from the previous paragraph's end. Returns the escaped
+        string and whether it is unique within Word's 255 characters.
+        """
+        whole, span = self.whole, 4 * FIND_LIMIT
+        at = self.offsets[k] + start
+        floor = self.offsets[k] + max(min_end, start + 1)
+        ends = [at + m.end() for m in re.finditer(r"\S+", whole[at : at + span])]
+        ends = [e for e in ends if e >= floor] or [min(floor, len(whole))]
+        for e in ends:
+            if not self._fits(at, e):
+                break
+            if self._once(at, e):
+                return _escape(whole[at:e]), True
+        first = ends[0]
+        base = max(0, at - span)
+        for m in reversed(list(re.finditer(r"\S+", whole[base:at]))):
+            if not self._fits(base + m.start(), first):
+                break
+            if self._once(base + m.start(), first):
+                return _escape(whole[base + m.start() : first]), True
+        end = first
+        while end > at + 1 and not self._fits(at, end):
+            end -= 1
+        return _escape(whole[at:end]), False
 
 
 def find_string(paras: list[str], k: int, start: int = 0, min_end: int = 0) -> tuple[str, bool]:
-    """Shortest Word Find string that occurs once in the document and starts at
-    character ``start`` of paragraph ``k`` (reaching at least ``min_end``).
-
-    It grows word by word, into the next paragraphs (``^p``) when needed, and
-    then backwards from the previous paragraph's end. ``^`` is escaped as Word
-    expects. Returns the string and whether it is unique within 255 characters.
-    """
-    offsets = []
-    total = 0
-    for p in paras:
-        offsets.append(total)
-        total += len(p) + 1
-    whole = "\n".join(paras)
-    at = offsets[k] + start
-    floor = offsets[k] + max(min_end, start + 1)
-    ends = [m.end() for m in re.finditer(r"\S+", whole[at : at + 4 * FIND_LIMIT])]
-    best = ""
-    for e in ends:
-        if at + e < floor:
-            continue
-        needle = whole[at : at + e]
-        if len(_escape(needle)) > FIND_LIMIT:
-            break
-        best = best or _escape(needle)
-        if _once(whole, needle):
-            return _escape(needle), True
-    first = next((at + e for e in ends if at + e >= floor), len(whole))
-    starts = [m.start() for m in re.finditer(r"\S+", whole[max(0, at - 4 * FIND_LIMIT) : at])]
-    base = max(0, at - 4 * FIND_LIMIT)
-    for s in reversed(starts):
-        needle = whole[base + s : first]
-        if len(_escape(needle)) > FIND_LIMIT:
-            break
-        if _once(whole, needle):
-            return _escape(needle), True
-    return best or _escape(whole[at:first])[:FIND_LIMIT], False
+    return Finder(paras).find(k, start, min_end)
 
 
 # -- writer locators ------------------------------------------------------------
@@ -112,11 +131,12 @@ class _Places:
     (otherwise the chapter and page could be wrong): `lc ingest` it again.
     """
 
-    def __init__(self, ws_root: Path, doc: Path, data: bytes) -> None:
+    def __init__(self, ws_root: Path, doc: Path, data: bytes, lang: str = "en") -> None:
         self.ix: query.Index | None = None
         self.by_ordinal: dict[int, int] = {}
         try:
-            ix = query.load(ws_root, codex=False)
+            version = structure.latest_version(ws_root)
+            ix = query.load(ws_root, version, codex=False)
             draft = ingest.read(doc, data)
         except (OSError, ValueError, KeyError, ingest.IngestError, FileNotFoundError):
             return
@@ -124,7 +144,7 @@ class _Places:
             return
         self.ix = ix
         self.by_ordinal = {p.src: i for i, p in enumerate(draft.paragraphs)}
-        self.builder = locate.LocatorBuilder(ix, locate.load_meta(ws_root, _version(ws_root)))
+        self.builder = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
         self.ordinal_of = {i: p.src for i, p in enumerate(draft.paragraphs)}
 
     def locator(self, ordinal: int) -> dict[str, Any] | None:
@@ -139,11 +159,6 @@ class _Places:
             "first_words": loc.first_words,
             "last_words": loc.last_words,
         }
-
-
-def _version(ws_root: Path) -> str:
-    versions = sorted((ws_root / "text").glob("v*.txt"))
-    return versions[-1].stem if versions else ""
 
 
 # -- commands -------------------------------------------------------------------
@@ -234,11 +249,11 @@ def _rename(args: argparse.Namespace, root: Path) -> int:
     try:
         data = doc.read_bytes()
         _, applied, skipped = docx_edit.rename(data, args.old, args.new, sensitive)
-        places = _Places(root, doc, data)
-        texts = docx_edit.texts(data)
+        places = _Places(root, doc, data, args.lang)
+        finder = Finder(docx_edit.find_texts(data))
 
         def hit(m: docx_edit.Match, why: str = "") -> dict[str, Any]:
-            find, unique = find_string(texts, m.para, m.start, m.end)
+            find, unique = finder.find(m.para, m.start, m.end)
             out: dict[str, Any] = {"text": m.text, "find": find, "unique": unique}
             out["locator"] = places.locator(m.para)
             if why:
@@ -286,32 +301,29 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
     if not doc.is_file():
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
     data = doc.read_bytes()
-    texts = docx_edit.texts(data)
-    places = _Places(root, doc, data)
-    target = args.target
-    if ANCHOR.fullmatch(target.strip()):
-        if places.ix is None:
-            return _out(
-                {
-                    "status": "refused",
-                    "reason": "changed",
-                    "message": "the document no longer matches the last ingested draft; "
-                    "run `lc ingest` and `lc anchor` on it first",
-                },
-                1,
-            )
+    places = _Places(root, doc, data, args.lang)
+    target = args.target.strip()
+    i = None
+    if not args.quote and ANCHOR.fullmatch(target) and places.ix is not None:
         try:
             i = query.paragraph_range(places.ix, target).start
-        except KeyError as exc:
-            raise CliError(str(exc)) from exc
+        except KeyError:
+            i = None
+    if i is not None:
         ordinal, start, end = places.ordinal_of[i], 0, 0
     else:
-        found = docx_edit.find(data, target)
+        found = docx_edit.find(data, args.target)
         if len(found) != 1:
+            if not found and not args.quote and ANCHOR.fullmatch(target) and places.ix is None:
+                why = (
+                    "the document no longer matches the last ingested draft; "
+                    "run `lc ingest` and `lc anchor` on it first"
+                )
+                return _out({"status": "refused", "reason": "changed", "message": why}, 1)
             why = "not found" if not found else f"found {len(found)} times; quote more words"
             return _out({"status": "refused", "reason": "quote", "message": why}, 1)
         ordinal, start, end = found[0].para, found[0].start, found[0].end
-    find, unique = find_string(texts, ordinal, start, end)
+    find, unique = Finder(docx_edit.find_texts(data)).find(ordinal, start, end)
     return _out(
         {
             "status": "ok",
@@ -338,7 +350,10 @@ COMMANDS = {"edits": _edits, "rename": _rename, "locate": _locate, "status": _st
 def _run(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
+        args.lang = str(ws.manifest.get("language", "en"))
         return COMMANDS[args.docx_cmd](args, ws.root)
+    except docx_edit.EditError as exc:  # not a readable Word document
+        return _out({"status": "refused", "reason": "unreadable", "message": str(exc)}, 1)
     except (CliError, workspace.WorkspaceError, OSError) as exc:
         print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False))
         print(f"error: {exc}", file=sys.stderr)
@@ -368,7 +383,8 @@ def register(sub: Any) -> None:
     p_rn.add_argument("--dry-run", action="store_true", help="list the hits, write nothing")
     common(p_rn)
     p_lo = dsub.add_parser("locate", help="the Word Find string and writer locator of a passage")
-    p_lo.add_argument("target", help="a paragraph anchor or a quote from the text")
+    p_lo.add_argument("target", help="a paragraph anchor (c03.s1.p4) or a quote from the text")
+    p_lo.add_argument("--quote", action="store_true", help="search the target as text only")
     common(p_lo)
     p_st = dsub.add_parser("status", help="is the document open, changed, backed up")
     common(p_st)

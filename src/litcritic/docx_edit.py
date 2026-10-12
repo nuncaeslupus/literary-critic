@@ -78,6 +78,7 @@ class _Para:
     runs: list[_Run] = field(default_factory=list)
     chars: list[tuple[int, int]] = field(default_factory=list)  # (run index, offset) per char
     text: str = ""
+    found: str = ""  # the same text as Word's Find sees it (same length)
     hazards: list[int] = field(default_factory=list)  # raw offsets of fields/revisions
 
 
@@ -87,6 +88,8 @@ class _Para:
 LOCKED = {"ins", "del", "moveFrom", "moveTo", "fldSimple", "sdt", "hyperlink"}
 HIDDEN = {"del", "moveFrom"}  # runs inside: not visible
 VISIBLE = {"tab": " ", "cr": " ", "noBreakHyphen": "-"}
+# The same marks as Word's Find box sees them (see find_texts); one character each.
+AS_FOUND = {"tab": "\t", "cr": "\x0b", "noBreakHyphen": "\x1e", "br": "\x0b"}
 
 
 def w_prefix(xml: str) -> str:
@@ -148,8 +151,10 @@ def _run_end(xml: str, w: str, start: int) -> int:
     raise EditError("unterminated run in document.xml")
 
 
-def _visible(inner: str, w: str) -> str:
-    """Text a reader sees in a run that is not plain (ingest's rules)."""
+def _visible(inner: str, w: str, as_found: bool = False) -> str:
+    """Text a reader sees in a run that is not plain (ingest's rules); with
+    ``as_found``, tabs, line breaks and non-breaking hyphens as Word's Find sees them."""
+    marks = AS_FOUND if as_found else VISIBLE
     inner = re.sub(rf"<{w}:txbxContent\b.*?</{w}:txbxContent>", "", inner, flags=re.S)
     inner = re.sub(r"<mc:Fallback\b.*?</mc:Fallback>", "", inner, flags=re.S)
     out = []
@@ -157,9 +162,9 @@ def _visible(inner: str, w: str) -> str:
         if m.group(1) is not None:
             out.append(unescape(m.group(1)))
         elif m.group(2) in VISIBLE:
-            out.append(VISIBLE[m.group(2)])
+            out.append(marks[m.group(2)])
         elif m.group(2) == "br" and 'type="page"' not in m.group(3):
-            out.append(" ")
+            out.append(marks.get("br", " "))
     return "".join(out)
 
 
@@ -258,8 +263,9 @@ def _parse_para(
                 para.hazards.append(t.start())
                 field = max(field + {"begin": 1, "end": -1}.get(fc.group(1), 0), 0)
             text = unescape(m.group(3) or "") if m else _visible(inner, w)
+            found = text if m else _visible(inner, w, as_found=True)
             if any(n in HIDDEN for n in open_):
-                text = ""
+                text = found = ""
             run = _Run(
                 t.start(),
                 r_end,
@@ -274,6 +280,7 @@ def _parse_para(
             para.runs.append(run)
             para.chars += [(idx, k if m is not None else -1) for k in range(len(text))]
             para.text += text
+            para.found += found
             pos = r_end
             continue
         if name in LOCKED:
@@ -447,6 +454,12 @@ def _apply_all(
 def texts(data: bytes) -> list[str]:
     """Visible text of every w:p, by ordinal (fields and deletions excluded)."""
     return [p.text for p in _Doc(_read(data)).all()]
+
+
+def find_texts(data: bytes) -> list[str]:
+    """Like :func:`texts`, but tabs, line breaks and non-breaking hyphens kept as
+    Word's Find sees them (one character each, so offsets match :func:`texts`)."""
+    return [p.found for p in _Doc(_read(data)).all()]
 
 
 def find(data: bytes, quote: str, prefix: str = "", suffix: str = "") -> list[Match]:

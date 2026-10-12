@@ -118,23 +118,29 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     ck(code == 2 and out["status"] == "error")
     code, out = _lc(capsys, "docx", "status", "--document", "missing.docx", *w)
     ck(code == 1 and out["reason"] == "missing")
-    docx_cli_contract_ok = int(checks == 20 and not failed)
+    (ws.parent / "broken.docx").write_bytes(b"not a zip")
+    code, out = _lc(capsys, "docx", "locate", "--document", "broken.docx", "x", *w)
+    ck(code == 1 and out["reason"] == "unreadable")
+    docx_cli_contract_ok = int(checks == 21 and not failed)
     assert docx_cli_contract_ok == 1, f"failed checks at lines {failed}"
 
 
 def _unescape(find: str) -> str:
-    return find.replace("^^", "\0").replace("^p", "\n").replace("\0", "^")
+    out = find.replace("^^", "\0")
+    for code, char in (("^p", "\n"), ("^t", "\t"), ("^l", "\x0b"), ("^~", "\x1e"), ("^s", "\xa0")):
+        out = out.replace(code, char)
+    return out.replace("\0", "^")
 
 
 def test_locate_find_string_is_unique() -> None:
-    texts = docx_edit.texts(_corpus_docx())
-    whole = "\n".join(texts)
+    texts = docx_edit.find_texts(_corpus_docx())
+    whole = "\n".join(texts).lower()
     checked = unique = 0
     for k, t in enumerate(texts):
         if not t.strip():
             continue
         find, ok = docx_cli.find_string(texts, k)
-        needle = _unescape(find)
+        needle = _unescape(find).lower()
         first = whole.find(needle)
         once = first >= 0 and whole.find(needle, first + 1) < 0
         checked += 1
@@ -152,3 +158,12 @@ def test_find_string_escapes_and_spans_paragraphs() -> None:
     assert docx_cli.find_string(texts, 1, 4, 5) == ("^^", True)
     find, ok = docx_cli.find_string(["Fin.", "Fin."], 1)
     assert ok and find == "Fin.^pFin."
+    # Word's Find ignores case; tabs, line breaks and hard spaces have codes.
+    assert docx_cli.find_string(["Rose said.", "rose said it."], 1) == ("rose said it.", True)
+    assert docx_cli.find_string(["Uno\tdos", "uno dos"], 0) == ("Uno^tdos", True)
+    assert docx_cli.find_string(["a\xa0b", "a"], 0) == ("a^sb", True)
+    assert docx_cli.find_string(["a\x0bc", "a"], 0) == ("a^lc", True)
+    # Never more than 255 characters, and never a broken escape.
+    long = ["^" * 300, "^" * 300]
+    find, ok = docx_cli.find_string(long, 0)
+    assert not ok and len(find) <= 255 and find == "^^" * 127

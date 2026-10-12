@@ -106,9 +106,11 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     data = doc.read_bytes() if data is None else data
     digest = sha256(data)
     state = _load_state(ws_root)
+    seq = max((int(r.get("seq", 0)) for r in state.values()), default=0) + 1
     state[_key(doc)] = {
         "path": str(doc),
         "sha256": digest,
+        "seq": seq,  # read order (read_at has one-second resolution)
         "read_at": _now().strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     _save_state(ws_root, state)
@@ -117,9 +119,9 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
 
 def known_documents(ws_root: Path, suffix: str = "") -> list[Path]:
     """Documents the tool has read, oldest read first."""
-    state = _load_state(ws_root)
-    rows = sorted(state.values(), key=lambda r: str(r.get("read_at", "")))
-    return [Path(str(r["path"])) for r in rows if str(r.get("path", "")).endswith(suffix)]
+    rows = sorted(_load_state(ws_root).values(), key=lambda r: int(r.get("seq", 0)))
+    paths = [Path(str(r.get("path", ""))) for r in rows]
+    return [d for d in paths if not suffix or d.suffix.lower() == suffix.lower()]
 
 
 def _backup_prefix(doc: Path) -> str:
