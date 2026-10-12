@@ -21,6 +21,7 @@ Status: early development. See `status/specification.md` and `status/plan.md`.
 | Where | How |
 |-------|-----|
 | Claude Code (local or cloud) | Clone, open, talk. Scripts run directly. |
+| Claude (desktop app with Cowork, or Claude.ai) | Add the literary-critic Skill once (`lc kit --skill` builds the zip to upload in Claude's settings, under Skills), then say "I want to use literary-critic for my novel". |
 | Chat with code execution (ChatGPT, Claude.ai, Gemini) | Upload the kit zip (`lc kit` builds it; the assistant reads its `START_HERE.md`) and your workspace zip; the assistant runs the scripts and returns an updated workspace zip. |
 | Chat without code execution | Paste the portable prompts from `prompts/`; reduced mode without metrics. |
 
@@ -30,7 +31,7 @@ repo** — a Google Drive folder works well. See `docs/workspace.md`.
 ## Development
 
 ```bash
-uv sync          # Python >= 3.12; runtime uses only the standard library
+uv sync          # Python >= 3.11; runtime uses only the standard library
 make ci          # lint, typecheck, tests, content guard
 ```
 

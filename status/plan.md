@@ -44,7 +44,7 @@ manuscript (.docx/.odt/.md/.txt)
 
 | Choice | Justification |
 |--------|--------------|
-| Python ≥3.12 stdlib runtime | Runs in chat code interpreters; `tomllib` for catalogue |
+| Python ≥3.11 stdlib runtime | Runs in chat code interpreters; `tomllib` for catalogue |
 | TOML catalogue, JSON artefacts | Human-editable checks; machine-validated outputs |
 | Paragraph fingerprints + `difflib` alignment | Deterministic anchors that survive edits without pages |
 | `.docx` comments via zip/XML | Write-back the writer can review in Word or Google Docs |

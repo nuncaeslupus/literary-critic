@@ -74,7 +74,7 @@ Impact dimensions: **Data** — workspace format is a long-lived contract (versi
 - **Scope**: All systems in §2.
 - **Effort**: Large (phased)
 - **Tradeoffs**: More to build; stdlib-only limits NLP (no POS tagger — use language word lists and heuristics; optional extras later).
-- **Compatibility**: Runs wherever Python ≥3.12 runs, including ChatGPT/Claude.ai sandboxes (verify Python version per platform; fall back to 3.10-compatible syntax if needed).
+- **Compatibility**: Runs wherever Python ≥3.11 runs, including ChatGPT/Claude.ai sandboxes (Claude.ai's runs 3.11; the floor was lowered from 3.12 for it, and CI checks 3.11).
 
 ### Option C: Full NLP/RAG stack (spaCy, embeddings, vector DB)
 
@@ -117,7 +117,7 @@ Key design points carried into `design`:
 **Immediate next action**: Build part 2 first — the check catalogue (`checklist/*.toml`) with its schema and validator — from `docs/research/analysis-frameworks.md` plus the user-supplied external list (used as input only, not committed).
 
 **Open questions**:
-- [ ] Python version available in each chatbot sandbox (confirm ≥3.12 or lower the floor).
+- [x] Python version available in each chatbot sandbox: Claude.ai runs 3.11, now the floor (chat workspace W8).
 - [ ] Whether Claude.ai / ChatGPT Drive connectors can write arbitrary files (JSON/zip) reliably enough to skip the zip round-trip.
 - [ ] `reader-report` mode: scope and when (after the first full revision round).
 
@@ -178,7 +178,7 @@ Key design points carried into `design`:
 | Novel content leaks into the repo | Med | High | `lc guard` pre-commit + CI; local and per-workspace term lists | unit tests; CI `guard --all` |
 | Anchors drift after heavy rewrites | Med | High | fingerprint + fuzzy + order-aware alignment; stale-scene re-analysis | synthetic edit suite (T6 gate) |
 | LLM output off-schema or hallucinated anchors | High | Med | schemas + `lc validate`; anchors checked against structure | schema-validity gates (T8, T11) |
-| Chat sandboxes lack Python ≥3.12 or file persistence | Med | Med | stdlib only; zip round-trip; reduced no-code mode | manual check per platform (T14) |
+| Chat sandboxes lack Python ≥3.11 or file persistence | Med | Med | stdlib only; zip round-trip; reduced no-code mode | manual check per platform (T14) |
 | Feedback too generic / not actionable | Med | High | evidence rule; actions need what/why/where/options; rounds with exit criteria | usability criterion on first working novel |
 | Tool drifts into writing the novel | Low | High | D-12 rule in AGENTS + prompts; prose detector on actions | `generated_manuscript_prose_in_actions == 0` |
 | Writer cannot find the location | Med | High | locator with first/last words verified unique | `writer_locators_complete == 1.0` |

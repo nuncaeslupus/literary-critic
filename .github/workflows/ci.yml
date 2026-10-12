@@ -13,3 +13,10 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
       - run: make ci
+  python311:  # the claude.ai chat sandbox runs Python 3.11
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --python 3.11
+      - run: uv run --python 3.11 pytest -q

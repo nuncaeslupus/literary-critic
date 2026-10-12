@@ -8,7 +8,7 @@ messages (a few lines), and do every technical step yourself.
 
 | Check | How | If missing |
 |---|---|---|
-| You can run code | Run lc --version (install the tool if it is missing: `kit/START_HERE.md`) | Basic mode (below) |
+| You can run code | Run `lc doctor` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
 | A folder on the writer's computer is connected | You can list it (Cowork: the folder the writer picked) | Ask the writer to connect the folder that holds the novel (one click in Cowork: "Choose folder") |
 | You can see and use the screen (computer use) | Try to take a screenshot | Fine: give the writer plain locations instead of taking them there |
 
