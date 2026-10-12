@@ -61,16 +61,16 @@ def _novel_folder(tmp_path: Path) -> Path:
 
 
 EXPECTED = {
-    "manuscript": "MyNovel/MyNovel_v3.docx",
+    "manuscript": "MyNovel_v3.docx",
     "versions": [
-        "MyNovel/MyNovel_v3.md",
-        "MyNovel/MyNovel backup.docx",
-        "MyNovel/MyNovel_v3 (1).docx",
-        "MyNovel/Copy of MyNovel_v3.docx",
-        "MyNovel/MyNovel_v2.docx",
-        "MyNovel/MyNovel_v1.docx",
+        "MyNovel_v3.md",
+        "MyNovel backup.docx",
+        "MyNovel_v3 (1).docx",
+        "Copy of MyNovel_v3.docx",
+        "MyNovel_v2.docx",
+        "MyNovel_v1.docx",
     ],
-    "others": ["MyNovel/letter to agent.txt", "MyNovel/notes.docx"],
+    "others": ["letter to agent.txt", "notes.docx"],
 }
 
 
@@ -95,7 +95,7 @@ def test_setup_picks_latest_draft_and_lists_versions(
     scenarios += 1
     correct += got == EXPECTED
     assert got == EXPECTED
-    assert out["status"] == "ready" and out["workspace"] == "MyNovel/literary-critic"
+    assert out["status"] == "ready" and out["workspace"] == "literary-critic"
     assert out["language"] == "es" and out["version"] == "v001"
     assert out["environment"]["folder_writable"] and out["environment"]["word_lock"]
     assert (folder / "literary-critic" / "text" / "v001.txt").is_file()
@@ -166,7 +166,7 @@ def test_setup_reuses_existing_workspace(
     _put(folder, "MyNovel_v4.docx", docx(_revise(_paras("marianela", 220), 9), seed=6), 20)
     assert main(["setup", "--folder", str(folder)]) == 0
     third = json.loads(capsys.readouterr().out)
-    assert third["manuscript"]["path"] == "MyNovel/MyNovel_v4.docx"
+    assert third["manuscript"]["path"] == "MyNovel_v4.docx"
     assert third["version"] == "v002" and third["workspace"] == first["workspace"]
 
 
@@ -258,16 +258,16 @@ def test_writer_choice_of_manuscript_and_edit_answer_are_kept(
     argv = ["setup", "--folder", str(folder)]
     assert main([*argv, "--manuscript", "MyNovel_v2.docx", "--edit-in-place", "yes"]) == 0
     out = json.loads(capsys.readouterr().out)
-    assert out["manuscript"]["path"] == "MyNovel/MyNovel_v2.docx"
-    assert "MyNovel/MyNovel_v3.docx" in [v["path"] for v in out["versions"]]
+    assert out["manuscript"]["path"] == "MyNovel_v2.docx"
+    assert "MyNovel_v3.docx" in [v["path"] for v in out["versions"]]
     assert out["settings"]["edit_in_place"] is True and out["workspace_path"] == str(ws)
     # A later run (turning a setting on, say) keeps the writer's choice...
     assert main(argv) == 0
     again = json.loads(capsys.readouterr().out)
-    assert again["manuscript"]["path"] == "MyNovel/MyNovel_v2.docx" and again["version"] == "v001"
+    assert again["manuscript"]["path"] == "MyNovel_v2.docx" and again["version"] == "v001"
     assert again["settings"]["edit_in_place"] is True
     # ...until the writer saves a newer draft.
     _put(folder, "MyNovel_v4.docx", docx(_revise(_paras("marianela", 220), 9), seed=6), 10**5)
     assert main(argv) == 0
-    assert json.loads(capsys.readouterr().out)["manuscript"]["path"] == "MyNovel/MyNovel_v4.docx"
+    assert json.loads(capsys.readouterr().out)["manuscript"]["path"] == "MyNovel_v4.docx"
     assert main([*argv, "--manuscript", "missing.docx"]) == 2

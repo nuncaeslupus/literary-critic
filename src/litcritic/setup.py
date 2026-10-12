@@ -69,7 +69,8 @@ def _iso(ts: float) -> str:
 
 
 def _rel(folder: Path, path: Path) -> str:
-    return str(path.relative_to(folder.parent)) if path.is_relative_to(folder.parent) else str(path)
+    """Paths as every other command takes them: from the novel's folder."""
+    return str(path.relative_to(folder)) if path.is_relative_to(folder) else str(path)
 
 
 def _words(text: str) -> list[str]:
