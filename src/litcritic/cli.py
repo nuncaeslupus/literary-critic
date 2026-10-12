@@ -380,7 +380,7 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
 def _cmd_kit(args: argparse.Namespace) -> int:
     try:
-        out, n = kit.build(args.out)
+        out, n = (kit.build_skill if args.skill else kit.build)(args.out)
     except kit.KitError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
@@ -553,6 +553,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_kit = sub.add_parser("kit", help="build the chat kit zip (for chatbots with code execution)")
     p_kit.add_argument("--out", type=Path, default=None, help="zip path (default dist/)")
+    p_kit.add_argument("--skill", action="store_true", help="a Skill zip to upload to Claude")
     p_kit.set_defaults(func=_cmd_kit)
     p_doc = sub.add_parser("doctor", help="check that this platform can run the tool")
     p_doc.add_argument(

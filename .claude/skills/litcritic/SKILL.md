@@ -1,6 +1,6 @@
 ---
 name: litcritic
-description: Works on a novel manuscript with the literary-critic toolkit — ingesting a draft, recording scenes and characters in the Codex, answering questions about the novel from it, running the analysis checklist, recording findings, revision rounds, comparing drafts. Use whenever the user talks about their novel, a manuscript, a draft, chapters, characters, an editorial letter, revision rounds or a reader report, even without naming the tool, and whenever an `lc` or `lc codex` command or a workspace under `$LITCRITIC_HOME` comes up. Not for changes to the tool's own code (those are [[...]] requests handled as normal development).
+description: Works on a novel manuscript with the literary-critic toolkit — setting it up for a writer ("I want to use literary-critic for my novel"), ingesting a draft, recording scenes and characters in the Codex, answering questions about the novel from it, running the analysis checklist, recording findings, revision rounds, comparing drafts. Use whenever the user talks about their novel, a manuscript, a draft, chapters, characters, an editorial letter, revision rounds or a reader report, even without naming the tool, and whenever an `lc` or `lc codex` command or a workspace under `$LITCRITIC_HOME` comes up. Not for changes to the tool's own code (those are [[...]] requests handled as normal development).
 metadata:
   type: workflow
 ---
@@ -8,6 +8,22 @@ metadata:
 # literary-critic
 
 CANARY: litcritic-loaded-2026-10-11-2ebb846e930ff66d
+
+A writer who says "I want to use literary-critic for my novel" (in any
+words or language) starts with `prompts/05-setup.md`: it checks what this
+Claude can do, finds the novel and agrees how to work, step by step.
+
+## Running the tool
+
+- **This folder has `lc.py`** (the Skill uploaded to Claude): wherever the
+  procedures run lc with a command, run `python3 <this folder>/lc.py` with
+  that command instead. The procedures are in this folder's `prompts/`.
+- **Otherwise** use the installed lc command. If it is missing and the
+  network allows it, install it:
+  `pip install git+https://github.com/nuncaeslupus/literary-critic`.
+  If that fails, ask the writer to add the literary-critic Skill (a zip they
+  upload once in Claude's settings, under Skills) and start again.
+- Check it works with `lc doctor`.
 
 The procedures live in `prompts/` so any chatbot can follow them; this skill
 says which one to read. Read `prompts/00-guide.md` at the start of every

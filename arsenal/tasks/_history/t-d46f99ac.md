@@ -5,6 +5,7 @@ label: "skill packaging"
 priority: 5
 deps: [t-05ab3f1c]
 workspace: chat
+status: merged
 ---
 
 # W8: skill entry point and skill zip packaging

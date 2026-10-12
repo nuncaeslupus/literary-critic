@@ -30,7 +30,7 @@ repo** — a Google Drive folder works well. See `docs/workspace.md`.
 ## Development
 
 ```bash
-uv sync          # Python >= 3.12; runtime uses only the standard library
+uv sync          # Python >= 3.11; runtime uses only the standard library
 make ci          # lint, typecheck, tests, content guard
 ```
 
