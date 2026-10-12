@@ -22,6 +22,8 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
+from litcritic import safe_edit
+
 FORMATS = (".txt", ".md", ".docx", ".odt")
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 MC_FALLBACK = "{http://schemas.openxmlformats.org/markup-compatibility/2006}Fallback"
@@ -449,6 +451,9 @@ def ingest(path: Path, ws_root: Path) -> Result:
     draft = read(path, data)
     if not draft.paragraphs:
         raise IngestError("no text found")
+    if path.suffix.lower() == ".docx":
+        # What the tool has seen: `lc docx` refuses to edit a file saved since.
+        safe_edit.record_read(ws_root, path.resolve(), data)
     version = f"v{int(existing[-1].stem[1:]) + 1:03d}" if existing else "v001"
     if existing and hashlib.sha256(existing[-1].read_bytes()).hexdigest() == digest:
         version = existing[-1].stem

@@ -83,7 +83,8 @@ class _Para:
 
 # -- reading -----------------------------------------------------------------
 
-LOCKED = {"ins", "del", "moveFrom", "moveTo", "fldSimple", "sdt"}  # runs inside: not editable
+# Runs inside these are not editable; a revision must never wrap a hyperlink or field boundary.
+LOCKED = {"ins", "del", "moveFrom", "moveTo", "fldSimple", "sdt", "hyperlink"}
 HIDDEN = {"del", "moveFrom"}  # runs inside: not visible
 VISIBLE = {"tab": " ", "cr": " ", "noBreakHyphen": "-"}
 

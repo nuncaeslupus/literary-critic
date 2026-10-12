@@ -115,6 +115,13 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     return digest
 
 
+def known_documents(ws_root: Path, suffix: str = "") -> list[Path]:
+    """Documents the tool has read, oldest read first."""
+    state = _load_state(ws_root)
+    rows = sorted(state.values(), key=lambda r: str(r.get("read_at", "")))
+    return [Path(str(r["path"])) for r in rows if str(r.get("path", "")).endswith(suffix)]
+
+
 def _backup_prefix(doc: Path) -> str:
     """Backups of two documents never mix: the name plus a short hash of its full path."""
     return f"{doc.stem}.{hashlib.sha256(_key(doc).encode()).hexdigest()[:8]}."
