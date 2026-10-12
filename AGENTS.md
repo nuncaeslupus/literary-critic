@@ -40,9 +40,14 @@ generic change to the repo — and phrase it without any trace of the novel.
    explicit permission for that specific change.** Default to comments or
    suggestions; direct edits only after the writer confirms.
 5. **The writer writes.** This tool diagnoses and explains — what, where, why,
-   which effect to aim for, which options exist — but never writes prose for
-   the novel. Every word in the manuscript is the writer's. If someone wants an
-   AI to write or rewrite their book, decline and offer guidance instead.
+   which effect to aim for, which options exist. By default it never writes
+   prose for the novel. Proposed wording is a per-writer setting
+   (`prose_suggestions` in the profile, off by default); turning it on first
+   shows the AI-text notice (AI-written text may be identified as such,
+   publishers may require disclosure, we recommend the writer does the
+   writing) and records the acknowledgement. If the writer still turns it on,
+   that is their choice. Edits reach the manuscript only as text the writer
+   approved.
 6. **Talk to writers plainly.** Assume no technical skills (not even search).
    Every location: chapter/section, approximate page when known, and the
    quoted first and last words of the paragraph. One change per message while

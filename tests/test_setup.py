@@ -1,12 +1,13 @@
 import json
 import os
 import random
+import tomllib
 from pathlib import Path
 
 import pytest
 from docgen import docx
 
-from litcritic import corpus, ingest, setup
+from litcritic import corpus, ingest, settings, setup
 from litcritic.cli import main
 
 
@@ -174,3 +175,36 @@ def test_setup_without_documents_is_a_usage_error(
 ) -> None:
     assert main(["setup", "--folder", str(tmp_path)]) == 2
     assert json.loads(capsys.readouterr().out)["status"] == "error"
+
+
+def test_prose_suggestions_off_until_notice_acknowledged(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folder = _novel_folder(tmp_path)
+    ws = folder / "literary-critic"
+    profile = ws / "analysis" / "profile.toml"
+    assert main(["setup", "--folder", str(folder)]) == 0
+    off_by_default = json.loads(capsys.readouterr().out)["settings"]["prose_suggestions"] is False
+    profile.write_text('mode = "revision"\nlanguage = "es"\n\n[weights]\npacing = 2\n')
+    before = profile.read_bytes()
+    # On without the acknowledgement: refused, the notice printed, nothing changed.
+    assert main(["setup", "--folder", str(folder), "--prose-suggestions", "on"]) == 1
+    out = json.loads(capsys.readouterr().out)
+    refused = out["reason"] == "ai_notice" and "IA" in out["notice"]
+    refused = refused and profile.read_bytes() == before
+    assert settings.load(ws)["prose_suggestions"] is False
+    # Acknowledged: on, with the time recorded and the rest of the profile kept.
+    argv = ["setup", "--folder", str(folder), "--prose-suggestions", "on", "--ack-ai-notice"]
+    assert main(argv) == 0
+    assert json.loads(capsys.readouterr().out)["settings"]["prose_suggestions"] is True
+    now = settings.load(ws)
+    profile_data = tomllib.loads(profile.read_text())
+    assert now["prose_suggestions"] and now["ai_notice_ack"].endswith("Z")
+    assert profile_data["weights"] == {"pacing": 2} and profile_data["mode"] == "revision"
+    # Off again: the acknowledgement goes with it, so turning on asks again.
+    assert main(["setup", "--folder", str(folder), "--prose-suggestions", "off"]) == 0
+    capsys.readouterr()
+    assert settings.load(ws) == {"prose_suggestions": False, "ai_notice_ack": ""}
+    prose_suggestions_default_off = int(off_by_default and refused)
+    assert prose_suggestions_default_off == 1
+    assert "watermark" in settings.notice("en") and settings.notice("fr") == settings.notice("en")

@@ -28,7 +28,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import ingest, metrics, safe_edit, structure, workspace
+from litcritic import ingest, metrics, safe_edit, settings, structure, workspace
 
 WORKSPACE_DIR = "literary-critic"
 SHINGLE = 5
@@ -208,11 +208,14 @@ def environment(folder: Path, manuscript: Path) -> dict[str, Any]:
     }
 
 
-def setup(folder: Path) -> dict[str, Any]:
-    """Run discovery, create or reuse the workspace, ingest and anchor."""
+def setup(folder: Path, prose: str = "", ack: bool = False) -> dict[str, Any]:
+    """Run discovery, create or reuse the workspace, ingest and anchor; ``prose``
+    ("on" or "off") changes the prose-suggestion setting (on needs ``ack``)."""
     folder = folder.expanduser().resolve()
     if not folder.is_dir():
         raise SetupError(f"{folder} is not a folder")
+    if prose == "on" and not ack:
+        raise settings.NoticeRequired("turning prose suggestions on needs --ack-ai-notice")
     found = discover(folder)
     doc = found.manuscript.path
     root = folder / WORKSPACE_DIR
@@ -230,6 +233,8 @@ def setup(folder: Path) -> dict[str, Any]:
     structure_file = ws.root / "index" / result.version / "structure.json"
     if not result.unchanged or not structure_file.is_file():
         structure.build(ws.root, result.version)
+    if prose:
+        settings.set_prose_suggestions(ws.root, prose == "on", ack)
     return {
         "status": "ready",
         "workspace": _rel(folder, ws.root),
@@ -239,12 +244,26 @@ def setup(folder: Path) -> dict[str, Any]:
         "others": [_rel(folder, f.path) for f in found.others],
         "environment": environment(folder, doc),
         "language": str(ws.manifest.get("language", "")),
+        "settings": {"prose_suggestions": settings.load(ws.root)["prose_suggestions"]},
     }
+
+
+def _folder_language(folder: Path) -> str:
+    manifest = folder.expanduser() / WORKSPACE_DIR / workspace.MANIFEST
+    try:
+        return str(workspace.Workspace(manifest.parent).manifest.get("language", "en"))
+    except (OSError, ValueError):
+        return "en"
 
 
 def _cmd(args: argparse.Namespace) -> int:
     try:
-        out = setup(args.folder)
+        out = setup(args.folder, args.prose_suggestions or "", args.ack_ai_notice)
+    except settings.NoticeRequired as exc:
+        lang = args.language or _folder_language(args.folder)
+        refused = {"status": "refused", "reason": "ai_notice", "message": str(exc)}
+        print(json.dumps({**refused, "notice": settings.notice(lang)}, ensure_ascii=False))
+        return 1
     except (SetupError, workspace.WorkspaceError, ingest.IngestError, OSError, ValueError) as exc:
         print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False))
         return 2
@@ -255,4 +274,7 @@ def _cmd(args: argparse.Namespace) -> int:
 def register(sub: Any) -> None:
     p = sub.add_parser("setup", help="find the novel in a folder and prepare its workspace")
     p.add_argument("--folder", type=Path, required=True, help="the folder holding the novel")
+    p.add_argument("--prose-suggestions", choices=("on", "off"), default=None)
+    p.add_argument("--ack-ai-notice", action="store_true", help="the writer read the AI notice")
+    p.add_argument("--language", default=None, help="language of the notice (default: the work's)")
     p.set_defaults(func=_cmd)
