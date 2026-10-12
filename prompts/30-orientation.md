@@ -11,7 +11,8 @@ does it. Run the `orientation` stage of the checklist.
    L1, the table of contents:
    `lc show --workspace <slug> --budget 8000`. Then the opening and the last
    chapter in full, and skim metrics (`<ws>/metrics/<version>.json`).
-3. Write `<ws>/analysis/profile.toml`:
+3. Write `<ws>/analysis/profile.toml` (when it exists, keep its
+   `prose_suggestions` and `ai_notice_ack` lines as they are: the writer's choice):
 
    ```toml
    mode = "revision"

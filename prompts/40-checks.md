@@ -49,4 +49,5 @@ before line-level work.
   several anchors.
 - A proposed cut states what redundancy it removes, which effect it keeps and
   what else it touches (setups, motifs, relations).
-- Never write replacement prose; options describe what to do, not the words.
+- Options describe what to do, not the words. Replacement wording only when
+  the writer turned `prose_suggestions` on, labelled as a suggestion.

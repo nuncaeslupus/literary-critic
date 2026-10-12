@@ -1,12 +1,13 @@
 import json
 import os
 import random
+import tomllib
 from pathlib import Path
 
 import pytest
 from docgen import docx
 
-from litcritic import corpus, ingest, setup
+from litcritic import corpus, ingest, settings, setup
 from litcritic.cli import main
 
 
@@ -174,3 +175,72 @@ def test_setup_without_documents_is_a_usage_error(
 ) -> None:
     assert main(["setup", "--folder", str(tmp_path)]) == 2
     assert json.loads(capsys.readouterr().out)["status"] == "error"
+
+
+def test_prose_suggestions_off_until_notice_acknowledged(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folder = _novel_folder(tmp_path)
+    ws = folder / "literary-critic"
+    profile = ws / "analysis" / "profile.toml"
+    assert main(["setup", "--folder", str(folder)]) == 0
+    off_by_default = json.loads(capsys.readouterr().out)["settings"]["prose_suggestions"] is False
+    profile.write_text('mode = "revision"\nlanguage = "es"\n\n[weights]\npacing = 2\n')
+    before = profile.read_bytes()
+    # On without the acknowledgement: refused, the notice printed, nothing changed.
+    assert main(["setup", "--folder", str(folder), "--prose-suggestions", "on"]) == 1
+    out = json.loads(capsys.readouterr().out)
+    refused = out["reason"] == "ai_notice" and "IA" in out["notice"]
+    refused = refused and profile.read_bytes() == before
+    assert settings.load(ws)["prose_suggestions"] is False
+    # Acknowledged: on, with the time recorded and the rest of the profile kept.
+    argv = ["setup", "--folder", str(folder), "--prose-suggestions", "on", "--ack-ai-notice"]
+    assert main(argv) == 0
+    assert json.loads(capsys.readouterr().out)["settings"]["prose_suggestions"] is True
+    now = settings.load(ws)
+    profile_data = tomllib.loads(profile.read_text())
+    assert now["prose_suggestions"] and now["ai_notice_ack"].endswith("Z")
+    assert profile_data["weights"] == {"pacing": 2} and profile_data["mode"] == "revision"
+    # Off again: the acknowledgement goes with it, so turning on asks again.
+    assert main(["setup", "--folder", str(folder), "--prose-suggestions", "off"]) == 0
+    capsys.readouterr()
+    assert settings.load(ws) == {"prose_suggestions": False, "ai_notice_ack": ""}
+    # A profile edited by hand never turns it on without the acknowledgement.
+    for text in ("prose_suggestions = true\n", 'prose_suggestions = "false"\n'):
+        profile.write_text('mode = "revision"\nlanguage = "es"\n' + text)
+        hand_off = settings.load(ws)["prose_suggestions"] is False
+        refused = refused and hand_off
+    # A profile this tool cannot edit safely is left alone.
+    tricky = 'mode = "revision"\nlanguage = "es"\nnote = """\n[not a table]\n"""\n'
+    profile.write_text(tricky)
+    assert main([*argv]) == 2
+    capsys.readouterr()
+    refused = refused and profile.read_text() == tricky
+    # A broken profile does not stop setup.
+    profile.write_text("mode = \n")
+    assert main(["setup", "--folder", str(folder)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    refused = refused and out["settings"]["prose_suggestions"] is False
+    refused = refused and "profile_error" in out["settings"]
+    # The acknowledgement alone is a usage error.
+    assert main(["setup", "--folder", str(folder), "--ack-ai-notice"]) == 2
+    capsys.readouterr()
+    prose_suggestions_default_off = int(off_by_default and refused)
+    assert prose_suggestions_default_off == 1
+    assert "watermark" in settings.notice("en") and settings.notice("fr") == settings.notice("en")
+
+
+def test_notice_on_a_new_folder_and_new_profile(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folder = _novel_folder(tmp_path)
+    argv = ["setup", "--folder", str(folder), "--prose-suggestions", "on"]
+    assert main([*argv, "--language", "en"]) == 1
+    assert "watermark" in json.loads(capsys.readouterr().out)["notice"]
+    assert not (folder / "literary-critic").exists()  # nothing was created
+    assert main([*argv, "--ack-ai-notice"]) == 0
+    capsys.readouterr()
+    profile = tomllib.loads((folder / "literary-critic" / "analysis" / "profile.toml").read_text())
+    assert profile["mode"] == "revision" and profile["language"] == "es"
+    assert profile["prose_suggestions"] is True
+    assert main(["validate", "profile", str(folder / "literary-critic/analysis/profile.toml")]) == 0

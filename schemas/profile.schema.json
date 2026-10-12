@@ -11,6 +11,10 @@
     "language": {"type": "string", "pattern": "^[a-z]{2}$"},
     "traits": {"type": "array", "items": {"type": "string", "pattern": "^[a-z_]+$"}},
     "disabled": {"type": "array", "items": {"type": "string"}},
-    "weights": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}}
+    "weights": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0}},
+    "prose_suggestions": {"type": "boolean", "default": false,
+      "description": "The assistant may propose wording (off by default; needs ai_notice_ack)"},
+    "ai_notice_ack": {"type": "string",
+      "description": "When the writer acknowledged the AI-text notice (UTC, ISO 8601)"}
   }
 }
