@@ -26,9 +26,30 @@ be cut is wasted.
    raised again.
 4. `lc round status --workspace <slug>` says whether the round can close: no
    open high-severity action left, or the writer decides to close it.
-5. If the writer works in Word or Google Docs, offer a commented copy:
+5. **Applying a change the writer approved** (a `.docx` manuscript, and
+   `edit_in_place = true` in `<ws>/analysis/profile.toml`): write exactly the
+   change they approved to `edits.json`, in this form (`prefix` and `suffix`
+   are the text right before and after the quote, only as much as makes it
+   unique; `replace` is the new text):
+
+   ```json
+   {"edits": [{"id": "A3", "quote": "dijo Pablo", "prefix": "—Ya voy —",
+               "suffix": " con voz cansada.", "replace": "susurró Pablo",
+               "reason": "approved by the writer"}]}
+   ```
+
+   Then follow `80-live-word.md`: `lc docx status --workspace <slug>`,
+   save and close Word if needed, then
+   `lc docx edits --workspace <slug> --edits edits.json --dry-run` and the
+   same without `--dry-run`. Reopen the document at the change and mark the
+   action `done`. A name changed everywhere:
+   `lc docx rename OLD NEW --workspace <slug> --dry-run`, then without it.
+   With prose suggestions off, the new text is the writer's own words.
+6. If the writer prefers to type the changes, or works in Google Docs, offer a commented copy:
    `lc docx-comments --workspace <slug>` writes
    `<ws>/revisions/round-NN/<version>-comments.docx` with each open action as a
    comment on its paragraph. It is a copy; the writer's file is never changed.
    (Google Docs imports Word comments when the file is uploaded.)
-6. To find any paragraph for the writer: `lc locate c05.s1.p3 --workspace <slug>`.
+7. To find any paragraph for the writer: `lc locate c05.s1.p3 --workspace <slug>`;
+   to take them there in Word: `lc docx locate c05.s1.p3 --workspace <slug>` and
+   `80-live-word.md`.

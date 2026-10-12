@@ -5,6 +5,7 @@ label: "guided flow prompts"
 priority: 5
 deps: [t-5f533083, t-b04fa655, t-9263f3a9, t-8e787b86]
 workspace: chat
+status: merged
 ---
 
 # W7: prompts for setup wizard and guided flow

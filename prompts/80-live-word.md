@@ -25,8 +25,8 @@ writer never searches for anything, and never loses a word of their work.
    changes without the writer's answer.
 2. If `changed_on_disk` is true, the writer saved since the tool last read the
    file: run `lc ingest` on it first, then check the edit still applies.
-3. Write the approved edits to `edits.json` (quote with enough `prefix` and
-   `suffix` to be unique, the replacement, the reason) and run
+3. Write the approved edits to `edits.json` (the format is in `60-rounds.md`,
+   step 5: `id`, `quote`, `prefix`, `suffix`, `replace`, `reason`) and run
    `lc docx edits --workspace <ws> --edits edits.json --dry-run`, then without
    `--dry-run`. For a name changed everywhere: `lc docx rename OLD NEW --workspace <ws> --dry-run`, then without it.
 4. Reopen the document (`lc word reopen --payload '{"document": "<document>"}'`)

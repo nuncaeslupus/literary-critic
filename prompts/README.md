@@ -9,6 +9,7 @@ validation were not run.
 | File | Use it to |
 |------|-----------|
 | `00-guide.md` | Talk to the writer: modes, language, the two channels, house rules. Read first, every session. |
+| `05-setup.md` | First contact: check what this Claude can do, find the novel, agree how to work (setup wizard). |
 | `10-ingest-and-structure.md` | Bring a draft in, check its structure, correct it with overrides. |
 | `20-codex-items.md` | Record scenes, characters, places, motifs and setups as Codex items; write the synopsis. |
 | `30-orientation.md` | First reading: writer's brief, profile, traits, what the novel is trying to do. |

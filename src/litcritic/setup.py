@@ -22,6 +22,7 @@ import os
 import platform
 import re
 import sys
+import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -208,16 +209,62 @@ def environment(folder: Path, manuscript: Path) -> dict[str, Any]:
     }
 
 
-def setup(folder: Path, prose: str = "", ack: bool = False) -> dict[str, Any]:
-    """Run discovery, create or reuse the workspace, ingest and anchor; ``prose``
-    ("on" or "off") changes the prose-suggestion setting (on needs ``ack``)."""
+CHOICE = Path("state") / "manuscript.json"
+
+
+def _choose(found: Discovery, path: Path) -> Discovery:
+    """The same discovery with the writer's file as the manuscript."""
+    group = [found.manuscript, *(f for f, _ in found.versions)]
+    pool = [*group, *found.others]
+    chosen = next((f for f in pool if f.path.resolve() == path.resolve()), None) or _read(path)
+    if chosen is None or not chosen.words:
+        raise SetupError(f"{path} has no text this tool can read")
+    rest = [f for f in group if f is not chosen]
+    versions = sorted(((f, similarity(f, chosen)) for f in rest), key=lambda v: -v[0].modified)
+    return Discovery(chosen, versions, [f for f in found.others if f is not chosen])
+
+
+def _recorded_choice(root: Path, found: Discovery) -> Path | None:
+    """The file the writer chose before, unless a draft was saved after that choice."""
+    try:
+        data = json.loads((root / CHOICE).read_text(encoding="utf-8"))
+        path, at = Path(data["manuscript"]), float(data["chosen_at"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    if not path.is_file() or found.manuscript.modified > at:
+        return None
+    return path
+
+
+def setup(
+    folder: Path,
+    prose: str = "",
+    ack: bool = False,
+    manuscript: Path | None = None,
+    edit_in_place: str = "",
+) -> dict[str, Any]:
+    """Run discovery, create or reuse the workspace, ingest and anchor.
+
+    ``manuscript`` overrides the file discovery picked, and is remembered until
+    a draft is saved after it. ``prose`` ("on"/"off") changes the prose-suggestion
+    setting (on needs ``ack``); ``edit_in_place`` ("yes"/"no") records whether
+    approved changes may go into the writer's file.
+    """
     folder = folder.expanduser().resolve()
     if not folder.is_dir():
         raise SetupError(f"{folder} is not a folder")
     settings.check(prose, ack)
     found = discover(folder)
-    doc = found.manuscript.path
     root = folder / WORKSPACE_DIR
+    if manuscript is not None:
+        path = manuscript.expanduser()
+        path = path if path.is_absolute() else folder / path
+        if not path.is_file():
+            raise SetupError(f"{path} does not exist")
+        found = _choose(found, path)
+    elif (chosen := _recorded_choice(root, found)) is not None:
+        found = _choose(found, chosen)
+    doc = found.manuscript.path
     if (root / workspace.MANIFEST).is_file():
         ws = workspace.resolve(str(root))
     else:
@@ -228,19 +275,27 @@ def setup(folder: Path, prose: str = "", ack: bool = False) -> dict[str, Any]:
             base=folder,
             folder=WORKSPACE_DIR,
         )
+    if manuscript is not None:
+        (ws.root / CHOICE).parent.mkdir(parents=True, exist_ok=True)
+        choice = {"manuscript": str(doc.resolve()), "chosen_at": time.time()}
+        (ws.root / CHOICE).write_text(json.dumps(choice) + "\n", encoding="utf-8")
     result = ingest.ingest(doc, ws.root)
     structure_file = ws.root / "index" / result.version / "structure.json"
     if not result.unchanged or not structure_file.is_file():
         structure.build(ws.root, result.version)
     if prose:
         settings.set_prose_suggestions(ws.root, prose == "on", ack, _language(ws.root))
+    if edit_in_place:
+        settings.set_edit_in_place(ws.root, edit_in_place == "yes", _language(ws.root))
     try:
-        current: dict[str, Any] = {"prose_suggestions": settings.load(ws.root)["prose_suggestions"]}
+        now = settings.load(ws.root)
+        current: dict[str, Any] = {k: now[k] for k in ("prose_suggestions", "edit_in_place")}
     except settings.SettingsError as exc:  # a hand-edited profile: setup still works
-        current = {"prose_suggestions": False, "profile_error": str(exc)}
+        current = {"prose_suggestions": False, "edit_in_place": None, "profile_error": str(exc)}
     return {
         "status": "ready",
         "workspace": _rel(folder, ws.root),
+        "workspace_path": str(ws.root),  # what --workspace takes in every later command
         "manuscript": found.manuscript.as_json(folder),
         "version": result.version,
         "versions": [f.as_json(folder, sim) for f, sim in found.versions],
@@ -261,7 +316,13 @@ def _language(ws_root: Path) -> str:
 
 def _cmd(args: argparse.Namespace) -> int:
     try:
-        out = setup(args.folder, args.prose_suggestions or "", args.ack_ai_notice)
+        out = setup(
+            args.folder,
+            args.prose_suggestions or "",
+            args.ack_ai_notice,
+            args.manuscript,
+            args.edit_in_place or "",
+        )
     except settings.NoticeRequired as exc:
         lang = args.language or _language(args.folder.expanduser() / WORKSPACE_DIR)
         refused = {"status": "refused", "reason": "ai_notice", "message": str(exc)}
@@ -284,6 +345,13 @@ def _cmd(args: argparse.Namespace) -> int:
 def register(sub: Any) -> None:
     p = sub.add_parser("setup", help="find the novel in a folder and prepare its workspace")
     p.add_argument("--folder", type=Path, required=True, help="the folder holding the novel")
+    p.add_argument("--manuscript", type=Path, default=None, help="the writer's choice of file")
+    p.add_argument(
+        "--edit-in-place",
+        choices=("yes", "no"),
+        default=None,
+        help="approved changes may go into the file as tracked changes",
+    )
     p.add_argument("--prose-suggestions", choices=("on", "off"), default=None)
     p.add_argument("--ack-ai-notice", action="store_true", help="the writer read the AI notice")
     p.add_argument("--language", default=None, help="language of the notice (default: the work's)")

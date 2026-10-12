@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 PROFILE = Path("analysis") / "profile.toml"
-KEYS = ("prose_suggestions", "ai_notice_ack")
+KEYS = ("prose_suggestions", "ai_notice_ack", "edit_in_place")
 
 AI_NOTICE = {
     "en": (
@@ -76,10 +76,13 @@ def _read(ws_root: Path) -> dict[str, Any]:
 def _settings(profile: dict[str, Any]) -> dict[str, Any]:
     ack = profile.get("ai_notice_ack")
     ack = ack if isinstance(ack, str) and ack else ""
-    # On only when written as a real boolean true and with the notice acknowledged.
+    edit = profile.get("edit_in_place")
     return {
+        # On only when written as a real boolean true and with the notice acknowledged.
         "prose_suggestions": profile.get("prose_suggestions") is True and bool(ack),
         "ai_notice_ack": ack,
+        # The writer's answer to "may approved changes go into the file?"; None = not asked.
+        "edit_in_place": edit if isinstance(edit, bool) else None,
     }
 
 
@@ -109,7 +112,7 @@ def _write(ws_root: Path, values: dict[str, object], language: str) -> None:
         ]
     )
     first_table = next((i for i, ln in enumerate(lines) if TABLE.match(ln)), len(lines))
-    key = re.compile(r"\s*(" + "|".join(KEYS) + r")\s*=")
+    key = re.compile(r"\s*(" + "|".join(values) + r")\s*=")
     head = [ln for ln in lines[:first_table] if not key.match(ln)]
     new = [f"{k} = {_toml(v)}" for k, v in values.items() if v != ""]
     text = "\n".join([*head, *new, *lines[first_table:]]) + "\n"
@@ -133,4 +136,11 @@ def set_prose_suggestions(
         return current
     stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if on else ""
     _write(ws_root, {"prose_suggestions": on, "ai_notice_ack": stamp}, language)
+    return load(ws_root)
+
+
+def set_edit_in_place(ws_root: Path, on: bool, language: str = "en") -> dict[str, Any]:
+    """Record whether approved changes may be applied to the writer's file."""
+    if load(ws_root)["edit_in_place"] is not on:
+        _write(ws_root, {"edit_in_place": on}, language)
     return load(ws_root)
