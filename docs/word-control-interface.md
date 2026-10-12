@@ -34,7 +34,8 @@ Until the extension exists, every operation answers:
 instruction to give the writer when computer use is off or fails. If
 `$LITCRITIC_WORD_CONTROL` names the extension's command, the adapter runs
 `<command> <operation>` with the request on stdin, and uses its JSON answer;
-when it fails, the manual answer comes back with `extension_error`.
+when it fails, the manual answer comes back with `extension_error`: the
+operation was not done, and the agent does it by hand (or tells the writer).
 
 ## Operations
 
@@ -45,7 +46,7 @@ Bring Word to the front and select a passage, so the writer sees it. The
 mark, `^t` tab, `^l` line break, `^~` non-breaking hyphen, `^s` hard space,
 `^^` caret; at most 255 characters).
 
-- Request: `document`, `find`, `locator` (optional; the plain locator from `lc docx locate`)
+- Request: `document`, `find`, `locator` (optional; the plain locator from `lc docx locate`), `language` (optional; of the writer line, default `en`)
 - Response: `status`, `found`
 
 ### `apply_edits`

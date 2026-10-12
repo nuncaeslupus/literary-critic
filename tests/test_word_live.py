@@ -11,8 +11,9 @@ from litcritic.cli import main
 
 DOC = Path(__file__).resolve().parents[1] / "docs" / "word-control-interface.md"
 
+LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
 PAYLOADS: dict[str, dict[str, Any]] = {
-    "locate": {"document": "N/N.docx", "find": "Ya voy^pdijo", "locator": {"chapter": "7"}},
+    "locate": {"document": "N/N.docx", "find": "Ya voy^pdijo", "locator": LOC},
     "apply_edits": {"document": "N/N.docx", "edits": []},
     "rename": {"document": "N/N.docx", "old": "A", "new": "B", "case_sensitive": True},
     "save": {"document": "N/N.docx"},
@@ -59,9 +60,20 @@ def test_manual_steps_follow_the_system_and_the_locator() -> None:
     mac = word_live.manual("locate", PAYLOADS["locate"], "darwin")
     win = word_live.manual("locate", PAYLOADS["locate"], "win32")
     assert "Cmd+F" in " ".join(mac["steps"]) and "Ctrl+F" in " ".join(win["steps"])
-    assert "Ya voy^pdijo" in " ".join(win["steps"]) and "chapter 7" in win["writer"]
+    assert "Ya voy^pdijo" in " ".join(win["steps"]) and "Chapter 7" in win["writer"]
     no_loc = word_live.manual("locate", {"document": "N.docx", "find": "Ya voy"})
     assert "Ya voy" in no_loc["writer"]
+    loc = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
+    es = word_live.manual("locate", {**PAYLOADS["locate"], "locator": loc, "language": "es"})
+    assert es["writer"].startswith("En N.docx: Capítulo 7, pág. ≈112"), es["writer"]
+    empty = {"chapter": None, "first_words": "", "last_words": ""}
+    assert (
+        "None" not in word_live.manual("locate", {**PAYLOADS["locate"], "locator": empty})["writer"]
+    )
+    with pytest.raises(word_live.WordLiveError, match="locator"):
+        word_live.call("locate", {**PAYLOADS["locate"], "locator": "c07.s2.p4"})
+    discard = word_live.manual("close", {"document": "N.docx", "save": False})
+    assert "not to save" in discard["writer"]
     with pytest.raises(word_live.WordLiveError, match="needs find"):
         word_live.call("locate", {"document": "N.docx"})
     with pytest.raises(word_live.WordLiveError, match="unknown"):
@@ -87,3 +99,10 @@ def test_extension_command_is_used_and_falls_back(
     assert main(["word", "reopen", "--payload", json.dumps(PAYLOADS["reopen"])]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "manual"
     assert main(["word", "reopen", "--payload", "[1]"]) == 2
+    long_find = {**PAYLOADS["locate"], "find": "palabra/" * 40}
+    assert main(["word", "locate", "--payload", json.dumps(long_find)]) == 0
+    capsys.readouterr()
+    request = tmp_path / "locate.json"
+    request.write_text(json.dumps({**PAYLOADS["locate"], "find": 'I don\'t "know"'}))
+    assert main(["word", "locate", "--payload", str(request)]) == 0
+    assert "I don't" in " ".join(json.loads(capsys.readouterr().out)["steps"])

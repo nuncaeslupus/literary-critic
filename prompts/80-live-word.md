@@ -8,8 +8,10 @@ writer never searches for anything, and never loses a word of their work.
 1. `lc docx locate "<first words of the passage>" --workspace <ws>` (or an
    anchor such as `c07.s2.p4`). It prints `find` (Word's search text) and the
    plain `locator` (chapter, page, first and last words).
-2. `lc word locate --payload '{"document": "<document>", "find": "<find>", "locator": <locator>}'`.
-   Follow its `steps` with computer use: bring Word to the front, open the
+2. Write the request to a file, `locate.json`: `{"document": …, "find": …,
+   "locator": …, "language": …}` with the values from step 1 (a
+   file, because passages contain quotes and apostrophes), then
+   `lc word locate --payload locate.json`. Follow its `steps` with computer use: bring Word to the front, open the
    search (Ctrl+F, or Cmd+F on a Mac), type `find` exactly, press Enter. Word
    selects the passage.
 3. If computer use is off, or the passage is not found, give the writer the

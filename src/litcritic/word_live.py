@@ -24,6 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from litcritic import locate
+
 ENV = "LITCRITIC_WORD_CONTROL"
 TIMEOUT = 60
 
@@ -38,7 +40,7 @@ OPERATIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "selection": (("document",), ("status", "text", "find")),
 }
 MANUAL_KEYS = ("status", "how", "steps", "writer")
-OPTIONAL = {"locate": ("locator",)}  # request keys that may be absent
+OPTIONAL = {"locate": ("locator", "language")}  # request keys that may be absent
 
 
 class WordLiveError(Exception):
@@ -56,15 +58,17 @@ def _name(payload: dict[str, Any]) -> str:
     return Path(str(payload.get("document", "the document"))).name
 
 
-def _where(locator: dict[str, Any] | None) -> str:
-    if not locator:
+def _where(locator: Any, lang: str) -> str:
+    """The writer's locator line (as everywhere else in the tool), or "" when incomplete."""
+    if not isinstance(locator, dict):
         return ""
-    page = f", around page {locator['page']}" if locator.get("page") else ""
-    return (
-        f"chapter {locator.get('chapter', '?')}{page}, the paragraph that starts "
-        f"“{locator.get('first_words', '')}” and ends "
-        f"“{locator.get('last_words', '')}”"
-    )
+    needed = ("chapter", "first_words", "last_words")
+    if not all(isinstance(locator.get(k), str) and locator[k] for k in needed):
+        return ""
+    try:
+        return locate.describe(locate.from_where({"anchor": "", **locator}), lang)
+    except (TypeError, ValueError):
+        return ""
 
 
 def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
@@ -80,8 +84,14 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
             "selection for the writer to see.",
             "If nothing is found, tell the writer where it is in plain words instead.",
         ]
-        where = _where(payload.get("locator")) or f"the text “{payload['find']}”"
-        writer = f"In {name}, go to {where}."
+        lang = str(payload.get("language") or "en")
+        where = _where(payload.get("locator"), lang)
+        if lang == "es":
+            writer = f"En {name}: {where}." if where else f"En {name}, busca «{payload['find']}»."
+        else:
+            writer = (
+                f"In {name}: {where}." if where else f"In {name}, look for “{payload['find']}”."
+            )
     elif op in ("apply_edits", "rename"):
         steps = [
             f"Run `lc docx status` first. If {name} is open in Word, save and close it "
@@ -101,7 +111,11 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
             "If Word asks whether to save, answer as the writer decided; never discard "
             "their unsaved work without asking.",
         ]
-        writer = f"Please save and close {name} in Word."
+        writer = (
+            f"Please save and close {name} in Word."
+            if payload.get("save")
+            else f"Please close {name} in Word; when it asks, choose not to save."
+        )
     elif op == "reopen":
         steps = [f"Open {name} from its folder (double-click it) and bring Word to the front."]
         writer = f"You can open {name} again now."
@@ -114,13 +128,21 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
     return {"status": "manual", "how": "computer-use", "steps": steps, "writer": writer}
 
 
+def _split(command: str) -> list[str]:
+    """The command's words; Windows paths keep their backslashes."""
+    if os.name != "nt":
+        return shlex.split(command)
+    return [w.strip('"') for w in shlex.split(command, posix=False)]
+
+
 def _command(op: str, payload: dict[str, Any], command: str) -> dict[str, Any]:
     try:
         done = subprocess.run(
-            [*shlex.split(command), op],
+            [*_split(command), op],
             input=json.dumps(payload, ensure_ascii=False),
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=TIMEOUT,
             check=False,
         )
@@ -141,6 +163,8 @@ def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict
     missing = [k for k in request if k not in payload and k not in OPTIONAL.get(op, ())]
     if missing:
         raise WordLiveError(f"{op} needs {', '.join(missing)}")
+    if payload.get("locator") is not None and not isinstance(payload["locator"], dict):
+        raise WordLiveError("locator must be the object `lc docx locate` prints")
     command = os.environ.get(ENV, "").strip()
     if command:
         out = _command(op, payload, command)
@@ -153,8 +177,8 @@ def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict
 def _cmd(args: Any) -> int:
     try:
         raw = args.payload
-        text = Path(raw).read_text(encoding="utf-8") if Path(raw).is_file() else raw
-        payload = json.loads(text)
+        inline = raw.lstrip().startswith(("{", "["))
+        payload = json.loads(raw if inline else Path(raw).read_text(encoding="utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("the payload must be a JSON object")
         out = call(args.op, payload)
