@@ -106,11 +106,7 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     data = doc.read_bytes() if data is None else data
     digest = sha256(data)
     state = _load_state(ws_root)
-    top = max((int(r.get("seq", 0)) for r in state.values()), default=0)
-    known = state.get(_key(doc), {})
-    if known.get("sha256") == digest and int(known.get("seq", 0)) == top:
-        return digest  # already the last thing read: nothing to record
-    seq = top + 1
+    seq = max((int(r.get("seq", 0)) for r in state.values()), default=0) + 1
     state[_key(doc)] = {
         "path": str(doc),
         "sha256": digest,
@@ -119,6 +115,14 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     }
     _save_state(ws_root, state)
     return digest
+
+
+def is_last_read(ws_root: Path, doc: Path, digest: str) -> bool:
+    """These bytes are what the tool last read, and this is the last document read."""
+    state = _load_state(ws_root)
+    top = max((int(r.get("seq", 0)) for r in state.values()), default=0)
+    known = state.get(_key(doc), {})
+    return known.get("sha256") == digest and int(known.get("seq", 0)) == top
 
 
 def known_documents(ws_root: Path, suffix: str = "") -> list[Path]:

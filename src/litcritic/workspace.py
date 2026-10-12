@@ -118,7 +118,9 @@ def create(
     for sub in SUBDIRS:
         (root / sub).mkdir(parents=True, exist_ok=True)
     q = json.dumps  # JSON string escaping is valid TOML basic-string escaping
-    taken = {_meta(ws).get("id") for ws in all_workspaces(base)}
+    # A work placed in a chosen folder: check ids against home and the registry,
+    # never by walking that folder (it can be the writer's whole Documents).
+    taken = {_meta(ws).get("id") for ws in all_workspaces(None if folder else base)}
     work_id = f"{slug}-{secrets.token_hex(3)}"
     while work_id in taken:
         work_id = f"{slug}-{secrets.token_hex(3)}"

@@ -118,6 +118,34 @@ def test_setup_picks_latest_draft_and_lists_versions(
     found = setup.discover(third)
     scenarios += 1
     correct += found.manuscript.path.name == "Book (1).docx" and not found.others
+    # 4. an excerpt sent to an agent is newer, a later draft has a new opening,
+    #    and the folder holds a long unrelated book: none of them misleads
+    fourth = tmp_path / "The Old Mill"
+    fourth.mkdir()
+    mill = _paras("marianela", 400)
+    _put(fourth, "The Old Mill v2.docx", docx(_revise(mill[:380], 11), seed=11), 1)
+    _put(fourth, "The Old Mill v3.docx", docx(mill[:380], seed=12), 2)
+    prologue = [(f"Prólogo nuevo, línea {k} de una apertura reescrita.", False) for k in range(80)]
+    _put(fourth, "The Old Mill v4.docx", docx(prologue + mill[60:380], seed=13), 3)
+    _put(fourth, "first chapters for agent.docx", docx(mill[:40], seed=14), 4)
+    _put(fourth, "research.docx", docx(_paras("jekyll-hyde", 2000), seed=15), 5)
+    found = setup.discover(fourth)
+    scenarios += 1
+    correct += (
+        found.manuscript.path.name == "The Old Mill v4.docx"
+        and [f.path.name for f in found.others] == ["research.docx"]
+        and setup._title(found.manuscript.path) == "The Old Mill"
+    )
+    # 5. the writer moved to Markdown: a newer draft with other text wins
+    fifth = tmp_path / "Catch-22"
+    fifth.mkdir()
+    _put(fifth, "Catch-22.docx", docx(base, seed=16), 1)
+    _put(fifth, "Catch-22.md", "\n\n".join(t for t, _ in _revise(base, 17)), 2)
+    found = setup.discover(fifth)
+    scenarios += 1
+    correct += found.manuscript.path.name == "Catch-22.md"
+    correct += setup._title(found.manuscript.path) == "Catch-22"
+    scenarios += 1
     novel_discovery_accuracy = correct / scenarios
     assert novel_discovery_accuracy == 1.0
 
