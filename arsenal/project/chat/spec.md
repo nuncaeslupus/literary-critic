@@ -166,10 +166,10 @@ Every new command prints one JSON object on stdout. Exit codes: 0 means done, 1 
 - Finds the manuscript and its versions, reports what the script can detect, and creates or reuses `<dir>/literary-critic/` as the workspace.
 - Response:
   ```json
-  {"status": "ready", "workspace": "MyNovel/literary-critic",
-   "manuscript": {"path": "MyNovel/MyNovel_v3.docx", "modified": "2026-10-01T18:22:00Z"},
-   "versions": [{"path": "MyNovel/MyNovel_v2.docx", "modified": "2026-09-12T10:00:00Z", "similarity": 0.94}],
-   "others": ["MyNovel/notes.docx"],
+  {"status": "ready", "workspace": "literary-critic",
+   "manuscript": {"path": "MyNovel_v3.docx", "modified": "2026-10-01T18:22:00Z"},
+   "versions": [{"path": "MyNovel_v2.docx", "modified": "2026-09-12T10:00:00Z", "similarity": 0.94}],
+   "others": ["notes.docx"],
    "environment": {"python": "3.12.3", "os": "darwin", "folder_writable": true, "word_lock": false},
    "settings": {"prose_suggestions": false}}
   ```

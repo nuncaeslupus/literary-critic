@@ -51,7 +51,7 @@ trabajar en ella. Antes de nada, una comprobación: he encontrado tu novela en
 sobre «Marianela_v2.docx»?
 
 *(Ran: `lc doctor`, then `lc setup --folder Marianela`. The answer named
-`Marianela/Marianela_v2.docx` as the manuscript, `Marianela_v1.docx` as a
+`Marianela_v2.docx` as the manuscript, `Marianela_v1.docx` as a
 version, `notas.txt` under others, language `es`.)*
 
 **Writer:** Sí.
@@ -93,7 +93,8 @@ reported `locked: true`.)*
 **Writer:** Ya está.
 
 **Claude:** Listo: he aplicado el cambio en el capítulo 2, página 7, en el
-párrafo que empieza «--Quién sabe...--manifestó Teodoro--¿pero qué…». Ya puedes abrir
+párrafo que empieza «--Quién sabe...--manifestó Teodoro--¿pero qué…» y termina
+«…sorprendente espectáculo es este?». Ya puedes abrir
 Word: lo verás como cambio marcado, y puedes aceptarlo o rechazarlo. Guardé
 una copia de seguridad antes. ¿Seguimos con el siguiente?
 
@@ -120,11 +121,13 @@ writer agrees. Edits never go into a file that is open.)*
 |---------|--------|----------|
 | writer_setup_actions (main path) | ≤ 5 | 5 (4 without computer use) |
 | Median writer-facing reply | ≤ 120 words | 44 words (7 replies, 27–52) |
-| Every place located | all | both replies that name a place give chapter, page and first words (and last words the first time) |
+| Every place located | all | both replies that name a place give chapter, page, and the quoted first and last words |
 | One step at a time | one question per reply | yes |
 
-**Fixed during the walkthrough:** `lc docx --document` now also accepts the
-path as `lc setup` prints it (`Marianela/Marianela_v2.docx`).
+**Fixed during the walkthrough:** `lc setup` printed paths from the folder
+above the novel's (`Marianela/Marianela_v2.docx`), while `lc docx` and
+`--manuscript` take them from the novel's folder. Setup now prints them the
+same way (`Marianela_v2.docx`).
 
 ## Hand-test checklists for the owner
 

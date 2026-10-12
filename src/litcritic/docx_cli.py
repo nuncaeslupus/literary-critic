@@ -36,12 +36,7 @@ def _out(payload: dict[str, Any], code: int = 0) -> int:
 def _document(ws_root: Path, name: str | None) -> Path:
     if name:
         path = Path(name).expanduser()
-        if path.is_absolute():
-            return path
-        # As `lc docx` prints it (from the novel's folder) or as `lc setup` does
-        # (from the folder above, starting with the novel folder's name).
-        here, above = ws_root.parent / path, ws_root.parent.parent / path
-        return above if not here.exists() and above.exists() else here
+        return path if path.is_absolute() else ws_root.parent / path
     docs = safe_edit.known_documents(ws_root, ".docx")
     if not docs:
         raise CliError("no document known yet: pass --document or run `lc ingest` on the .docx")
