@@ -17,6 +17,7 @@ validation were not run.
 | `50-new-draft.md` | Bring in the next draft and see what changed. |
 | `60-rounds.md` | Turn findings into a revision round, the letter, and the writer's decisions. |
 | `70-reader-report.md` | Assess a manuscript for an agency or publisher (reader-report mode). |
+| `80-live-word.md` | Take the writer to a passage in the open Word, and change the file safely (save, close, edit, reopen). |
 
 Index layers: **L0** profile and synopsis · **L1** table of contents · **L2**
 Codex items (scenes, entities, setups…) · **L3** the text itself, read through `lc show`, `lc find` and

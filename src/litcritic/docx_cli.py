@@ -151,14 +151,7 @@ class _Places:
         i = self.by_ordinal.get(ordinal)
         if self.ix is None or i is None:
             return None
-        loc = self.builder.locate(self.ix.anchors[i])
-        return {
-            "anchor": loc.anchor,
-            "chapter": loc.chapter,
-            "page": loc.page,
-            "first_words": loc.first_words,
-            "last_words": loc.last_words,
-        }
+        return self.builder.locate(self.ix.anchors[i]).as_where()
 
 
 # -- commands -------------------------------------------------------------------
