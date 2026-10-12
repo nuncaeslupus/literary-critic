@@ -204,7 +204,11 @@ def test_prose_suggestions_off_until_notice_acknowledged(
     # Off again: the acknowledgement goes with it, so turning on asks again.
     assert main(["setup", "--folder", str(folder), "--prose-suggestions", "off"]) == 0
     capsys.readouterr()
-    assert settings.load(ws) == {"prose_suggestions": False, "ai_notice_ack": ""}
+    assert settings.load(ws) == {
+        "prose_suggestions": False,
+        "ai_notice_ack": "",
+        "edit_in_place": None,
+    }
     # A profile edited by hand never turns it on without the acknowledgement.
     for text in ("prose_suggestions = true\n", 'prose_suggestions = "false"\n'):
         profile.write_text('mode = "revision"\nlanguage = "es"\n' + text)
@@ -244,3 +248,26 @@ def test_notice_on_a_new_folder_and_new_profile(
     assert profile["mode"] == "revision" and profile["language"] == "es"
     assert profile["prose_suggestions"] is True
     assert main(["validate", "profile", str(folder / "literary-critic/analysis/profile.toml")]) == 0
+
+
+def test_writer_choice_of_manuscript_and_edit_answer_are_kept(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    folder = _novel_folder(tmp_path)
+    ws = folder / "literary-critic"
+    argv = ["setup", "--folder", str(folder)]
+    assert main([*argv, "--manuscript", "MyNovel_v2.docx", "--edit-in-place", "yes"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["manuscript"]["path"] == "MyNovel/MyNovel_v2.docx"
+    assert "MyNovel/MyNovel_v3.docx" in [v["path"] for v in out["versions"]]
+    assert out["settings"]["edit_in_place"] is True and out["workspace_path"] == str(ws)
+    # A later run (turning a setting on, say) keeps the writer's choice...
+    assert main(argv) == 0
+    again = json.loads(capsys.readouterr().out)
+    assert again["manuscript"]["path"] == "MyNovel/MyNovel_v2.docx" and again["version"] == "v001"
+    assert again["settings"]["edit_in_place"] is True
+    # ...until the writer saves a newer draft.
+    _put(folder, "MyNovel_v4.docx", docx(_revise(_paras("marianela", 220), 9), seed=6), 10**5)
+    assert main(argv) == 0
+    assert json.loads(capsys.readouterr().out)["manuscript"]["path"] == "MyNovel/MyNovel_v4.docx"
+    assert main([*argv, "--manuscript", "missing.docx"]) == 2

@@ -54,9 +54,11 @@ question at a time. Offer more detail instead of giving it unasked.
    on, offer wording as a clearly labelled suggestion the writer takes,
    changes or rejects.
 2. **Never edit the manuscript** (Word, Google Docs, any file) without explicit
-   permission for that specific change. With it, apply the change as a tracked
-   change (`60-rounds.md`, `80-live-word.md`); Google Docs
-   and other files are never edited: give a commented copy instead.
+   permission for that specific change. With it, and when the writer agreed
+   to changes in the file (`edit_in_place` in the profile), apply it to the
+   `.docx` as a tracked change (`60-rounds.md`, `80-live-word.md`). Other files
+   (Google Docs, `.odt`, text) are never edited: the writer makes the change,
+   guided by the letter, or by a commented copy when the manuscript is `.docx`.
 3. **Plain language.** Assume the writer has no technical skills. Do not show
    commands, JSON or anchors to them unless they ask.
 4. **Locate everything.** Every place you mention gets: chapter (and section),

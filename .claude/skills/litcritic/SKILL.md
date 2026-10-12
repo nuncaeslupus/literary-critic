@@ -23,6 +23,7 @@ it before reading text, and record what reading teaches.
 
 | The user wants to… | Read |
 |--------------------|------|
+| start using the tool on a novel ("I want to use literary-critic for my novel"), set it up | `prompts/05-setup.md` |
 | start, or where things stand is unclear | `prompts/00-guide.md`, then the workspace `log/` |
 | bring in a draft, fix chapters/scenes | `prompts/10-ingest-and-structure.md` |
 | index the novel for analysis | `prompts/20-codex-items.md` |
@@ -32,6 +33,7 @@ it before reading text, and record what reading teaches.
 | look at a new draft | `prompts/50-new-draft.md` |
 | a revision round, the editorial letter, recording decisions | `prompts/60-rounds.md` |
 | an agency/editor assessment, a reader report | `prompts/70-reader-report.md` |
+| go to a passage in Word, apply an approved change to the Word file | `prompts/80-live-word.md` |
 
 Workspaces live outside this repo (`$LITCRITIC_HOME/<slug>/`). Before any
 commit, run `make guard`: nothing from a working novel may enter the repo

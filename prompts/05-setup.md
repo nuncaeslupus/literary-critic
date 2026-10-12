@@ -29,8 +29,11 @@ newest full draft), its other versions and unrelated documents, and creates
 the working folder `literary-critic` next to the novel. Tell the writer, in
 one short message, which file you will work on and how many earlier versions
 you found, and ask them to confirm. If they name another file, run
-`lc ingest <that file> --workspace <workspace>` and
-`lc anchor --workspace <workspace>`.
+`lc setup --folder <dir> --manuscript <that file>`: the choice is remembered
+until a draft is saved after it.
+
+From now on, `<ws>` in every command is the `workspace_path` that `lc setup`
+printed (the full path of the working folder).
 
 If `environment.word_lock` is true, the novel is open in Word: that is fine
 for reading; before any change you will ask them to save and close it (see
@@ -43,7 +46,9 @@ for reading; before any change you will ask them to save and close it (see
 2. **Changes in the file:** you only ever change the file after they approve
    each change, as tracked changes they can accept or reject in Word, with a
    backup every time. Do they want that, or do they prefer to type every
-   change themselves? Either is fine; remember the answer.
+   change themselves? Either is fine. Record the answer, so later sessions
+   know it: `lc setup --folder <dir> --edit-in-place yes` (or `no`). Only a
+   `.docx` manuscript can be changed this way.
 
 Wording suggestions stay off unless the writer asks for them; then follow
 house rule 1 of `00-guide.md` (the AI-text notice comes first).
@@ -59,7 +64,9 @@ plan"). Count what the writer had to do; it should be a handful of clicks.
 
 No code or no connected folder: ask the writer to upload the manuscript. If
 code runs, use it in this conversation's sandbox the same way (`lc setup` on
-the uploaded file's folder), and give back
-`lc docx-comments --workspace <workspace>` as a download instead of editing
-their file. Without code, read the text directly and follow the same rules:
-plain locations, one change at a time, the writer writes.
+the uploaded file's folder) and follow the usual flow (orientation, checks, a
+round). The writer's file cannot be changed from here: give back the round's
+letter (`lc round letter --workspace <ws>`) and, for a `.docx` manuscript, the
+commented copy (`lc docx-comments --workspace <ws>`) as downloads. Without
+code, read the text directly and follow the same rules: plain locations, one
+change at a time, the writer writes.
