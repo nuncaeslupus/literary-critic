@@ -224,6 +224,19 @@ def test_review_regressions_note_marks_fields_context_and_case() -> None:
         docx_edit.rename(will, "  ", "x")
 
 
+def test_hyperlink_text_is_left_alone() -> None:
+    data = _raw(
+        '<w:p><w:r><w:t>Ver </w:t></w:r><w:hyperlink w:history="1"><w:r><w:t>la web'
+        "</w:t></w:r></w:hyperlink><w:r><w:t> del autor.</w:t></w:r></w:p>"
+    )
+    assert docx_edit.texts(data) == ["Ver la web del autor."]
+    for quote in ("la web", "Ver la", "web del"):
+        with pytest.raises(docx_edit.EditError):
+            docx_edit.apply(data, [docx_edit.Edit("H", quote, "x")])
+    out, _ = docx_edit.apply(data, [docx_edit.Edit("A", "autor", "autora")])
+    assert docx_edit.texts(out) == ["Ver la web del autora."]
+
+
 def test_rendered_page_mark_run_is_editable_and_kept() -> None:
     data = _raw("<w:p><w:r><w:lastRenderedPageBreak/><w:t>Top of the page here.</w:t></w:r></w:p>")
     out, _ = docx_edit.apply(data, [docx_edit.Edit("a", "Top of", "Head of")])

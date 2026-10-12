@@ -15,6 +15,7 @@ from litcritic import (
     codex_cli,
     corpus,
     diff,
+    docx_cli,
     docx_out,
     guard,
     ingest,
@@ -565,6 +566,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_val.set_defaults(func=_cmd_validate)
     codex_cli.register(sub)
+    docx_cli.register(sub)
     return parser
 
 
