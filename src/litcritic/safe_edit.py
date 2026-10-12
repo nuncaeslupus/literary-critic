@@ -106,7 +106,11 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     data = doc.read_bytes() if data is None else data
     digest = sha256(data)
     state = _load_state(ws_root)
-    seq = max((int(r.get("seq", 0)) for r in state.values()), default=0) + 1
+    top = max((int(r.get("seq", 0)) for r in state.values()), default=0)
+    known = state.get(_key(doc), {})
+    if known.get("sha256") == digest and int(known.get("seq", 0)) == top:
+        return digest  # already the last thing read: nothing to record
+    seq = top + 1
     state[_key(doc)] = {
         "path": str(doc),
         "sha256": digest,

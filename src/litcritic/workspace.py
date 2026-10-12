@@ -105,11 +105,13 @@ def create(
     kind: str = "novel",
     series: str = "",
     tags: tuple[str, ...] = (),
+    folder: str = "",
 ) -> Workspace:
-    """Create an empty work: a folder named ``slug`` with a unique id in ``work.toml``."""
+    """Create an empty work: a folder named ``folder`` (default ``slug``) with a
+    unique id in ``work.toml``."""
     if not slug or "/" in slug or slug.startswith("."):
         raise WorkspaceError(f"invalid slug: {slug!r}")
-    root = ((base or home()).expanduser() / slug).resolve()
+    root = ((base or home()).expanduser() / (folder or slug)).resolve()
     check_location(root)
     if (root / MANIFEST).exists():
         raise WorkspaceError(f"workspace already exists: {root}")

@@ -27,6 +27,7 @@ from litcritic import (
     query,
     report,
     rounds,
+    setup,
     structure,
     synth,
     validate,
@@ -567,6 +568,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_val.set_defaults(func=_cmd_validate)
     codex_cli.register(sub)
     docx_cli.register(sub)
+    setup.register(sub)
     return parser
 
 
