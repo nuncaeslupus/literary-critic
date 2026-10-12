@@ -50,6 +50,10 @@ def _plan(data: bytes, rng: random.Random, k: int) -> list[tuple[docx_edit.Edit,
         if len(docx_edit.find(data, quote)) != 1:
             continue
         repl = quote.upper() + " <&> nuevo"
+        try:  # passages across a note mark or an old tracked change are refused, by design
+            docx_edit.apply(data, [docx_edit.Edit("probe", quote, repl)])
+        except docx_edit.EditError:
+            continue
         expected = " ".join(texts[ordinal].split()).replace(quote, repl, 1)
         plans.append((docx_edit.Edit(f"E{len(plans)}", quote, repl), ordinal, expected))
         if len(plans) == k:
@@ -76,7 +80,7 @@ def test_edits_change_only_target_text() -> None:
 
         # Outside the edited paragraphs, document.xml is byte-identical.
         def outside(xml: str, edited: dict[int, str] = edited) -> str:
-            spans = docx_edit._paragraph_spans(xml, "w")
+            spans = docx_edit.paragraph_spans(xml, "w")
             for o in sorted(edited, reverse=True):
                 s, e = spans[o]
                 xml = xml[:s] + xml[e:]
@@ -149,14 +153,15 @@ def test_rename_whole_words_keeps_case() -> None:
     data = docx(
         [("Pablo y Pablito vieron a PABLO.", False), ("pablo no vino; Pablo sí.", False)], seed=4
     )
-    assert [m.text for m in docx_edit.rename_matches(data, "Pablo")] == [
+    assert [m.text for m in docx_edit.rename_matches(data, "Pablo", case_sensitive=False)] == [
         "Pablo",
         "PABLO",
         "pablo",
         "Pablo",
     ]
-    assert len(docx_edit.rename_matches(data, "Pablo", case_sensitive=True)) == 2
-    out, found = docx_edit.rename(data, "pablo", "pedro")
+    assert len(docx_edit.rename_matches(data, "Pablo")) == 2
+    out, found, skipped = docx_edit.rename(data, "pablo", "pedro", case_sensitive=False)
+    assert skipped == []
     assert len(found) == 4
     assert docx_edit.texts(out) == ["Pedro y Pablito vieron a PEDRO.", "pedro no vino; Pedro sí."]
     with pytest.raises(docx_edit.EditError, match="does not appear"):
@@ -166,3 +171,75 @@ def test_rename_whole_words_keeps_case() -> None:
 def test_not_a_docx_is_an_edit_error() -> None:
     with pytest.raises(docx_edit.EditError, match="not a readable"):
         docx_edit.texts(b"plain text")
+
+
+def _raw(body: str) -> bytes:
+    w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("word/document.xml", f"<w:document {w}><w:body>{body}</w:body></w:document>")
+    return buf.getvalue()
+
+
+def test_review_regressions_note_marks_fields_context_and_case() -> None:
+    # A footnote mark between the words would move: refused.
+    data = _raw(
+        '<w:p><w:r><w:t>end.</w:t></w:r><w:r><w:footnoteReference w:id="1"/></w:r>'
+        '<w:r><w:t xml:space="preserve"> Next</w:t></w:r></w:p>'
+    )
+    with pytest.raises(docx_edit.EditError, match="note mark"):
+        docx_edit.apply(data, [docx_edit.Edit("a", "end. Next", "end; next")])
+    # A field that spans paragraphs (a table of contents) is not editable inside.
+    toc = _raw(
+        '<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText>TOC</w:instrText>'
+        '</w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r></w:p>'
+        "<w:p><w:r><w:t>Chapter two</w:t></w:r></w:p>"
+        '<w:p><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>'
+        "<w:p><w:r><w:t>Chapter two</w:t></w:r></w:p>"
+    )
+    with pytest.raises(docx_edit.EditError):
+        docx_edit.apply(toc, [docx_edit.Edit("b", "Chapter two", "X", prefix="TOC")])
+    # Context can reach into the previous paragraph, and a wrong one excludes.
+    two = _raw(
+        "<w:p><w:r><w:t>He said yes</w:t></w:r></w:p><w:p><w:r><w:t>Then He said yes</w:t>"
+        "</w:r></w:p>"
+    )
+    assert [m.para for m in docx_edit.find(two, "He said", prefix="Then")] == [1]
+    assert [m.para for m in docx_edit.find(two, "He said", prefix="yes Then")] == [1]
+    # Every problem is reported at once, the empty quote included.
+    with pytest.raises(docx_edit.EditError) as exc:
+        docx_edit.apply(two, [docx_edit.Edit("e", " ", "x"), docx_edit.Edit("f", "zzz", "x")])
+    assert set(exc.value.problems) == {"e", "f"}
+    # An author name with quotes still gives well-formed XML.
+    out, _ = docx_edit.apply(
+        two, [docx_edit.Edit("g", "yes", "no", prefix="Then He said")], author='Ana "N"'
+    )
+    xml_out = _members(out)["word/document.xml"].decode()
+    assert 'w:author="Ana &quot;N&quot;"' in xml_out
+    # Renaming is case-sensitive by default: the verb survives the name.
+    will = _raw("<w:p><w:r><w:t>Will said she will go.</w:t></w:r></w:p>")
+    out, _, _ = docx_edit.rename(will, "Will", "Bill")
+    assert docx_edit.texts(out) == ["Bill said she will go."]
+    with pytest.raises(docx_edit.EditError, match="empty"):
+        docx_edit.rename(will, "  ", "x")
+
+
+def test_rendered_page_mark_run_is_editable_and_kept() -> None:
+    data = _raw("<w:p><w:r><w:lastRenderedPageBreak/><w:t>Top of the page here.</w:t></w:r></w:p>")
+    out, _ = docx_edit.apply(data, [docx_edit.Edit("a", "Top of", "Head of")])
+    xml = _members(out)["word/document.xml"].decode()
+    assert docx_edit.texts(out) == ["Head of the page here."]
+    assert xml.index("lastRenderedPageBreak") < xml.index("<w:del ")
+
+
+def test_rename_across_a_long_book_is_fast() -> None:
+    import time
+
+    paras = [(f"Párrafo {k}: Nela llegó tarde y Nela se fue pronto.", False) for k in range(3000)]
+    data = docx(paras, seed=1)
+    t0 = time.perf_counter()
+    out, found, skipped = docx_edit.rename(data, "Nela", "Marta")
+    assert len(found) + len(skipped) == 6000 and len(found) > 5000
+    assert all("by hand" in why for _, why in skipped)
+    assert time.perf_counter() - t0 < 30
+    assert docx_edit.texts(out)[5].count("Marta") == 2

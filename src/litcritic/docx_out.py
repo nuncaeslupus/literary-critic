@@ -18,7 +18,7 @@ from typing import Any
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
-from litcritic import ingest, query, rounds
+from litcritic import docx_edit, ingest, query, rounds
 from litcritic.codex import Codex
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -26,9 +26,7 @@ COMMENTS_PART = "word/comments.xml"
 COMMENTS_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
 COMMENTS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
 AUTHOR = "literary-critic"
-W_PREFIX = re.compile(
-    r'xmlns:(\w+)="http://schemas\.openxmlformats\.org/wordprocessingml/2006/main"'
-)
+W_PREFIX = docx_edit.W_PREFIX
 
 
 class DocxError(Exception):
@@ -37,23 +35,12 @@ class DocxError(Exception):
 
 def _paragraph_spans(xml: str) -> tuple[str, list[tuple[int, int, bool]]]:
     """The main-namespace prefix, and (content start, content end, empty) per w:p in order."""
-    m = W_PREFIX.search(xml)
-    if not m:
-        raise DocxError("document.xml has no prefixed WordprocessingML namespace")
-    w = m.group(1)
-    tag = re.compile(rf"<{w}:p(?=[\s>/])[^>]*?(/?)>|</{w}:p>")
-    spans: list[tuple[int, int, bool]] = []
-    stack: list[int] = []
-    for t in tag.finditer(xml):
-        if t.group(0).startswith("</"):
-            k = stack.pop()
-            spans[k] = (spans[k][0], t.start(), False)
-        elif t.group(1) == "/":
-            spans.append((t.end(), t.end(), True))  # empty <w:p/>
-        else:
-            spans.append((t.end(), -1, False))
-            stack.append(len(spans) - 1)
-    return w, spans
+    try:
+        w = docx_edit.w_prefix(xml)
+        spans = docx_edit.paragraph_spans(xml, w)
+    except docx_edit.EditError as exc:
+        raise DocxError(str(exc)) from exc
+    return w, [(a, b, a == b) for a, b in spans]
 
 
 def _comment_xml(cid: int, text_lines: list[str], date: str, w: str = "w") -> str:
@@ -125,31 +112,15 @@ def add_comments(data: bytes, targets: dict[int, list[str]]) -> bytes:
             '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             f'<w:comments xmlns:w="{W_NS}">{"".join(comments)}</w:comments>'
         )
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
-        for info in src.infolist():
-            name = info.filename
-            if name == "word/document.xml":
-                dst.writestr(info, xml.encode("utf-8"))
-            elif name == COMMENTS_PART:
-                dst.writestr(info, comments_xml.encode("utf-8"))
-            elif name == "[Content_Types].xml" and not existing:
-                dst.writestr(
-                    info, _with_content_type(src.read(name).decode("utf-8")).encode("utf-8")
-                )
-            elif name == "word/_rels/document.xml.rels" and not existing:
-                dst.writestr(
-                    info, _with_relationship(src.read(name).decode("utf-8")).encode("utf-8")
-                )
-            else:
-                dst.writestr(info, src.read(name))
-        if not existing:
-            dst.writestr(COMMENTS_PART, comments_xml.encode("utf-8"))
-            if "word/_rels/document.xml.rels" not in names:
-                dst.writestr("word/_rels/document.xml.rels", _with_relationship(""))
-            if "[Content_Types].xml" not in names:
-                dst.writestr("[Content_Types].xml", _with_content_type(""))
-    return out.getvalue()
+    parts = {"word/document.xml": xml.encode("utf-8"), COMMENTS_PART: comments_xml.encode("utf-8")}
+    if not existing:
+        rels = "word/_rels/document.xml.rels"
+        ct = "[Content_Types].xml"
+        old_rels = src.read(rels).decode("utf-8") if rels in names else ""
+        old_ct = src.read(ct).decode("utf-8") if ct in names else ""
+        parts[rels] = _with_relationship(old_rels).encode("utf-8")
+        parts[ct] = _with_content_type(old_ct).encode("utf-8")
+    return docx_edit.repack(data, parts)
 
 
 def _with_content_type(xml: str) -> str:
