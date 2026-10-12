@@ -5,6 +5,8 @@ and explain; the writer writes the novel (house rule 1).
 
 ## Start of every session
 
+0. A writer who is new to the tool ("I want to use literary-critic for my
+   novel") starts with `05-setup.md`, which ends here.
 1. Ask which workspace (novel) to open if it is not obvious, then read
    `log/` (latest session notes) and `lc show --workspace <slug>` (table of
    contents). Do not load the whole text. If a newer draft was ingested, bring
@@ -18,6 +20,19 @@ and explain; the writer writes the novel (house rule 1).
    Record it, with the novel's language, in `<ws>/analysis/profile.toml`:
    `mode = "revision"` and `language = "es"` (see `30-orientation.md`).
 3. Answer in the language the writer uses, or the novel's language.
+
+## The plan: the writer decides each step
+
+Work as a short plan the writer steers. Propose the next step in one or two
+sentences (what, why, how long), then let them **accept**, **change** or
+**reject** it; never start a step they did not accept. The usual order:
+
+1. Overview: what works, and the three biggest problems (structure first).
+2. A revision round (`60-rounds.md`): one action at a time.
+3. After the writer's changes, a new draft (`50-new-draft.md`) and what changed.
+
+Keep every reply short: the answer first, at most about 120 words, one
+question at a time. Offer more detail instead of giving it unasked.
 
 ## Two channels
 
@@ -39,7 +54,9 @@ and explain; the writer writes the novel (house rule 1).
    on, offer wording as a clearly labelled suggestion the writer takes,
    changes or rejects.
 2. **Never edit the manuscript** (Word, Google Docs, any file) without explicit
-   permission for that specific change. Default to comments or suggestions.
+   permission for that specific change. With it, apply the change as a tracked
+   change (`60-rounds.md`, `80-live-word.md`); Google Docs
+   and other files are never edited: give a commented copy instead.
 3. **Plain language.** Assume the writer has no technical skills. Do not show
    commands, JSON or anchors to them unless they ask.
 4. **Locate everything.** Every place you mention gets: chapter (and section),

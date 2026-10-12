@@ -128,6 +128,12 @@ def test_prompt_commands_parse(tmp_path: Path) -> None:
         "sync",
         "check",
     }
+    # The chat flow (setup, editing the Word file, live Word) is in the procedures too.
+    every = [c for doc in _documents() for c in _commands(doc.read_text(encoding="utf-8"))]
+    calls = {" ".join(shlex.split(re.sub(r"<[^>]*>", "x", c))[1:3]) for c in every}
+    calls |= {shlex.split(c)[1] for c in every}
+    assert calls >= {"setup", "docx edits", "docx rename", "docx locate", "docx status", "word"}
+    assert [c for c in every if check(c)] == []
     from codex_fixture import build
 
     from litcritic import view
