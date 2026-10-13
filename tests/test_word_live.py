@@ -93,6 +93,19 @@ def test_locate_is_fed_by_the_find_string_of_lc_docx_locate(
     assert "move down 2 paragraph" in " ".join(below["steps"])
 
 
+def test_locate_without_a_find_string_answers_with_the_plain_location() -> None:
+    """A paragraph with no phrase the Find box can type still gets its writer line."""
+    for find in ("", None):
+        out = word_live.call("locate", {"document": "N.docx", "find": find, "locator": LOC})
+        assert set(word_live.MANUAL_KEYS) == out.keys() and out["status"] == "manual"
+        assert len(out["steps"]) == 1 and "plain words" in out["steps"][0]
+        assert out["writer"].startswith("In N.docx: Chapter 7") and "cansada." in out["writer"]
+    es = word_live.call("locate", {"document": "N.docx", "locator": LOC, "language": "es"})
+    assert es["writer"].startswith("En N.docx: Capítulo 7")
+    with pytest.raises(word_live.WordLiveError, match="needs find"):  # nothing to say either way
+        word_live.call("locate", {"document": "N.docx", "find": "", "locator": {"chapter": "7"}})
+
+
 def test_lc_word_reads_inline_and_file_payloads(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
