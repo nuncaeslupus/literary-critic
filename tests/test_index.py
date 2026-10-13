@@ -935,3 +935,13 @@ def test_rejects_apply_to_changed_plans_and_return_on_growth(tmp_path: Path) -> 
     assert _import(root, "e1", answer).startswith("ok ")
     packets.plan(root)
     assert "Zephaniah Quillfeather" not in _names(root)
+
+
+def test_done_entity_packet_stays_done_after_its_rejects_shrink_it(ws: Path) -> None:
+    pre = _draft(ws).pre["candidates"]
+    reject = next(c for c in pre if c["count"] >= 2 and c["name"] != "Utterson")
+    ents = [{"name": "Utterson", "kind": "character"}]
+    assert _import(ws, "e1", {"entities": ents, "rejects": [reject["name"]]}).startswith("ok ")
+    doc = packets.plan(ws)
+    e1 = next(p for p in doc["packets"] if p["id"] == "e1")
+    assert e1["status"] == "done" and reject["name"] not in e1["names"]

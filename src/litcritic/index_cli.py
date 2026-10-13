@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from litcritic import packets, prepass, workspace
+from litcritic import index_eval, packets, prepass, workspace
 
 
 def _prepass(args: argparse.Namespace) -> int:
@@ -56,6 +56,7 @@ def _packets(args: argparse.Namespace) -> int:
         doc = packets.load_plan(ws.root)
         if cmd == "packet":
             sys.stdout.write(packets.render(ws.root, doc, args.id))
+            packets.mark_printed(ws.root, args.id)
             return 0
         if cmd == "import":
             raw = sys.stdin.read() if args.file == "-" else Path(args.file).read_text("utf-8")
@@ -70,6 +71,7 @@ def _packets(args: argparse.Namespace) -> int:
                     print("all packets done")
                 else:
                     sys.stdout.write(packets.render(ws.root, doc, nxt))
+                    packets.mark_printed(ws.root, nxt)
             return 0
         if args.json:
             print(json.dumps(doc["packets"], ensure_ascii=False))
@@ -85,6 +87,44 @@ def _packets(args: argparse.Namespace) -> int:
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+
+
+def _read_json(path: str) -> Any:
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{path}: not valid JSON ({exc.msg}, line {exc.lineno})") from None
+
+
+def _measure(args: argparse.Namespace) -> int:
+    try:
+        cmd = args.index_cmd
+        if cmd == "compare":
+            rep = index_eval.compare(_read_json(args.answers), _read_json(args.reference))
+            lines = index_eval.compare_lines(rep)
+        else:
+            ws = workspace.resolve(args.workspace, args.home)
+            if cmd == "cost":
+                rep = index_eval.cost(ws.root)
+                lines = index_eval.cost_lines(rep)
+            else:
+                rep = index_eval.evaluate(ws.root, _read_json(args.gold))
+                lines = index_eval.eval_lines(rep)
+    except (
+        workspace.WorkspaceError,
+        packets.PacketError,
+        index_eval.EvalError,
+        OSError,
+        ValueError,
+        KeyError,
+    ) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(rep, ensure_ascii=False))
+    else:
+        print("\n".join(lines))
+    return 0
 
 
 def register(sub: Any) -> None:
@@ -128,3 +168,27 @@ def register(sub: Any) -> None:
     p_st = isub.add_parser("status", help="one line per packet")
     p_st.add_argument("--json", action="store_true", help="print the packets as JSON")
     common(p_st)
+    p_cost = isub.add_parser(
+        "cost", help="tokens in and out, calls and wall time per packet and in total"
+    )
+    p_cost.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_cost.add_argument("--json", action="store_true", help="print the report as JSON")
+    p_cost.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_cost.set_defaults(func=_measure)
+    p_ev = isub.add_parser(
+        "eval", help="score the Codex entities against a gold list (precision, recall, merges)"
+    )
+    p_ev.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_ev.add_argument("--gold", required=True, help="gold list (JSON, tests/fixtures/gold format)")
+    p_ev.add_argument("--json", action="store_true", help="print the report as JSON")
+    p_ev.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_ev.set_defaults(func=_measure)
+    p_cmp = isub.add_parser(
+        "compare", help="agreement of one packet answer with a reference answer (numbers only)"
+    )
+    p_cmp.add_argument("--answers", required=True, help="the answer to check (JSON)")
+    p_cmp.add_argument(
+        "--reference", required=True, help="the reference answer to the same packet (JSON)"
+    )
+    p_cmp.add_argument("--json", action="store_true", help="print the report as JSON")
+    p_cmp.set_defaults(func=_measure)
