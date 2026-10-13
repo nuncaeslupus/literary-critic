@@ -20,7 +20,7 @@ AUTHOR = docx_cli.AUTHOR
 
 def _corpus_docx(n: int | None = None) -> bytes:
     draft = ingest.read(corpus.get("marianela").path)
-    paras = [(p.text, bool(p.heading)) for p in draft.paragraphs]
+    paras = [(p.text, bool(re.fullmatch(r"-[IVXL]+-", p.text))) for p in draft.paragraphs]
     return docx(paras[:n] if n else paras, seed=4)
 
 

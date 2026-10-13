@@ -54,9 +54,10 @@ stable id and the signals behind it (`stable_id` and `signals` in
 numerals ("Capítulo 3", "-IV-", "Prólogo"), a chapter-start paragraph style; a
 short line under an untitled heading is its subtitle (part of the title, scene
 0). Ornament lines ("* * *") and "after break" paragraph styles start scenes.
-A plain-text draft has no styles, so a short line
-with two or more extra blank lines above it is read as a heading. The kind of
-text sets the detection settings. When it gets something wrong, put corrections
+The kind of text sets the detection settings, per
+manuscript format: a plain-text draft has no styles, so a short line with two or
+more extra blank lines above it is a heading (`chapter_blank_lines`), and a
+Markdown draft's chapters may use any heading level (`chapter_level` auto). When it gets something wrong, put corrections
 in `analysis/structure-overrides.json`, in doc-control's override shape: force or
 deny a chapter or scene at a paragraph, named by its doc-control fingerprint
 (`lc show <chapter> --fp`; `nth` picks one of several identical paragraphs):

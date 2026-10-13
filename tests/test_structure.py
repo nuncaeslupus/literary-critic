@@ -138,7 +138,7 @@ def test_structure_json_records_doc_control_ids_and_signals(tmp_path: Path) -> N
     assert data["schema_version"] == 2
     first = data["chapters"][1]
     assert first["id"] == "c01" and first["title"] == "-I- Perdido"
-    assert first["stable_id"].startswith("ch-") and "heading_style" in first["signals"]
+    assert first["stable_id"].startswith("ch-") and "isolated" in first["signals"]
     scene = first["scenes"][0]
     assert scene["id"] == "c01.s1" and scene["stable_id"].startswith("sc-")
     assert scene["signals"] == ["chapter_start"]

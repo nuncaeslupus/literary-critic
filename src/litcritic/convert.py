@@ -7,9 +7,7 @@ never changed. Each format has a small reader (``read_txt``, ``read_md``,
 paragraph, with heading level (built-in ``Heading N`` styles), centring, page break
 before, paragraph style name, blank lines as empty paragraphs, and, where the
 source knows its pages (``.odt`` soft page breaks), a rendered page mark where each
-page starts. Plain text has no styles, so ``read_txt`` writes the plain-text
-heading convention as a heading: a short line set apart by two or more extra blank
-lines above it (``TXT_HEADING_BLANKS``) and a blank line below it.
+page starts.
 
 Delete a format's reader, and its row in ``READERS``, as soon as doc-control reads
 that format natively. This is the one module allowed to write ``word/`` parts, and
@@ -130,37 +128,6 @@ def draft_to_docx(draft: Draft) -> bytes:
 
 # --- plain text and Markdown ------------------------------------------------
 
-TXT_HEADING_BLANKS = 2  # extra blank lines above a plain-text heading
-TXT_HEADING_WORDS = 12
-TXT_NOT_HEADING = re.compile(r"[,;:]$|^[\u2014\u2013«\"“]")
-
-
-def _txt_headings(paras: list[Para], wrapped: bool) -> list[Para]:
-    """Mark plain text's heading convention as heading level 1.
-
-    TODO: remove when doc-control's ``chapter_blank_lines`` (passed for ``.txt`` in
-    the novel profile) also takes a numeral with a long title line under it and no
-    blank line between ("-XIV-" then a 9-word title in the corpus): hard-wrapped text
-    writes no empty paragraph for a single blank line, so doc-control sees no blank
-    below the numeral.
-
-    A heading in a plain-text manuscript is a short line with a wider gap above it
-    than paragraphs have, and a blank line below it. ``blank_before`` already counts
-    only the extra blank lines when paragraphs are blank-line separated (``wrapped``).
-    """
-    below = 0 if wrapped else 1
-    for k, p in enumerate(paras):
-        nxt = paras[k + 1] if k + 1 < len(paras) else None
-        if (
-            k > 0
-            and p.blank_before >= TXT_HEADING_BLANKS
-            and (nxt is None or nxt.blank_before >= below)
-            and len(p.text.split()) <= TXT_HEADING_WORDS
-            and not TXT_NOT_HEADING.search(p.text)
-        ):
-            p.heading = 1
-    return paras
-
 
 def _decode(data: bytes) -> str:
     if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
@@ -190,7 +157,7 @@ def read_txt(data: bytes) -> Draft:
         and cut[int(0.9 * (len(cut) - 1))] <= 100
     )
     if not wrapped:
-        return Draft(_txt_headings(_collect([Para(line) for line in lines]), False), "txt")
+        return Draft(_collect([Para(line) for line in lines]), "txt")
     # Hard-wrapped: one blank line separates paragraphs; extra blank lines are spacing.
     out: list[Para] = []
     block: list[str] = []
@@ -204,7 +171,7 @@ def read_txt(data: bytes) -> Draft:
             out.append(p)
             block, blanks = [], 0
         blanks += 1
-    return Draft(_txt_headings(out, True), "txt", notes=["hard-wrapped blocks"])
+    return Draft(out, "txt", notes=["hard-wrapped blocks"])
 
 
 MD_EMPHASIS = re.compile(r"(\*\*|__|\*|_)(?=\S)(.+?)(?<=\S)\1")

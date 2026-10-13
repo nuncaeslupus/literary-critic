@@ -16,16 +16,16 @@
       "matched": 22
     }
   },
-  "detail": "Both corpus texts ingested from .txt with `lc ingest` and indexed with `lc anchor` (doc-control segment over the converted .docx, novel profile plus its per-format settings: chapter_blank_lines 2 for .txt, chapter_level auto for .md; work language); detected chapter starts compared with the gold heading lines in tests/fixtures/gold/chapters.json. convert._txt_headings still writes plain text's heading convention as Heading 1: with chapter_blank_lines alone Marianela scores 0.977 (21/22), because '-XIV-' has a 9-word title line right under it and hard-wrapped text writes no empty paragraph for a single blank line, so doc-control sees no blank below the numeral. scene_boundary_f1 over the nine variants of tests/test_anchor.py stays 1.0 (the Markdown variants use '##' chapters again, through chapter_level auto).",
+  "detail": "Both corpus texts ingested from .txt with `lc ingest` (plain paragraphs: the converter writes no headings) and indexed with `lc anchor`: doc-control segment over the converted .docx with the novel profile and its per-format settings (chapter_blank_lines 2 for .txt, chapter_level auto for .md) and the work language; every chapter start carries doc-control's `isolated` signal. Detected chapter starts compared with the gold heading lines in tests/fixtures/gold/chapters.json. scene_boundary_f1 over the nine variants of tests/test_anchor.py stays 1.0.",
   "differences_from_old_detector": {
     "chapter_starts": "none: the same 10 and 22 chapter starts as structure.detect gave",
-    "chapter_titles": "Jekyll and Hyde: none. Marianela: 19 of 22 titles equal the old detector's ('-I- Perdido'), now from doc-control's heading_last; the other 3 gain a subtitle the old detector left out as too long ('-III-' is now '-III- Un diálogo que servirá de exposición'; also -X- and -XVIII-)",
-    "anchors": "Jekyll and Hyde: 0 of 350 change. Marianela: 154 of 1,270 change, all inside those 3 chapters (the subtitle line moves from scene 1 to the heading block in scene 0)",
+    "chapter_titles": "Jekyll and Hyde: none. Marianela: 18 of 22 titles equal the old detector's ('-I- Perdido'), from doc-control's heading_last; the other 4 gain a title line the old detector left out as too long: -III-, -X-, -XIV- ('-XIV- De cómo la Virgen María se apareció a la Nela') and -XVIII-",
+    "anchors": "Jekyll and Hyde: 0 of 350 change. Marianela: 204 of 1,270 change, all inside those 4 chapters (the title line moves from scene 1 to the heading block in scene 0)",
     "scenes": "same count (11 and 23); scene_style (an 'after break' paragraph style) opens a scene again and is recorded in structure.json signals",
-    "dropped_signals": "none left from T6's list except the one convert._txt_headings bridges (see detail)",
+    "dropped_signals": "none: every T6 request is now in doc-control (T49, T50, T51)",
     "breaks": "an ornament right under a chapter title stays in the heading block (scene 0) again, from doc-control's whole in-process list of suppressed scene starts (no_text_between)"
   },
-  "timing": "lc ingest + lc anchor, worst of three in-process runs: jekyll-hyde 0.13 s before, 0.20 s after; marianela 0.33 s before, 0.67 s after (anchor 0.07 s -> 0.25-0.33 s: the .docx is converted and parsed again for segment; this machine was also running the test suite)",
+  "timing": "lc ingest + lc anchor, worst of three in-process runs: jekyll-hyde 0.13 s before, 0.27 s after; marianela 0.33 s before, 0.63 s after (anchor 0.07 s -> 0.24-0.35 s: the .docx is converted and parsed again for segment)",
   "command": "uv run pytest tests/test_structure.py::test_corpus_chapters_match_gold tests/test_structure.py::test_override_forces_and_denies_chapter",
-  "doc_control": "0.2.0 (git 224e591298e33d9dd58ecb71124b9a1391edf5d0, T50)"
+  "doc_control": "0.2.0 (git 7561a28bc6c9376097af5f26e43ead7e762fd1e1, T51)"
 }
