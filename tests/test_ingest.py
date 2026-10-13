@@ -1,6 +1,7 @@
 import json
 import re
 import time
+from itertools import pairwise
 from pathlib import Path
 
 import docgen
@@ -35,10 +36,14 @@ def test_docx_paragraphs_match_text() -> None:
     headings = [p for p in draft.paragraphs if p.heading]
     assert len(headings) == 22
     assert all(p.heading == 1 and p.centered and p.page_break_before for p in headings)
-    # Pages are doc-control's estimate: rendered marks (here only before each
-    # heading) and a word-count model between them.
+    # Pages are doc-control's estimate: rendered marks (here only the break
+    # before each heading) and a word-count model between them, so every
+    # heading opens a new page and pages never go back.
     pages = [p.page for p in draft.paragraphs]
-    assert draft.pages_known and pages == sorted(pages) and headings[-1].page >= 23
+    hpages = [p.page for p in headings]
+    assert draft.pages_known and pages == sorted(pages)
+    assert all(b > a for a, b in pairwise(hpages))
+    assert hpages[-1] >= len(headings) + 1
     assert all(
         p.blank_before == 1
         for i, p in enumerate(draft.paragraphs[1:])

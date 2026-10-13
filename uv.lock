@@ -218,8 +218,8 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.0.1"
-source = { git = "https://github.com/nuncaeslupus/doc-control?rev=101117f92c7727bb9a226cae40706926b2146af2#101117f92c7727bb9a226cae40706926b2146af2" }
+version = "0.2.0"
+source = { git = "https://github.com/nuncaeslupus/doc-control?rev=b04298e#b04298e2b990ac635604cb6ce28c710bea13ca48" }
 
 [[package]]
 name = "filelock"
@@ -382,7 +382,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "doc-control", git = "https://github.com/nuncaeslupus/doc-control?rev=101117f92c7727bb9a226cae40706926b2146af2" }]
+requires-dist = [{ name = "doc-control", git = "https://github.com/nuncaeslupus/doc-control?rev=b04298e" }]
 
 [package.metadata.requires-dev]
 dev = [
