@@ -445,3 +445,19 @@ def test_find_string_from_doc_control(tmp_path: Path) -> None:
 
 def test_find_box_escapes() -> None:
     assert docx_cli._escape("a\tb\xa0c^d\x0be") == "a^tb^sc^^d^le"
+
+
+def test_places_one_by_one_match_whole_document(novel: tuple[Path, Path]) -> None:
+    """`lc docx locate` asks for one paragraph and skips reading the document again
+    (its bytes are the ingested ones): the same Find string and locator."""
+    ws, doc = novel
+    data = doc.read_bytes()
+    batch = docx_cli._Places(ws, doc, data, "es")
+    alone = docx_cli._Places(ws, doc, data, "es", few=True)
+    assert alone.ix is not None and batch.ix is not None
+    assert alone.locations.ats == batch.locations.ats and alone.by_ordinal == batch.by_ordinal
+    for i in range(0, len(alone.ix.anchors), 7):
+        at = alone.locations.ats[i]
+        assert alone.find(at) == batch.find(at), at
+        assert alone.locator(alone.ordinal_of[i]) == batch.locator(batch.ordinal_of[i]), at
+    assert alone._rows is None

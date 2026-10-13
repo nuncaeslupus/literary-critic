@@ -166,3 +166,44 @@ def test_repeated_paragraph_points_to_its_neighbour(tmp_path: Path) -> None:
 def test_spanish_locator_labels(ws: Path) -> None:
     _, locs = _locations(ws)
     assert locs.locate("c00.s1.p1").chapter == "preliminares"
+
+
+def test_one_by_one_locators_match_whole_document(ws: Path) -> None:
+    """A single-anchor command asks doc-control for its paragraph alone: same locator."""
+    ix, batch = _locations(ws)
+    for a in ix.anchors[::25] + ix.anchors[:3]:
+        alone = locate.Locations.of_workspace(ws, "v001", ix, "es", few=True)
+        assert alone.locate(a) == batch.locate(a), a
+        assert alone._rows is None  # the whole document's rows were never read
+
+
+def test_single_anchor_locate_is_fast_on_a_long_novel(tmp_path: Path) -> None:
+    """`lc docx locate` and `lc locate` on a ~100k-word .docx, as a cold process."""
+    import subprocess
+    import sys
+    import time
+
+    import test_ingest
+
+    folder = tmp_path / "Novel"
+    source = folder / "novel.docx"
+    folder.mkdir()
+    source.write_bytes(test_ingest._novel_docx(100_000))
+    root = _workspace(folder / "literary-critic", source)
+    ix = query.load(root)
+    anchor = ix.anchors[len(ix.anchors) // 2]
+    expected = locate.Locations.of_workspace(root, "v001", ix, "es").locate(anchor)
+    run = "import sys; from litcritic.cli import main; sys.exit(main(sys.argv[1:]))"
+    for cmd in (["docx", "locate", anchor], ["locate", anchor, "--json"]):
+        start = time.perf_counter()
+        done = subprocess.run(
+            [sys.executable, "-c", run, *cmd, "--workspace", str(root)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        elapsed = time.perf_counter() - start
+        out = json.loads(done.stdout)
+        where = out["locator"] if cmd[0] == "docx" else out
+        assert where["anchor"] == anchor and where["first_words"] == expected.first_words
+        assert elapsed <= 2.5, f"single_anchor_locate_s = {elapsed:.2f} ({cmd[0]})"

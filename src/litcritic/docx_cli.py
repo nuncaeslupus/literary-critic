@@ -87,41 +87,66 @@ def _escape(text: str) -> str:
 
 class _Places:
     """Find strings and writer locators for spots in the document, from doc-control's
-    ``locate`` (one call for the whole document, on the first spot asked for).
+    ``locate``: one call for the whole document, on the first spot asked for, or,
+    with ``few`` (one spot will be asked for), a call for each spot's paragraph.
 
     Locators are only given while the document still matches the latest ingested
     draft (otherwise the chapter and page could be wrong): `lc ingest` it again.
+    The document's paragraphs and addresses are the draft's when its bytes are the
+    ingested ones; otherwise the document is read again and compared.
     """
 
-    def __init__(self, ws_root: Path, doc: Path, data: bytes, lang: str = "en") -> None:
+    def __init__(
+        self, ws_root: Path, doc: Path, data: bytes, lang: str = "en", *, few: bool = False
+    ) -> None:
         self.ix: query.Index | None = None
         self.by_ordinal: dict[int, int] = {}
         self.ordinal_of: dict[int, int] = {}
         self.handle = dc.open(doc)
         self.counts: dict[str, int] = {}
+        self.few = few
         self._rows: locate.Rows | None = None
-        try:
-            draft = ingest.read(doc, data)
-        except (OSError, ValueError, KeyError, ingest.IngestError):
-            return
+        self._some: dict[str, dict[str, Any]] = {}
         try:
             version = structure.latest_version(ws_root)
             ix = query.load(ws_root, version, codex=False)
         except (OSError, ValueError, KeyError, FileNotFoundError):
             return
-        if not ix.anchors or [p.text for p in draft.paragraphs] != ix.paragraphs:
+        ats = _ingested(ws_root, version, data)
+        if ats is None or len(ats) != len(ix.paragraphs):
+            try:
+                draft = ingest.read(doc, data)
+            except (OSError, ValueError, KeyError, ingest.IngestError):
+                return
+            if [p.text for p in draft.paragraphs] != ix.paragraphs:
+                return
+            ats = [p.at for p in draft.paragraphs]
+        if not ix.anchors:
             return
         self.ix = ix
-        self.by_ordinal = {p.ordinal: i for i, p in enumerate(draft.paragraphs)}
-        self.ordinal_of = {i: p.ordinal for i, p in enumerate(draft.paragraphs)}
-        ats = [p.at for p in draft.paragraphs]
-        self.locations = locate.Locations(ix, ats, lambda: self.rows, lang)
+        ordinals = [ingest.Para("", at=at).ordinal for at in ats]
+        self.by_ordinal = {k: i for i, k in enumerate(ordinals)}
+        self.ordinal_of = dict(enumerate(ordinals))
+        some = self._rows_of if few else None
+        self.locations = locate.Locations(ix, ats, lambda: self.rows, lang, some)
 
     @property
     def rows(self) -> locate.Rows:
         if self._rows is None:
             self._rows = locate.read_rows(self.handle)
         return self._rows
+
+    def _rows_of(self, ats: list[str]) -> locate.Rows:
+        """The rows of these paragraphs (asked one by one with ``few``)."""
+        if self._rows is not None or not self.few:
+            return {at: self.rows[at] for at in ats if at in self.rows}
+        missing = [at for at in ats if at not in self._some]
+        if missing:
+            self._some.update(locate.read_rows(self.handle, missing))
+        return {at: self._some[at] for at in ats if at in self._some}
+
+    def _row(self, at: str) -> dict[str, Any]:
+        return self._rows_of([at]).get(at, {})
 
     def locator(self, ordinal: int) -> dict[str, Any] | None:
         i = self.by_ordinal.get(ordinal)
@@ -147,7 +172,7 @@ class _Places:
         """
         if text.strip() and len(_escape(text)) <= FIND_LIMIT and self._once(text):
             return {"find": _escape(text), "unique": True}
-        row = self.rows.get(at.split(":")[0], {})
+        row = self._row(at.split(":")[0])
         if row.get("find_phrase"):
             return {"find": _escape(str(row["find_phrase"])), "unique": True}
         context = row.get("context") or {}
@@ -163,6 +188,20 @@ class _Places:
         if why:
             out["reason"] = why
         return out
+
+
+def _ingested(ws_root: Path, version: str, data: bytes) -> list[str] | None:
+    """The paragraph addresses of ``version`` when ``data`` is the very file it was
+    ingested from (same bytes, so the same paragraphs); None otherwise."""
+    try:
+        meta = json.loads((ws_root / "text" / f"{version}.meta.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    digest = hashlib.sha256(data).hexdigest()
+    if meta.get("format") != "docx" or meta.get("source_sha256") != digest:
+        return None
+    ats = [str(p.get("at", "")) for p in meta.get("paragraphs", [])]
+    return ats if all(ats) else None
 
 
 # -- doc-control ------------------------------------------------------------------
@@ -445,7 +484,7 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
     doc = _document(root, args.document)
     if not doc.is_file():
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
-    places = _Places(root, doc, doc.read_bytes(), args.lang)
+    places = _Places(root, doc, doc.read_bytes(), args.lang, few=True)
     target = args.target.strip()
     i = None
     if not args.quote and ANCHOR.fullmatch(target) and places.ix is not None:
