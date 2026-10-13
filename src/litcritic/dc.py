@@ -55,7 +55,8 @@ def check() -> None:
 def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
     """Run one doc-control operation; return its ``result`` or raise ``DocError``.
 
-    Warnings, when doc-control sends any, come back under ``result["_warnings"]``.
+    Warnings, when doc-control sends any, come back under ``result["_warnings"]``;
+    the cursor of a capped list, when more follows, under ``result["_next"]``.
     """
     check()
     envelope = _execute(op, request)
@@ -70,4 +71,6 @@ def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = dict(envelope.get("result") or {})
     if envelope.get("warnings"):
         result["_warnings"] = envelope["warnings"]
+    if envelope.get("next"):
+        result["_next"] = envelope["next"]
     return result
