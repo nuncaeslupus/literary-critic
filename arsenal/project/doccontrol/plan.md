@@ -107,6 +107,7 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 | T3 | `comments_on_wrong_paragraph == 0` | 0 | `uv run pytest tests/test_docx_out.py::test_comments_land_on_target_paragraph` | 8c4569a (#98) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
 | T4 | `converted_layout_fact_mismatches == 0` | 0 | `uv run pytest tests/test_convert.py::test_convert_roundtrip_keeps_layout_facts` | c2d3524 (#99) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
 | T11 | `kit_selftest_failures == 0` | 0 | `uv run pytest tests/test_kit.py::test_kit_selftest_offline tests/test_kit.py::test_kit_zip_contains_doc_control` | 521b75e (#97) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
+| T6 | `chapter_boundary_f1 >= 0.99` | 1.0 (jekyll-hyde 1.0, marianela 1.0) | `uv run pytest tests/test_structure.py::test_corpus_chapters_match_gold tests/test_structure.py::test_override_forces_and_denies_chapter` | branch claude/focused-hopper-0nq71a-t6 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.2.0) | 2026-10-13 |
 
 ### Dependency graph
 

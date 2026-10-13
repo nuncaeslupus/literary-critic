@@ -19,6 +19,7 @@ import os
 import re
 import tempfile
 import unicodedata
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -131,12 +132,14 @@ def _read_docx(path: Path, fmt: str = "docx") -> Draft:
     return Draft(_collect(raw), fmt, pages_known=bool(marks))
 
 
-def read(path: Path, data: bytes | None = None) -> Draft:
-    """The manuscript at ``path`` (or ``data``, its bytes) as doc-control reads it.
+@contextlib.contextmanager
+def docx_of(path: Path, data: bytes | None = None) -> Iterator[tuple[Path, list[str]]]:
+    """The ``.docx`` doc-control reads for the manuscript at ``path`` (or ``data``).
 
-    A ``.txt``, ``.md`` or ``.odt`` file is converted to a ``.docx`` copy first;
-    its addresses then point into that copy, which converting the same bytes
-    again rebuilds identically.
+    A ``.docx`` is used as it is (a temporary copy when ``data`` differs from the
+    file); a ``.txt``, ``.md`` or ``.odt`` is converted first. Converting the same
+    bytes again rebuilds the same copy, so addresses taken from it stay valid.
+    Also yields the conversion notes.
     """
     suffix = path.suffix.lower()
     if suffix not in FORMATS:
@@ -144,7 +147,8 @@ def read(path: Path, data: bytes | None = None) -> Draft:
     notes: list[str] = []
     if suffix == ".docx":
         if data is None or (path.is_file() and path.read_bytes() == data):
-            return _read_docx(path)
+            yield path, notes
+            return
         docx = data
     else:
         from litcritic import convert  # convert builds on this module's Para and Draft
@@ -155,7 +159,19 @@ def read(path: Path, data: bytes | None = None) -> Draft:
     with tempfile.TemporaryDirectory() as tmp:
         copy = Path(tmp) / f"{path.stem or 'draft'}.docx"
         copy.write_bytes(docx)
-        draft = _read_docx(copy, suffix[1:])
+        yield copy, notes
+
+
+def read(path: Path, data: bytes | None = None) -> Draft:
+    """The manuscript at ``path`` (or ``data``, its bytes) as doc-control reads it.
+
+    A ``.txt``, ``.md`` or ``.odt`` file is converted to a ``.docx`` copy first;
+    its addresses then point into that copy, which converting the same bytes
+    again rebuilds identically.
+    """
+    with docx_of(path, data) as (docx, notes):
+        suffix = path.suffix.lower()
+        draft = _read_docx(docx, suffix[1:])
     draft.notes = notes
     return draft
 

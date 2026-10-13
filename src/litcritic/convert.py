@@ -5,8 +5,11 @@ turned into a bare ``.docx`` copy that doc-control can read; the writer's file i
 never changed. Each format has a small reader (``read_txt``, ``read_md``,
 ``read_odt``) whose paragraphs are written out one Word paragraph per source
 paragraph, with heading level (built-in ``Heading N`` styles), centring, page break
-before, blank lines as empty paragraphs, and, where the source knows its pages
-(``.odt`` soft page breaks), a rendered page mark where each page starts.
+before, paragraph style name, blank lines as empty paragraphs, and, where the
+source knows its pages (``.odt`` soft page breaks), a rendered page mark where each
+page starts. Plain text has no styles, so ``read_txt`` writes the plain-text
+heading convention as a heading: a short line set apart by two or more extra blank
+lines above it (``TXT_HEADING_BLANKS``) and a blank line below it.
 
 Delete a format's reader, and its row in ``READERS``, as soon as doc-control reads
 that format natively. This is the one module allowed to write ``word/`` parts, and
@@ -21,7 +24,7 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from xml.etree import ElementTree as ET
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import escape, quoteattr
 
 from litcritic.ingest import Draft, IngestError, Para, _collect, clean
 
@@ -58,7 +61,13 @@ DOC_RELS = (
 )
 
 
-def _styles() -> str:
+def _style_ids(draft: Draft) -> dict[str, str]:
+    """A Word style id for each paragraph style name the draft uses (headings aside)."""
+    names = sorted({p.style for p in draft.paragraphs if p.style and not p.heading})
+    return {name: f"LcStyle{k}" for k, name in enumerate(names, 1)}
+
+
+def _styles(custom: dict[str, str] | None = None) -> str:
     out = [
         f'{XML_HEAD}<w:styles xmlns:w="{W_NS}">',
         '<w:style w:type="paragraph" w:default="1" w:styleId="Normal">'
@@ -71,14 +80,22 @@ def _styles() -> str:
             '<w:next w:val="Normal"/><w:qFormat/>'
             f'<w:pPr><w:keepNext/><w:outlineLvl w:val="{level - 1}"/></w:pPr></w:style>'
         )
+    for name, sid in (custom or {}).items():
+        out.append(
+            f'<w:style w:type="paragraph" w:customStyle="1" w:styleId="{sid}">'
+            f"<w:name w:val={quoteattr(name)}/>"
+            '<w:basedOn w:val="Normal"/></w:style>'
+        )
     out.append("</w:styles>")
     return "".join(out)
 
 
-def _paragraph(p: Para, new_pages: int = 0) -> str:
+def _paragraph(p: Para, new_pages: int = 0, style_id: str = "") -> str:
     props = ""
     if p.heading:
         props += f'<w:pStyle w:val="Heading{min(max(p.heading, 1), 9)}"/>'
+    elif style_id:
+        props += f'<w:pStyle w:val="{style_id}"/>'
     if p.page_break_before:
         props += "<w:pageBreakBefore/>"
     if p.centered:
@@ -92,11 +109,12 @@ def draft_to_docx(draft: Draft) -> bytes:
     """A minimal ``.docx`` holding ``draft``'s paragraphs and layout facts."""
     body: list[str] = []
     page = 1
+    custom = _style_ids(draft)
     for p in draft.paragraphs:
         body.extend("<w:p/>" for _ in range(p.blank_before))
         new_pages = max(0, p.page - page) if draft.pages_known else 0
         page += new_pages
-        body.append(_paragraph(p, new_pages))
+        body.append(_paragraph(p, new_pages, "" if p.heading else custom.get(p.style, "")))
     document = (
         f'{XML_HEAD}<w:document xmlns:w="{W_NS}"><w:body>{"".join(body)}</w:body></w:document>'
     )
@@ -105,12 +123,37 @@ def draft_to_docx(draft: Draft) -> bytes:
         zf.writestr("[Content_Types].xml", CONTENT_TYPES)
         zf.writestr("_rels/.rels", ROOT_RELS)
         zf.writestr("word/document.xml", document)
-        zf.writestr("word/styles.xml", _styles())
+        zf.writestr("word/styles.xml", _styles(custom))
         zf.writestr("word/_rels/document.xml.rels", DOC_RELS)
     return buf.getvalue()
 
 
 # --- plain text and Markdown ------------------------------------------------
+
+TXT_HEADING_BLANKS = 2  # extra blank lines above a plain-text heading
+TXT_HEADING_WORDS = 12
+TXT_NOT_HEADING = re.compile(r"[,;:]$|^[\u2014\u2013«\"“]")
+
+
+def _txt_headings(paras: list[Para], wrapped: bool) -> list[Para]:
+    """Mark plain text's heading convention as heading level 1.
+
+    A heading in a plain-text manuscript is a short line with a wider gap above it
+    than paragraphs have, and a blank line below it. ``blank_before`` already counts
+    only the extra blank lines when paragraphs are blank-line separated (``wrapped``).
+    """
+    below = 0 if wrapped else 1
+    for k, p in enumerate(paras):
+        nxt = paras[k + 1] if k + 1 < len(paras) else None
+        if (
+            k > 0
+            and p.blank_before >= TXT_HEADING_BLANKS
+            and (nxt is None or nxt.blank_before >= below)
+            and len(p.text.split()) <= TXT_HEADING_WORDS
+            and not TXT_NOT_HEADING.search(p.text)
+        ):
+            p.heading = 1
+    return paras
 
 
 def _decode(data: bytes) -> str:
@@ -141,7 +184,7 @@ def read_txt(data: bytes) -> Draft:
         and cut[int(0.9 * (len(cut) - 1))] <= 100
     )
     if not wrapped:
-        return Draft(_collect([Para(line) for line in lines]), "txt")
+        return Draft(_txt_headings(_collect([Para(line) for line in lines]), False), "txt")
     # Hard-wrapped: one blank line separates paragraphs; extra blank lines are spacing.
     out: list[Para] = []
     block: list[str] = []
@@ -155,7 +198,7 @@ def read_txt(data: bytes) -> Draft:
             out.append(p)
             block, blanks = [], 0
         blanks += 1
-    return Draft(out, "txt", notes=["hard-wrapped blocks"])
+    return Draft(_txt_headings(out, True), "txt", notes=["hard-wrapped blocks"])
 
 
 MD_EMPHASIS = re.compile(r"(\*\*|__|\*|_)(?=\S)(.+?)(?<=\S)\1")

@@ -1,0 +1,20 @@
+{
+  "metric": "chapter_boundary_f1",
+  "value": 1.0,
+  "threshold": 0.99,
+  "per_text": {
+    "jekyll-hyde": {"f1": 1.0, "gold": 10, "detected": 10, "matched": 10},
+    "marianela": {"f1": 1.0, "gold": 22, "detected": 22, "matched": 22}
+  },
+  "detail": "Both corpus texts ingested from .txt with `lc ingest` and indexed with `lc anchor` (doc-control segment over the converted .docx, novel profile, work language); detected chapter starts compared with the gold heading lines in tests/fixtures/gold/chapters.json. Plain text carries no styles, so the .txt reader now writes plain text's heading convention (a short line with two or more extra blank lines above it and a blank line below) as Heading 1; doc-control's heading_style signal does the rest. scene_boundary_f1 over the nine variants of tests/test_anchor.py stays 1.0.",
+  "differences_from_old_detector": {
+    "chapter_starts": "none: the same 10 and 22 chapter starts as structure.detect gave",
+    "chapter_titles": "18 of Marianela's 22 titles lose the subtitle line under the numeral ('-I- Perdido' is now '-I-'): doc-control reports the heading paragraph only, so the line under it is the first paragraph of scene 1 instead of a heading line in scene 0. Jekyll and Hyde: no title changes",
+    "anchors": "Marianela: 1,038 of 1,270 paragraph anchors shift by one inside scene 1 of the 18 chapters with a subtitle line (cNN.s0.p2 becomes cNN.s1.p1); Jekyll and Hyde: 0 of 350 change",
+    "scenes": "same count (11 and 23); scene 1 of those 18 Marianela chapters starts one paragraph earlier (at the subtitle line)",
+    "dropped_signals": "short upper-case lines and bare or dashed numerals with no layout, 'after break' paragraph styles opening a scene, an ornament under a chapter title staying in the heading block, the shallowest-heading-level choice for Markdown '##' chapters: doc-control does not detect these; requests filed with the T6 report"
+  },
+  "timing": "lc ingest + lc anchor, worst of three in-process runs: jekyll-hyde 0.13 s before, 0.18 s after; marianela 0.33 s before, 0.61 s after (anchor 0.07 s -> 0.25 s: the .docx is converted and parsed again for segment)",
+  "command": "uv run pytest tests/test_structure.py::test_corpus_chapters_match_gold tests/test_structure.py::test_override_forces_and_denies_chapter",
+  "doc_control": "0.2.0 (git b04298e2b990ac635604cb6ce28c710bea13ca48)"
+}

@@ -6,24 +6,27 @@
    export Google Docs as `.docx`):
    `lc ingest <file> --workspace <slug>`.
 3. Detect parts, chapters and scenes: `lc anchor --workspace <slug>`.
-   It prints what it found and which signal it used.
+   It prints what it found and which signals doc-control used.
 4. Check the result against the writer's intent with `lc show --workspace <slug>`
    (table of contents). Look for chapters that are really author notes, a
    missing chapter, a chapter split in two, scenes that should be separate.
 5. When a boundary is wrong, read the area with fingerprints:
    `lc show c07 --fp --workspace <slug>`, then write corrections to
-   `<ws>/analysis/structure-overrides.json` using those fingerprints:
+   `<ws>/analysis/structure-overrides.json` using those fingerprints
+   (`force` adds a chapter or scene start, `deny` removes one; add `"nth": 2`
+   when several identical paragraphs share the fingerprint):
 
    ```json
-   {"chapter_starts": ["<fp>"], "not_chapter": ["<fp>"],
-    "scene_starts": ["<fp>"], "not_scene": ["<fp>"]}
+   {"schema_version": 2,
+    "overrides": [{"fp": "<fp>", "kind": "chapter", "action": "force"},
+                  {"fp": "<fp>", "kind": "scene", "action": "deny"}]}
    ```
 
    Re-run `lc anchor --workspace <slug>`. If it reports a rejected override,
-   fix that fingerprint; nothing is applied until all of them are valid.
+   fix that fingerprint; the other overrides still apply.
 6. When the novel has no scene breaks at all, propose scene starts the same
    way: read each chapter with `--fp`, decide where time, place or viewpoint
-   changes, and list those fingerprints under `scene_starts`.
+   changes, and add a `scene` `force` override for each.
 7. Measure the draft: `lc metrics --workspace <slug>`.
 
 When the structure is right, index the novel: `20-codex-items.md`.

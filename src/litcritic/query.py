@@ -67,6 +67,7 @@ class Index:
     fps: list[str]
     chapters: list[dict[str, Any]]
     scenes: dict[str, str] = field(default_factory=dict)  # scene anchor -> Codex scene line
+    override_fps: list[str] = field(default_factory=list)  # doc-control's, for overrides
 
     def scene_of(self, i: int) -> str:
         return self.anchors[i].rsplit(".p", 1)[0]
@@ -87,7 +88,16 @@ def load(ws_root: Path, version: str | None = None, codex: bool = True) -> Index
         raise ValueError(f"structure for {version} is out of date; run `lc anchor`")
     anchors = [a for a, _ in data["paragraphs"]]
     scenes = _codex_scenes(ws_root, version, anchors) if codex else {}
-    return Index(paras, anchors, fps, data["chapters"], scenes)
+    return Index(paras, anchors, fps, data["chapters"], scenes, _override_fps(ws_root, version))
+
+
+def _override_fps(ws_root: Path, version: str) -> list[str]:
+    """doc-control's fingerprint of each paragraph (its address after ``#``), or []."""
+    meta_file = ws_root / "text" / f"{version}.meta.json"
+    if not meta_file.is_file():
+        return []
+    rows = json.loads(meta_file.read_text(encoding="utf-8")).get("paragraphs") or []
+    return [str(r.get("at", "")).partition("#")[2] for r in rows]
 
 
 def _codex_scenes(ws_root: Path, version: str, anchors: list[str]) -> dict[str, str]:
@@ -142,7 +152,8 @@ def show(ix: Index, unit: str, budget: int = DEFAULT_BUDGET, fingerprints: bool 
     out = Out(budget)
     last = r.start - 1
     for i in r:
-        tag = f"{ix.anchors[i]} {ix.fps[i]}" if fingerprints else ix.anchors[i]
+        fp = ix.override_fps[i] if len(ix.override_fps) == len(ix.paragraphs) else ix.fps[i]
+        tag = f"{ix.anchors[i]} {fp}" if fingerprints else ix.anchors[i]
         line = f"[{tag}] {ix.paragraphs[i]}"
         if not out.add(line):
             if i == r.start:  # longer than the whole budget: show its start, move on

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from litcritic import codex, kinds, query, view, workspace
+from litcritic import codex, kinds, query, structure, view, workspace
 from litcritic import spans as spanlib
 from litcritic.cli import main
 
@@ -70,8 +70,10 @@ def test_poem_titles_need_a_block_of_their_own() -> None:
 
     lines = ["Harbour", "Ropes complain against the posts", "the boats rehearse their names"]
     meta = [{}, {"blank_before": 1}, {}]
-    assert [c.title for c in poem.detect(lines, meta).chapters] == ["Harbour"]
-    assert [c.reason for c in poem.detect(lines, None).chapters] == ["front"]
+    assert poem.chapter_starts(lines, meta) == [0]
+    assert poem.chapter_starts(lines, []) == []
+    s = structure.detect(lines, meta, kind="poem")
+    assert [(c.title, c.reason) for c in s.chapters] == [("Harbour", "override")]
 
 
 def test_unknown_kind_is_an_error(tmp_path: Path) -> None:

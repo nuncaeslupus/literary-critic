@@ -50,7 +50,7 @@ def test_index_query_tokens_p95(ws: Path) -> None:
 def test_show_find_context_content(ws: Path) -> None:
     ix = query.load(ws)
     toc = query.toc(ix)
-    assert "c01 |" in toc and "Perdido" in toc
+    assert "c01 | 1776 | 1 | -I-" in toc
     text = query.show(ix, "c01", budget=400)
     assert text.splitlines()[0].startswith("[c01.s0.p1] -I-")
     assert "continue: lc show c01.s1.p" in text.splitlines()[-1]

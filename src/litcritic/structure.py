@@ -1,64 +1,50 @@
-"""Structure detection and paragraph anchors.
+"""Structure from doc-control's ``segment``, and paragraph anchors.
 
-Turns an ingested draft (``text/vNNN.txt`` + ``vNNN.meta.json``) into parts,
-chapters and scenes, and gives every paragraph a readable anchor
-(``[pN.]cNN.sN.pN``) and a content fingerprint. Detection is heuristic and
-deterministic; an LLM (or the writer) may propose corrections in an overrides
-file keyed by fingerprints, which are validated before they are applied.
+doc-control finds the parts, chapters and scenes of the ``.docx`` a draft was
+ingested from (a converted copy for ``.txt``, ``.md`` and ``.odt``), with a
+stable id and the signals behind each one. This module lays literary-critic's
+labels over them: chapter ``cNN`` (``c00`` is front matter), scene ``sN`` (``s0``
+holds heading lines) and paragraph ``pN``, so every paragraph of ``text/vNNN.txt``
+gets a readable anchor ``[pN.]cNN.sN.pN`` and a content fingerprint.
 
-Signals, strongest first:
+The kind of text decides the detection settings (its ``PROFILE``, passed to
+``segment`` as ``profile``) and may propose chapter starts doc-control does not
+look for (``chapter_starts``), passed as forced overrides. The writer's
+corrections in ``analysis/structure-overrides.json`` are doc-control's override
+shape, passed through unchanged after the kind's (a later override wins)::
 
-- explicit chapter/part words or numbers ("Capítulo 3", "PART TWO", "-IV-", "12.");
-- outline levels from heading styles (only the top levels; deeper headings are
-  usually notes or subtitles);
-- paragraph style names that say what they are ("Chapter start", "Parte",
-  "Separador", "after break");
-- explicit page breaks before a short line, centred short lines, and short
-  upper-case lines followed by body text;
-- symbol-only lines ("*", "* * *", "#") and runs of blank lines as scene breaks.
+    {"schema_version": 2, "overrides": [{"fp": "7d3684d2", "kind": "chapter",
+                                          "action": "force", "nth": 1}]}
 
-A candidate chapter with too little text before the next one is not a chapter:
-at the start it is front matter (chapter 0), elsewhere it stays inside the
-previous chapter (signatures, "THE END" lines).
+The first shape (``chapter_starts``/``not_chapter``/``scene_starts``/``not_scene``
+lists of 12-hex fingerprints) is still read and translated.
 """
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 import json
 import re
+import tempfile
+import tomllib
 import unicodedata
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from litcritic import kinds
+from litcritic import dc, kinds
 
-ROMAN = r"[IVXLCDM]+"
-NUMBER_WORDS = (
-    "uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|"
-    "one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|"
-    "primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|quint[oa]|first|second|third|fourth|fifth"
-)
-NUM = rf"(?:\d+|{ROMAN}|{NUMBER_WORDS})"
-CHAPTER_WORD = re.compile(
-    rf"^(?:cap[ií]tulo|cap\.|chapter|ch\.)\s*{NUM}?\b|^(?:pr[oó]logo|prologue|ep[ií]logo|epilogue"
-    r"|interludio|interlude|introducci[oó]n|introduction|coda)\b",
-    re.I,
-)
-PART_WORD = re.compile(
-    rf"^(?i:parte|part|libro|book|volumen|volume)\s+(?:\d+|{ROMAN}|(?i:{NUMBER_WORDS}))(?![^\W\d_])"
-)
-BARE_NUMBER = re.compile(rf"^[-\u2013\u2014.\s]*(?:\d{{1,3}}|{ROMAN})[-\u2013\u2014.\s]*$")
-SYMBOLS = re.compile(r"^[\s*#~•·⁂§◆◇○●=+_\u2014\u2013-]{1,15}$")
-STYLE_CHAPTER = re.compile(r"cap[ií]tulo|chapter|chap\b", re.I)
-STYLE_PART = re.compile(r"\b(?:parte|part|libro|book)\b", re.I)
-STYLE_BREAK = re.compile(r"separ|break|ornament|pausa|asterism", re.I)
-STYLE_AFTER_BREAK = re.compile(r"tras|after|despu[eé]s", re.I)
-MIN_CHAPTER_WORDS = 150
-MIN_SIGNAL_COUNT = 3
-SIGNAL_ORDER = ("chapter-word", "number", "chapter-style", "heading-style", "page-break", "caps")
-MAX_HEADING_WORDS = 12
+OVERRIDES_SCHEMA = 2
+LEGACY_KEYS = {
+    "chapter_starts": ("chapter", "force"),
+    "not_chapter": ("chapter", "deny"),
+    "scene_starts": ("scene", "force"),
+    "not_scene": ("scene", "deny"),
+}
+OPENING = ("chapter_start", "part_start", "document_start")  # a scene that opens its unit
+LANGUAGES = ("es", "en")  # doc-control's sentence and numeral rules; others are "generic"
 
 
 def fingerprint(text: str) -> str:
@@ -70,12 +56,23 @@ def fingerprint(text: str) -> str:
 
 @dataclass
 class Unit:
-    """A chapter (or part) as detected: where it starts and which lines are its heading."""
+    """A part or chapter: where it starts and which lines are its heading."""
 
     start: int
     heading: list[int] = field(default_factory=list)
     title: str = ""
-    reason: str = ""
+    reason: str = ""  # the first signal doc-control gave ("front" for front matter)
+    uid: str = ""  # doc-control's stable id (pt-…, ch-…)
+    signals: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Scene:
+    """A doc-control scene: the paragraph it opens at, its stable id and signals."""
+
+    start: int
+    uid: str
+    signals: list[str]
 
 
 @dataclass
@@ -84,198 +81,176 @@ class Structure:
     parts: list[Unit]
     chapters: list[Unit]  # chapters[0] may be front matter (start 0, reason "front")
     scene_starts: set[int]
-    breaks: set[int]  # separator paragraphs (belong to no scene text)
+    breaks: set[int]  # scene-break paragraphs (the last paragraph of the scene they close)
     notes: list[str] = field(default_factory=list)
+    scenes: list[Scene] = field(default_factory=list)  # doc-control's, in order
 
     def anchors(self) -> list[str]:
         return _anchor_list(self)
 
 
-# --- detection ---------------------------------------------------------------
+# --- segment -------------------------------------------------------------------
 
 
-def _words(text: str) -> int:
-    return len(text.split())
+def _number(at: str) -> int:
+    m = re.match(r"p(\d+)#", at)
+    if not m:
+        raise ValueError(f"not a doc-control paragraph address: {at!r}")
+    return int(m.group(1))
 
 
-def _is_caps(text: str) -> bool:
-    letters = [c for c in text if c.isalpha()]
-    return len(letters) >= 3 and all(c.isupper() for c in letters)
+def _language(language: str) -> str:
+    return language if language in LANGUAGES else "generic"
 
 
-def _heading_like(text: str) -> bool:
-    return _words(text) <= MAX_HEADING_WORDS and not re.search(r"[.,;:]\s*$|[\"»”]$", text)
+def _forced(ats: list[str], starts: list[int]) -> list[dict[str, Any]]:
+    """Forced chapter overrides for paragraph indexes ``starts``."""
+    fps = [at.split("#", 1)[1] for at in ats]
+    out: list[dict[str, Any]] = []
+    for i in starts:
+        o: dict[str, Any] = {"fp": fps[i], "kind": "chapter", "action": "force"}
+        if fps.count(fps[i]) > 1:
+            o["nth"] = fps[:i].count(fps[i]) + 1
+        out.append(o)
+    return out
 
 
-def _is_title_line(text: str, meta: dict[str, Any]) -> bool:
-    """A short line right after a chapter number that names the chapter."""
-    if not _heading_like(text) or _words(text) > 8 or re.match(r"^[-\u2013\u2014«\"“'¿¡]", text):
-        return False
-    return bool(meta.get("centered") or meta.get("heading") or _is_caps(text) or _words(text) <= 4)
-
-
-def _is_break(text: str, meta: dict[str, Any]) -> bool:
-    style = str(meta.get("style", ""))
-    styled = bool(STYLE_BREAK.search(style)) and not STYLE_AFTER_BREAK.search(style)
-    return bool(SYMBOLS.match(text)) or (styled and not re.search(r"[^\W_]", text))
-
-
-def _chapter_signal(text: str, meta: dict[str, Any], top_levels: set[int]) -> str:
-    """Why this paragraph would start a chapter ('' if it would not)."""
-    style = str(meta.get("style", ""))
-    if CHAPTER_WORD.match(text) and _words(text) <= MAX_HEADING_WORDS:
-        return "chapter-word"
-    if BARE_NUMBER.match(text):
-        return "number"
-    if meta.get("heading") in top_levels and _heading_like(text):
-        return "heading-style"
-    if STYLE_CHAPTER.search(style) and not STYLE_PART.search(style):
-        return "chapter-style"
-    if meta.get("page_break_before") and _heading_like(text) and _words(text) <= 8:
-        return "page-break"
-    if _is_caps(text) and _heading_like(text) and not SYMBOLS.match(text):
-        return "caps"
-    return ""
-
-
-def detect(paragraphs: list[str], meta: list[dict[str, Any]] | None = None) -> Structure:
-    if meta is None or len(meta) != len(paragraphs):
-        meta = [{} for _ in paragraphs]  # missing or stale layout facts: text signals only
-    levels = sorted({int(m["heading"]) for m in meta if m.get("heading")})
-    parts: list[Unit] = []
-    part_level = 0
-    # Two heading levels in use and the top one is few and much rarer than the
-    # next → the top one marks parts. Only one level below it counts for chapters;
-    # deeper headings are subtitles or notes.
-    if len(levels) >= 2:
-        top_count = sum(1 for m in meta if m.get("heading") == levels[0])
-        next_count = sum(1 for m in meta if m.get("heading") == levels[1])
-        if top_count <= 12 and 2 * top_count <= next_count:
-            part_level = levels[0]
-    top_levels = {levels[1]} if part_level else set(levels[:1])
-
-    breaks = {i for i, t in enumerate(paragraphs) if _is_break(t, meta[i])}
-    for i, (text, m) in enumerate(zip(paragraphs, meta, strict=True)):
-        if i in breaks:
-            continue
-        style = str(m.get("style", ""))
-        if _heading_like(text) and (
-            PART_WORD.match(text)
-            or (part_level and m.get("heading") == part_level)
-            or STYLE_PART.search(style)
-        ):
-            parts.append(Unit(i, [i], text, "part"))
-    part_starts = {p.start for p in parts}
-
-    found: list[Unit] = []
-    for i, (text, m) in enumerate(zip(paragraphs, meta, strict=True)):
-        if i in breaks or i in part_starts:
-            continue
-        reason = _chapter_signal(text, m, top_levels)
-        if reason == "chapter-style":  # the styled paragraph is body text, not a title
-            found.append(Unit(i, [], "", reason))
-        elif reason:
-            found.append(Unit(i, [i], text, reason))
-    # The most specific kind of signal the draft uses consistently wins; weaker
-    # kinds are usually something else (notes to self, signs, emphasis).
-    counts = {r: sum(1 for u in found if u.reason == r) for r in SIGNAL_ORDER}
-    chosen = next((r for r in SIGNAL_ORDER if counts[r] >= MIN_SIGNAL_COUNT), "")
-    keep = {chosen, "chapter-word"} if chosen in ("number",) else {chosen}
-    if chosen == "chapter-word":
-        keep.add("number")
-    raw = [u for u in found if u.reason in keep or (u.reason == "chapter-word" and u.heading)]
-    if chosen:
-        notes_signal = f"chapter signal: {chosen} ({counts[chosen]})"
-    else:
-        notes_signal = "chapter signal: none"
-    # A heading spans its number line plus a following short title line.
-    merged: list[Unit] = []
-    for u in raw:
-        prev = merged[-1] if merged else None
-        if (
-            prev
-            and prev.heading
-            and u.heading
-            and u.start == prev.heading[-1] + 1
-            and len(prev.heading) < 3
-        ):
-            first = paragraphs[prev.heading[0]]
-            if (
-                prev.reason in ("number", "chapter-word") and _heading_like(paragraphs[u.start])
-            ) or (u.reason == prev.reason == "caps" and prev.start == 0):
-                prev.heading.append(u.start)
-                prev.title = f"{first} {paragraphs[u.start]}".strip()
-                continue
-        merged.append(u)
-    for u in merged:
-        nxt = u.heading[-1] + 1 if u.heading else 0
-        if (
-            u.heading
-            and u.reason in ("number", "chapter-word")
-            and len(u.heading) == 1
-            and nxt < len(paragraphs)
-            and nxt not in breaks
-            and _is_title_line(paragraphs[nxt], meta[nxt])
-            and not _chapter_signal(paragraphs[nxt], meta[nxt], top_levels)
-        ):
-            u.heading.append(nxt)
-            u.title = f"{paragraphs[u.start]} {paragraphs[nxt]}"
-
-    chapters = _drop_thin(paragraphs, merged, part_starts)
-    if not chapters or chapters[0].start > 0:
-        first_start = chapters[0].start if chapters else len(paragraphs)
-        has_text = any(i not in part_starts and i not in breaks for i in range(0, first_start))
-        if has_text or not chapters:
-            chapters.insert(0, Unit(0, [], "", "front"))
-    scene_starts = _scenes(paragraphs, meta, chapters, breaks, part_starts)
-    notes = [
-        f"{len(parts)} parts, {len(chapters)} chapters, {len(scene_starts)} scenes",
-        notes_signal,
-    ]
-    return Structure(paragraphs, parts, chapters, scene_starts, breaks, notes)
-
-
-def _drop_thin(paragraphs: list[str], units: list[Unit], part_starts: set[int]) -> list[Unit]:
-    """Keep candidates followed by enough text; thin ones at the start become front matter."""
-    kept: list[Unit] = []
-    bounds = [u.start for u in units] + [len(paragraphs)]
-    for k, u in enumerate(units):
-        end = bounds[k + 1]
-        last = u.heading[-1] if u.heading else u.start - 1
-        for ps in sorted(part_starts):
-            if last < ps < end:
-                end = ps
-        body = sum(_words(paragraphs[i]) for i in range(last + 1, end))
-        strong = u.reason in ("chapter-word", "number", "heading-style", "chapter-style")
-        if body >= MIN_CHAPTER_WORDS or (strong and body > 0 and kept):
-            kept.append(u)
-    return kept
-
-
-def _scenes(
+def segment(
+    doc: dc.Document,
     paragraphs: list[str],
-    meta: list[dict[str, Any]],
-    chapters: list[Unit],
-    breaks: set[int],
-    part_starts: set[int],
-) -> set[int]:
-    starts: set[int] = set()
-    heads = {i for c in chapters for i in c.heading} | part_starts
-    for c in chapters:
-        first = (c.heading[-1] + 1) if c.heading else c.start
-        while first in breaks or first in part_starts:
-            first += 1
-        starts.add(first)
-    for i in range(1, len(paragraphs)):
-        if i in breaks or i in heads:
+    ats: list[str],
+    profile: dict[str, Any],
+    overrides: list[dict[str, Any]],
+    language: str = "es",
+) -> tuple[Structure, list[str]]:
+    """Parts, chapters and scenes of ``doc``, labelled over its text paragraphs.
+
+    ``ats`` are the doc-control addresses of ``paragraphs`` (empty paragraphs are
+    not text). Returns the structure and the overrides doc-control could not match.
+    """
+    numbers = [_number(at) for at in ats]
+
+    def index(number: int) -> int:
+        """The text paragraph at doc-control paragraph ``number``, or the next one."""
+        return min(bisect.bisect_left(numbers, number), len(numbers) - 1)
+
+    request: dict[str, Any] = {"profile": profile, "language": _language(language)}
+    if overrides:
+        request["overrides"] = overrides
+    found = doc.run("segment", {**request, "unit": "chapters"})
+    parts_found = doc.run("segment", {**request, "unit": "parts"})["parts"]
+    scenes_found = doc.run("segment", {**request, "unit": "scenes"})["scenes"]
+    errors = [
+        f"{o['kind']} {o['action']} {o['fp']}"
+        + (f" (nth {o['nth']})" if "nth" in o else "")
+        + ": no paragraph has this fingerprint"
+        for o in found.get("unmatched_overrides", [])
+    ]
+    if not paragraphs:
+        return Structure([], [], [], set(), set(), ["0 parts, 0 chapters, 0 scenes"]), errors
+
+    parts = [
+        Unit(index(p["first"]), [index(p["first"])], paragraphs[index(p["first"])], "part")
+        for p in parts_found
+    ]
+    for unit, p in zip(parts, parts_found, strict=True):
+        unit.uid, unit.signals = p["id"], list(p["signals"])
+    chapters: list[Unit] = []
+    for c in found["chapters"]:
+        i = index(c["first"])
+        signals = list(c["signals"])
+        untitled = signals == ["chapter_style"] or (
+            "chapter_style" in signals
+            and not {"heading_style", "outline_level", "chapter_word", "section_name", "numeral"}
+            & set(signals)
+        )
+        heading = [] if untitled else [i]
+        title = "" if untitled else paragraphs[i]
+        chapters.append(Unit(i, heading, title, signals[0], c["id"], signals))
+    first = min([c.start for c in chapters] + [p.start for p in parts] + [len(paragraphs)])
+    if found.get("front") is not None or not chapters or first > 0:
+        chapters.insert(0, Unit(0, [], "", "front"))
+
+    scene_starts: set[int] = set()
+    breaks: set[int] = set()
+    scenes: list[Scene] = []
+    for sc in scenes_found:
+        i = index(sc["first"])
+        signals = list(sc["signals"])
+        scenes.append(Scene(i, sc["id"], signals))
+        if signals and signals[0] in OPENING:
             continue
-        style = str(meta[i].get("style", ""))
-        if (i - 1) in breaks or (
-            (int(meta[i].get("blank_before", 0)) >= 2 or STYLE_AFTER_BREAK.search(style))
-            and (i - 1) not in heads
-        ):
-            starts.add(i)
-    return starts
+        if "scene_marker" in signals:
+            breaks.add(i)
+            if i + 1 < len(paragraphs):
+                scene_starts.add(i + 1)
+        else:
+            scene_starts.add(i)
+    for c in chapters:  # each chapter's first scene opens after its heading
+        body = c.heading[-1] + 1 if c.heading else c.start
+        while body in breaks or body in {p.start for p in parts}:
+            body += 1
+        scene_starts.add(body)
+    counts = Counter(c.reason for c in chapters if c.reason != "front")
+    signal_note = ", ".join(f"{k} {v}" for k, v in counts.most_common()) or "none"
+    notes = [
+        f"{len(parts)} parts, {len(chapters)} chapters, {len(scenes)} scenes",
+        f"chapter signals: {signal_note}",
+    ]
+    if overrides:
+        notes.append(f"overrides applied: {len(overrides) - len(errors)}")
+    s = Structure(paragraphs, parts, chapters, scene_starts, breaks, notes, scenes)
+    return s, errors
+
+
+def _settings(
+    kind: Any, paragraphs: list[str], meta: list[dict[str, Any]]
+) -> tuple[dict[str, Any], list[int]]:
+    propose = getattr(kind, "chapter_starts", None)
+    return dict(getattr(kind, "PROFILE", {})), (propose(paragraphs, meta) if propose else [])
+
+
+def detect(
+    paragraphs: list[str],
+    meta: list[dict[str, Any]] | None = None,
+    kind: str = kinds.DEFAULT,
+    overrides: list[dict[str, Any]] | None = None,
+    language: str = "es",
+) -> Structure:
+    """The structure of paragraphs held in memory (tests, examples).
+
+    The paragraphs and their layout facts (``meta`` rows as ingest writes them)
+    are written to a minimal ``.docx`` and segmented like an ingested draft.
+    """
+    from litcritic import convert
+    from litcritic.ingest import Draft, Para, clean
+
+    if meta is None or len(meta) != len(paragraphs):
+        meta = [{} for _ in paragraphs]
+    keys = ("heading", "centered", "page", "page_break_before", "blank_before", "style")
+    draft = Draft(
+        [
+            Para(t, **{k: m[k] for k in keys if k in m})
+            for t, m in zip(paragraphs, meta, strict=True)
+        ],
+        "docx",
+    )
+    module = kinds.get(kind)
+    profile, starts = _settings(module, paragraphs, meta)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "draft.docx"
+        path.write_bytes(convert.draft_to_docx(draft))
+        with dc.open(path) as doc:
+            rows = doc.paragraphs(normalized=True)
+            ats = [str(r["at"]) for r in rows if clean(str(r.get("normalized", r["text"])))]
+            if len(ats) != len(paragraphs):
+                raise ValueError("paragraphs changed on their way through a .docx")
+            s, errors = segment(
+                doc, paragraphs, ats, profile, _forced(ats, starts) + (overrides or []), language
+            )
+    if errors:
+        raise ValueError("; ".join(errors))
+    return s
 
 
 # --- anchors -------------------------------------------------------------------
@@ -327,54 +302,49 @@ def _anchor_list(s: Structure) -> list[str]:
 
 # --- overrides ------------------------------------------------------------------
 
-OVERRIDE_KEYS = ("chapter_starts", "not_chapter", "scene_starts", "not_scene")
 
+def load_overrides(
+    ws_root: Path, paragraphs: list[str], ats: list[str]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """The writer's overrides in doc-control's shape, and any that cannot be read.
 
-def apply_overrides(s: Structure, overrides: dict[str, Any]) -> list[str]:
-    """Apply corrections keyed by paragraph fingerprint; return validation errors.
-
-    Nothing is applied when any error is found, so a bad proposal never leaves a
-    half-corrected structure.
+    The first shape (12-hex fingerprint lists) is translated by paragraph text;
+    when any of its entries is wrong, none is used.
     """
-    if not isinstance(overrides, dict):
-        return ["overrides must be a JSON object"]
-    fps = [fingerprint(t) for t in s.paragraphs]
+    f = ws_root / "analysis" / "structure-overrides.json"
+    if not f.is_file():
+        return [], []
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        return [], [f"not valid JSON: {exc}"]
+    if not isinstance(data, dict):
+        return [], ["overrides must be a JSON object"]
+    if "overrides" in data:
+        items = data["overrides"]
+        if not isinstance(items, list) or not all(isinstance(o, dict) for o in items):
+            return [], ["overrides: expected a list of objects"]
+        return items, []
+    errors = [f"unknown key {k!r}" for k in data if k not in LEGACY_KEYS]
     where: dict[str, list[int]] = {}
-    for i, fp in enumerate(fps):
-        where.setdefault(fp, []).append(i)
-    errors = [f"unknown key {k!r}" for k in overrides if k not in OVERRIDE_KEYS]
-    resolved: dict[str, list[int]] = {}
-    for key in OVERRIDE_KEYS:
-        items = overrides.get(key, [])
+    for i, t in enumerate(paragraphs):
+        where.setdefault(fingerprint(t), []).append(i)
+    out: list[dict[str, Any]] = []
+    for key, (kind, action) in LEGACY_KEYS.items():
+        items = data.get(key, [])
         if not isinstance(items, list):
             errors.append(f"{key}: expected a list of fingerprints")
             continue
-        resolved[key] = []
         for fp in items:
             hits = where.get(str(fp), [])
             if len(hits) != 1:
                 problem = "not found" if not hits else f"matches {len(hits)} paragraphs"
                 errors.append(f"{key}: {fp} {problem}")
-            else:
-                resolved[key].append(hits[0])
-    if errors:
-        return errors
-    drop = set(resolved["not_chapter"])
-    s.chapters = [c for c in s.chapters if c.start not in drop or c.reason == "front"]
-    known = {c.start for c in s.chapters}
-    for i in resolved["chapter_starts"]:
-        if i not in known:
-            text = s.paragraphs[i]
-            is_title = _heading_like(text) and _words(text) <= 8
-            s.chapters.append(
-                Unit(i, [i] if is_title else [], text if is_title else "", "override")
-            )
-    s.chapters.sort(key=lambda c: c.start)
-    s.scene_starts |= set(resolved["scene_starts"]) | set(resolved["chapter_starts"])
-    s.scene_starts -= set(resolved["not_scene"])
-    s.notes[0] = f"{len(s.parts)} parts, {len(s.chapters)} chapters, {len(s.scene_starts)} scenes"
-    s.notes.append(f"overrides applied: {sum(len(v) for v in resolved.values())}")
-    return []
+                continue
+            o = _forced(ats, hits)[0]
+            o.update(kind=kind, action=action)
+            out.append(o)
+    return ([], errors) if errors else (out, [])
 
 
 # --- workspace I/O ----------------------------------------------------------------
@@ -382,8 +352,14 @@ def apply_overrides(s: Structure, overrides: dict[str, Any]) -> list[str]:
 
 def to_json(s: Structure, version: str) -> dict[str, Any]:
     anchors = s.anchors()
-    words = [_words(t) for t in s.paragraphs]
+    words = [len(t.split()) for t in s.paragraphs]
     bounds = [*chapter_starts(s), len(s.paragraphs)]
+    opened = [sc.start for sc in s.scenes]
+
+    def dc_scene(i: int) -> Scene | None:
+        k = bisect.bisect_right(opened, i) - 1
+        return s.scenes[k] if k >= 0 else None
+
     chapters = []
     for k, c in enumerate(s.chapters):
         lo, hi = bounds[k], bounds[k + 1]
@@ -393,7 +369,17 @@ def to_json(s: Structure, version: str) -> dict[str, Any]:
             sid = anchors[i].rsplit(".p", 1)[0]
             if sid.endswith(".s0"):
                 continue
-            sc = scenes.setdefault(sid, {"id": sid, "start": i, "end": i, "words": 0})
+            if sid not in scenes:
+                ds = dc_scene(i)
+                scenes[sid] = {
+                    "id": sid,
+                    "start": i,
+                    "end": i,
+                    "words": 0,
+                    "stable_id": ds.uid if ds else "",
+                    "signals": ds.signals if ds else [],
+                }
+            sc = scenes[sid]
             sc["end"] = i
             sc["words"] += words[i]
         chapters.append(
@@ -401,6 +387,8 @@ def to_json(s: Structure, version: str) -> dict[str, Any]:
                 "id": cid,
                 "title": c.title or (s.paragraphs[c.heading[0]] if c.heading else ""),
                 "reason": c.reason,
+                "stable_id": c.uid,
+                "signals": c.signals,
                 "start": lo,
                 "end": hi - 1,
                 "words": sum(words[lo:hi]),
@@ -408,10 +396,13 @@ def to_json(s: Structure, version: str) -> dict[str, Any]:
             }
         )
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "version": version,
         "notes": s.notes,
-        "parts": [{"n": n + 1, "title": p.title, "start": p.start} for n, p in enumerate(s.parts)],
+        "parts": [
+            {"n": n + 1, "title": p.title, "start": p.start, "stable_id": p.uid}
+            for n, p in enumerate(s.parts)
+        ],
         "chapters": chapters,
         "paragraphs": [[a, fingerprint(t)] for a, t in zip(anchors, s.paragraphs, strict=True)],
     }
@@ -424,20 +415,46 @@ def latest_version(ws_root: Path) -> str:
     return texts[-1].stem
 
 
+def _work_language(ws_root: Path) -> str:
+    f = ws_root / "work.toml"
+    try:
+        return str(tomllib.loads(f.read_text(encoding="utf-8")).get("language") or "es")
+    except (OSError, ValueError):
+        return "es"
+
+
 def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, list[str]]:
-    """Detect, apply ``analysis/structure-overrides.json`` if present, write structure.json."""
+    """Segment the draft with the kind's settings and the writer's overrides; write
+    ``index/vNNN/structure.json``. Returns its path, the structure and override errors."""
+    from litcritic import ingest
+
     version = version or latest_version(ws_root)
     text = (ws_root / "text" / f"{version}.txt").read_text(encoding="utf-8")
     paragraphs = text.split("\n")[:-1] if text.endswith("\n") else text.split("\n")
     meta_file = ws_root / "text" / f"{version}.meta.json"
-    meta = None
-    if meta_file.is_file():
-        meta = json.loads(meta_file.read_text(encoding="utf-8")).get("paragraphs")
-    s = kinds.of_work(ws_root).detect(paragraphs, meta)
-    errors: list[str] = []
-    ov = ws_root / "analysis" / "structure-overrides.json"
-    if ov.is_file():
-        errors = apply_overrides(s, json.loads(ov.read_text(encoding="utf-8")))
+    meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else {}
+    rows = meta.get("paragraphs") or []
+    ats = [str(r.get("at", "")) for r in rows]
+    if len(rows) != len(paragraphs) or not all(ats):
+        raise ValueError(f"{version} was ingested by an older release; run `lc ingest` again")
+    source = next(
+        (p for p in (ws_root / "manuscript").glob(f"{version}.*") if p.suffix in ingest.FORMATS),
+        None,
+    )
+    if source is None:
+        raise FileNotFoundError(f"no manuscript/{version}.* to read the structure from")
+    profile, starts = _settings(kinds.of_work(ws_root), paragraphs, rows)
+    overrides, errors = load_overrides(ws_root, paragraphs, ats)
+    language = _work_language(ws_root)
+    with ingest.docx_of(source) as (docx, _), dc.open(docx) as doc:
+        try:
+            s, unmatched = segment(
+                doc, paragraphs, ats, profile, _forced(ats, starts) + overrides, language
+            )
+        except dc.DocError as exc:  # an override doc-control refuses: segment without them
+            errors.append(f"{exc.code}: {exc}")
+            s, unmatched = segment(doc, paragraphs, ats, profile, _forced(ats, starts), language)
+    errors += unmatched
     out = ws_root / "index" / version / "structure.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(to_json(s, version), ensure_ascii=False) + "\n", encoding="utf-8")

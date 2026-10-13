@@ -78,7 +78,7 @@ def test_mtld_extremes() -> None:
 def _ctx(slug: str, lang: str, **extra: Any) -> metrics.Context:
     d = convert.read_txt(corpus.get(slug).path.read_bytes())
     paras = [p.text for p in d.paragraphs]
-    data = structure.to_json(structure.detect(paras), "v001")
+    data = structure.to_json(structure.detect(paras, [p.meta() for p in d.paragraphs]), "v001")
     return metrics.Context(
         paras, [a for a, _ in data["paragraphs"]], data["chapters"], lang, data["parts"], **extra
     )

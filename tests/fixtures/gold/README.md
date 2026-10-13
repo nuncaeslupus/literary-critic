@@ -88,3 +88,11 @@ neither a hit nor a false positive.
 
 Counts are reproducible only through this method; if the text of a corpus
 file changes (its checksum is in `source.toml`), regenerate the list.
+
+## Chapters
+
+`chapters.json` lists, for each corpus text, the heading line that opens each
+of its chapters, in order, as the text prints it (the counts are the
+`[structure] chapters` in its `source.toml`). Chapter detection is scored
+against it: a detected chapter is correct when it starts at the paragraph
+holding the next of these lines.
