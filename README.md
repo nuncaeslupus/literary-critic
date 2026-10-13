@@ -44,6 +44,13 @@ index, the Codex, the checks, letters and revision rounds. See
 | Chat with code execution (ChatGPT, Claude.ai, Gemini) | Upload the kit zip (`lc kit` builds it; the assistant reads its `START_HERE.md`) and your workspace zip; the assistant runs the scripts and returns an updated workspace zip. |
 | Chat without code execution | Paste the portable prompts from `prompts/`; reduced mode without metrics. |
 
+**What you need for the full experience** (the novel's folder connected, changes
+applied in Word as tracked changes, Word opened at the right paragraph): Claude's
+desktop app with Cowork, which needs a paid Claude plan and a Mac with Apple
+silicon or Windows Pro, Enterprise or Education. On the free plan, Windows Home
+or an Intel Mac there is no Cowork: the tool works in basic mode, where you
+upload the manuscript and get back a commented copy.
+
 Your novel and all working files live in a **workspace folder outside this
 repo** — a Google Drive folder works well. See `docs/workspace.md`.
 
