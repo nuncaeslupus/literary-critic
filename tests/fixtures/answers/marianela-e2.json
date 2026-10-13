@@ -1,0 +1,15 @@
+{"entities": [
+ {"name": "Pepina", "kind": "character"},
+ {"name": "Faustino", "kind": "character"},
+ {"name": "Teodoro Golfín", "kind": "character", "titles": ["el viajero"]},
+ {"name": "Celipín", "kind": "character", "aliases": ["Celipillo", "Celipinillo", "Cilipín"]},
+ {"name": "Golfines", "kind": "group"},
+ {"name": "esposos Centeno", "kind": "group", "aliases": ["Centenos"]},
+ {"name": "Terrible", "kind": "place"},
+ {"name": "Saldeoro", "kind": "place"},
+ {"name": "Ficóbriga", "kind": "place"},
+ {"name": "Santa Irene de Campó", "kind": "place", "aliases": ["Campó"]},
+ {"name": "Hinojales", "kind": "place"},
+ {"name": "Barco", "kind": "place"}
+],
+"rejects": ["Universo", "Madre", "el padre", "Europa", "la señora", "Colón", "Evangelio", "Nuevo Mundo", "Rey de España", "Cantabria", "Escolapios", "España", "Paraíso", "Poniente", "Londres", "Juana", "Cayetano", "Ana", "Mariquita Manuela Téllez"]}

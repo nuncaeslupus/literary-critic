@@ -1,0 +1,20 @@
+{"entities": [
+ {"name": "Gabriel John Utterson", "kind": "character", "aliases": ["Utterson", "Mr. Utterson"], "titles": ["the lawyer"]},
+ {"name": "Henry Jekyll", "kind": "character", "aliases": ["Jekyll", "Dr. Jekyll", "Dr. Henry Jekyll", "Harry"], "titles": ["the doctor"]},
+ {"name": "Edward Hyde", "kind": "character", "aliases": ["Hyde", "Mr. Hyde"], "same_as": "Henry Jekyll"},
+ {"name": "Poole", "kind": "character", "titles": ["the butler"]},
+ {"name": "Hastie Lanyon", "kind": "character", "aliases": ["Lanyon", "Dr. Lanyon"]},
+ {"name": "Richard Enfield", "kind": "character", "aliases": ["Enfield", "Mr. Enfield", "Richard"]},
+ {"name": "Mr. Guest", "kind": "character", "aliases": ["Guest"], "titles": ["the clerk"]},
+ {"name": "Sir Danvers Carew", "kind": "character", "aliases": ["Danvers", "Sir Danvers", "Carew", "Danvers Carew"]},
+ {"name": "Bradshaw", "kind": "character"},
+ {"name": "Newcomen", "kind": "character"},
+ {"name": "Sawbones", "kind": "character"},
+ {"name": "Messrs. Maw", "kind": "group", "aliases": ["Maw"]},
+ {"name": "London", "kind": "place"},
+ {"name": "Soho", "kind": "place"},
+ {"name": "Cavendish Square", "kind": "place"},
+ {"name": "Gaunt Street", "kind": "place"},
+ {"name": "Portland Street", "kind": "place"}
+],
+"rejects": ["the man", "the maid", "the servant", "Satan", "Juggernaut", "Babylonian", "Cain", "Coutts", "Damon", "Denman", "Edinburgh", "Fell", "Hell", "Jack", "Mail House", "Park", "Philippi", "Pythias", "Queer Street", "Regent", "Robert Louis Stevenson", "Scotland Yard", "Seek"]}

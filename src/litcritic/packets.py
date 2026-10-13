@@ -45,6 +45,8 @@ SETUP_LINES_CAP = 300  # tokens for the open setups listed in a scene packet
 SCENES_PER_PACKET = 40  # the answer schema allows 60
 FACT_NAMES = 12  # names and speakers listed per scene
 STATUSES = ("todo", "done", "failed")
+# what a re-plan keeps of an unchanged packet: its state and its cost record
+KEPT = ("status", "items", "error", "out_tokens", "prints", "imports", "started", "finished")
 KIND_SCHEMA = {"entities": "index-entities-answer", "scenes": "index-scenes-answer"}
 # Model tier per packet kind, named, never a model id (spec, open question 1): cheap
 # (Haiku-class), standard (Sonnet-class), strong (the session's best). Entity resolution
@@ -341,7 +343,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         p["status"] = "todo"
         was = old.get(p["id"])
         if was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]:
-            for key in ("status", "items", "error"):
+            for key in KEPT:
                 if key in was:
                     p[key] = was[key]
         p["tokens"] = tokens(render(ws_root, doc, p["id"], draft, cx))
@@ -881,6 +883,7 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     p = _packet(doc, packet_id)
     if p["status"] == "done":
         return f"error {packet_id}: $: packet already imported"
+    p["imports"] = p.get("imports", 0) + 1
     answers = work_dir(ws_root) / "answers"
     answers.mkdir(parents=True, exist_ok=True)
     (answers / f"{packet_id}.json").write_text(raw, encoding="utf-8")
@@ -927,12 +930,27 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
         _save_plan(ws_root, doc)
         return f"error {packet_id}: {exc}"
     p["status"], p["items"] = "done", len(items)
-    if p["kind"] == "scenes":
-        p["out_tokens"] = tokens(_compact(ans))
+    p["out_tokens"] = tokens(_compact(ans))
+    p["finished"] = _now()
     p.pop("error", None)
     _save_plan(ws_root, doc)
     note = f" ({'; '.join(notes)})" if notes else ""
     return f"ok {packet_id}: {len(items)} items{note}"
+
+
+def _now() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def mark_printed(ws_root: Path, packet_id: str) -> None:
+    """Record that a packet was handed to the LLM: one more call, and ``started`` (the
+    latest print of a packet not yet done) for the cost meter's wall time."""
+    doc = load_plan(ws_root)
+    p = _packet(doc, packet_id)
+    p["prints"] = p.get("prints", 0) + 1
+    if p["status"] != "done":
+        p["started"] = _now()
+    _save_plan(ws_root, doc)
 
 
 def _compact(ans: Any) -> str:
@@ -966,7 +984,7 @@ def status_lines(doc: dict[str, Any]) -> list[str]:
         line = f"{p['id']} {p['kind']} {p['status']} ~{p['tokens']} tokens {what}"
         if p["status"] == "done":
             out_tok = ""
-            if p.get("out_tokens"):
+            if p.get("out_tokens") and p["kind"] == "scenes":
                 per = round(p["out_tokens"] / len(p["inputs"]["units"]), 1)
                 out_tok = f", ~{per} out tokens/scene"
             line += f" ({p.get('items', 0)} items{out_tok})"
