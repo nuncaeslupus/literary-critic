@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import codex, corpus, packets, view
+from litcritic import codex, corpus, packets, sync, view
 from litcritic.cli import main
 
 # --- fixtures ----------------------------------------------------------------------
@@ -351,14 +351,148 @@ def test_cli_packet_import_from_stdin_and_status(
 
 
 def test_plan_changed_packs_only_scenes_to_reread(ws: Path) -> None:
-    assert _import(ws, "s002", _scene_answer(ws, "s002")).startswith("ok ")
+    for p in packets.load_plan(ws)["packets"]:
+        if p["kind"] == "scenes":
+            assert _import(ws, p["id"], _scene_answer(ws, p["id"])).startswith("ok ")
     cx = codex.Codex(ws)
     scene = sorted(cx.live("scene"), key=lambda i: i.spans[0].start.para)[1]
     (cx.root / "reread.jsonl").write_text(json.dumps({"item": scene.id}) + "\n", "utf-8")
     doc = packets.plan(ws, changed=True)
-    units = [u["scene"] for p in doc["packets"] for u in p["inputs"]["units"]]
-    assert units == [scene.spans[0].start.para.rsplit(".p", 1)[0]]
-    assert doc["stats"]["scenes"] == 1 and doc["stats"]["entity_packets"] == 0
+    assert _packed(doc) == [scene.spans[0].start.para.rsplit(".p", 1)[0]]
+    assert doc["stats"]["scenes"] == 1
+
+
+# --- re-index after a new draft (T6) ----------------------------------------------
+
+REINDEX_RATIO = 0.15
+
+
+def _scenes_of_book(count: int, paras_each: int = 6) -> list[list[str]]:
+    raw = corpus.get("jekyll-hyde").path.read_text(encoding="utf-8")
+    paras = [" ".join(b.split()) for b in raw.split("\n\n")]
+    paras = [p for p in paras if len(p.split()) >= 40]
+    return [
+        [paras[(k * paras_each + j) % len(paras)] for j in range(paras_each)] for k in range(count)
+    ]
+
+
+def _write_book(
+    root: Path,
+    scenes: list[list[str]],
+    tmp: Path,
+    tail: str = "",
+    starts: list[int] | None = None,
+) -> None:
+    starts = starts if starts is not None else list(range(0, len(scenes), 5))
+    out: list[str] = []
+    for k, sc in enumerate(scenes):
+        if k in starts:
+            out.append(f"CHAPTER {starts.index(k) + 1}")
+        elif k:
+            out.append("* * *")
+        out += sc
+    src = tmp / "book.txt"
+    src.write_text("\n\n".join(out) + "\n" + tail, "utf-8")
+    assert main(["ingest", str(src), "--workspace", str(root)]) == 0
+    assert main(["anchor", "--workspace", str(root)]) == 0
+
+
+def _index_all(root: Path) -> dict[str, Any]:
+    doc = packets.plan(root)
+    cands = _draft(root).pre["candidates"]
+    for p in doc["packets"]:
+        if p["kind"] == "entities":
+            a, b = p["inputs"]["candidates"]
+            ents = [{"name": c["name"], "kind": "character"} for c in cands[a:b]]
+            assert _import(root, p["id"], {"entities": ents, "rejects": []}).startswith("ok ")
+        else:
+            assert _import(root, p["id"], _scene_answer(root, p["id"])).startswith("ok ")
+    return doc
+
+
+def _reindexed(
+    tmp_path: Path, edit: Any, count: int = 20, tail: str = "", starts: list[int] | None = None
+) -> tuple[Path, dict[str, Any], dict[str, Any], list[list[str]]]:
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "work.toml").write_text('slug = "re"\nlanguage = "en"\n', "utf-8")
+    scenes = _scenes_of_book(count)
+    _write_book(root, scenes, tmp_path)
+    first = _index_all(root)
+    new = edit([list(sc) for sc in scenes])
+    _write_book(root, new, tmp_path, tail, starts)
+    sync.sync(root)
+    return root, first, packets.plan(root, changed=True), new
+
+
+def _packed(doc: dict[str, Any]) -> list[str]:
+    return [
+        u["scene"] for p in doc["packets"] if p["kind"] == "scenes" for u in p["inputs"]["units"]
+    ]
+
+
+def _rewrite(sc: list[str]) -> list[str]:
+    return [sc[0], "A wholly new paragraph, invented for this test, " * 8, *sc[2:]]
+
+
+def test_reindex_packs_only_changed_scenes(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        sc[3], sc[11] = _rewrite(sc[3]), _rewrite(sc[11])
+        return sc
+
+    root, first, doc, _ = _reindexed(tmp_path, edit)
+    draft = _draft(root)
+    scene_id = [s["id"] for s in draft.scenes]
+    assert len(scene_id) == 20
+    assert _packed(doc) == [scene_id[3], scene_id[11]]
+    assert doc["stats"]["entity_packets"] == 0
+    ratio = doc["stats"]["total_packet_tokens"] / first["stats"]["total_packet_tokens"]
+    assert ratio <= REINDEX_RATIO, ratio
+    # Importing the re-read scenes updates the scene items in place and clears the flag.
+    before = {i.id for i in codex.Codex(root).live("scene")}
+    for p in doc["packets"]:
+        assert _import(root, p["id"], _scene_answer(root, p["id"])).startswith("ok ")
+    cx = codex.Codex(root)
+    assert {i.id for i in cx.live("scene")} == before
+    assert not [i for i in cx.items.values() if i.type == "scene" and i.status == "needs_reread"]
+
+
+def test_reindex_packs_a_new_scene(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        return [*sc, _scenes_of_book(30)[25]]
+
+    root, _, doc, _ = _reindexed(tmp_path, edit)
+    draft = _draft(root)
+    assert len(draft.scenes) == 21
+    assert _packed(doc) == [draft.scenes[20]["id"]]
+
+
+def test_reindex_new_name_gets_an_entity_packet_with_only_that_name(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        sc[4] = [
+            *sc[4][:2],
+            "Then Zephaniah Quillfeather said that Zephaniah Quillfeather knew.",
+            *sc[4][2:],
+        ]
+        return sc
+
+    root, _, doc, _ = _reindexed(tmp_path, edit)
+    ents = [p for p in doc["packets"] if p["kind"] == "entities"]
+    assert len(ents) == 1 and len(_packed(doc)) == 1
+    pre = _draft(root).pre
+    assert [c["name"] for c in pre["candidates"]] == ["Zephaniah Quillfeather"]
+    assert "Zephaniah Quillfeather" in packets.render(root, doc, ents[0]["id"])
+
+
+def test_reindex_unchanged_draft_has_nothing_to_do(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A new draft file (one more blank line at the end) with every scene as before.
+    root, _, doc, _ = _reindexed(tmp_path, lambda sc: sc, tail="\n")
+    assert _draft(root).version == "v002"
+    assert doc["packets"] == [] and doc["stats"]["total_packet_tokens"] == 0
+    assert main(["index", "plan", "--changed", "--workspace", str(root)]) == 0
+    assert "nothing to do" in capsys.readouterr().out
 
 
 # --- entities and references (T3) --------------------------------------------------
@@ -788,3 +922,99 @@ def test_names_packet_planned_only_when_needed(ws: Path) -> None:
     assert poole.spans and poole.spans[0].exact == "Poole"
     assert packets.load_plan(ws)["new_names"] == []
     assert names_packets(packets.plan(ws)) == []
+
+
+def test_reindex_inserted_scene_mid_book_packs_only_it(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        return [*sc[:7], _scenes_of_book(30)[25], *sc[7:]]
+
+    starts = [0, 5, 11, 16]  # the chapters keep their numbers; later scenes get new ids
+    root, _first, doc, _ = _reindexed(tmp_path, edit, starts=starts)
+    draft = _draft(root)
+    assert len(draft.scenes) == 21
+    assert _packed(doc) == [draft.scenes[7]["id"]]
+    for p in [x for x in doc["packets"] if x["kind"] == "scenes"]:
+        assert _import(root, p["id"], _scene_answer(root, p["id"])).startswith("ok ")
+    assert len(codex.Codex(root).live("scene")) == 21
+
+
+def test_reindex_moved_scene_is_not_read_again(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        moved = sc.pop(7)
+        sc.insert(13, moved)
+        return sc
+
+    root, _, doc, _ = _reindexed(tmp_path, edit, starts=[0, 5, 9, 15])  # headings stay put
+    assert _packed(doc) == []
+    cx = codex.Codex(root)
+    draft = _draft(root)
+    assert len(cx.live("scene")) == 20
+    assert set(cx.scenes_by_unit(draft.anchors)) == {s["id"] for s in draft.scenes}
+
+
+def _names(ws: Path) -> list[str]:
+    return [c["name"] for c in packets.load_draft(ws).pre["candidates"]]
+
+
+def test_rejected_names_are_not_offered_again(ws: Path) -> None:
+    pre = _draft(ws).pre["candidates"]
+    reject = next(c for c in pre if c["count"] >= 2 and c["name"] != "Utterson")
+    ents = [{"name": "Utterson", "kind": "character"}]
+    assert _import(ws, "e1", {"entities": ents, "rejects": [reject["name"]]}).startswith("ok ")
+    key = reject["name"].casefold()
+    assert packets.load_rejects(ws)[key] == {"draft": "v001", "count": reject["count"]}
+    packets.plan(ws)
+    assert reject["name"] not in _names(ws)
+    # A name that grew 3x and by 5 occurrences since it was rejected is offered again.
+    path = packets.rejects_path(ws)
+    rejects = json.loads(path.read_text("utf-8"))
+    rejects[key]["count"] = max(1, (reject["count"] - 5) // 3)
+    path.write_text(json.dumps(rejects), "utf-8")
+    packets.plan(ws)
+    grown = reject["count"] >= 3 * rejects[key]["count"] and (
+        reject["count"] - rejects[key]["count"] >= 5
+    )
+    assert (reject["name"] in _names(ws)) == grown
+
+
+def test_rejects_apply_to_changed_plans_and_return_on_growth(tmp_path: Path) -> None:
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "work.toml").write_text('slug = "re"\nlanguage = "en"\n', "utf-8")
+    _write_book(root, _scenes_of_book(20), tmp_path)
+    _index_all(root)
+
+    def book(extra: int) -> list[list[str]]:
+        sc = _scenes_of_book(20)
+        sc[4] = [*sc[4], "Then Zephaniah Quillfeather came, and Zephaniah Quillfeather left."]
+        sc[4] += ["Zephaniah Quillfeather spoke once more."] * extra
+        return sc
+
+    _write_book(root, book(0), tmp_path)
+    sync.sync(root)
+    packets.plan(root, changed=True)
+    assert _names(root) == ["Zephaniah Quillfeather"]
+    answer = {"entities": [], "rejects": ["Zephaniah  Quillfeather"]}
+    assert _import(root, "e1", answer) == "ok e1: 0 items"
+    assert packets.load_rejects(root)["zephaniah quillfeather"]["count"] == 2
+    doc = packets.plan(root, changed=True)
+    assert doc["stats"]["entity_packets"] == 0 and _names(root) == []
+    # Seen 3x as often and 5 more times than when rejected: offered again.
+    _write_book(root, book(6), tmp_path)
+    sync.sync(root)
+    doc = packets.plan(root, changed=True)
+    assert _names(root) == ["Zephaniah Quillfeather"] and doc["stats"]["entity_packets"] == 1
+    # The full plan drops a rejected name as well.
+    assert _import(root, "e1", answer).startswith("ok ")
+    packets.plan(root)
+    assert "Zephaniah Quillfeather" not in _names(root)
+
+
+def test_done_entity_packet_stays_done_after_its_rejects_shrink_it(ws: Path) -> None:
+    pre = _draft(ws).pre["candidates"]
+    reject = next(c for c in pre if c["count"] >= 2 and c["name"] != "Utterson")
+    ents = [{"name": "Utterson", "kind": "character"}]
+    assert _import(ws, "e1", {"entities": ents, "rejects": [reject["name"]]}).startswith("ok ")
+    doc = packets.plan(ws)
+    e1 = next(p for p in doc["packets"] if p["id"] == "e1")
+    assert e1["status"] == "done" and reject["name"] not in e1["names"]

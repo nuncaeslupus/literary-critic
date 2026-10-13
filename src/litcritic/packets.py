@@ -27,6 +27,7 @@ Tokens are estimated as characters / 4, like the pre-pass.
 from __future__ import annotations
 
 import bisect
+import hashlib
 import json
 import math
 import re
@@ -52,6 +53,8 @@ SCENES_PER_PACKET = 40  # the answer schema allows 60
 FACT_NAMES = 12  # names and speakers listed per scene
 NAMES_PACKET = "n1"  # the packet resolving names queued by scene answers
 STATUSES = ("todo", "done", "failed")
+# what a re-plan keeps of an unchanged packet: its state and its cost record
+KEPT = ("status", "items", "error", "out_tokens", "prints", "imports", "started", "finished")
 KIND_SCHEMA = {"entities": "index-entities-answer", "scenes": "index-scenes-answer"}
 # Model tier per packet kind, named, never a model id (spec, open question 1): cheap
 # (Haiku-class), standard (Sonnet-class), strong (the session's best). Entity resolution
@@ -269,22 +272,110 @@ def scene_groups(units: list[dict[str, Any]], cap: int = SCENE_TEXT_CAP) -> list
     return groups
 
 
-def changed_scenes(ws_root: Path, draft: Draft) -> set[str]:
-    """Scenes holding the spans of items the last ``lc codex sync`` asks to re-read."""
-    cx = Codex(ws_root)
+def scene_hashes(draft: Draft) -> dict[str, str]:
+    """A short hash of every scene's text, by scene id."""
+    out: dict[str, str] = {}
+    for sc in draft.scenes:
+        body = "\n".join(draft.paragraphs[sc["start"] : sc["end"] + 1])
+        out[sc["id"]] = hashlib.sha1(body.encode("utf-8")).hexdigest()[:16]
+    return out
+
+
+def _previous_hashes(ws_root: Path, version: str) -> set[str] | None:
+    """Scene hashes of the draft the last plan was made for, or, when that plan is for
+    this very draft, the ones it compared against; None when no plan recorded any."""
+    path = plan_path(ws_root)
+    if not path.is_file():
+        return None
+    prev = json.loads(path.read_text(encoding="utf-8"))
+    same = prev.get("draft") == version
+    base = prev.get("base_hashes") if same else prev.get("scene_hashes")
+    if not isinstance(base, dict):
+        return None
+    out = dict(base)
+    if not same:  # scenes a packet of that plan never imported were not indexed
+        for p in prev.get("packets", []):
+            if p["kind"] == "scenes" and p["status"] != "done":
+                for u in p["inputs"]["units"]:
+                    out.pop(u["scene"], None)
+    return set(out.values())
+
+
+def relink_scenes(cx: Codex, draft: Draft, base: set[str]) -> int:
+    """Point scene items at the scenes whose text they describe when the scene moved
+    or changed id (an inserted or moved scene): the item's span carries the signature of
+    the text it was made from. Only scenes whose text hash is in ``base`` are matched;
+    the item's label takes the scene's new id and a stale ``needs_reread`` is cleared.
+    Returns how many items were updated."""
+    sig: dict[str, Item] = {}
+    for it in cx.live("scene"):
+        if len(it.spans) == 1:
+            sig.setdefault(it.spans[0].sha1 or it.spans[0].exact, it)
+    text = draft.text()
+    hashes = scene_hashes(draft)
+    taken: set[str] = set()
+    updates: list[Item] = []
+    for sc in draft.scenes:
+        if hashes[sc["id"]] not in base:
+            continue
+        lo, hi = sc["start"], min(sc["end"], len(draft.paragraphs) - 1)
+        if hi < lo:
+            continue
+        span = spanlib.make(
+            text, draft.version, draft.anchors[lo], 0, draft.anchors[hi], len(draft.paragraphs[hi])
+        )
+        found = sig.get(span.sha1 or span.exact)
+        if found is None or found.id in taken:
+            continue
+        it = found
+        taken.add(it.id)
+        cur = it.spans[0]
+        label = it.text.split(": ", 1)
+        new_text = f"{sc['id']}: {label[1]}" if len(label) == 2 else it.text
+        same_place = (cur.start.para, cur.end.para, cur.state) == (
+            span.start.para,
+            span.end.para,
+            "ok",
+        )
+        if same_place and new_text == it.text:
+            continue
+        copy = Item.from_json(it.as_json())
+        copy.spans, copy.text = [span], new_text
+        if copy.status == "needs_reread":
+            copy.status = "active"
+        updates.append(copy)
+    if updates:
+        cx.replace_all(updates, op="relink", by="script")
+    return len(updates)
+
+
+def changed_scenes(
+    ws_root: Path, draft: Draft, cx: Codex | None = None, base: set[str] | None = None
+) -> set[str]:
+    """Scenes to read again after a new draft: those whose text is not in the draft the
+    previous plan covered (``base``: its scene hashes), those with no scene item yet
+    (new), and those holding the spans of items the last ``lc codex sync`` flagged
+    because their text changed or went (not items that only depend on a changed one)."""
+    cx = cx or Codex(ws_root)
     queue = cx.root / "reread.jsonl"
-    if not queue.is_file():
+    if not queue.is_file() and base is None:
         raise PacketError("no sync data: run `lc codex sync` after ingesting the new draft")
-    ids = [json.loads(line)["item"] for line in queue.read_text("utf-8").splitlines() if line]
+    out: set[str] = set()
+    if base is not None:
+        out.update(sid for sid, h in scene_hashes(draft).items() if h not in base)
+    have = cx.scenes_by_unit(draft.anchors)
+    out.update(sc["id"] for sc in draft.scenes if sc["id"] not in have)
+    if base is not None or not queue.is_file():
+        return out  # the text hashes decide; the sync queue only matters without them
+    rows = [json.loads(line) for line in queue.read_text("utf-8").splitlines() if line]
     pos = {a: i for i, a in enumerate(draft.anchors)}
     scene_of: dict[int, str] = {}
     for sc in draft.scenes:
         for i in range(sc["start"], sc["end"] + 1):
             scene_of[i] = sc["id"]
-    out: set[str] = set()
-    for item_id in ids:
-        item = cx.items.get(item_id)
-        if item is None:
+    for row in rows:
+        item = cx.items.get(row["item"])
+        if item is None or row.get("reason") == "depends":
             continue
         for s in item.spans:
             if s.draft != draft.version:
@@ -294,6 +385,87 @@ def changed_scenes(ws_root: Path, draft: Draft) -> set[str]:
                 continue
             out.update(scene_of[i] for i in range(i0, i1 + 1) if i in scene_of)
     return out
+
+
+REJECT_GROWTH = 3  # a rejected name comes back when it is this many times as frequent...
+REJECT_MORE = 5  # ...and has at least this many more occurrences than when rejected
+
+
+def _norm(name: str) -> str:
+    return " ".join(name.casefold().split())
+
+
+def rejects_path(ws_root: Path) -> Path:
+    return work_dir(ws_root) / "rejects.json"
+
+
+def load_rejects(ws_root: Path) -> dict[str, dict[str, Any]]:
+    """Names an entity answer rejected: normalised name -> ``{draft, count}``."""
+    path = rejects_path(ws_root)
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return dict(data) if isinstance(data, dict) else {}
+
+
+def _record_rejects(ws_root: Path, ans: dict[str, Any], draft: Draft, cx: Codex) -> int:
+    """Remember the rejected names that are candidates, with how often they occur."""
+    by_form: dict[str, dict[str, Any]] = {}
+    for c in draft.pre["candidates"]:
+        for f in [c["name"], *c.get("forms", [])]:
+            by_form.setdefault(_norm(f), c)
+    known = {_norm(f) for f in _forms(cx)}
+    rejects = load_rejects(ws_root)
+    n = 0
+    for name in ans.get("rejects", []):
+        key = _norm(name)
+        c = by_form.get(key)
+        if c is None or key in known:
+            continue
+        rejects[key] = {"draft": draft.version, "count": c["count"]}
+        n += 1
+    if n:
+        path = rejects_path(ws_root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_atomic(
+            path, json.dumps(rejects, ensure_ascii=False, indent=1, sort_keys=True) + "\n"
+        )
+    return n
+
+
+def _without_rejected(pre: dict[str, Any], rejects: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """The pre-pass minus rejected candidates, unless one grew sharply since."""
+    if not rejects:
+        return pre
+    keep = []
+    for c in pre["candidates"]:
+        was = rejects.get(_norm(c["name"]))
+        if was is not None:
+            old = int(was.get("count", 0))
+            if not (c["count"] >= REJECT_GROWTH * old and c["count"] - old >= REJECT_MORE):
+                continue
+        keep.append(c)
+    if len(keep) == len(pre["candidates"]):
+        return pre
+    budget = int(pre.get("stats", {}).get("text_tokens", 0) * prepass.DEFAULT_SHARE)
+    return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
+
+
+def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str]) -> dict[str, Any]:
+    """The pre-pass reduced to the candidates in ``scenes`` that no Codex entity
+    (name, alias or title) covers yet, with the render budget recomputed."""
+    known = set(_forms(cx))
+    for e in cx.live("entity"):
+        known.update(t.casefold() for t in e.fields.get("titles", []))
+    names = {n for sid in scenes for n in pre["scenes"].get(sid, {}).get("names", [])}
+    keep = [
+        c
+        for c in pre["candidates"]
+        if c["name"] in names
+        and not any(f.casefold() in known for f in [c["name"], *c.get("forms", [])])
+    ]
+    budget = int(pre.get("stats", {}).get("text_tokens", 0) * prepass.DEFAULT_SHARE)
+    return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
 
 def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> dict[str, Any]:
@@ -311,17 +483,28 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             "run `lc codex sync` first"
         )
     packets: list[dict[str, Any]] = []
-    only = changed_scenes(ws_root, draft) if changed else None
-    if not changed:
-        for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
-            packets.append(
-                {
-                    "id": f"e{k}",
-                    "kind": "entities",
-                    "tier": TIER["entities"],
-                    "inputs": {"candidates": [a, b]},
-                }
-            )
+    rejected = _without_rejected(draft.pre, load_rejects(ws_root))
+    if rejected is not draft.pre:
+        draft.pre = rejected
+        prepass.write(ws_root, draft.pre)
+    only: set[str] | None = None
+    if changed:
+        base = _previous_hashes(ws_root, draft.version)
+        if base is not None:
+            relink_scenes(cx, draft, base)
+        only = changed_scenes(ws_root, draft, cx, base)
+        draft.pre = _uncovered(draft.pre, cx, only)
+        prepass.write(ws_root, draft.pre)
+    for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
+        packets.append(
+            {
+                "id": f"e{k}",
+                "kind": "entities",
+                "tier": TIER["entities"],
+                "inputs": {"candidates": [a, b]},
+                "names": [c["name"] for c in draft.pre["candidates"][a:b]],
+            }
+        )
     units = scene_units(draft, only)
     groups = scene_groups(units)
     width = max(3, len(str(len(groups))))
@@ -336,12 +519,17 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         )
     old: dict[str, dict[str, Any]] = {}
     queue: list[dict[str, Any]] = []
+    base_hashes: dict[str, str] | None = None
     path = plan_path(ws_root)
     if path.is_file():
         prev = json.loads(path.read_text(encoding="utf-8"))
         if prev.get("draft") == draft.version:
-            old = {p["id"]: p for p in prev.get("packets", [])}
+            if prev.get("changed_only") == changed:
+                old = {p["id"]: p for p in prev.get("packets", [])}
+            base_hashes = prev.get("base_hashes")
             queue = prev.get("new_names", [])
+        else:
+            base_hashes = prev.get("scene_hashes")
     covered = _forms(cx)
     queue = [q for q in queue if q["name"].casefold() not in covered]
     used = {c["name"] for c in name_candidates(draft, [q["name"] for q in queue])}
@@ -361,14 +549,28 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         "draft": draft.version,
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "changed_only": changed,
+        "scene_hashes": scene_hashes(draft),
         "packets": packets,
         "new_names": queue,
     }
+    if base_hashes is not None:
+        doc["base_hashes"] = base_hashes
     for p in packets:
         p["status"] = "todo"
         was = old.get(p["id"])
-        if was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]:
-            for key in ("status", "items", "error"):
+        same = was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]
+        # a done entity packet stays done when a re-plan only removed names from it
+        # (rejects or newly covered names), so nobody is asked about them again
+        shrunk = (
+            was
+            and p["kind"] == "entities"
+            and was.get("kind") == "entities"
+            and was.get("status") == "done"
+            and "names" in p
+            and set(p["names"]) <= set(was.get("names", []))
+        )
+        if was is not None and (same or shrunk):
+            for key in KEPT:
                 if key in was:
                     p[key] = was[key]
         p["tokens"] = tokens(render(ws_root, doc, p["id"], draft, cx))
@@ -946,9 +1148,7 @@ def _scene_items(
         head = " ".join(s["summary"].split()[:12])
         line = f"{label}: {head}" + ("…" if len(s["summary"].split()) > 12 else "")
         old = existing.get(s["scene"]) if "part" not in u else None
-        if old is not None and [(x.start.para, x.end.para) for x in old.spans] == [
-            (span.start.para, span.end.para)
-        ]:
+        if old is not None and sum(v is old for v in existing.values()) == 1:
             item = Item.from_json(old.as_json())
             item.text, item.fields, item.spans, item.status = line, fields, [span], "active"
         else:
@@ -998,6 +1198,7 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     p = _packet(doc, packet_id)
     if p["status"] == "done":
         return f"error {packet_id}: $: packet already imported"
+    p["imports"] = p.get("imports", 0) + 1
     answers = work_dir(ws_root) / "answers"
     answers.mkdir(parents=True, exist_ok=True)
     (answers / f"{packet_id}.json").write_text(raw, encoding="utf-8")
@@ -1046,9 +1247,11 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
         p["status"], p["error"] = "failed", str(exc)
         _save_plan(ws_root, doc)
         return f"error {packet_id}: {exc}"
+    if p["kind"] == "entities":
+        _record_rejects(ws_root, ans, draft, Codex(ws_root))
     p["status"], p["items"] = "done", len(items)
-    if p["kind"] == "scenes":
-        p["out_tokens"] = tokens(_compact(ans))
+    p["out_tokens"] = tokens(_compact(ans))
+    p["finished"] = _now()
     added = queue_names(doc, queued)
     if added:
         notes.append(f"{added} new names queued for `lc index plan`")
@@ -1059,6 +1262,21 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     _save_plan(ws_root, doc)
     note = f" ({'; '.join(notes)})" if notes else ""
     return f"ok {packet_id}: {len(items)} items{note}"
+
+
+def _now() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def mark_printed(ws_root: Path, packet_id: str) -> None:
+    """Record that a packet was handed to the LLM: one more call, and ``started`` (the
+    latest print of a packet not yet done) for the cost meter's wall time."""
+    doc = load_plan(ws_root)
+    p = _packet(doc, packet_id)
+    p["prints"] = p.get("prints", 0) + 1
+    if p["status"] != "done":
+        p["started"] = _now()
+    _save_plan(ws_root, doc)
 
 
 def _compact(ans: Any) -> str:
@@ -1094,7 +1312,7 @@ def status_lines(doc: dict[str, Any]) -> list[str]:
         line = f"{p['id']} {p['kind']} {p['status']} ~{p['tokens']} tokens {what}"
         if p["status"] == "done":
             out_tok = ""
-            if p.get("out_tokens"):
+            if p.get("out_tokens") and p["kind"] == "scenes":
                 per = round(p["out_tokens"] / len(p["inputs"]["units"]), 1)
                 out_tok = f", ~{per} out tokens/scene"
             line += f" ({p.get('items', 0)} items{out_tok})"
