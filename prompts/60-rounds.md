@@ -51,5 +51,6 @@ be cut is wasted.
    comment on its paragraph. It is a copy; the writer's file is never changed.
    (Google Docs imports Word comments when the file is uploaded.)
 7. To find any paragraph for the writer: `lc locate c05.s1.p3 --workspace <slug>`;
-   to take them there in Word: `lc docx locate c05.s1.p3 --workspace <slug>` and
-   `80-live-word.md`.
+   to take them there in Word: `lc docx locate c05.s1.p3 --workspace <slug>`, then
+   `lc word locate --payload locate.json` with what it printed saved as
+   `locate.json` (`80-live-word.md`).

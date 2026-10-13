@@ -1,0 +1,12 @@
+{
+  "metric": "docs_naming_word_control_interface",
+  "value": 0,
+  "threshold": 0,
+  "scanned": "README.md, prompts/*.md, .claude/skills/litcritic/**, and every .md/.py/.txt under docs/, kit/, src/, tests/ and .claude/skills/; a file counts when it names the retired interface doc or its extension hook ($LITCRITIC_WORD_CONTROL). Plans under arsenal/ and past evidence keep their history and are not scanned.",
+  "prompts_reference_valid_commands": 1.0,
+  "detail": "docs/word-control-interface.md is deleted: the live engine that drives an open Word belongs to doc-control (one core, two engines, one API; doc-control 0.3.0 `capabilities` reports engines [\"file\"], the live engine is not built yet). `lc word` keeps the computer-use fallback only: every operation answers status manual, how computer-use, steps and a writer line. `lc word locate` is fed by `lc docx locate`: its printed answer is the request as it is (find, unique, paragraphs_after, locator), `find` falls back to the locator's own Find string, and when Find lands above the passage the steps say how many paragraphs to move down. Prompts 60-rounds and 80-live-word and the litcritic skill name only `lc docx` and `lc word` for live Word.",
+  "removed": "docs/word-control-interface.md; word_live's $LITCRITIC_WORD_CONTROL extension-command backend, its response-key table and extension_error fallback; test_word_live_adapter_matches_interface_doc and test_extension_command_is_used_and_falls_back",
+  "doc_control_requests": "Live engine (doc-control's own plan): when it ships, `capabilities` should list a live engine and expose, through the same API as the file engine, select-passage by Find string or address (with paragraphs_after), save, close (save flag, never discarding unsaved work), reopen and read-selection, so `lc word` can call it through dc.py instead of handing steps to computer use.",
+  "command": "uv run pytest tests/test_prompts.py::test_prompts_name_only_lc_commands",
+  "doc_control": "0.3.0"
+}
