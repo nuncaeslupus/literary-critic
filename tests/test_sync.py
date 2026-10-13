@@ -180,3 +180,77 @@ def test_sync_refuses_going_back(work: tuple[Path, dict[str, str]], tmp_path: Pa
     sync.sync(root)
     with pytest.raises(codex.CodexError, match="does not go back"):
         sync.sync(root, "v001")
+
+
+def _fact(cx: codex.Codex, text: spanlib.Text, i: int, depends: str = "") -> str:
+    a = text.anchors[i]
+    links = [{"rel": "depends_on", "to": depends}] if depends else []
+    span = spanlib.make(text, "v001", a, 0, a, min(40, len(text.paragraphs[i])))
+    return cx.add("fact", f"About paragraph {i}.", {"claim": "c"}, [span], links).id
+
+
+def test_sync_moves_kept_spans_silently(work: tuple[Path, dict[str, str]], tmp_path: Path) -> None:
+    """Moved and shifted text (a block moved, a paragraph inserted) flags nothing."""
+    root, _ = work
+    cx = codex.Codex(root)
+    ix = query.load(root, "v001")
+    text = spanlib.Text(ix.paragraphs, ix.anchors, "v001")
+    paras = ix.paragraphs
+    block = [i for i in range(300, 310) if len(paras[i]) > 60]
+    ids = {_fact(cx, text, i): i for i in block}
+    rest = paras[:300] + paras[310:]
+    inserted = "Un párrafo nuevo que no estaba antes en el borrador."
+    _new_draft(root, [*rest[:900], *paras[300:310], inserted, *rest[900:]], tmp_path)
+    report = sync.sync(root)
+    assert report.flagged == []
+    assert report.lines() == [
+        f"synced v001 -> v002: {report.moved} spans moved",
+        "re-read queue: 0 item(s) (lc codex sql or codex/reread.jsonl)",
+    ]
+    new = query.load(root, "v002")
+    after = codex.Codex(root)
+    for item_id, i in ids.items():
+        span = after.get(item_id).spans[0]
+        assert span.state == "moved" and span.draft == "v002"
+        j = new.anchors.index(span.start.para)
+        assert j == 900 + (i - 300)  # the block's new home
+        assert new.paragraphs[j][span.start.off : span.end.off] == paras[i][:40]
+    assert (root / "codex" / "reread.jsonl").read_text() == ""
+
+
+def test_sync_flags_changed_spans(work: tuple[Path, dict[str, str]], tmp_path: Path) -> None:
+    """Edited text is ``changed``, deleted text ``lost``; items depending on them follow."""
+    root, _ = work
+    cx = codex.Codex(root)
+    ix = query.load(root, "v001")
+    text = spanlib.Text(ix.paragraphs, ix.anchors, "v001")
+    paras = ix.paragraphs
+    edit_i, gone_i, kept_i = (
+        next(k for k, p in enumerate(paras) if len(p) > 200 and k > start)
+        for start in (400, 600, 800)
+    )
+    edited = _fact(cx, text, edit_i)
+    gone = _fact(cx, text, gone_i)
+    kept = _fact(cx, text, kept_i)
+    follows = _fact(cx, text, kept_i, depends=gone)
+    new = list(paras)
+    new[edit_i] = "Otra apertura. " + paras[edit_i][10:]
+    del new[gone_i]
+    _new_draft(root, new, tmp_path)
+    report = sync.sync(root)
+    assert report.changed == [edited] and report.lost == [gone]
+    assert report.dependents == [follows]
+    assert report.lines()[1:] == [
+        f"text changed under 1 item(s): {edited}",
+        f"text gone for 1 item(s): {gone}",
+        f"depend on those: {follows}",
+        "re-read queue: 3 item(s) (lc codex sql or codex/reread.jsonl)",
+    ]
+    after = codex.Codex(root)
+    assert after.get(edited).spans[0].state == "changed"
+    assert after.get(gone).spans[0].state == "lost"
+    assert after.get(kept).status != "needs_reread"
+    assert after.get(kept).spans[0].state in ("ok", "moved")
+    queue = [json.loads(x) for x in (root / "codex" / "reread.jsonl").read_text().splitlines()]
+    reasons = {q["item"]: q["reason"] for q in queue}
+    assert reasons == {edited: "changed", gone: "lost", follows: "depends"}

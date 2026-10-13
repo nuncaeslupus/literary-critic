@@ -131,11 +131,15 @@ def test_spans_edited_text_is_flagged_changed() -> None:
 
 
 def test_spans_lone_match_elsewhere_without_context_is_not_trusted() -> None:
-    old = _text(["Alpha beta she said nothing at all. Gamma.", "Filler text here.", "Other."])
+    # The edited paragraph stays at home (modified in place); the quote turns up
+    # only in an unrelated new paragraph, with other text around it.
+    old = _text(
+        ["Alpha beta gamma delta she said nothing at all. Epsilon.", "Filler text here.", "Other."]
+    )
     span = spans.from_quote(old, "v001", "she said nothing at all.")
     new = _text(
         [
-            "Alpha beta she spoke at last. Gamma.",
+            "Alpha beta gamma delta she spoke at last. Epsilon.",
             "Filler text here.",
             "Zeta she said nothing at all.",
         ]
