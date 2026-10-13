@@ -42,10 +42,32 @@ def _commands(text: str) -> list[str]:
     return out
 
 
+def _choices(parser: argparse.ArgumentParser) -> dict[str, argparse.ArgumentParser]:
+    """The subcommands of a parser (empty when it has none)."""
+    for a in parser._actions:
+        if isinstance(a, argparse._SubParsersAction):
+            return dict(a.choices)
+    return {}
+
+
 def _subcommands() -> set[str]:
+    return set(_choices(build_parser()))
+
+
+def named(command: str) -> str:
+    """'' when the command (and its subcommand, if it has them) exists, else the reason."""
+    tokens = shlex.split(re.sub(r"<[^>]*>", "x", command))[1:]
     parser = build_parser()
-    sub = next(a for a in parser._actions if isinstance(a, argparse._SubParsersAction))
-    return set(sub.choices)
+    path = ["lc"]
+    for token in tokens:
+        choices = _choices(parser)
+        if not choices or token.startswith("-"):
+            break
+        if token not in choices:
+            return f"no command {' '.join([*path, token])!r}"
+        parser = choices[token]
+        path.append(token)
+    return ""
 
 
 def check(command: str) -> str:
@@ -53,6 +75,9 @@ def check(command: str) -> str:
     tokens = shlex.split(re.sub(r"<[^>]*>", "x", command))[1:]
     if len(tokens) == 1:  # a mention of the command, not a call
         return "" if tokens[0] in _subcommands() else f"no command {tokens[0]!r}"
+    top = _choices(build_parser())
+    if len(tokens) == 2 and tokens[0] in top and tokens[1] in _choices(top[tokens[0]]):
+        return ""  # a mention of a subcommand (`lc index plan`), not a call
     err = io.StringIO()
     try:
         with contextlib.redirect_stderr(err):
@@ -151,3 +176,54 @@ def test_prompt_commands_parse(tmp_path: Path) -> None:
     assert queries
     for sql, params in queries:
         v.run(sql, params)
+
+
+def _named_documents() -> list[Path]:
+    root = repo_root()
+    docs = sorted((root / "prompts").glob("*.md"))
+    docs += sorted((root / ".claude" / "skills" / "litcritic").rglob("*.md"))
+    return docs
+
+
+def named_ratio() -> tuple[float, int, list[str]]:
+    """Share of `lc <command> [<sub>]` references in the prompts and the litcritic skill
+    whose command and subcommand exist in the CLI parser."""
+    refs = [
+        (doc.name, c)
+        for doc in _named_documents()
+        for c in _commands(doc.read_text(encoding="utf-8"))
+    ]
+    bad = [f"{name}: {c} -> {named(c)}" for name, c in refs if named(c)]
+    return (len(refs) - len(bad)) / len(refs), len(refs), bad
+
+
+def test_prompts_name_only_lc_commands() -> None:
+    """Gate prompts_reference_valid_commands (index T7): every lc command and
+    subcommand the procedures name exists, the `lc index` packet loop included."""
+    ratio, total, bad = named_ratio()
+    print(f"prompts_reference_valid_commands = {ratio} ({total} references)")
+    assert bad == []
+    assert ratio == 1.0
+    index = {
+        shlex.split(re.sub(r"<[^>]*>", "x", c))[2]
+        for doc in _named_documents()
+        for c in _commands(doc.read_text(encoding="utf-8"))
+        if c.startswith("lc index ")
+    }
+    assert index >= {"plan", "packet", "import", "status", "cost", "eval", "compare"}
+    assert named("lc index frobnicate") != ""
+    assert named("lc frobnicate") != ""
+    assert named("lc index plan --changed --workspace x") == ""
+    assert check("lc index plan") == ""
+    assert check("lc index frobnicate") != ""
+
+
+def test_mention_rule_matches_packet_instructions() -> None:
+    """The prompt and the entity packet state the same rule for places and groups."""
+    from litcritic import packets
+
+    prompt = (repo_root() / "prompts" / "20-codex-items.md").read_text(encoding="utf-8")
+    for text in (" ".join(prompt.split()), packets.INSTRUCTIONS["entities"]):
+        assert "a scene happens there" in text
+        assert "2 or more places" in text
+        assert "passing mention is a" in text

@@ -1,0 +1,65 @@
+{
+  "metric": "llm_output_tokens_per_scene",
+  "threshold": 250,
+  "value": 186.4,
+  "value_basis": "the highest of the three recorded answers to one 18-scene packet of the owner's manuscript (strong tier); the standard tier, now the scene tier, measured 161.3",
+  "verdict": "met",
+  "detail": "Output tokens = characters / 4 of the answer re-serialised as compact JSON, divided by the scenes it answers (packets.output_tokens_per_scene; `lc index import` records it per packet as out_tokens and `lc index status` prints it per scene). The schema refusals (pov required and not empty, summary <= 80 words, pov <= 60 chars, location/time <= 80 chars, setups <= 6 each with label, side and quote, quote <= 30 words) are pinned by the gate test, each naming the field.",
+  "command": "uv run pytest tests/test_index.py::test_scene_answer_schema_caps_lengths",
+  "base_sha": "af0add7",
+  "env": "Python 3.13.16, Linux",
+  "date": "2026-10-13",
+  "tiers": {
+    "values": ["cheap", "standard", "strong"],
+    "entities": "strong",
+    "scenes": "standard",
+    "basis": "per-field agreement with a strong reference on the same 18 scenes, judged against the source text: cheap pov 5/18 (left out in first-person scenes), location 16/18, time 18/18, summary 16/18, setups 8/13 real with 7 important ones missed; standard with an explicit always-fill-pov instruction pov 18/18, location 17/18, time 17/18, summary 17/18, setups 12/14 real, 3 missed; strong 18/18 on every field"
+  },
+  "owner_manuscript": {
+    "note": "local run, numbers only; a fresh copy of the workspace, `lc index plan` with this code, the strong tier's entity answers e1/e2 imported, then the recorded answers to scene packet s001 (rendered with the T2 instructions)",
+    "scenes": 157,
+    "s001_scenes": 18,
+    "s001_units_unchanged": true,
+    "packet_tokens": {
+      "s001_before_T4": 8494,
+      "s001_no_entities": 8608,
+      "s001_with_93_entities": 8762,
+      "s001_head": 568,
+      "s001_known_lines": 251,
+      "s001_other_names_lines": 112,
+      "s001_speaker_lines": 12,
+      "max_scene_packet_no_entities": 8852,
+      "max_scene_packet_with_entities": 9057,
+      "total_scene_packets_with_entities": 120597
+    },
+    "answers": {
+      "strong": {
+        "out_tokens_per_scene": 186.4,
+        "max_scene_out_tokens": 332,
+        "scenes_without_pov": 1,
+        "import": "error s001: $.scenes[0]: missing pov",
+        "import_with_pov_filled": "ok s001: 57 items",
+        "setups": 20,
+        "payoffs": 9
+      },
+      "standard": {
+        "out_tokens_per_scene": 161.3,
+        "max_scene_out_tokens": 247,
+        "scenes_without_pov": 0,
+        "import": "ok s001: 40 items",
+        "setups": 10,
+        "payoffs": 4
+      },
+      "cheap": {
+        "out_tokens_per_scene": 149.1,
+        "max_scene_out_tokens": 247,
+        "scenes_without_pov": 14,
+        "import": "error s001: $.scenes[0]: missing pov (+13 more)",
+        "import_with_pov_filled": "ok s001: 50 items",
+        "setups": 9,
+        "payoffs": 4
+      }
+    },
+    "payoff_notes": "no import reported an unlinked payoff or a payoff in the scene of its setup"
+  }
+}

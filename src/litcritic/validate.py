@@ -2,7 +2,8 @@
 
 Runtime is stdlib only, so this implements the subset of JSON Schema the
 schemas use: type, const, enum, required, properties, additionalProperties,
-items, minItems, minLength, minimum, maximum, pattern and local ``$ref``, plus
+items, minItems, maxItems, minLength, maxLength, minimum, maximum, pattern and
+local ``$ref``, plus
 ``x-maxWords`` (word limit for quotes and summaries). Profiles are
 also checked against the catalogue (known check ids, traits, areas).
 """
@@ -18,7 +19,7 @@ from typing import Any
 from litcritic import checklist
 from litcritic.workspace import repo_root
 
-KINDS = ("profile", "report")
+KINDS = ("profile", "report", "index-entities-answer", "index-scenes-answer")
 TYPES: dict[str, tuple[type, ...]] = {
     "object": (dict,),
     "array": (list,),
@@ -71,12 +72,16 @@ def check(value: Any, schema: dict[str, Any], root: dict[str, Any], path: str = 
     elif isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             errors.append(f"{path}: needs at least {schema['minItems']} item(s)")
+        if len(value) > schema.get("maxItems", len(value)):
+            errors.append(f"{path}: {len(value)} items, limit {schema['maxItems']}")
         if "items" in schema:
             for i, item in enumerate(value):
                 errors += check(item, schema["items"], root, f"{path}[{i}]")
     elif isinstance(value, str):
         if len(value.strip()) < schema.get("minLength", 0):
             errors.append(f"{path}: must not be empty")
+        if len(value) > schema.get("maxLength", len(value)):
+            errors.append(f"{path}: {len(value)} characters, limit {schema['maxLength']}")
         if "pattern" in schema and not re.search(schema["pattern"], value):
             errors.append(f"{path}: {value!r} does not match {schema['pattern']}")
         words = len(value.split())

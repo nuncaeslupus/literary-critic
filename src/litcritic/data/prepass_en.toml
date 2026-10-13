@@ -1,0 +1,27 @@
+# English word lists for the index pre-pass (`litcritic.prepass`).
+# Case matters where noted; everything else is matched lower case.
+
+# Capitalised titles that precede a name; a trailing period is optional.
+honorifics = ["Mr", "Mrs", "Ms", "Dr", "Sir", "Miss", "Master", "Mistress", "Lady", "Lord", "Madam", "Madame", "Mme", "Mlle", "Messrs", "Inspector", "Captain", "Colonel", "Major", "General", "Sergeant", "Professor", "Prof", "Rev", "Reverend", "Father", "Brother", "Sister", "Mother", "Aunt", "Uncle", "Judge", "Doctor", "Dame", "Count", "Countess", "Duke", "Duchess", "Baron", "Baroness", "Prince", "Princess", "King", "Queen"]
+# Lower-case titles that precede a capitalised name ("old Jones" is not one).
+honorifics_lower = []
+# Articles that may stand before a name (nicknames, places); plural ones mark groups.
+articles = []
+plural_articles = []
+# Words that join the capitalised parts of one name; never joined before a common noun.
+connectors = ["van", "von", "van der", "von der", "de", "du", "da", "di", "le", "la"]
+# Prepositions that, before a name, hint at a place.
+place_preps = ["in", "at", "to", "from", "near", "into", "towards", "toward", "through"]
+# Definite article used before role titles ("the lawyer").
+role_articles = ["the"]
+# Role nouns that can stand for one character when used with the article.
+role_nouns = ["lawyer", "doctor", "butler", "servant", "clerk", "footman", "maid", "housemaid", "cook", "coachman", "porter", "inspector", "captain", "colonel", "major", "general", "sergeant", "constable", "officer", "judge", "magistrate", "priest", "vicar", "parson", "rector", "curate", "minister", "bishop", "professor", "teacher", "master", "mistress", "governess", "nurse", "surgeon", "chemist", "landlord", "landlady", "innkeeper", "shopkeeper", "squire", "colonel", "admiral", "king", "queen", "prince", "princess", "duke", "duchess", "count", "countess", "baron", "baroness", "lord", "lady", "widow", "stranger", "visitor", "engineer", "notary", "solicitor", "detective", "gardener", "valet", "steward"]
+# Minimum uses of "article + role noun" before it becomes a candidate.
+role_min = 4
+# Verbs of saying, for speaker tags.
+say_verbs = ["said", "says", "asked", "asks", "replied", "answered", "cried", "shouted", "whispered", "murmured", "muttered", "exclaimed", "returned", "added", "observed", "inquired", "enquired", "continued", "echoed", "resumed", "interrupted", "remarked", "rejoined", "repeated", "went on", "broke in", "called", "began", "pursued", "insisted", "explained", "demanded", "begged", "sighed", "sobbed", "groaned", "laughed", "snapped", "growled", "hissed", "yelled", "breathed", "stammered", "retorted", "protested", "declared", "agreed", "suggested", "told"]
+# Words that are never speakers (pronouns and the like).
+not_speakers = ["other", "latter", "former", "first", "second", "third", "voice", "circumstances", "perplexed", "rest", "same", "he", "she", "it", "i", "you", "they", "we", "one", "who", "this", "that", "the", "a", "an", "his", "her", "their", "my", "nothing", "something", "somebody", "someone", "everyone", "everybody"]
+# Capitalised words that are never candidates on their own: months, weekdays,
+# interjections, forms of God, pronouns and sentence words often capitalised.
+stop = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "God", "Lord", "Heaven", "Heavens", "Providence", "Christ", "Jesus", "Gad", "Oh", "Ah", "Aha", "Alas", "Hush", "Hullo", "Hello", "Ay", "Eh", "Ha", "Pooh", "Pshaw", "Tut", "Bah", "Hurrah", "Amen", "Sir", "Madam", "Mr", "Mrs", "Dr", "Miss", "Mister", "Messrs", "I", "O", "Esq", "Bart", "Chapter", "Book", "Part", "Volume", "Footnote", "Note", "English", "French", "Latin", "Christian", "Christmas", "Easter", "Sunday", "Yes", "No", "Well", "Why", "Come", "Look", "Now", "Then", "Here", "There"]

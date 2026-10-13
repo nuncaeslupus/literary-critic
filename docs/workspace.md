@@ -61,6 +61,58 @@ fingerprints (from `structure.json`):
 
 Every fingerprint must match exactly one paragraph or nothing is applied.
 
+## Index pre-pass
+
+`lc index prepass --workspace <slug> [--version vNNN] [--json]` (no LLM) writes
+`index/work/prepass.json`: entity `candidates` (capitalised names outside
+sentence starts, honorific + name, article + name, repeated role titles such as
+"the lawyer"), each with its count, surface forms, first quote and up to two
+keyword-in-context snippets; `speakers`, the speaker tags found in dialogue per
+scene; `scenes`, with words, paragraph range and the candidates present; and
+`render`, the candidate list as compact text for the entity packet (names seen
+once are listed without context), kept under 10 % of the text's tokens by
+default (`--budget` to change). Word lists are in
+`src/litcritic/data/prepass_<lang>.toml`.
+
+## Index packets
+
+The LLM fills the Codex in bounded packets, each answered with JSON only:
+
+- `lc index plan --workspace <slug> [--changed]` runs the pre-pass and writes
+  `index/work/plan.json`: entity packets (the candidate list, most frequent names
+  first, cut into self-contained packets of at most ~6k tokens that name each
+  other's candidates) and scene packets (consecutive scenes up to ~8k tokens of
+  text; a scene is never split unless it is over ~11k tokens, then it is cut at
+  paragraph boundaries into parts). Each packet has an id (`e1`, `s001`…), a
+  status (`todo`, `done`, `failed`) and its inputs. Re-planning keeps the status of
+  packets whose inputs did not change; `--changed` packs only the scenes the last
+  `lc codex sync` asks to re-read. Creates the Codex when there is none.
+- `lc index packet <id>` prints one packet: instructions, the closed answer
+  schema (`schemas/index-entities-answer.schema.json`,
+  `schemas/index-scenes-answer.schema.json`) and the inputs, nothing else.
+- `lc index import <id> --file answer.json` (`-` reads stdin) validates the
+  answer, anchors every quote exactly in its scene (or the whole draft for an
+  entity), and writes all of the packet's items in one Codex batch: one bad field
+  refuses the whole answer and nothing is written. It prints one line,
+  `ok <id>: N items` or `error <id>: <field path>: <reason>`. Entities whose name
+  or alias matches a known entity add their forms to it as aliases; an entity
+  without a quote is anchored on its candidate's first occurrence. `--next` prints
+  the next packet after an `ok`, so a sequential run needs one call per packet.
+  Raw answers are kept in `index/work/answers/<id>.json`.
+- `lc index status` prints one line per packet and a count by status.
+- Scene answers never create entities. Each scene may list `new_names` (at most
+  8): proper names of people or places the text uses and its `known:` line lacks,
+  never roles, relations or common nouns. Import queues them in `plan.json`
+  (`new_names`, deduplicated, with the scenes where each was seen). The next
+  `lc index plan` drops queued names the Codex already covers or the draft never
+  uses and packs the rest into one small entities packet on the strong tier
+  (`n1`: each name with its count in the draft and up to two contexts); importing
+  it clears those names from the queue. An answer that still carries a scene
+  `entities` field is refused naming it.
+- Scene `time` is when the scene's main action happens (not an opening frame,
+  memory or dream unless that is the scene); `location` is where it happens (not
+  where a character lives or comes from).
+
 ## Comparing drafts
 
 `lc diff v001 v002 --workspace <slug>` (both drafts anchored) writes

@@ -1,0 +1,76 @@
+{
+  "metric": "entity_f1_cheap_vs_gold",
+  "threshold": 0.95,
+  "value": null,
+  "verdict": "unmeasured in CI: the cheap tier needs live model answers, which CI has none of; the strong tier's recorded answers are measured instead (entity_f1_strong_vs_gold)",
+  "measured": {
+    "metric": "entity_f1_strong_vs_gold",
+    "jekyll-hyde": 1.0,
+    "marianela": 0.9117,
+    "value_basis": "recorded strong-tier answers to every entity packet of each corpus text (tests/fixtures/answers), imported into a corpus workspace and scored by `lc index eval` against tests/fixtures/gold; the gate test pins the exact counts, so any change to scoring, planning or import that moves them fails it"
+  },
+  "detail": "An entity is a hit when any of its forms (name, aliases, titles) equals a form of a gold entity after prepass.score's normalisation (casefolded words, honorifics, articles and connectors dropped); a form equal before normalisation takes precedence, so two gold entities the normalisation makes alike stay apart. An entity matching only a minor gold entry is neutral; precision = hits / (hits + false). A gold entity reached by two entities is a split, an entity reaching two gold entities a merge; each extra one is an alias-merge error. Reference recall is T3's method on the Codex entities: distinct mentions of the entities matching each gold entity, capped at its gold occurrences.",
+  "command": "uv run pytest tests/test_eval.py::test_eval_scores_against_gold",
+  "base_sha": "9b258c7",
+  "env": "Python 3.13.16, Linux",
+  "date": "2026-10-13",
+  "corpus": {
+    "jekyll-hyde": {
+      "entity_packets": 1,
+      "entities": 17,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "hits": 12,
+      "false": 0,
+      "neutral": 5,
+      "gold_entities": 12,
+      "alias_merge_errors": 0,
+      "kind_errors": 0,
+      "reference_recall": 0.9917,
+      "reference_hits": 596,
+      "reference_gold": 601,
+      "entity_packet_in_tokens": 2311,
+      "entity_packet_out_tokens": 349
+    },
+    "marianela": {
+      "entity_packets": 2,
+      "entities": 33,
+      "precision": 1.0,
+      "recall": 0.8378,
+      "f1": 0.9117,
+      "hits": 32,
+      "false": 0,
+      "neutral": 1,
+      "gold_entities": 37,
+      "missed": 6,
+      "missed_note": "five places and groups named only in passing (España, Europa, Cantabria, Poniente, los Escolapios), which the answer rejected as not part of the story's world, and one character never offered as a repeated candidate (Ulises Bull)",
+      "alias_merge_errors": 1,
+      "alias_merge_note": "a scoring artifact, not an alias merge: the answer lists Nela's dead mother (la Canela) as her own character; the gold keeps her as a minor entry, and her name normalises onto Nela's gold alias 'la de la Canela'",
+      "kind_errors": 0,
+      "reference_recall": 0.9676,
+      "reference_hits": 1315,
+      "reference_gold": 1359,
+      "entity_packet_in_tokens": [3329, 3353],
+      "entity_packet_out_tokens": [465, 204]
+    }
+  },
+  "cost_meter": {
+    "command": "lc index cost --workspace W [--json]",
+    "jekyll-hyde": {"text_tokens": 34550, "packets": 6, "in_tokens": 40139, "in_tokens_per_1k_text_tokens": 1161.8, "peak_packet_tokens": 10016, "calls_planned_per_scene": 1.0909, "calls_chained_per_scene": 0.6364},
+    "marianela": {"text_tokens": 73159, "packets": 14, "in_tokens": 87715, "in_tokens_per_1k_text_tokens": 1199.0, "peak_packet_tokens": 8651, "calls_planned_per_scene": 1.2174, "calls_chained_per_scene": 0.6522},
+    "note": "input tokens are the rendered packets (characters / 4) of a full first index, under the 1300 per 1k text tokens of the spec on both texts; calls per scene are high on the short corpus texts (11 and 23 scenes) because the entity packets and the per-packet print and import do not shrink with the scene count. Wall time is recorded per packet from `lc index packet` (or `import --next`) to a successful `lc index import`; the scripted corpus runs have no model in the loop, so their seconds measure nothing and are not reported."
+  },
+  "honesty": {
+    "who_answered": "the recorded answers were written by the strong-tier model doing this task (Claude Opus 5.5), from the rendered packets alone, without model access to anything else in the loop",
+    "contamination": "jekyll-hyde: the answer was written before the gold list was read. marianela: the gold README and the first 12 gold entities (names and aliases) had been read before the answer was written, so its alias choices for those entities may be closer to the gold than a blind answer's; the misses and the split above are the answer's own judgment",
+    "not_tuned": "the answers were not revised after scoring"
+  },
+  "tiers": {
+    "D-4": "the cheap and standard tiers are evaluated by the orchestrator on the owner's manuscript with live models (`lc index compare --answers <tier answer> --reference <strong answer>`, numbers only: a step stays on a cheaper tier only where min_agreement >= 0.9), not in CI",
+    "compare_reports": {
+      "entities": "recall and precision against the reference, kind agreement, splits, merges",
+      "scenes": "common scenes, pov / location / time normalised exact-match rates, mean summary words, setups, payoffs and new entities per side, output tokens per scene per side"
+    }
+  }
+}

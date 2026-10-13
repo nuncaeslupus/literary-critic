@@ -1,0 +1,27 @@
+# Spanish word lists for the index pre-pass (`litcritic.prepass`).
+# Case matters where noted; everything else is matched lower case.
+
+# Capitalised titles that precede a name; a trailing period is optional.
+honorifics = ["D", "Dª", "Dña", "Sr", "Sra", "Srta", "Don", "Doña", "Dr", "Dra", "Fray", "Sor", "Señor", "Señora", "Señorita", "Señá", "Tío", "Tía", "Doctor", "Doctora", "Padre", "Madre", "Hermano", "Hermana", "Capitán", "Coronel", "General", "Maestro", "Maestra", "Mister", "Míster", "Madame", "Monsieur"]
+# Lower-case titles that precede a capitalised name ("señor Centeno").
+honorifics_lower = ["don", "doña", "señor", "señora", "señorita", "señorito", "señá", "seña", "tío", "tía", "doctor", "doctora", "padre", "madre", "fray", "sor", "maestro", "maestra", "capitán", "coronel", "general", "marqués", "marquesa", "conde", "condesa", "duque", "duquesa", "mister", "míster"]
+# Articles that may stand before a name (nicknames, places); plural ones mark groups.
+articles = ["el", "la", "los", "las"]
+plural_articles = ["los", "las"]
+# Words that join the capitalised parts of one name; never joined before a common noun.
+connectors = ["de", "del", "de la", "de los", "de las"]
+# Prepositions that, before a name, hint at a place.
+place_preps = ["en", "desde", "hacia", "hasta", "para"]
+# Definite articles used before role titles ("el doctor").
+role_articles = ["el", "la"]
+# Role nouns that can stand for one character when used with the article.
+role_nouns = ["doctor", "doctora", "médico", "médica", "ingeniero", "ingeniera", "abogado", "abogada", "cura", "párroco", "sacerdote", "obispo", "fraile", "monja", "maestro", "maestra", "señorito", "señorita", "señor", "señora", "ciego", "ciega", "criado", "criada", "mayordomo", "cochero", "capitán", "coronel", "general", "sargento", "teniente", "comandante", "juez", "alcalde", "notario", "escribano", "boticario", "marqués", "marquesa", "conde", "condesa", "duque", "duquesa", "barón", "baronesa", "rey", "reina", "príncipe", "princesa", "viuda", "viudo", "forastero", "forastera", "extranjero", "viajero", "viajera", "posadero", "posadera", "ama", "nodriza", "institutriz", "profesor", "profesora", "inspector", "comisario", "detective", "jardinero", "pastor", "pastora", "guardia", "secretario", "secretaria", "patrón", "patrona", "dueño", "dueña"]
+# Minimum uses of "article + role noun" before it becomes a candidate.
+role_min = 4
+# Verbs of saying, for speaker tags.
+say_verbs = ["dijo", "decía", "repuso", "exclamó", "replicó", "preguntó", "añadió", "contestó", "respondió", "murmuró", "observó", "gritó", "continuó", "manifestó", "interrogó", "afirmó", "indicó", "prosiguió", "insistió", "interrumpió", "declaró", "susurró", "suspiró", "balbuceó", "sollozó", "musitó", "bramó", "masculló", "advirtió", "explicó", "comentó", "aseguró", "protestó", "ordenó", "rogó", "chilló", "clamó", "agregó", "terminó", "concluyó", "siguió", "volvió a decir", "dijo luego", "habló", "rio", "rió", "pensó", "contó", "llamó", "objetó", "apuntó", "admitió", "confesó", "reconoció", "suplicó", "propuso", "sugirió", "explicaba", "preguntaba", "respondía", "contestaba", "gritaba", "murmuraba", "exclamaba"]
+# Words that are never speakers (pronouns and the like).
+not_speakers = ["otro", "otra", "corazón", "voz", "mismo", "misma", "primero", "segundo", "resto", "él", "ella", "ellos", "ellas", "usted", "ustedes", "yo", "tú", "se", "le", "lo", "la", "que", "con", "en", "de", "al", "y", "no", "su", "me", "sin", "por", "para", "como", "más", "ya", "esto", "eso", "un", "una", "este", "esta", "otro", "otra", "alguien", "nadie", "uno"]
+# Capitalised words that are never candidates on their own: months, weekdays,
+# interjections, forms of God, pronouns and sentence words often capitalised.
+stop = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Setiembre", "Octubre", "Noviembre", "Diciembre", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo", "Dios", "Señor", "Señora", "Altísimo", "Todopoderoso", "Creador", "Providencia", "Cristo", "Jesús", "Jesucristo", "Ay", "Oh", "Ah", "Eh", "Ea", "Bah", "Uf", "Ojalá", "Hola", "Adiós", "Caramba", "Diablos", "Demonio", "Demonios", "Cáspita", "Cielos", "Jesús", "Amén", "Usted", "Ustedes", "Ud", "Uds", "Vd", "Vds", "Vuestra", "Vuesa", "Merced", "Capítulo", "Parte", "Libro", "Nota", "Fin", "Sí", "No", "Bueno", "Pues", "Vamos", "Mira", "Oye", "Qué", "Cómo"]

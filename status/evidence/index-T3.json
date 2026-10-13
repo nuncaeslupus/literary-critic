@@ -1,0 +1,56 @@
+{
+  "metric": "reference_recall",
+  "threshold": 0.95,
+  "value": 0.9838,
+  "value_basis": "the lower of the two corpus texts (marianela); jekyll-hyde scores 1.0",
+  "verdict": "met on both corpus texts",
+  "detail": "Gold entities (tests/fixtures/gold) imported as Codex entities, all-lower-case gold forms as titles; recall = sum over entities of min(mentions found, gold occurrences) / gold occurrences. Mentions match names, aliases and titles as whole words, longest match first across all entities, case-insensitive unless exact_case (titles always ignore case); a title counts only in a scene where the same entity is also named. The misses are titles in scenes that do not name the entity (Pablo's 'el ciego': 101 of 117) and unlisted uses of the Virgin (35 of 40).",
+  "command": "uv run pytest tests/test_index.py::test_reference_recall_on_gold",
+  "base_sha": "99f74a7",
+  "env": "Python 3.13.16, Linux",
+  "date": "2026-10-13",
+  "corpus": {
+    "jekyll-hyde": {
+      "recall": 1.0,
+      "hits": 601,
+      "gold": 601,
+      "mentions": 617,
+      "title_mentions": 125,
+      "build_seconds": 0.022
+    },
+    "marianela": {
+      "recall": 0.9838,
+      "hits": 1337,
+      "gold": 1359,
+      "mentions": 1366,
+      "title_mentions": 71,
+      "build_seconds": 0.045
+    }
+  },
+  "owner_manuscript": {
+    "note": "local run, numbers only; the strong model's answers to the T2-era entity packets e1/e2 (no titles field) imported into a fresh copy of the workspace after `lc index plan`",
+    "words": 74000,
+    "paragraphs": 1543,
+    "scenes": 157,
+    "entity_packets_after_replan": 3,
+    "entity_packets_before": 2,
+    "replan_note": "the longer entity instructions and schema (titles, same_as, tier) tipped the candidate list over the 6k-token packet cap, so it now splits in 3 (4170, 4275, 4302 tokens); import does not depend on the split",
+    "e1_import": "ok e1: 43 items (1 quote fallback)",
+    "e1_import_before_T3": "refused: an entity quote occurring twice in the draft",
+    "e2_import": "ok e2: 58 items",
+    "quote_fallbacks": 1,
+    "entities": 93,
+    "kinds": {"character": 50, "place": 30, "group": 5, "object": 4, "motif": 4},
+    "codex_check_problems": 0,
+    "mentions_total": 1183,
+    "mentions_by_via": {"name": 608, "alias": 575, "title": 0},
+    "mentions_per_entity_median": 3,
+    "mentions_per_entity_max": 235,
+    "entities_without_mentions": 0,
+    "copresence_pairs": 994,
+    "mentions_build_seconds": 0.063,
+    "lowercase_aliases": 5,
+    "mentions_via_lowercase_aliases": 50,
+    "if_lowercase_aliases_were_titles": {"mentions_total": 1165, "title_mentions": 32}
+  }
+}

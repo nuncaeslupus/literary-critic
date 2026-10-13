@@ -1,0 +1,433 @@
+{
+ "entities": [
+  {
+   "kind": "character",
+   "name": "Nela",
+   "aliases": [
+    "Nela",
+    "la Nela",
+    "Marianela",
+    "María",
+    "María Nela",
+    "Mariquilla",
+    "Mariquita",
+    "Nelilla",
+    "María Canela",
+    "la hija de la Canela",
+    "la de la Canela"
+   ],
+   "occurrences": 408
+  },
+  {
+   "kind": "character",
+   "name": "Pablo Penáguilas",
+   "aliases": [
+    "Pablo",
+    "Pablo Penáguilas",
+    "don Pablo",
+    "el ciego",
+    "el señorito de Penáguilas",
+    "el señorito"
+   ],
+   "occurrences": 117
+  },
+  {
+   "kind": "character",
+   "name": "Florentina Penáguilas",
+   "aliases": [
+    "Florentina",
+    "Florentinilla",
+    "la señorita Florentina",
+    "la señorita de Penáguilas",
+    "la señorita",
+    "la de Penáguilas"
+   ],
+   "occurrences": 142
+  },
+  {
+   "kind": "character",
+   "name": "Teodoro Golfín",
+   "aliases": [
+    "Teodoro Golfín",
+    "D. Teodoro",
+    "don Teodoro",
+    "Teodoro",
+    "Golfín",
+    "Sr. Golfín",
+    "doctor Golfín",
+    "el doctor",
+    "el médico"
+   ],
+   "occurrences": 215
+  },
+  {
+   "kind": "character",
+   "name": "Carlos Golfín",
+   "aliases": [
+    "Carlos Golfín",
+    "D. Carlos",
+    "Carlos",
+    "el ingeniero"
+   ],
+   "occurrences": 43
+  },
+  {
+   "kind": "character",
+   "name": "Sofía",
+   "aliases": [
+    "Sofía",
+    "doña Sofía",
+    "la señorita Sofía"
+   ],
+   "occurrences": 47
+  },
+  {
+   "kind": "character",
+   "name": "Francisco Penáguilas",
+   "aliases": [
+    "Francisco",
+    "D. Francisco",
+    "don Francisco",
+    "Francisco Penáguilas",
+    "el señor de Penáguilas",
+    "Penáguilas"
+   ],
+   "occurrences": 33
+  },
+  {
+   "kind": "character",
+   "name": "Manuel Penáguilas",
+   "aliases": [
+    "Manuel",
+    "D. Manuel",
+    "don Manuel",
+    "Manuel Penáguilas"
+   ],
+   "occurrences": 15
+  },
+  {
+   "kind": "character",
+   "name": "Choto",
+   "aliases": [
+    "Choto"
+   ],
+   "occurrences": 28
+  },
+  {
+   "kind": "character",
+   "name": "Lili",
+   "aliases": [
+    "Lili"
+   ],
+   "occurrences": 21
+  },
+  {
+   "kind": "character",
+   "name": "Sinforoso Centeno",
+   "aliases": [
+    "Centeno",
+    "el señor Centeno",
+    "Sinforoso Centeno",
+    "Sinforoso"
+   ],
+   "occurrences": 10
+  },
+  {
+   "kind": "character",
+   "name": "La Señana",
+   "aliases": [
+    "la Señana",
+    "Señana",
+    "señora Ana",
+    "la señora de Centeno"
+   ],
+   "occurrences": 26
+  },
+  {
+   "kind": "character",
+   "name": "Celipín",
+   "aliases": [
+    "Celipín",
+    "Celipe",
+    "D. Celipín",
+    "Cilipín Centeno"
+   ],
+   "occurrences": 37
+  },
+  {
+   "kind": "character",
+   "name": "Mariuca",
+   "aliases": [
+    "Mariuca"
+   ],
+   "occurrences": 8
+  },
+  {
+   "kind": "character",
+   "name": "Pepina",
+   "aliases": [
+    "Pepina"
+   ],
+   "occurrences": 6
+  },
+  {
+   "kind": "character",
+   "name": "Tanasio",
+   "aliases": [
+    "Tanasio"
+   ],
+   "occurrences": 7
+  },
+  {
+   "kind": "character",
+   "name": "Ulises Bull",
+   "aliases": [
+    "Ulises Bull",
+    "Ulises"
+   ],
+   "occurrences": 2
+  },
+  {
+   "kind": "character",
+   "name": "Faustino",
+   "aliases": [
+    "Faustino"
+   ],
+   "occurrences": 2
+  },
+  {
+   "kind": "character",
+   "name": "La Virgen María",
+   "aliases": [
+    "la Virgen",
+    "la Virgen María",
+    "la Santísima Virgen",
+    "María Santísima"
+   ],
+   "occurrences": 40
+  },
+  {
+   "kind": "group",
+   "name": "Los Golfines",
+   "aliases": [
+    "los Golfines"
+   ],
+   "occurrences": 5
+  },
+  {
+   "kind": "group",
+   "name": "Los esposos Centeno",
+   "aliases": [
+    "los esposos Centeno"
+   ],
+   "occurrences": 4
+  },
+  {
+   "kind": "place",
+   "name": "Aldeacorba de Suso",
+   "aliases": [
+    "Aldeacorba",
+    "Aldeacorba de Suso"
+   ],
+   "occurrences": 37
+  },
+  {
+   "kind": "place",
+   "name": "Socartes",
+   "aliases": [
+    "Socartes"
+   ],
+   "occurrences": 25
+  },
+  {
+   "kind": "place",
+   "name": "Trascava",
+   "aliases": [
+    "la Trascava",
+    "Trascava"
+   ],
+   "occurrences": 15
+  },
+  {
+   "kind": "place",
+   "name": "La Terrible",
+   "aliases": [
+    "la Terrible"
+   ],
+   "occurrences": 6
+  },
+  {
+   "kind": "place",
+   "name": "Villamojada",
+   "aliases": [
+    "Villamojada"
+   ],
+   "occurrences": 11
+  },
+  {
+   "kind": "place",
+   "name": "Madrid",
+   "aliases": [
+    "Madrid",
+    "los Madriles"
+   ],
+   "occurrences": 11
+  },
+  {
+   "kind": "place",
+   "name": "Santa Irene de Campó",
+   "aliases": [
+    "Santa Irene de Campó",
+    "Campó"
+   ],
+   "occurrences": 5
+  },
+  {
+   "kind": "place",
+   "name": "Saldeoro",
+   "aliases": [
+    "Saldeoro"
+   ],
+   "occurrences": 5
+  },
+  {
+   "kind": "place",
+   "name": "Ficóbriga",
+   "aliases": [
+    "Ficóbriga"
+   ],
+   "occurrences": 4
+  },
+  {
+   "kind": "place",
+   "name": "Hinojales",
+   "aliases": [
+    "Hinojales"
+   ],
+   "occurrences": 2
+  },
+  {
+   "kind": "place",
+   "name": "América",
+   "aliases": [
+    "América"
+   ],
+   "occurrences": 7
+  },
+  {
+   "kind": "place",
+   "name": "España",
+   "aliases": [
+    "España"
+   ],
+   "occurrences": 6
+  },
+  {
+   "kind": "place",
+   "name": "Europa",
+   "aliases": [
+    "Europa"
+   ],
+   "occurrences": 4
+  },
+  {
+   "kind": "place",
+   "name": "Cantabria",
+   "aliases": [
+    "Cantabria"
+   ],
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Poniente",
+   "aliases": [
+    "Poniente"
+   ],
+   "occurrences": 2
+  },
+  {
+   "kind": "group",
+   "name": "Los Escolapios",
+   "aliases": [
+    "los Escolapios"
+   ],
+   "occurrences": 2
+  }
+ ],
+ "minor": [
+  {
+   "kind": "character",
+   "name": "La señá María Canela",
+   "occurrences": 1,
+   "note": "Nela's dead mother; the later 'la hija de la Canela' belongs to Nela"
+  },
+  {
+   "kind": "character",
+   "name": "Dios",
+   "note": "God: overwhelmingly exclamations and set phrases; deliberately not counted"
+  },
+  {
+   "kind": "character",
+   "name": "Cristóbal Colón",
+   "occurrences": 3,
+   "note": "historical / figurative ('el Colón del trabajo'); not scored"
+  },
+  {
+   "kind": "character",
+   "name": "Mariquita Manuela Téllez",
+   "occurrences": 1,
+   "note": "historical figure in the closing note"
+  },
+  {
+   "kind": "character",
+   "name": "Maestro Cayetano",
+   "occurrences": 1
+  },
+  {
+   "kind": "character",
+   "name": "Don Quijote",
+   "occurrences": 1,
+   "note": "allusion"
+  },
+  {
+   "kind": "character",
+   "name": "Hernán Cortés",
+   "occurrences": 1,
+   "note": "allusion"
+  },
+  {
+   "kind": "place",
+   "name": "Barco",
+   "occurrences": 1,
+   "note": "'el Barco', a rock/lookout"
+  },
+  {
+   "kind": "place",
+   "name": "Londres",
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Inglaterra",
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Matamoros",
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Nuevo Mundo",
+   "occurrences": 4,
+   "note": "figurative / historical"
+  },
+  {
+   "kind": "place",
+   "name": "Paraíso",
+   "occurrences": 2,
+   "note": "figurative"
+  }
+ ]
+}

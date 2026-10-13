@@ -1,0 +1,12 @@
+{
+  "metric": "prompts_reference_valid_commands",
+  "threshold": 1.0,
+  "value": 1.0,
+  "verdict": "met",
+  "detail": "119 `lc` references in code spans and fenced blocks of prompts/*.md and .claude/skills/litcritic/**/*.md; every command and subcommand exists in the `lc` argparse parser (the full calls also parse, test_prompts_only_reference_existing_commands). The `lc index` loop is named in full: plan, packet, import (--next), status, cost, eval, compare, plan --changed.",
+  "decision": "A place or group is an entity only if a scene happens there or it acts or recurs (named in 2 or more places); a passing mention is a reject. Stated in prompts/20-codex-items.md and in the entity packet instructions (packets.INSTRUCTIONS), pinned equal by test_mention_rule_matches_packet_instructions.",
+  "command": "uv run pytest tests/test_prompts.py::test_prompts_name_only_lc_commands",
+  "base_sha": "aebcc04",
+  "env": "Python 3.13.16, Linux",
+  "date": "2026-10-13"
+}

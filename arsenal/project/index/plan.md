@@ -91,6 +91,13 @@ that one command validates and imports.
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
+| T1 | `candidate_entity_recall >= 0.92` | 1.0 (both corpus texts) | `uv run pytest tests/test_prepass.py::test_prepass_recall_on_gold tests/test_prepass.py::test_candidate_list_tokens_bounded` | — | Python 3.13, Linux | 2026-10-13 |
+| T2 | `tool_calls_per_scene <= 0.2` | 0.108 on the owner's manuscript (chained loop); 0.204 parallel path; corpus not met (chapter-sized scenes) | `uv run pytest tests/test_index.py::test_import_is_all_or_nothing tests/test_index.py::test_scene_packets_bounded` | — | Python 3.13, Linux | 2026-10-13 |
+| T3 | `reference_recall >= 0.95` | 0.9838 | `uv run pytest tests/test_index.py::test_reference_recall_on_gold` | 99f74a7+ | Python 3.13.16, Linux | 2026-10-13 |
+| T4 | `llm_output_tokens_per_scene <= 250` | 186.4 | `uv run pytest tests/test_index.py::test_scene_answer_schema_caps_lengths` | af0add7+ | Python 3.13.16, Linux | 2026-10-13 |
+| T5 | `entity_f1_cheap_vs_gold >= 0.95` | unmeasured in CI (needs live cheap answers); cheap tier below 0.9 vs strong on the owner's manuscript → entities on the strong tier (D-4) | `uv run pytest tests/test_eval.py::test_eval_scores_against_gold` | 9b258c7+ | Python 3.13.16, Linux | 2026-10-13 |
+| T6 | `reindex_input_tokens_ratio <= 0.15` | 0.0994 | `uv run pytest tests/test_index.py::test_reindex_packs_only_changed_scenes` | 9b258c7+ | Python 3.13.16, Linux | 2026-10-13 |
+| T7 | `prompts_reference_valid_commands == 1.0` | 1.0 (119 references) | `uv run pytest tests/test_prompts.py::test_prompts_name_only_lc_commands` | aebcc04+ | Python 3.13.16, Linux | 2026-10-13 |
 
 ### Dependency graph
 

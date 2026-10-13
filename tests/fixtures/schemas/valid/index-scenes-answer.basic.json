@@ -1,0 +1,13 @@
+{
+  "scenes": [
+    {
+      "scene": "c01.s1",
+      "summary": "Two walkers pass a sinister door; one tells how a man trampled a child and paid with a cheque.",
+      "pov": "Utterson",
+      "location": "a by-street in London",
+      "time": "a Sunday walk",
+      "setups": [{"label": "the door", "side": "setup", "quote": "a certain sinister block of building"}],
+      "new_names": ["Enfield"]
+    }
+  ]
+}
