@@ -22,6 +22,7 @@ Tokens are estimated as characters / 4, like the pre-pass.
 from __future__ import annotations
 
 import bisect
+import hashlib
 import json
 import math
 from collections import Counter
@@ -259,22 +260,53 @@ def scene_groups(units: list[dict[str, Any]], cap: int = SCENE_TEXT_CAP) -> list
     return groups
 
 
-def changed_scenes(ws_root: Path, draft: Draft) -> set[str]:
-    """Scenes holding the spans of items the last ``lc codex sync`` asks to re-read."""
-    cx = Codex(ws_root)
+def scene_hashes(draft: Draft) -> dict[str, str]:
+    """A short hash of every scene's text, by scene id."""
+    out: dict[str, str] = {}
+    for sc in draft.scenes:
+        body = "\n".join(draft.paragraphs[sc["start"] : sc["end"] + 1])
+        out[sc["id"]] = hashlib.sha1(body.encode("utf-8")).hexdigest()[:16]
+    return out
+
+
+def _previous_hashes(ws_root: Path, version: str) -> set[str] | None:
+    """Scene hashes of the draft the last plan was made for, or, when that plan is for
+    this very draft, the ones it compared against; None when no plan recorded any."""
+    path = plan_path(ws_root)
+    if not path.is_file():
+        return None
+    prev = json.loads(path.read_text(encoding="utf-8"))
+    base = prev.get("base_hashes") if prev.get("draft") == version else prev.get("scene_hashes")
+    return set(base.values()) if isinstance(base, dict) else None
+
+
+def changed_scenes(
+    ws_root: Path, draft: Draft, cx: Codex | None = None, base: set[str] | None = None
+) -> set[str]:
+    """Scenes to read again after a new draft: those whose text is not in the draft the
+    previous plan covered (``base``: its scene hashes), those with no scene item yet
+    (new), and those holding the spans of items the last ``lc codex sync`` flagged
+    because their text changed or went (not items that only depend on a changed one)."""
+    cx = cx or Codex(ws_root)
     queue = cx.root / "reread.jsonl"
-    if not queue.is_file():
+    if not queue.is_file() and base is None:
         raise PacketError("no sync data: run `lc codex sync` after ingesting the new draft")
-    ids = [json.loads(line)["item"] for line in queue.read_text("utf-8").splitlines() if line]
+    out: set[str] = set()
+    if base is not None:
+        out.update(sid for sid, h in scene_hashes(draft).items() if h not in base)
+    have = cx.scenes_by_unit(draft.anchors)
+    out.update(sc["id"] for sc in draft.scenes if sc["id"] not in have)
+    if not queue.is_file():
+        return out
+    rows = [json.loads(line) for line in queue.read_text("utf-8").splitlines() if line]
     pos = {a: i for i, a in enumerate(draft.anchors)}
     scene_of: dict[int, str] = {}
     for sc in draft.scenes:
         for i in range(sc["start"], sc["end"] + 1):
             scene_of[i] = sc["id"]
-    out: set[str] = set()
-    for item_id in ids:
-        item = cx.items.get(item_id)
-        if item is None:
+    for row in rows:
+        item = cx.items.get(row["item"])
+        if item is None or row.get("reason") == "depends":
             continue
         for s in item.spans:
             if s.draft != draft.version:
@@ -284,6 +316,23 @@ def changed_scenes(ws_root: Path, draft: Draft) -> set[str]:
                 continue
             out.update(scene_of[i] for i in range(i0, i1 + 1) if i in scene_of)
     return out
+
+
+def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str]) -> dict[str, Any]:
+    """The pre-pass reduced to the candidates in ``scenes`` that no Codex entity
+    (name, alias or title) covers yet, with the render budget recomputed."""
+    known = set(_forms(cx))
+    for e in cx.live("entity"):
+        known.update(t.casefold() for t in e.fields.get("titles", []))
+    names = {n for sid in scenes for n in pre["scenes"].get(sid, {}).get("names", [])}
+    keep = [
+        c
+        for c in pre["candidates"]
+        if c["name"] in names
+        and not any(f.casefold() in known for f in [c["name"], *c.get("forms", [])])
+    ]
+    budget = int(pre.get("stats", {}).get("text_tokens", 0) * prepass.DEFAULT_SHARE)
+    return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
 
 def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> dict[str, Any]:
@@ -301,17 +350,20 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             "run `lc codex sync` first"
         )
     packets: list[dict[str, Any]] = []
-    only = changed_scenes(ws_root, draft) if changed else None
-    if not changed:
-        for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
-            packets.append(
-                {
-                    "id": f"e{k}",
-                    "kind": "entities",
-                    "tier": TIER["entities"],
-                    "inputs": {"candidates": [a, b]},
-                }
-            )
+    only: set[str] | None = None
+    if changed:
+        only = changed_scenes(ws_root, draft, cx, _previous_hashes(ws_root, draft.version))
+        draft.pre = _uncovered(draft.pre, cx, only)
+        prepass.write(ws_root, draft.pre)
+    for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
+        packets.append(
+            {
+                "id": f"e{k}",
+                "kind": "entities",
+                "tier": TIER["entities"],
+                "inputs": {"candidates": [a, b]},
+            }
+        )
     units = scene_units(draft, only)
     groups = scene_groups(units)
     width = max(3, len(str(len(groups))))
@@ -325,18 +377,26 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             }
         )
     old: dict[str, dict[str, Any]] = {}
+    base_hashes: dict[str, str] | None = None
     path = plan_path(ws_root)
     if path.is_file():
         prev = json.loads(path.read_text(encoding="utf-8"))
         if prev.get("draft") == draft.version:
-            old = {p["id"]: p for p in prev.get("packets", [])}
+            if prev.get("changed_only") == changed:
+                old = {p["id"]: p for p in prev.get("packets", [])}
+            base_hashes = prev.get("base_hashes")
+        else:
+            base_hashes = prev.get("scene_hashes")
     doc: dict[str, Any] = {
         "schema_version": PLAN_SCHEMA,
         "draft": draft.version,
         "created": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "changed_only": changed,
+        "scene_hashes": scene_hashes(draft),
         "packets": packets,
     }
+    if base_hashes is not None:
+        doc["base_hashes"] = base_hashes
     for p in packets:
         p["status"] = "todo"
         was = old.get(p["id"])
@@ -818,9 +878,7 @@ def _scene_items(
         head = " ".join(s["summary"].split()[:12])
         line = f"{label}: {head}" + ("…" if len(s["summary"].split()) > 12 else "")
         old = existing.get(s["scene"]) if "part" not in u else None
-        if old is not None and [(x.start.para, x.end.para) for x in old.spans] == [
-            (span.start.para, span.end.para)
-        ]:
+        if old is not None and sum(v is old for v in existing.values()) == 1:
             item = Item.from_json(old.as_json())
             item.text, item.fields, item.spans, item.status = line, fields, [span], "active"
         else:

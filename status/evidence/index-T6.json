@@ -1,0 +1,11 @@
+{
+  "metric": "reindex_input_tokens_ratio",
+  "threshold": 0.15,
+  "value": 0.0994,
+  "verdict": "met",
+  "detail": "Synthetic 20-scene book built from the public-domain corpus text, indexed in full (1 entity packet, 3 scene packets, 24107 packet tokens), then a second draft rewriting 2 scenes; sync, then `lc index plan --changed` yields 1 scene packet of 2396 tokens and no entity packet (no uncovered name). Ratio = total packet tokens of the re-index / total packet tokens of the first index. Changed scenes = text hash absent from the previous plan's draft, scenes with no scene item yet, and scenes holding spans of items the sync flagged as changed or lost (not mere dependents). Entity packets cover only candidates in those scenes that no Codex entity covers.",
+  "command": "uv run pytest tests/test_index.py::test_reindex_packs_only_changed_scenes",
+  "base_sha": "9b258c7",
+  "env": "Python 3.13.16, Linux",
+  "date": "2026-10-13"
+}

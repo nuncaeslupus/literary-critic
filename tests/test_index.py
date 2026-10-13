@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import codex, corpus, packets, view
+from litcritic import codex, corpus, packets, sync, view
 from litcritic.cli import main
 
 # --- fixtures ----------------------------------------------------------------------
@@ -353,14 +353,141 @@ def test_cli_packet_import_from_stdin_and_status(
 
 
 def test_plan_changed_packs_only_scenes_to_reread(ws: Path) -> None:
-    assert _import(ws, "s002", _scene_answer(ws, "s002")).startswith("ok ")
+    for p in packets.load_plan(ws)["packets"]:
+        if p["kind"] == "scenes":
+            assert _import(ws, p["id"], _scene_answer(ws, p["id"])).startswith("ok ")
     cx = codex.Codex(ws)
     scene = sorted(cx.live("scene"), key=lambda i: i.spans[0].start.para)[1]
     (cx.root / "reread.jsonl").write_text(json.dumps({"item": scene.id}) + "\n", "utf-8")
     doc = packets.plan(ws, changed=True)
-    units = [u["scene"] for p in doc["packets"] for u in p["inputs"]["units"]]
-    assert units == [scene.spans[0].start.para.rsplit(".p", 1)[0]]
-    assert doc["stats"]["scenes"] == 1 and doc["stats"]["entity_packets"] == 0
+    assert _packed(doc) == [scene.spans[0].start.para.rsplit(".p", 1)[0]]
+    assert doc["stats"]["scenes"] == 1
+
+
+# --- re-index after a new draft (T6) ----------------------------------------------
+
+REINDEX_RATIO = 0.15
+
+
+def _scenes_of_book(count: int, paras_each: int = 6) -> list[list[str]]:
+    raw = corpus.get("jekyll-hyde").path.read_text(encoding="utf-8")
+    paras = [" ".join(b.split()) for b in raw.split("\n\n")]
+    paras = [p for p in paras if len(p.split()) >= 40]
+    return [
+        [paras[(k * paras_each + j) % len(paras)] for j in range(paras_each)] for k in range(count)
+    ]
+
+
+def _write_book(root: Path, scenes: list[list[str]], tmp: Path, tail: str = "") -> None:
+    out: list[str] = []
+    for k, sc in enumerate(scenes):
+        if k % 5 == 0:
+            out.append(f"CHAPTER {k // 5 + 1}")
+        elif k:
+            out.append("* * *")
+        out += sc
+    src = tmp / "book.txt"
+    src.write_text("\n\n".join(out) + "\n" + tail, "utf-8")
+    assert main(["ingest", str(src), "--workspace", str(root)]) == 0
+    assert main(["anchor", "--workspace", str(root)]) == 0
+
+
+def _index_all(root: Path) -> dict[str, Any]:
+    doc = packets.plan(root)
+    cands = _draft(root).pre["candidates"]
+    for p in doc["packets"]:
+        if p["kind"] == "entities":
+            a, b = p["inputs"]["candidates"]
+            ents = [{"name": c["name"], "kind": "character"} for c in cands[a:b]]
+            assert _import(root, p["id"], {"entities": ents, "rejects": []}).startswith("ok ")
+        else:
+            assert _import(root, p["id"], _scene_answer(root, p["id"])).startswith("ok ")
+    return doc
+
+
+def _reindexed(
+    tmp_path: Path, edit: Any, count: int = 20, tail: str = ""
+) -> tuple[Path, dict[str, Any], dict[str, Any], list[list[str]]]:
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "work.toml").write_text('slug = "re"\nlanguage = "en"\n', "utf-8")
+    scenes = _scenes_of_book(count)
+    _write_book(root, scenes, tmp_path)
+    first = _index_all(root)
+    new = edit([list(sc) for sc in scenes])
+    _write_book(root, new, tmp_path, tail)
+    sync.sync(root)
+    return root, first, packets.plan(root, changed=True), new
+
+
+def _packed(doc: dict[str, Any]) -> list[str]:
+    return [
+        u["scene"] for p in doc["packets"] if p["kind"] == "scenes" for u in p["inputs"]["units"]
+    ]
+
+
+def _rewrite(sc: list[str]) -> list[str]:
+    return [sc[0], "A wholly new paragraph, invented for this test, " * 8, *sc[2:]]
+
+
+def test_reindex_packs_only_changed_scenes(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        sc[3], sc[11] = _rewrite(sc[3]), _rewrite(sc[11])
+        return sc
+
+    root, first, doc, _ = _reindexed(tmp_path, edit)
+    draft = _draft(root)
+    scene_id = [s["id"] for s in draft.scenes]
+    assert len(scene_id) == 20
+    assert _packed(doc) == [scene_id[3], scene_id[11]]
+    assert doc["stats"]["entity_packets"] == 0
+    ratio = doc["stats"]["total_packet_tokens"] / first["stats"]["total_packet_tokens"]
+    assert ratio <= REINDEX_RATIO, ratio
+    # Importing the re-read scenes updates the scene items in place and clears the flag.
+    before = {i.id for i in codex.Codex(root).live("scene")}
+    for p in doc["packets"]:
+        assert _import(root, p["id"], _scene_answer(root, p["id"])).startswith("ok ")
+    cx = codex.Codex(root)
+    assert {i.id for i in cx.live("scene")} == before
+    assert not [i for i in cx.items.values() if i.type == "scene" and i.status == "needs_reread"]
+
+
+def test_reindex_packs_a_new_scene(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        return [*sc, _scenes_of_book(30)[25]]
+
+    root, _, doc, _ = _reindexed(tmp_path, edit)
+    draft = _draft(root)
+    assert len(draft.scenes) == 21
+    assert _packed(doc) == [draft.scenes[20]["id"]]
+
+
+def test_reindex_new_name_gets_an_entity_packet_with_only_that_name(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        sc[4] = [
+            *sc[4][:2],
+            "Then Zephaniah Quillfeather said that Zephaniah Quillfeather knew.",
+            *sc[4][2:],
+        ]
+        return sc
+
+    root, _, doc, _ = _reindexed(tmp_path, edit)
+    ents = [p for p in doc["packets"] if p["kind"] == "entities"]
+    assert len(ents) == 1 and len(_packed(doc)) == 1
+    pre = _draft(root).pre
+    assert [c["name"] for c in pre["candidates"]] == ["Zephaniah Quillfeather"]
+    assert "Zephaniah Quillfeather" in packets.render(root, doc, ents[0]["id"])
+
+
+def test_reindex_unchanged_draft_has_nothing_to_do(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # A new draft file (one more blank line at the end) with every scene as before.
+    root, _, doc, _ = _reindexed(tmp_path, lambda sc: sc, tail="\n")
+    assert _draft(root).version == "v002"
+    assert doc["packets"] == [] and doc["stats"]["total_packet_tokens"] == 0
+    assert main(["index", "plan", "--changed", "--workspace", str(root)]) == 0
+    assert "nothing to do" in capsys.readouterr().out
 
 
 # --- entities and references (T3) --------------------------------------------------
