@@ -17,11 +17,14 @@ INSTALL_HINT = "install a doc-control release with API 1.x: pip install 'doc-con
 class DocError(Exception):
     """An error envelope from doc-control, or doc-control missing or incompatible."""
 
-    def __init__(self, code: str, message: str, hint: str = "") -> None:
+    def __init__(
+        self, code: str, message: str, hint: str = "", details: dict[str, Any] | None = None
+    ) -> None:
         super().__init__(f"{message} ({hint})" if hint else message)
         self.code = code
         self.message = message
         self.hint = hint
+        self.details = details or {}  # doc-control's ``error.details`` (candidates, paragraph…)
 
 
 _checked = False
@@ -59,7 +62,12 @@ def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
     envelope = _execute(op, request)
     if not envelope.get("ok"):
         err = envelope.get("error", {})
-        raise DocError(err.get("code", "INTERNAL"), err.get("message", op), err.get("hint", ""))
+        raise DocError(
+            err.get("code", "INTERNAL"),
+            err.get("message", op),
+            err.get("hint", ""),
+            err.get("details") or {},
+        )
     result: dict[str, Any] = dict(envelope.get("result") or {})
     if envelope.get("warnings"):
         result["_warnings"] = envelope["warnings"]

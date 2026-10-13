@@ -5,6 +5,7 @@ label: "docx edits on doc-control"
 priority: 1
 deps: [t-b6a67a3b]
 workspace: doccontrol
+status: merged
 ---
 
 # T2: docx edits on doc-control

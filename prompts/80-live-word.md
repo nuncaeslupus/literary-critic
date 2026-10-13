@@ -36,3 +36,6 @@ writer never searches for anything, and never loses a word of their work.
 
 If a command answers `refused`, nothing was written: explain the reason in
 plain words and what the writer can do (close Word, save, quote more words).
+If the writer wants a change the tool made taken back,
+`lc docx undo --workspace <ws>` returns the document to how it was before the
+last edit or rename (`--dry-run` first).

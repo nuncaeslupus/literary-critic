@@ -10,9 +10,11 @@ again is a no-op.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import io
 import json
+import os
 import re
 import unicodedata
 import zipfile
@@ -22,7 +24,7 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree as ET
 
-from litcritic import safe_edit
+from litcritic import dc
 
 FORMATS = (".txt", ".md", ".docx", ".odt")
 W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -427,6 +429,68 @@ def read(path: Path, data: bytes | None = None) -> Draft:
         raise IngestError(f"not a readable {suffix} file: {exc}") from exc
 
 
+# --- documents read -----------------------------------------------------------
+#
+# Which documents the tool has read, and their bytes then: `lc docx` writes only
+# to a document the tool has read (doc-control refuses one changed since), and
+# defaults to the one read last.
+
+
+def _read_state(ws_root: Path) -> Path:
+    return ws_root / "state" / "documents.json"
+
+
+def _load_reads(ws_root: Path) -> dict[str, dict[str, Any]]:
+    f = _read_state(ws_root)
+    if not f.is_file():
+        return {}
+    try:
+        data = json.loads(f.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
+    """Remember the document as the tool last saw it; returns its hash."""
+    data = doc.read_bytes() if data is None else data
+    digest = hashlib.sha256(data).hexdigest()
+    state = _load_reads(ws_root)
+    seq = max((int(r.get("seq", 0)) for r in state.values()), default=0) + 1
+    state[str(doc.resolve())] = {
+        "path": str(doc),
+        "sha256": digest,
+        "seq": seq,  # read order (read_at has one-second resolution)
+        "read_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    f = _read_state(ws_root)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    os.replace(tmp, f)
+    return digest
+
+
+def last_read(ws_root: Path, doc: Path) -> str:
+    """The hash of the document when the tool last read it ("" when never)."""
+    return str(_load_reads(ws_root).get(str(doc.resolve()), {}).get("sha256", ""))
+
+
+def is_last_read(ws_root: Path, doc: Path, digest: str) -> bool:
+    """These bytes are what the tool last read, and this is the last document read."""
+    state = _load_reads(ws_root)
+    top = max((int(r.get("seq", 0)) for r in state.values()), default=0)
+    known = state.get(str(doc.resolve()), {})
+    return known.get("sha256") == digest and int(known.get("seq", 0)) == top
+
+
+def known_documents(ws_root: Path, suffix: str = "") -> list[Path]:
+    """Documents the tool has read, oldest read first."""
+    rows = sorted(_load_reads(ws_root).values(), key=lambda r: int(r.get("seq", 0)))
+    paths = [Path(str(r.get("path", ""))) for r in rows]
+    return [d for d in paths if not suffix or d.suffix.lower() == suffix.lower()]
+
+
 # --- workspace snapshot -----------------------------------------------------
 
 
@@ -451,11 +515,13 @@ def ingest(path: Path, ws_root: Path) -> Result:
     draft = read(path, data)
     if not draft.paragraphs:
         raise IngestError("no text found")
-    if path.suffix.lower() == ".docx" and not safe_edit.is_last_read(
-        ws_root, path.resolve(), digest
-    ):
+    if path.suffix.lower() == ".docx" and not is_last_read(ws_root, path.resolve(), digest):
         # What the tool has seen: `lc docx` refuses to edit a file saved since.
-        safe_edit.record_read(ws_root, path.resolve(), data)
+        record_read(ws_root, path.resolve(), data)
+        # doc-control backs the file up and notes it in its history; in a read-only
+        # folder it cannot, and every write backs the file up again anyway.
+        with contextlib.suppress(dc.DocError):
+            dc.run("open", {"doc": str(path.resolve())})
     version = f"v{int(existing[-1].stem[1:]) + 1:03d}" if existing else "v001"
     if existing and hashlib.sha256(existing[-1].read_bytes()).hexdigest() == digest:
         version = existing[-1].stem
