@@ -5,6 +5,7 @@ label: "convert non-docx to docx"
 priority: 5
 deps: [t-b6a67a3b]
 workspace: doccontrol
+status: merged
 ---
 
 # T4: convert non-docx to docx

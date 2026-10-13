@@ -1,0 +1,6 @@
+{
+  "metric": "converted_layout_fact_mismatches",
+  "value": 0,
+  "detail": "916 paragraphs from both corpus texts as .txt, .md and .odt plus a synthetic draft; text, heading level, centring, page break before and blank lines read back through doc-control equal the reader's",
+  "command": "uv run pytest tests/test_convert.py::test_convert_roundtrip_keeps_layout_facts"
+}
