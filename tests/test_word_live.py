@@ -1,15 +1,12 @@
 import json
-import re
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
+from test_docx_cli import _corpus_docx, _workspace
 
 from litcritic import word_live
 from litcritic.cli import main
-
-DOC = Path(__file__).resolve().parents[1] / "docs" / "word-control-interface.md"
 
 LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
 PAYLOADS: dict[str, dict[str, Any]] = {
@@ -23,37 +20,12 @@ PAYLOADS: dict[str, dict[str, Any]] = {
 }
 
 
-def _keys(line: str) -> set[str]:
-    return set(re.findall(r"`(\w+)`", re.sub(r"\(.*?\)", "", line)))
-
-
-def _documented() -> dict[str, tuple[set[str], set[str]]]:
-    out: dict[str, tuple[set[str], set[str]]] = {}
-    for block in re.split(r"^### ", DOC.read_text(encoding="utf-8"), flags=re.M)[1:]:
-        name = re.match(r"`(\w+)`", block)
-        req = re.search(r"^- Request: (.*)$", block, re.M)
-        res = re.search(r"^- Response: (.*)$", block, re.M)
-        if name and req and res:
-            out[name.group(1)] = (_keys(req.group(1)), _keys(res.group(1)))
-    return out
-
-
-def test_word_live_adapter_matches_interface_doc(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv(word_live.ENV, raising=False)
-    documented = _documented()
-    matches = 0
-    for op, (request, response) in word_live.OPERATIONS.items():
-        doc_req, doc_res = documented.get(op, (set(), set()))
-        optional = set(word_live.OPTIONAL.get(op, ()))
-        same = doc_req == set(request) | optional and doc_res == set(response)
+def test_every_operation_answers_with_computer_use_steps() -> None:
+    for op in word_live.OPERATIONS:
         out = word_live.call(op, PAYLOADS[op])
-        manual = out["status"] == "manual" and set(word_live.MANUAL_KEYS) <= out.keys()
-        manual = manual and all(isinstance(s, str) and s for s in out["steps"]) and out["writer"]
-        matches += bool(same and manual)
-    word_helper_interface_documented = int(
-        matches == len(word_live.OPERATIONS) and set(documented) == set(word_live.OPERATIONS)
-    )
-    assert word_helper_interface_documented == 1
+        assert out["status"] == "manual" and out["how"] == "computer-use"
+        assert set(word_live.MANUAL_KEYS) == out.keys()
+        assert all(isinstance(s, str) and s for s in out["steps"]) and out["writer"]
 
 
 def test_manual_steps_follow_the_system_and_the_locator() -> None:
@@ -80,25 +52,40 @@ def test_manual_steps_follow_the_system_and_the_locator() -> None:
         word_live.call("print", {})
 
 
-def test_extension_command_is_used_and_falls_back(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_locate_is_fed_by_the_find_string_of_lc_docx_locate(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    fake = tmp_path / "fake_word.py"
-    fake.write_text(
-        "import json, sys\n"
-        "req = json.load(sys.stdin)\n"
-        "print(json.dumps({'status': 'ok', 'found': True, 'op': sys.argv[1], 'req': req}))\n"
-    )
-    monkeypatch.setenv(word_live.ENV, f"{sys.executable} {fake}")
-    out = word_live.call("locate", PAYLOADS["locate"])
-    assert out["status"] == "ok" and out["op"] == "locate" and out["req"] == PAYLOADS["locate"]
-    monkeypatch.setenv(word_live.ENV, f"{sys.executable} {tmp_path / 'missing.py'}")
-    out = word_live.call("save", PAYLOADS["save"])
-    assert out["status"] == "manual" and out["extension_error"]
-    monkeypatch.delenv(word_live.ENV)
+    """`lc docx locate` prints a request `lc word locate` takes as it is: the steps type
+    its Find string, move down when Find lands above the passage, and the writer line
+    is its locator."""
+    ws, _ = _workspace(tmp_path, _corpus_docx(120), anchor=True)
+    for target in ("c01.s1.p1", "c01.s1.p5"):
+        capsys.readouterr()
+        assert main(["docx", "locate", target, "--workspace", str(ws)]) == 0
+        located = json.loads(capsys.readouterr().out)
+        request = tmp_path / "locate.json"
+        request.write_text(json.dumps(located, ensure_ascii=False), encoding="utf-8")
+        assert main(["word", "locate", "--payload", str(request)]) == 0
+        out = json.loads(capsys.readouterr().out)
+        steps = " ".join(out["steps"])
+        assert f"type exactly: {located['find']}" in steps
+        assert ("move down" in steps) == (not located["unique"])
+        assert located["locator"]["first_words"] in out["writer"]
+    # the locator's own Find string stands in when `find` is left out
+    loc = {**LOC, "find": "Ya voy^pdijo"}
+    out = word_live.call("locate", {"document": "N.docx", "locator": loc})
+    assert "type exactly: Ya voy^pdijo" in " ".join(out["steps"])
+    below = word_live.call("locate", {**PAYLOADS["locate"], "unique": False, "paragraphs_after": 2})
+    assert "move down 2 paragraph" in " ".join(below["steps"])
+
+
+def test_lc_word_reads_inline_and_file_payloads(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
     assert main(["word", "reopen", "--payload", json.dumps(PAYLOADS["reopen"])]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "manual"
     assert main(["word", "reopen", "--payload", "[1]"]) == 2
+    capsys.readouterr()
     long_find = {**PAYLOADS["locate"], "find": "palabra/" * 40}
     assert main(["word", "locate", "--payload", json.dumps(long_find)]) == 0
     capsys.readouterr()

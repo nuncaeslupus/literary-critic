@@ -197,13 +197,37 @@ def named_ratio() -> tuple[float, int, list[str]]:
     return (len(refs) - len(bad)) / len(refs), len(refs), bad
 
 
+RETIRED_DOC = "word-control" + "-interface"  # gave way to doc-control's live engine
+
+
+def naming_retired_doc() -> list[str]:
+    """Files of the tool (prompts, skill, docs, kit, README, code, tests) that name the
+    retired live-Word interface doc. Plans and evidence keep their history."""
+    root = repo_root()
+    files = [root / "README.md", *_named_documents()]
+    for folder in ("docs", "kit", "src", "tests", ".claude/skills"):
+        files += [f for f in (root / folder).rglob("*") if f.suffix in (".md", ".py", ".txt")]
+    retired = (RETIRED_DOC, "LITCRITIC_" + "WORD_CONTROL")  # the doc and its extension hook
+    return sorted(
+        str(f.relative_to(root))
+        for f in set(files)
+        if any(term in f.read_text(encoding="utf-8") for term in retired)
+    )
+
+
 def test_prompts_name_only_lc_commands() -> None:
     """Gate prompts_reference_valid_commands (index T7): every lc command and
-    subcommand the procedures name exists, the `lc index` packet loop included."""
+    subcommand the procedures name exists, the `lc index` packet loop included.
+    Gate docs_naming_word_control_interface (doccontrol T12): nothing names the
+    retired live-Word interface doc; live Word goes through `lc` only."""
     ratio, total, bad = named_ratio()
     print(f"prompts_reference_valid_commands = {ratio} ({total} references)")
     assert bad == []
     assert ratio == 1.0
+    assert not (repo_root() / "docs" / f"{RETIRED_DOC}.md").exists()
+    naming = naming_retired_doc()
+    print(f"docs_naming_word_control_interface = {len(naming)}")
+    assert naming == []
     index = {
         shlex.split(re.sub(r"<[^>]*>", "x", c))[2]
         for doc in _named_documents()
