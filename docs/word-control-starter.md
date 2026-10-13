@@ -1,5 +1,9 @@
 # Starter prompt: Word-control tool (new project)
 
+> Historical: this prompt started what became
+> [doc-control](https://github.com/nuncaeslupus/doc-control), now literary-critic's
+> document layer (see `architecture.md`).
+
 > Paste everything below the line into the new repository's first session. It
 > collects what literary-critic and docx-fixer taught us. It is a starting
 > point for exploring and specifying, not a spec: question it, push back, and
