@@ -35,6 +35,9 @@ from litcritic.workspace import MANIFEST as WORKSPACE_MANIFEST
 ZIP_MANIFEST = "PACK-MANIFEST.json"
 STATE = ".pack-state.json"
 SKIP = {".DS_Store", "Thumbs.db", "desktop.ini"}
+# Folders that stay on this machine: never packed, never replaced by an unpack
+# (``lc upgrade``'s backups: a pack is what the writer shares).
+LOCAL_ONLY = ("upgrade-backup",)
 MAX_LINEAGE = 200
 SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 EMPTY_STATE: dict[str, Any] = {"generation": 0, "lineage": [], "files": {}}
@@ -49,9 +52,12 @@ def _sha(data: bytes) -> str:
 
 
 def _files(root: Path) -> dict[str, str]:
-    """relative posix path -> sha256, excluding the pack state and junk files."""
+    """relative posix path -> sha256, excluding the pack state, junk files and the
+    local-only folders."""
     out = {}
     for p in sorted(root.rglob("*")):
+        if p.relative_to(root).parts[0] in LOCAL_ONLY:
+            continue
         if p.is_file() and p.name not in SKIP and p.name != STATE and not p.name.startswith("~$"):
             out[p.relative_to(root).as_posix()] = _sha(p.read_bytes())
     return out

@@ -227,8 +227,9 @@ lc upgrade --workspace <slug>
 
 It prints one line per step and exits 1 when something waits on the writer
 (a flagged span or an override to confirm). A workspace already in the new
-formats is left untouched. Delete `upgrade-backup/` once the writer is happy:
-`lc pack` includes it.
+formats is left untouched. `upgrade-backup/` stays on this machine: `lc pack`
+leaves it out and `lc unpack` never replaces it. Delete it once the writer is
+happy.
 
 ## Moving a workspace between sessions
 

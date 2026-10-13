@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from litcritic import pack, workspace
+from litcritic import pack, upgrade, workspace
 from litcritic.cli import main
 
 
@@ -157,3 +157,21 @@ def test_cli_pack_unpack(tmp_path: Path) -> None:
     assert main(["unpack", str(out), "--workspace", str(ws)]) == 1
     assert main(["unpack", str(out), "--workspace", "renamed", "--home", str(tmp_path / "h")]) == 0
     assert (tmp_path / "h" / "renamed" / "work.toml").is_file()
+
+
+def test_pack_leaves_out_upgrade_backups(tmp_path: Path) -> None:
+    ws = _ws(tmp_path)
+    backup = ws / upgrade.BACKUP_DIR / "20261013T000000Z"
+    (backup / "text").mkdir(parents=True)
+    (backup / "text" / "v001.txt").write_text("Old.\n", encoding="utf-8")
+    z, manifest = pack.pack(ws, tmp_path / "g1.zip")
+    with zipfile.ZipFile(z) as zf:
+        names = zf.namelist()
+    assert not [n for n in names if n.startswith(upgrade.BACKUP_DIR)]
+    assert not [f for f in manifest["files"] if f.startswith(upgrade.BACKUP_DIR)]
+    # Unpacking over the workspace keeps the local backup; a new target never gets one.
+    assert pack.unpack(z, ws, force=True).action in ("unchanged", "updated")
+    assert (backup / "text" / "v001.txt").is_file()
+    other = tmp_path / "other"
+    pack.unpack(z, other)
+    assert not (other / upgrade.BACKUP_DIR).exists()
