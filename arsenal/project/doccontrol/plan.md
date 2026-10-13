@@ -162,5 +162,5 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 
 - [ ] Design reviewed by the owner
 - [x] Contracts agreed with doc-control (bulk read API) — T5 (#110) reads through it
-- [ ] Migration strategy validated on a copy of the working-novel workspace
+- [x] Migration strategy validated on a copy of the working-novel workspace (`lc upgrade` on a copy, 2026-10-13: 384 of 384 Codex spans kept, 1 paragraph relabelled, re-run no-op, `lc codex check` ok; numbers only)
 - [x] Ready for execution — T1–T13 executed, every gate recorded above
