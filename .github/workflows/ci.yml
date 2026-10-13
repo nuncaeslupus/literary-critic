@@ -20,3 +20,12 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --python 3.11
       - run: uv run --python 3.11 pytest -q
+  windows:  # writers run Word on Windows; hosted runners are slow, so time gates get slack
+    runs-on: windows-latest
+    env:
+      LITCRITIC_PERF_FACTOR: "3"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run pytest -q

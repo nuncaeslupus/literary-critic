@@ -96,5 +96,6 @@ def test_convert_roundtrip_keeps_layout_facts(tmp_path: Path) -> None:
         )
         + "\n",
         encoding="utf-8",
+        newline="\n",  # the same bytes on Windows, so a test run leaves the tree clean
     )
     assert total == 0

@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -156,13 +157,30 @@ def test_cli_locate(ws: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert json.loads(capsys.readouterr().out)["anchor"] == "c02.s1.p3"
 
 
+def test_cli_prints_utf8_whatever_the_platform(ws: Path) -> None:
+    """A pipe on Windows defaults to the ANSI code page; `lc` prints UTF-8 anyway."""
+    import os
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONIOENCODING", "PYTHONUTF8")}
+    run = "import sys; from litcritic.cli import main; sys.exit(main(sys.argv[1:]))"
+    done = subprocess.run(
+        [sys.executable, "-c", run, "locate", "c02.s1.p3", "--workspace", str(ws)],
+        capture_output=True,
+        env=env,
+        check=True,
+    )
+    assert done.stdout.decode("utf-8").startswith("Capítulo 2")
+
+
 def test_cli_locate_needs_a_draft_read_by_doc_control(
     ws: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     other = tmp_path / "old"
     other.mkdir()
     for sub in ("text", "index"):
-        (other / sub).symlink_to(ws / sub)
+        shutil.copytree(ws / sub, other / sub)
     (other / "work.toml").write_text((ws / "work.toml").read_text(encoding="utf-8"))
     assert main(["locate", "c02.s1.p3", "--workspace", str(other)]) == 2
     assert "snapshot" in capsys.readouterr().err
@@ -195,6 +213,7 @@ def test_one_by_one_locators_match_whole_document(ws: Path) -> None:
 
 def test_single_anchor_locate_is_fast_on_a_long_novel(tmp_path: Path) -> None:
     """`lc docx locate` and `lc locate` on a ~100k-word .docx, as a cold process."""
+    import os
     import subprocess
     import sys
     import time
@@ -216,10 +235,12 @@ def test_single_anchor_locate_is_fast_on_a_long_novel(tmp_path: Path) -> None:
             [sys.executable, "-c", run, *cmd, "--workspace", str(root)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             check=True,
         )
         elapsed = time.perf_counter() - start
         out = json.loads(done.stdout)
         where = out["locator"] if cmd[0] == "docx" else out
         assert where["anchor"] == anchor and where["first_words"] == expected.first_words
-        assert elapsed <= 2.5, f"single_anchor_locate_s = {elapsed:.2f} ({cmd[0]})"
+        limit = 2.5 * float(os.environ.get("LITCRITIC_PERF_FACTOR", "1"))
+        assert elapsed <= limit, f"single_anchor_locate_s = {elapsed:.2f} ({cmd[0]})"

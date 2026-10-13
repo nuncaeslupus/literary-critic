@@ -1,0 +1,3 @@
+# One byte form on every platform: corpus checksums, the kit zips and the Skill
+# frontmatter are checked byte for byte, so Windows checkouts keep LF too.
+* text=auto eol=lf
