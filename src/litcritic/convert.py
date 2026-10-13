@@ -24,7 +24,6 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape, quoteattr
 
-from litcritic import dc
 from litcritic.ingest import Draft, IngestError, Para, _collect
 
 TEXT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
@@ -125,27 +124,6 @@ def draft_to_docx(draft: Draft) -> bytes:
         zf.writestr("word/styles.xml", _styles(custom))
         zf.writestr("word/_rels/document.xml.rels", DOC_RELS)
     return buf.getvalue()
-
-
-# --- plain text, one paragraph per line ---------------------------------------
-
-
-def txt_lines_docx(data: bytes) -> bytes:
-    """A ``.txt`` as a ``.docx`` with one paragraph per line, empty lines as empty
-    paragraphs: doc-control's ``lines`` mode, which it picks by itself only when no
-    empty line sits between two lines of text (verse has them between stanzas).
-
-    Delete it once doc-control takes the reading mode in the request. Decoding is
-    doc-control's.
-    """
-    try:
-        text = dc.decode_text(data)
-    except ValueError as exc:
-        raise IngestError(f"not a readable .txt file: {exc}") from exc
-    lines = text.split("\n")
-    if lines and lines[-1] == "":
-        lines.pop()  # the final line end closes the last line
-    return draft_to_docx(Draft([Para(line) for line in lines], "txt"))
 
 
 # --- odt --------------------------------------------------------------------

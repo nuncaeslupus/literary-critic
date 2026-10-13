@@ -117,10 +117,15 @@ def from_diff(result: dict[str, Any], old_at: list[str], new_at: list[str]) -> A
 
 
 def align_documents(
-    old_docx: Path, new_docx: Path, old_at: list[str], new_at: list[str]
+    old_docx: Path,
+    new_docx: Path,
+    old_at: list[str],
+    new_at: list[str],
+    text_mode: str | None = None,
 ) -> Alignment:
-    """doc-control's ``diff`` of two ``.docx`` files, onto the paragraphs at those addresses."""
-    with dc.open(old_docx) as doc:
+    """doc-control's ``diff`` of two documents, onto the paragraphs at those addresses
+    (``text_mode``: how a ``.txt`` is cut into paragraphs)."""
+    with dc.open(old_docx, text_mode=text_mode) as doc:
         result = doc.run("diff", {"old": str(old_docx), "new": str(new_docx)})
     if result.get("next"):
         raise ValueError("doc-control returned a partial diff")
@@ -135,15 +140,15 @@ def as_document(
     paragraphs: list[str], folder: Path, name: str, *, normalized: bool = True
 ) -> Iterator[tuple[dc.Document, list[str]]]:
     """``paragraphs`` written one per line to ``folder/name.txt`` and held open, with each
-    paragraph's doc-control address. With no empty line, doc-control reads every line as
-    a paragraph. ``normalized=False`` skips doc-control's normalised text (faster; for
-    text already clean)."""
+    paragraph's doc-control address, read in doc-control's ``lines`` mode.
+    ``normalized=False`` skips doc-control's normalised text (faster; for text already
+    clean)."""
     if any(not p.strip() for p in paragraphs):
         raise ValueError("an empty paragraph cannot be written one per line")
     path = folder / f"{name}.txt"
     lines = (re.sub("[\r\n]", " ", p) + "\n" for p in paragraphs)
     path.write_text("".join(lines), encoding="utf-8", newline="\n")
-    with dc.open(path) as doc:
+    with dc.open(path, text_mode="lines") as doc:
         rows = doc.paragraphs(normalized=normalized)
         if len(rows) != len(paragraphs):
             raise ValueError("paragraphs changed on their way through doc-control")
@@ -193,12 +198,11 @@ def versions(ws_root: Path, va: str, vb: str) -> Alignment:
         counts.append(len(text.split("\n")) - (1 if text.endswith("\n") else 0))
     old_at = _addresses(ws_root, va, counts[0])
     new_at = _addresses(ws_root, vb, counts[1])
-    lines = ingest.txt_lines(ws_root)
     with (
-        ingest.readable(_manuscript(ws_root, va), lines=lines) as a,
-        ingest.readable(_manuscript(ws_root, vb), lines=lines) as b,
+        ingest.readable(_manuscript(ws_root, va)) as a,
+        ingest.readable(_manuscript(ws_root, vb)) as b,
     ):
-        return align_documents(a, b, old_at, new_at)
+        return align_documents(a, b, old_at, new_at, ingest.text_mode(ws_root))
 
 
 def _load(ws_root: Path, version: str) -> tuple[list[str], dict[str, Any]]:

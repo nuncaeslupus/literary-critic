@@ -174,14 +174,14 @@ class Locations:
         if not snapshots:
             raise LocateError(f"the snapshot of {version} is missing from manuscript/")
 
-        lines = ingest.txt_lines(ws_root)
+        mode = ingest.text_mode(ws_root)
 
         def load() -> Rows:
-            with ingest.readable(snapshots[0], lines=lines) as file, dc.open(file) as doc:
+            with ingest.readable(snapshots[0]) as file, dc.open(file, text_mode=mode) as doc:
                 return read_rows(doc)
 
         def load_some(wanted: list[str]) -> Rows:
-            with ingest.readable(snapshots[0], lines=lines) as file, dc.open(file) as doc:
+            with ingest.readable(snapshots[0]) as file, dc.open(file, text_mode=mode) as doc:
                 return read_rows(doc, wanted)
 
         return cls(ix, ats, load, lang, load_some if few else None)
@@ -250,7 +250,7 @@ class Locations:
             last,
             unique,
             after,
-            str(row.get("find_phrase") or ""),
+            str(row.get("find_phrase_word") or ""),
         )
 
 

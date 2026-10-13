@@ -16,8 +16,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 4, 0)  # the first release that reads .txt and .md itself
-INSTALL_HINT = "install doc-control 0.4 (API 1.x): pip install 'doc-control>=0.4.0,<0.5'"
+MIN_VERSION = (0, 4, 1)  # reads .txt and .md itself, with a text mode per document
+INSTALL_HINT = "install doc-control 0.4 (API 1.x): pip install 'doc-control>=0.4.1,<0.5'"
 
 
 class DocError(Exception):
@@ -98,8 +98,9 @@ class Document:
     file changes. Results are whole: no response cap, no cursor to follow.
     """
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, text_mode: str | None = None) -> None:
         self.path = str(path)
+        self.text_mode = text_mode  # how a .txt is cut into paragraphs; None: doc-control's auto
         self._doc: Any = None
 
     def _handle(self) -> Any:
@@ -109,7 +110,8 @@ class Document:
                 from doc_control import api
             except ImportError as exc:
                 raise _missing() from exc
-            self._doc = api.open(self.path)
+            with _errors():
+                self._doc = api.open(self.path, text_mode=self.text_mode)
         return self._doc
 
     def run(self, op: str, request: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -145,18 +147,6 @@ class Document:
         self.close()
 
 
-def decode_text(data: bytes) -> str:
-    """The text of a ``.txt`` file's bytes, decoded as doc-control decodes it (BOMs,
-    UTF-8 with a per-line Windows-1252 fallback), line ends made ``\\n``. Raises
-    ``ValueError`` for bytes it cannot read."""
-    try:
-        from doc_control.ooxml.plaintext import decode
-    except ImportError as exc:
-        raise _missing() from exc
-    text, _ = decode(data)
-    return text
-
-
 @contextmanager
 def _errors() -> Iterator[None]:
     """doc-control's exceptions as ``DocError``."""
@@ -171,6 +161,10 @@ def _errors() -> Iterator[None]:
         raise DocError(str(exc.code), exc.message, hint, dict(exc.details)) from exc
 
 
-def open(path: str | Path) -> Document:
-    """Open ``path`` for several doc-control operations; use it as a context manager."""
-    return Document(path)
+def open(path: str | Path, text_mode: str | None = None) -> Document:
+    """Open ``path`` for several doc-control operations; use it as a context manager.
+
+    ``text_mode`` (``auto``, ``blocks`` or ``lines``) is how doc-control cuts a ``.txt``
+    into paragraphs; None leaves doc-control's default (``auto``).
+    """
+    return Document(path, text_mode)

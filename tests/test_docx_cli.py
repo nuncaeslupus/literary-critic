@@ -371,8 +371,8 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     # locate, by anchor and by quote
     loc_keys = {"chapter", "page", "first_words", "last_words"}
     code, out = _lc(capsys, "docx", "locate", "c01.s1.p1", *w)
-    # a title word found elsewhere too: the Find phrase of a paragraph above it
-    ck(code == 0 and len(out["find"]) <= 255 and (out["unique"] or out["paragraphs_after"] >= 1))
+    # a title word found elsewhere too: a Find phrase across its paragraph mark
+    ck(code == 0 and len(out["find"]) <= 255 and out["unique"] and "paragraphs_after" not in out)
     ck(out["locator"] is not None and loc_keys <= out["locator"].keys())
     quote = _quote(doc)
     code, out = _lc(capsys, "docx", "locate", quote, *w)
@@ -433,8 +433,8 @@ def test_find_string_from_doc_control(tmp_path: Path) -> None:
     )
     places = docx_cli._Places(ws, doc, doc.read_bytes())
     ats = list(places.rows)
-    # A passage Word meets once is its own Find string, escaped for the Find box.
-    assert places.find(ats[1] + ":4-5", "^") == {"find": "^^", "unique": True}
+    # A passage that needs the Find box's ^ codes gives way to doc-control's phrase.
+    assert places.find(ats[1] + ":4-5", "^") == {"find": "Uno", "unique": True}
     # Otherwise the paragraph's Find phrase from doc-control's locate.
     assert places.find(ats[3], "") == {"find": "Fin.", "unique": True}
     found = places.find(ats[5], "said")  # Word's Find ignores case
@@ -443,8 +443,10 @@ def test_find_string_from_doc_control(tmp_path: Path) -> None:
     assert places.find(ats[2], "") == {"find": "Uno", "unique": False, "paragraphs_after": 1}
 
 
-def test_find_box_escapes() -> None:
-    assert docx_cli._escape("a\tb\xa0c^d\x0be") == "a^tb^sc^^d^le"
+def test_quotes_typed_as_they_are() -> None:
+    plain = docx_cli.TYPED_AS_IS.fullmatch
+    assert plain("Rose said it.") and not plain("a^b") and not plain("a\tb")
+    assert not plain("a\xa0b") and not plain("a  b") and not plain(" a")
 
 
 def test_places_one_by_one_match_whole_document(novel: tuple[Path, Path]) -> None:

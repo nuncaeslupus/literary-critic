@@ -83,6 +83,27 @@ def test_txt_modes() -> None:
     ]
     assert per_line.source == {"format": "txt", "encoding": "cp1252", "mode": "lines"}
     assert per_line.notes == ["encoding: cp1252"]
+    # A writer's export: one paragraph per line (long lines, no wrap), empty lines only
+    # around headings.
+    tail = " and nothing else happened for a long while, so she kept looking and waiting there."
+    export = (
+        "Chapter One\n\n"
+        f"She opened the door and looked out at the empty street{tail}\n"
+        f"Nobody was there, only the wind moving slowly in the trees{tail}\n"
+        f"She went back inside, sat down at the table{tail}\n\n\n"
+        "Chapter Two\n\n"
+        f"The morning came slowly over the roofs of the old town{tail}\n"
+    )
+    exported = ingest.read(TXT, export.encode())
+    assert exported.source["mode"] == "lines"
+    assert [(p.text[:12], p.blank_before) for p in exported.paragraphs] == [
+        ("Chapter One", 0),
+        ("She opened t", 1),
+        ("Nobody was t", 0),
+        ("She went bac", 0),
+        ("Chapter Two", 2),
+        ("The morning ", 1),
+    ]
 
 
 def test_markdown() -> None:

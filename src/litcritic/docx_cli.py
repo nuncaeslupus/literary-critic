@@ -77,12 +77,9 @@ def _shown(ws_root: Path, doc: Path) -> str:
 # -- the Find string and writer locators -------------------------------------------
 
 
-SPECIAL = {"^": "^^", "\n": "^p", "\t": "^t", "\x0b": "^l", "\x1e": "^~", "\u00a0": "^s"}
-
-
-def _escape(text: str) -> str:
-    """Text as typed in Word's Find box (its own ``^`` codes for special characters)."""
-    return "".join(SPECIAL.get(c, c) for c in text)
+# Words and single spaces, none of them a character Word's Find box types as a ^ code
+# (caret, tab, no-break space, soft or no-break hyphen): such a quote is typed as it is.
+TYPED_AS_IS = re.compile(r"[^\^\s\u00ad\u2011]+(?: [^\^\s\u00ad\u2011]+)*")
 
 
 class _Places:
@@ -165,18 +162,21 @@ class _Places:
         """What to type in Word's Find to reach ``text`` at ``at`` (a doc-control
         address or range): ``find``, and ``unique`` when Word meets it only there.
 
-        The passage itself when Word meets it once; otherwise doc-control's Find
-        phrase of its paragraph. When no run of its words is unique (a short or
-        repeated paragraph), the Find phrase of the nearest paragraph before it
-        that has one, and ``paragraphs_after``: how far down from there it is.
+        The passage itself when it types as it is and Word meets it once; otherwise
+        doc-control's Find phrase of its paragraph, in the Find box's own ``^`` codes
+        (``find_phrase_word``; it may cross a paragraph mark, ``^p``). When there is
+        none (a paragraph that repeats another), the Find phrase of the nearest
+        paragraph before it that has one, and ``paragraphs_after``: how far down
+        from there it is.
         """
-        if text.strip() and len(_escape(text)) <= FIND_LIMIT and self._once(text):
-            return {"find": _escape(text), "unique": True}
+        typed = len(text) <= FIND_LIMIT and TYPED_AS_IS.fullmatch(text)
+        if typed and self._once(text):
+            return {"find": text, "unique": True}
         row = self._row(at.split(":")[0])
-        if row.get("find_phrase"):
-            return {"find": _escape(str(row["find_phrase"])), "unique": True}
+        if row.get("find_phrase_word"):  # doc-control's phrase as typed in Word's Find box
+            return {"find": str(row["find_phrase_word"]), "unique": True}
         context = row.get("context") or {}
-        out: dict[str, Any] = {"find": _escape(str(context.get("after", ""))), "unique": False}
+        out: dict[str, Any] = {"find": str(context.get("after_word") or ""), "unique": False}
         if context:
             out["paragraphs_after"] = int(context.get("paragraphs_after", 0))
         return out

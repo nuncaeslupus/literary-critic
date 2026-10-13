@@ -38,10 +38,11 @@ works grouped by any of them. `lc init <slug> --title … --language … [--auth
 `lc ingest <file> --workspace <slug|folder>` accepts `.txt`, `.md`, `.docx` and
 `.odt`. It copies the file to `manuscript/vNNN.<ext>` and writes `text/vNNN.txt`
 plus its meta file. doc-control reads `.docx`, `.txt` and `.md` itself; an
-`.odt` is read through a converted `.docx` copy. A `.txt` with an empty line
-between two paragraphs is read as blocks (lines joined, one empty line
-separates, each extra one counts as a blank line); without one, every line is a
-paragraph (a kind may ask for that always: poems do). Markdown `#` headings are
+`.odt` is read through a converted `.docx` copy. A hard-wrapped `.txt` is read
+as blocks (lines joined, one empty line separates, each extra one counts as a
+blank line); otherwise every line is a paragraph and every empty line a blank
+line (doc-control's `auto` text mode; a kind may set its own: poems read
+`lines`). Markdown `#` headings are
 headings, emphasis markers are dropped and front matter is skipped. The meta's
 `source` records the format, encoding and mode doc-control used. Tracked deletions, field codes, footnotes and comments are
 left out; soft line breaks become spaces. Ingesting an unchanged file again

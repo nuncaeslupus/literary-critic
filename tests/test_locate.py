@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,14 @@ def _occurrences(haystack: str, needle: str) -> int:
     return count
 
 
+WORD_CODES = {"^p": "\r", "^t": "\t", "^s": "\u00a0", "^~": "\u2011", "^-": "\u00ad", "^^": "^"}
+
+
+def _typed(find: str) -> str:
+    """A Find-box string back to the document's characters (``^p`` a paragraph mark)."""
+    return re.sub(r"\^[pts~\-^]", lambda m: WORD_CODES[m.group()], find)
+
+
 def locators_not_unique(root: Path) -> dict[str, Any]:
     """Locators of every paragraph whose head … tail or Find string is not met once.
 
@@ -54,7 +63,7 @@ def locators_not_unique(root: Path) -> dict[str, Any]:
     texts = _document_texts(root)
     words = [ingest.clean(t).casefold().split() for t in texts]
     haystack = "\r".join(t.casefold() for t in texts)
-    checked = phrases = finds = 0
+    checked = phrases = finds = no_find_unrepeated = 0
     bad: list[str] = []
     for a in ix.anchors:
         loc = locs.locate(a)
@@ -69,18 +78,25 @@ def locators_not_unique(root: Path) -> dict[str, Any]:
                 bad.append(f"{a} phrase met {met} times")
         else:
             assert loc.after or a == ix.anchors[0]
+        if not loc.find and ix.paragraphs.count(ix.paragraphs[ix.anchors.index(a)]) == 1:
+            no_find_unrepeated += 1
         if loc.find:
             finds += 1
-            met = _occurrences(haystack, loc.find.casefold())
+            met = _occurrences(haystack, _typed(loc.find).casefold())
             if met != 1:
                 bad.append(f"{a} find met {met} times")
     return {
         "paragraphs": checked,
         "phrases": phrases,
         "finds": finds,
+        "no_find_phrase": checked - finds,
+        "no_find_phrase_unrepeated": no_find_unrepeated,
         "locators_not_unique": len(bad),
         "bad": bad,
     }
+
+
+NO_FIND_PHRASE = {"jekyll-hyde": 0, "marianela": 11}  # 11 short repeated replies
 
 
 def test_locator_phrase_unique_in_document(tmp_path: Path) -> None:
@@ -88,7 +104,10 @@ def test_locator_phrase_unique_in_document(tmp_path: Path) -> None:
         lang = "es" if name == "marianela" else "en"
         found = locators_not_unique(_workspace(tmp_path / name, corpus.get(name).path, lang))
         assert found["paragraphs"] > 300 and found["phrases"] > 0.95 * found["paragraphs"]
-        assert found["finds"] > 0.95 * found["paragraphs"]
+        # Only paragraphs that repeat another word for word lack a Find phrase (doc-control
+        # tries no phrase across a paragraph mark for them).
+        assert found["no_find_phrase_unrepeated"] == 0, name
+        assert found["no_find_phrase"] == NO_FIND_PHRASE[name], found["no_find_phrase"]
         assert found["locators_not_unique"] == 0, found["bad"][:5]
 
 

@@ -215,7 +215,7 @@ def test_text_drafts_read_through_a_converted_copy_are_readdressed(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """A .txt ingested by the release that converted it to a .docx first: doc-control
-    now reads the file itself, so empty lines and raw text give other addresses; the
+    now reads the file itself, so its raw text gives other addresses; the
     upgrade reads it again, says so, and moves overrides and Codex spans along."""
     from litcritic import convert, ingest, workspace
 
@@ -262,7 +262,7 @@ def test_text_drafts_read_through_a_converted_copy_are_readdressed(
     assert "paragraph addresses changed" in out
     assert "overrides: 1 moved to their paragraph's new address" in out
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    assert meta["source"]["mode"] == "blocks"
+    assert meta["source"] == now.source and now.source["mode"] == "lines"
     assert [r["at"] for r in meta["paragraphs"]] == [p.at for p in now.paragraphs]
     saved = json.loads((root / "analysis" / "structure-overrides.json").read_text("utf-8"))
     assert saved["overrides"] == [{**forced, "fp": new_fp}]

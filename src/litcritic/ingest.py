@@ -105,15 +105,17 @@ def _collect(raw: list[Para]) -> list[Para]:
 # --- reading through doc-control ----------------------------------------------
 
 
-def _read_doc(path: Path, fmt: str) -> Draft:
+def _read_doc(path: Path, fmt: str, text_mode: str | None = None) -> Draft:
     """Every paragraph of a document as doc-control reads it, in one bulk call.
 
     Pages count only when the file holds Word's rendered page marks (it was laid
     out by Word); otherwise every page is 0 (unknown). For a ``.txt`` or ``.md``
-    file, doc-control's ``source`` (encoding and reading mode) becomes the notes.
+    file, doc-control's ``source`` (encoding and reading mode) becomes the notes;
+    ``text_mode`` (``lines``, ``blocks``; doc-control's ``auto`` when None) is how a
+    ``.txt`` is cut into paragraphs.
     """
     try:
-        with dc.open(path) as doc:
+        with dc.open(path, text_mode=text_mode) as doc:
             rows = doc.paragraphs(normalized=True, pages=True)
             marks = 0
             if rows:
@@ -154,33 +156,31 @@ def converted_text(meta: dict[str, Any]) -> bool:
     return meta.get("format") in ("txt", "md") and not meta.get("source")
 
 
-def txt_lines(ws_root: Path) -> bool:
-    """The work's kind reads a ``.txt`` one paragraph per line (``TXT_LINES``), as verse
-    is written, whatever empty lines it holds."""
+def text_mode(ws_root: Path) -> str | None:
+    """How the work's kind has doc-control cut a ``.txt`` into paragraphs (its
+    ``TEXT_MODE``, e.g. ``lines`` for verse); None leaves doc-control's ``auto``."""
     from litcritic import kinds
 
-    return bool(getattr(kinds.of_work(ws_root), "TXT_LINES", False))
+    mode = getattr(kinds.of_work(ws_root), "TEXT_MODE", None)
+    return str(mode) if mode else None
 
 
 @contextlib.contextmanager
-def readable(path: Path, data: bytes | None = None, *, lines: bool = False) -> Iterator[Path]:
+def readable(path: Path, data: bytes | None = None) -> Iterator[Path]:
     """The file doc-control reads for the manuscript at ``path`` (or ``data``).
 
     doc-control reads a ``.docx``, ``.txt`` or ``.md`` itself: the file is used as it
-    is (a temporary copy when ``data`` differs from it). An ``.odt``, or a ``.txt``
-    read one paragraph per line (``lines``), is converted to a ``.docx`` copy first
-    (:mod:`litcritic.convert`); converting the same bytes again rebuilds the same
-    copy, so addresses taken from it stay valid.
+    is (a temporary copy when ``data`` differs from it). An ``.odt`` is converted to
+    a ``.docx`` copy first (:mod:`litcritic.convert`); converting the same bytes
+    again rebuilds the same copy, so addresses taken from it stay valid.
     """
     suffix = path.suffix.lower()
     if suffix not in FORMATS:
         raise IngestError(f"unsupported format {suffix!r} (use {', '.join(FORMATS)})")
-    if suffix in CONVERTED or (lines and suffix == ".txt"):
+    if suffix in CONVERTED:
         from litcritic import convert  # convert builds on this module's Para and Draft
 
-        data = path.read_bytes() if data is None else data
-        docx = convert.txt_lines_docx(data) if suffix == ".txt" else convert.to_docx(path, data)
-        data, name = docx, f"{path.stem or 'draft'}.docx"
+        data, name = convert.to_docx(path, data), f"{path.stem or 'draft'}.docx"
     elif data is None or (path.is_file() and path.read_bytes() == data):
         yield path
         return
@@ -192,20 +192,15 @@ def readable(path: Path, data: bytes | None = None, *, lines: bool = False) -> I
         yield copy
 
 
-def read(path: Path, data: bytes | None = None, *, lines: bool = False) -> Draft:
+def read(path: Path, data: bytes | None = None, *, text_mode: str | None = None) -> Draft:
     """The manuscript at ``path`` (or ``data``, its bytes) as doc-control reads it.
 
-    An ``.odt`` file, or a ``.txt`` read one paragraph per line (``lines``), is
-    converted to a ``.docx`` copy first; its addresses then point into that copy,
-    which converting the same bytes again rebuilds identically.
+    A ``.txt`` is cut into paragraphs by ``text_mode`` (doc-control's ``auto`` when
+    None). An ``.odt`` file is converted to a ``.docx`` copy first; its addresses then
+    point into that copy, which converting the same bytes again rebuilds identically.
     """
-    fmt = path.suffix.lower()[1:]
-    with readable(path, data, lines=lines) as doc:
-        draft = _read_doc(doc, fmt)
-    if lines and fmt == "txt":
-        draft.source = {"format": "txt", "mode": "lines", "via": "docx"}
-        draft.notes = ["one paragraph per line"]
-    return draft
+    with readable(path, data) as doc:
+        return _read_doc(doc, path.suffix.lower()[1:], text_mode)
 
 
 # --- documents read -----------------------------------------------------------
@@ -291,7 +286,7 @@ def ingest(path: Path, ws_root: Path) -> Result:
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     existing = _versions(ws_root)
-    draft = read(path, data, lines=txt_lines(ws_root))
+    draft = read(path, data, text_mode=text_mode(ws_root))
     if not draft.paragraphs:
         raise IngestError("no text found")
     if path.suffix.lower() == ".docx" and not is_last_read(ws_root, path.resolve(), digest):
@@ -323,7 +318,7 @@ def reingest(ws_root: Path, version: str, source_name: str = "") -> Result:
     if not found:
         raise IngestError(f"no manuscript/{version}.* to read again")
     data = found[0].read_bytes()
-    draft = read(found[0], data, lines=txt_lines(ws_root))
+    draft = read(found[0], data, text_mode=text_mode(ws_root))
     if not draft.paragraphs:
         raise IngestError(f"no text found in manuscript/{found[0].name}")
     digest = hashlib.sha256(data).hexdigest()
