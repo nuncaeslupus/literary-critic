@@ -8,3 +8,4 @@ literary-critic: tooling that lets an LLM read, index and critique long texts (n
 |------|------|------|------|
 | codex | src/litcritic | arsenal/project/codex/spec.md | arsenal/project/codex/plan.md |
 | chat | kit/ | arsenal/project/chat/spec.md | arsenal/project/chat/plan.md |
+| doccontrol | ./doccontrol/ | arsenal/project/doccontrol/spec.md | arsenal/project/doccontrol/plan.md |
