@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 
 import pytest
+from conftest import bare_env
 
 from litcritic import kit
 from litcritic.cli import main
@@ -61,7 +62,7 @@ def test_skill_zip_builds_and_validates(tmp_path: Path) -> None:
     folder.chmod(stat.S_IRUSR | stat.S_IXUSR)
     work = tmp_path / "work"
     work.mkdir()
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
+    env = bare_env(tmp_path)
     result = subprocess.run(
         [sys.executable, "-I", str(folder / "litcritic" / "lc.py"), "doctor", "--home", "./home"],
         cwd=work,
@@ -122,7 +123,7 @@ def test_kit_selftest_offline(tmp_path: Path) -> None:
     out, _ = kit.build(tmp_path / "kit.zip")
     folder = tmp_path / "unpacked"
     zipfile.ZipFile(out).extractall(folder)
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
+    env = bare_env(tmp_path)
     # -I -S: no site-packages, so doc_control can only come from the unpacked kit
     doctor = subprocess.run(
         [sys.executable, "-I", "-S", "lc.py", "doctor", "--home", "./home"],
