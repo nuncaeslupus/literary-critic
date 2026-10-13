@@ -195,3 +195,79 @@ def test_damaged_backup_is_not_restored(tmp_path: Path) -> None:
     with pytest.raises(upgrade.UpgradeError, match="damaged"):
         upgrade.restore(root)
     assert _snapshot(root) == now
+
+
+# Invented placeholder text: one paragraph per line, an empty line between paragraphs,
+# a wider gap before each chapter, and a paragraph with a double space in it.
+LINES_DRAFT = (
+    "The Placeholder\n\n\n\n"
+    "Chapter One\n\n"
+    "Ana opened the door and  looked at the empty street.\n\n"
+    "Nobody was there, only the wind in the trees.\n\n"
+    "She went back inside and sat down to wait.\n\n\n\n"
+    "Chapter Two\n\n"
+    "The morning came slowly over the roofs of the town.\n\n"
+    "Ana made coffee and read the letter again.\n"
+)
+
+
+def test_text_drafts_read_through_a_converted_copy_are_readdressed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A .txt ingested by the release that converted it to a .docx first: doc-control
+    now reads the file itself, so empty lines and raw text give other addresses; the
+    upgrade reads it again, says so, and moves overrides and Codex spans along."""
+    from litcritic import convert, ingest, workspace
+
+    root = workspace.create("w", "W", "en", tmp_path / "home").root
+    src = tmp_path / "draft.txt"
+    src.write_text(LINES_DRAFT, encoding="utf-8")
+    assert main(["ingest", str(src), "--workspace", str(root)]) == 0
+    assert main(["anchor", "--workspace", str(root)]) == 0
+    now = ingest.read(src)
+    # What that release read: one paragraph per line, through a converted .docx copy.
+    old_lines = [ingest.Para(line) for line in LINES_DRAFT.split("\n")]
+    old_docx = convert.draft_to_docx(ingest.Draft(ingest._collect(old_lines), "txt"))
+    old = ingest.read(Path("old.docx"), old_docx)
+    assert [p.text for p in old.paragraphs] == [p.text for p in now.paragraphs]
+    assert [p.at for p in old.paragraphs] != [p.at for p in now.paragraphs]
+    meta_file = root / "text" / "v001.meta.json"
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    del meta["source"]
+    meta["notes"], meta["paragraphs"] = [], [p.meta() for p in old.paragraphs]
+    meta_file.write_text(json.dumps(meta), encoding="utf-8")
+    k = next(i for i, p in enumerate(now.paragraphs) if "door" in p.text)
+    old_fp, new_fp = old.paragraphs[k].at.split("#")[1], now.paragraphs[k].at.split("#")[1]
+    assert old_fp != new_fp  # the double space: raw text now, cleaned text then
+    forced = {"fp": old_fp, "kind": "scene", "action": "force"}
+    (root / "analysis").mkdir(exist_ok=True)
+    (root / "analysis" / "structure-overrides.json").write_text(
+        json.dumps({"schema_version": 2, "overrides": [forced]}), "utf-8"
+    )
+    cx = Codex.init(root, "v001")
+    ix = query.load(root, "v001", codex=False)
+    text = spanlib.Text(ix.paragraphs, ix.anchors, "v001")
+    j = k + 1
+    span = spanlib.make(text, "v001", ix.anchors[j], 0, ix.anchors[j], len(ix.paragraphs[j]))
+    item = cx.add("issue", "Slow.", {"level": "line", "severity": "low"}, [span])
+
+    assert "text/v001.meta.json" in upgrade.needed(root)
+    with pytest.raises(ValueError, match="lc upgrade"):
+        structure.build(root)
+    capsys.readouterr()
+    assert main(["upgrade", "--workspace", str(root)]) == 0
+    out = capsys.readouterr().out
+    n = len(now.paragraphs)
+    assert f"v001: re-read ({n} -> {n} paragraphs); " in out
+    assert "paragraph addresses changed" in out
+    assert "overrides: 1 moved to their paragraph's new address" in out
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert meta["source"]["mode"] == "blocks"
+    assert [r["at"] for r in meta["paragraphs"]] == [p.at for p in now.paragraphs]
+    saved = json.loads((root / "analysis" / "structure-overrides.json").read_text("utf-8"))
+    assert saved["overrides"] == [{**forced, "fp": new_fp}]
+    _, _, errors = structure.build(root)
+    assert errors == []
+    assert Codex(root).items[item.id].spans[0].state in RESOLVED
+    _check_in_place(root)
+    assert upgrade.needed(root) == []

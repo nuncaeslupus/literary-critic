@@ -1,30 +1,31 @@
 """Stopgap conversion of non-Word manuscripts to a minimal ``.docx`` (spec D-6).
 
-doc-control reads only Word documents, so ``.txt``, ``.md`` and ``.odt`` files are
-turned into a bare ``.docx`` copy that doc-control can read; the writer's file is
-never changed. Each format has a small reader (``read_txt``, ``read_md``,
-``read_odt``) whose paragraphs are written out one Word paragraph per source
-paragraph, with heading level (built-in ``Heading N`` styles), centring, page break
-before, paragraph style name, blank lines as empty paragraphs, and, where the
-source knows its pages (``.odt`` soft page breaks), a rendered page mark where each
-page starts.
+doc-control reads ``.docx``, ``.txt`` and ``.md`` itself, but not ``.odt``: an
+``.odt`` file is turned into a bare ``.docx`` copy that doc-control can read; the
+writer's file is never changed. ``read_odt`` reads its paragraphs, which are written
+out one Word paragraph per source paragraph, with heading level (built-in
+``Heading N`` styles), centring, page break before, paragraph style name, blank
+lines as empty paragraphs, and, where the source knows its pages (soft page
+breaks), a rendered page mark where each page starts. ``draft_to_docx`` also
+writes paragraphs held in memory, with their layout facts, for structure detection
+(:func:`litcritic.structure.detect`).
 
 Delete a format's reader, and its row in ``READERS``, as soon as doc-control reads
 that format natively. This is the one module allowed to write ``word/`` parts, and
-the only one that reads ``.txt``, ``.md`` or ``.odt`` layout.
+the only one that reads ``.odt`` layout.
 """
 
 from __future__ import annotations
 
 import io
-import re
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape, quoteattr
 
-from litcritic.ingest import Draft, IngestError, Para, _collect, clean
+from litcritic import dc
+from litcritic.ingest import Draft, IngestError, Para, _collect
 
 TEXT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
 OFFICE = "{urn:oasis:names:tc:opendocument:xmlns:office:1.0}"
@@ -126,78 +127,25 @@ def draft_to_docx(draft: Draft) -> bytes:
     return buf.getvalue()
 
 
-# --- plain text and Markdown ------------------------------------------------
+# --- plain text, one paragraph per line ---------------------------------------
 
 
-def _decode(data: bytes) -> str:
-    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
-        return data.decode("utf-16")
-    if b"\x00" in data[:4096]:
-        raise IngestError("text file looks like UTF-16 without a BOM; save it as UTF-8")
-    for enc in ("utf-8-sig", "cp1252"):
-        try:
-            return data.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    raise IngestError("unknown text encoding (use UTF-8)")
+def txt_lines_docx(data: bytes) -> bytes:
+    """A ``.txt`` as a ``.docx`` with one paragraph per line, empty lines as empty
+    paragraphs: doc-control's ``lines`` mode, which it picks by itself only when no
+    empty line sits between two lines of text (verse has them between stanzas).
 
-
-def read_txt(data: bytes) -> Draft:
-    """Blank-line separated blocks when lines are hard-wrapped, else one paragraph per line."""
-    lines = _decode(data).replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    blocks = [b.strip("\n") for b in re.split(r"\n[ \t]*\n", "\n".join(lines)) if b.strip()]
-    multi = [b for b in blocks if "\n" in b]
-    # Lines that a wrap cut (every line of a block but its last) sit near a fixed width.
-    cut = sorted(len(x) for b in multi for x in b.split("\n")[:-1])
-    wrapped = (
-        len(blocks) > 1
-        and len(multi) >= 0.2 * len(blocks)
-        and bool(cut)
-        and cut[len(cut) // 2] >= 40
-        and cut[int(0.9 * (len(cut) - 1))] <= 100
-    )
-    if not wrapped:
-        return Draft(_collect([Para(line) for line in lines]), "txt")
-    # Hard-wrapped: one blank line separates paragraphs; extra blank lines are spacing.
-    out: list[Para] = []
-    block: list[str] = []
-    blanks = 0
-    for line in [*lines, ""]:
-        if line.strip():
-            block.append(line)
-            continue
-        if block:
-            p = Para(clean(" ".join(block)), blank_before=max(0, blanks - 1) if out else blanks)
-            out.append(p)
-            block, blanks = [], 0
-        blanks += 1
-    return Draft(out, "txt", notes=["hard-wrapped blocks"])
-
-
-MD_EMPHASIS = re.compile(r"(\*\*|__|\*|_)(?=\S)(.+?)(?<=\S)\1")
-
-
-def read_md(data: bytes) -> Draft:
-    text = _decode(data).replace("\r\n", "\n")
-    raw: list[Para] = []
-    for block in re.split(r"\n[ \t]*\n", text):
-        block = block.strip("\n")
-        if not block.strip():
-            continue
-        m = re.match(r"^(#{1,6})\s+(.*)$", block.split("\n", 1)[0])
-        if m:
-            raw.append(Para(m.group(2).rstrip("#").strip(), heading=len(m.group(1))))
-            if "\n" not in block:
-                continue
-            block = block.split("\n", 1)[1]
-        # Hide escaped characters from the emphasis pass, then restore them literally.
-        line = re.sub(
-            r"\\([\\`*_{}\[\]()#+.!-])", lambda m: chr(0xE000 + ord(m.group(1))), block
-        ).replace("\n", " ")
-        if not re.fullmatch(r"[\s*_#~-]+", line):  # keep scene-break lines like "* * *"
-            line = MD_EMPHASIS.sub(r"\2", line)
-        raw.append(Para(re.sub("[\ue000-\ue0ff]", lambda m: chr(ord(m.group()) - 0xE000), line)))
-    return Draft(_collect(raw), "md")
+    Delete it once doc-control takes the reading mode in the request. Decoding is
+    doc-control's.
+    """
+    try:
+        text = dc.decode_text(data)
+    except ValueError as exc:
+        raise IngestError(f"not a readable .txt file: {exc}") from exc
+    lines = text.split("\n")
+    if lines and lines[-1] == "":
+        lines.pop()  # the final line end closes the last line
+    return draft_to_docx(Draft([Para(line) for line in lines], "txt"))
 
 
 # --- odt --------------------------------------------------------------------
@@ -288,11 +236,11 @@ def read_odt(data: bytes) -> Draft:
     return draft
 
 
-READERS: dict[str, Callable[[bytes], Draft]] = {".txt": read_txt, ".md": read_md, ".odt": read_odt}
+READERS: dict[str, Callable[[bytes], Draft]] = {".odt": read_odt}
 
 
 def source(path: Path, data: bytes | None = None) -> Draft:
-    """The paragraphs and layout facts of a ``.txt``, ``.md`` or ``.odt`` manuscript."""
+    """The paragraphs and layout facts of an ``.odt`` manuscript."""
     suffix = path.suffix.lower()
     if suffix not in READERS:
         raise IngestError(f"cannot convert {suffix!r} to .docx (use {', '.join(READERS)})")
@@ -305,5 +253,5 @@ def source(path: Path, data: bytes | None = None) -> Draft:
 
 
 def to_docx(path: Path, data: bytes | None = None) -> bytes:
-    """The ``.docx`` bytes for a ``.txt``, ``.md`` or ``.odt`` manuscript."""
+    """The ``.docx`` bytes for an ``.odt`` manuscript."""
     return draft_to_docx(source(path, data))

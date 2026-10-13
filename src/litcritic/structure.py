@@ -1,7 +1,7 @@
 """Structure from doc-control's ``segment``, and paragraph anchors.
 
-doc-control finds the parts, chapters and scenes of the ``.docx`` a draft was
-ingested from (a converted copy for ``.txt``, ``.md`` and ``.odt``), with a
+doc-control finds the parts, chapters and scenes of the file a draft was
+ingested from (``.docx``, ``.txt`` or ``.md``; a converted copy for ``.odt``), with a
 stable id and the signals behind each one. This module lays literary-critic's
 labels over them: chapter ``cNN`` (``c00`` is front matter), scene ``sN`` (``s0``
 holds heading lines) and paragraph ``pN``, so every paragraph of ``text/vNNN.txt``
@@ -448,7 +448,7 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else {}
     rows = meta.get("paragraphs") or []
     ats = [str(r.get("at", "")) for r in rows]
-    if len(rows) != len(paragraphs) or not all(ats):
+    if len(rows) != len(paragraphs) or not all(ats) or ingest.converted_text(meta):
         raise ValueError(f"{version} was ingested by an older release; run `lc upgrade`")
     source = next(
         (p for p in (ws_root / "manuscript").glob(f"{version}.*") if p.suffix in ingest.FORMATS),
@@ -460,7 +460,8 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     profile, starts = _settings(kinds.of_work(ws_root), paragraphs, rows, fmt)
     overrides, errors = load_overrides(ws_root, paragraphs, ats)
     language = _work_language(ws_root)
-    with ingest.docx_of(source) as (docx, _), dc.open(docx) as doc:
+    lines = ingest.txt_lines(ws_root)
+    with ingest.readable(source, lines=lines) as file, dc.open(file) as doc:
         try:
             s, unmatched = segment(
                 doc, paragraphs, ats, profile, _forced(ats, starts) + overrides, language

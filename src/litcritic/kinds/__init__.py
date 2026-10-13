@@ -3,9 +3,11 @@
 A kind is a module here exposing ``NAME``, ``PROFILE`` (doc-control ``segment``
 settings), ``TYPES_DIR`` (extra Codex item types, or None) and ``CHECKLIST``
 (catalogue folder), and optionally ``FORMAT_PROFILE`` (extra settings per
-manuscript format) and ``chapter_starts(paragraphs, meta)``: chapter starts
-doc-control does not look for, passed to it as forced overrides. The core asks
-the registry for a work's kind and never imports a kind by name.
+manuscript format), ``TXT_LINES`` (read a ``.txt`` one paragraph per line, as
+verse is written, instead of doc-control's blank-line separated blocks) and
+``chapter_starts(paragraphs, meta)``: chapter starts doc-control does not look
+for, passed to it as forced overrides. The core asks the registry for a work's
+kind and never imports a kind by name.
 """
 
 from __future__ import annotations

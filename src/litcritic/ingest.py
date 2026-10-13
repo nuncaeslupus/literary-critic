@@ -1,7 +1,7 @@
 """Ingest a manuscript draft into a workspace.
 
-Every manuscript is read through doc-control: a ``.docx`` directly, a ``.txt``,
-``.md`` or ``.odt`` through a converted ``.docx`` copy (:mod:`litcritic.convert`,
+Every manuscript is read through doc-control: a ``.docx``, ``.txt`` or ``.md``
+directly, an ``.odt`` through a converted ``.docx`` copy (:mod:`litcritic.convert`,
 spec D-6). The text becomes normalised text: one paragraph per line, whitespace
 collapsed, Unicode NFC. Each paragraph's doc-control address (``at``) and the
 layout facts structure detection and writer locators need (heading level,
@@ -28,6 +28,8 @@ from typing import Any
 from litcritic import dc
 
 FORMATS = (".txt", ".md", ".docx", ".odt")
+TEXT_FORMATS = (".txt", ".md")  # doc-control reads them as they are
+CONVERTED = (".odt",)  # doc-control cannot read these: a .docx copy is read instead
 META_SCHEMA = 2  # 2: each paragraph carries its doc-control address ``at``
 
 
@@ -67,6 +69,7 @@ class Draft:
     format: str
     pages_known: bool = False
     notes: list[str] = field(default_factory=list)
+    source: dict[str, Any] = field(default_factory=dict)  # doc-control's, for .txt and .md
 
     @property
     def text(self) -> str:
@@ -102,11 +105,12 @@ def _collect(raw: list[Para]) -> list[Para]:
 # --- reading through doc-control ----------------------------------------------
 
 
-def _read_docx(path: Path, fmt: str = "docx") -> Draft:
-    """Every paragraph of a ``.docx`` file as doc-control reads it, in one bulk call.
+def _read_doc(path: Path, fmt: str) -> Draft:
+    """Every paragraph of a document as doc-control reads it, in one bulk call.
 
     Pages count only when the file holds Word's rendered page marks (it was laid
-    out by Word); otherwise every page is 0 (unknown).
+    out by Word); otherwise every page is 0 (unknown). For a ``.txt`` or ``.md``
+    file, doc-control's ``source`` (encoding and reading mode) becomes the notes.
     """
     try:
         with dc.open(path) as doc:
@@ -115,8 +119,9 @@ def _read_docx(path: Path, fmt: str = "docx") -> Draft:
             if rows:
                 head = doc.run("page.estimate", {"at": rows[0]["at"]})
                 marks = int(head.get("rendered_marks") or 0)
+            source = doc.source() if path.suffix.lower() in TEXT_FORMATS else {}
     except dc.DocError as exc:
-        raise IngestError(f"not a readable .docx: {exc}") from exc
+        raise IngestError(f"not a readable {path.suffix.lower() or 'file'}: {exc}") from exc
     raw = [
         Para(
             str(row.get("normalized", row["text"])),
@@ -129,50 +134,77 @@ def _read_docx(path: Path, fmt: str = "docx") -> Draft:
         )
         for row in rows
     ]
-    return Draft(_collect(raw), fmt, pages_known=bool(marks))
+    return Draft(
+        _collect(raw), fmt, pages_known=bool(marks), notes=_source_notes(source), source=source
+    )
+
+
+def _source_notes(source: dict[str, Any]) -> list[str]:
+    notes = ["hard-wrapped blocks"] if source.get("mode") == "blocks" else []
+    encoding = str(source.get("encoding") or "")
+    if encoding and encoding not in ("utf-8", "utf-8-sig"):
+        notes.append(f"encoding: {encoding}")
+    return notes
+
+
+def converted_text(meta: dict[str, Any]) -> bool:
+    """A ``.txt`` or ``.md`` draft whose addresses point into the ``.docx`` copy an
+    older release converted it to (its meta has no ``source``): doc-control now reads
+    the file itself, and its addresses may differ (``lc upgrade`` reads it again)."""
+    return meta.get("format") in ("txt", "md") and not meta.get("source")
+
+
+def txt_lines(ws_root: Path) -> bool:
+    """The work's kind reads a ``.txt`` one paragraph per line (``TXT_LINES``), as verse
+    is written, whatever empty lines it holds."""
+    from litcritic import kinds
+
+    return bool(getattr(kinds.of_work(ws_root), "TXT_LINES", False))
 
 
 @contextlib.contextmanager
-def docx_of(path: Path, data: bytes | None = None) -> Iterator[tuple[Path, list[str]]]:
-    """The ``.docx`` doc-control reads for the manuscript at ``path`` (or ``data``).
+def readable(path: Path, data: bytes | None = None, *, lines: bool = False) -> Iterator[Path]:
+    """The file doc-control reads for the manuscript at ``path`` (or ``data``).
 
-    A ``.docx`` is used as it is (a temporary copy when ``data`` differs from the
-    file); a ``.txt``, ``.md`` or ``.odt`` is converted first. Converting the same
-    bytes again rebuilds the same copy, so addresses taken from it stay valid.
-    Also yields the conversion notes.
+    doc-control reads a ``.docx``, ``.txt`` or ``.md`` itself: the file is used as it
+    is (a temporary copy when ``data`` differs from it). An ``.odt``, or a ``.txt``
+    read one paragraph per line (``lines``), is converted to a ``.docx`` copy first
+    (:mod:`litcritic.convert`); converting the same bytes again rebuilds the same
+    copy, so addresses taken from it stay valid.
     """
     suffix = path.suffix.lower()
     if suffix not in FORMATS:
         raise IngestError(f"unsupported format {suffix!r} (use {', '.join(FORMATS)})")
-    notes: list[str] = []
-    if suffix == ".docx":
-        if data is None or (path.is_file() and path.read_bytes() == data):
-            yield path, notes
-            return
-        docx = data
-    else:
+    if suffix in CONVERTED or (lines and suffix == ".txt"):
         from litcritic import convert  # convert builds on this module's Para and Draft
 
-        source = convert.source(path, data)
-        notes = source.notes
-        docx = convert.draft_to_docx(source)
+        data = path.read_bytes() if data is None else data
+        docx = convert.txt_lines_docx(data) if suffix == ".txt" else convert.to_docx(path, data)
+        data, name = docx, f"{path.stem or 'draft'}.docx"
+    elif data is None or (path.is_file() and path.read_bytes() == data):
+        yield path
+        return
+    else:
+        name = f"{path.stem or 'draft'}{suffix}"
     with tempfile.TemporaryDirectory() as tmp:
-        copy = Path(tmp) / f"{path.stem or 'draft'}.docx"
-        copy.write_bytes(docx)
-        yield copy, notes
+        copy = Path(tmp) / name
+        copy.write_bytes(data)
+        yield copy
 
 
-def read(path: Path, data: bytes | None = None) -> Draft:
+def read(path: Path, data: bytes | None = None, *, lines: bool = False) -> Draft:
     """The manuscript at ``path`` (or ``data``, its bytes) as doc-control reads it.
 
-    A ``.txt``, ``.md`` or ``.odt`` file is converted to a ``.docx`` copy first;
-    its addresses then point into that copy, which converting the same bytes
-    again rebuilds identically.
+    An ``.odt`` file, or a ``.txt`` read one paragraph per line (``lines``), is
+    converted to a ``.docx`` copy first; its addresses then point into that copy,
+    which converting the same bytes again rebuilds identically.
     """
-    with docx_of(path, data) as (docx, notes):
-        suffix = path.suffix.lower()
-        draft = _read_docx(docx, suffix[1:])
-    draft.notes = notes
+    fmt = path.suffix.lower()[1:]
+    with readable(path, data, lines=lines) as doc:
+        draft = _read_doc(doc, fmt)
+    if lines and fmt == "txt":
+        draft.source = {"format": "txt", "mode": "lines", "via": "docx"}
+        draft.notes = ["one paragraph per line"]
     return draft
 
 
@@ -259,7 +291,7 @@ def ingest(path: Path, ws_root: Path) -> Result:
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     existing = _versions(ws_root)
-    draft = read(path, data)
+    draft = read(path, data, lines=txt_lines(ws_root))
     if not draft.paragraphs:
         raise IngestError("no text found")
     if path.suffix.lower() == ".docx" and not is_last_read(ws_root, path.resolve(), digest):
@@ -291,7 +323,7 @@ def reingest(ws_root: Path, version: str, source_name: str = "") -> Result:
     if not found:
         raise IngestError(f"no manuscript/{version}.* to read again")
     data = found[0].read_bytes()
-    draft = read(found[0], data)
+    draft = read(found[0], data, lines=txt_lines(ws_root))
     if not draft.paragraphs:
         raise IngestError(f"no text found in manuscript/{found[0].name}")
     digest = hashlib.sha256(data).hexdigest()
@@ -312,6 +344,7 @@ def _write_text(ws_root: Path, version: str, source_name: str, digest: str, draf
         "pages_known": draft.pages_known,
         "words": len(draft.text.split()),
         "notes": draft.notes,
+        **({"source": draft.source} if draft.source else {}),
         "paragraphs": [p.meta() for p in draft.paragraphs],
     }
     (ws_root / "text" / f"{version}.meta.json").write_text(

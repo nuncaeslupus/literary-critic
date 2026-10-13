@@ -132,12 +132,17 @@ class Locations:
         ats = [str(p.get("at", "")) for p in load_meta(ws_root, version)]
         if len(ats) != len(ix.paragraphs) or not all(ats):
             raise LocateError(f"{version} was not read through doc-control: run `lc ingest` again")
+        meta_file = ws_root / "text" / f"{version}.meta.json"
+        if ingest.converted_text(json.loads(meta_file.read_text(encoding="utf-8"))):
+            raise LocateError(f"{version} was ingested by an older release: run `lc upgrade`")
         snapshots = [p for p in (ws_root / "manuscript").glob(f"{version}.*") if p.is_file()]
         if not snapshots:
             raise LocateError(f"the snapshot of {version} is missing from manuscript/")
 
+        lines = ingest.txt_lines(ws_root)
+
         def load() -> Rows:
-            with ingest.docx_of(snapshots[0]) as (docx, _), dc.open(docx) as doc:
+            with ingest.readable(snapshots[0], lines=lines) as file, dc.open(file) as doc:
                 return read_rows(doc)
 
         return cls(ix, ats, load, lang)

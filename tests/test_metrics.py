@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import convert, corpus, metrics, structure
+from litcritic import corpus, ingest, metrics, structure
 from litcritic import textstats as ts
 from litcritic.cli import main
 from litcritic.workspace import repo_root
@@ -76,7 +76,7 @@ def test_mtld_extremes() -> None:
 
 
 def _ctx(slug: str, lang: str, **extra: Any) -> metrics.Context:
-    d = convert.read_txt(corpus.get(slug).path.read_bytes())
+    d = ingest.read(corpus.get(slug).path)
     paras = [p.text for p in d.paragraphs]
     data = structure.to_json(
         structure.detect(paras, [p.meta() for p in d.paragraphs], fmt="txt"), "v001"

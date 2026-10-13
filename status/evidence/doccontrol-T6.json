@@ -16,7 +16,7 @@
       "matched": 22
     }
   },
-  "detail": "Both corpus texts ingested from .txt with `lc ingest` (plain paragraphs: the converter writes no headings) and indexed with `lc anchor`: doc-control segment over the converted .docx with the novel profile and its per-format settings (chapter_blank_lines 2 for .txt, chapter_level auto for .md) and the work language; every chapter start carries doc-control's `isolated` signal. Detected chapter starts compared with the gold heading lines in tests/fixtures/gold/chapters.json. scene_boundary_f1 over the nine variants of tests/test_anchor.py stays 1.0.",
+  "detail": "Both corpus texts ingested from .txt with `lc ingest` (plain paragraphs, no headings) and indexed with `lc anchor`: doc-control segment over the .txt itself (doc-control 0.4 reads it directly) with the novel profile and its per-format settings (chapter_blank_lines 2 for .txt, chapter_level auto for .md) and the work language; every chapter start carries doc-control's `isolated` signal. Detected chapter starts compared with the gold heading lines in tests/fixtures/gold/chapters.json. scene_boundary_f1 over the nine variants of tests/test_anchor.py stays 1.0.",
   "differences_from_old_detector": {
     "chapter_starts": "none: the same 10 and 22 chapter starts as structure.detect gave",
     "chapter_titles": "Jekyll and Hyde: none. Marianela: 18 of 22 titles equal the old detector's ('-I- Perdido'), from doc-control's heading_last; the other 4 gain a title line the old detector left out as too long: -III-, -X-, -XIV- ('-XIV- De cómo la Virgen María se apareció a la Nela') and -XVIII-",

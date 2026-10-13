@@ -217,7 +217,7 @@ class Hit:
 class Resolver:
     """A draft as doc-control sees it, for ``anchor.resolve`` in exact mode.
 
-    The draft's paragraphs are written to a minimal ``.docx`` on first use (most spans
+    The draft's paragraphs are written to a plain-text file on first use (most spans
     never need it: their paragraphs kept their text) and held open until ``close``.
     Answers are cached per anchor. ``fuzzy`` counts places doc-control gave as fuzzy
     matches: exact mode never should, and they are never used.
@@ -250,7 +250,7 @@ class Resolver:
             with ExitStack() as stack:
                 folder = Path(stack.enter_context(tempfile.TemporaryDirectory()))
                 self._doc, ats = stack.enter_context(
-                    diff.as_docx(self.text.paragraphs, folder, "draft", normalized=False)
+                    diff.as_document(self.text.paragraphs, folder, "draft", normalized=False)
                 )
                 self._stack = stack.pop_all()
             self._numbers, self._fps, self._index = [], [], {}

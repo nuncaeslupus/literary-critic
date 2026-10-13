@@ -7,7 +7,10 @@
    failure at any later step restores it by itself.
 2. **Re-read every draft** from its snapshot in ``manuscript/`` (never the
    writer's own file): ``text/vNNN.txt`` and a schema-2 meta with doc-control
-   addresses.
+   addresses. A ``.txt`` or ``.md`` draft read through a converted ``.docx`` copy
+   (before doc-control read them itself; its meta has no ``source``) is read
+   again too: its addresses may differ now (empty lines, raw text), so overrides
+   naming a paragraph whose fingerprint changed are re-keyed to the new one.
 3. **Migrate structure overrides** (spec D-7): each 12-hex fingerprint of the
    first shape is matched by paragraph text in the latest draft and rewritten
    in doc-control's shape; one that matches no paragraph, or several, is kept
@@ -85,6 +88,8 @@ class Report:
     already: bool = False
     backup: Path | None = None
     versions: list[tuple[str, int, int]] = field(default_factory=list)  # (v, old, new) paragraphs
+    readdressed: dict[str, int] = field(default_factory=dict)  # v -> paragraphs with a new `at`
+    rekeyed: int = 0  # overrides moved to a paragraph's new fingerprint
     relabelled: dict[str, int] = field(default_factory=dict)  # v -> paragraphs with a new label
     spans: int = 0
     resolved_before: int = 0
@@ -108,11 +113,21 @@ class Report:
             return ["already up to date: nothing to upgrade"]
         out = [
             f"backup: {self.backup}",
-            *(f"{v}: re-read ({a} -> {b} paragraphs)" for v, a, b in self.versions),
+            *(
+                f"{v}: re-read ({a} -> {b} paragraphs)"
+                + (
+                    f"; {self.readdressed[v]} paragraph addresses changed"
+                    if self.readdressed.get(v)
+                    else ""
+                )
+                for v, a, b in self.versions
+            ),
             f"codex: {self.kept} of {self.resolved_before} resolved spans kept"
             f" ({self.spans} spans in all); lost on upgrade: {self.lost}",
             f"overrides: {self.migrated} migrated, {len(self.unconfirmed)} to re-confirm",
         ]
+        if self.rekeyed:
+            out.append(f"overrides: {self.rekeyed} moved to their paragraph's new address")
         out += [f"override rejected: {e}" for e in self.override_errors]
         out += [f"removed old state: {r}/" for r in self.removed]
         out += self.notes
@@ -145,6 +160,7 @@ def needed(root: Path) -> list[str]:
             not meta
             or meta.get("schema_version") != ingest.META_SCHEMA
             or not all(isinstance(r, dict) and r.get("at") for r in rows)
+            or ingest.converted_text(meta)
         ):
             out.append(f"text/{v}.meta.json")
         s = root / "index" / v / "structure.json"
@@ -155,6 +171,11 @@ def needed(root: Path) -> list[str]:
         out.append("analysis/structure-overrides.json")
     out += [f"{d}/" for d in OLD_STATE if (root / d).exists()]
     return out
+
+
+def _ats(root: Path, v: str) -> list[str]:
+    rows = (_read_json(root / "text" / f"{v}.meta.json") or {}).get("paragraphs") or []
+    return [str(r.get("at", "")) if isinstance(r, dict) else "" for r in rows]
 
 
 # --- backup and restore ----------------------------------------------------------
@@ -302,6 +323,41 @@ def _migrate_overrides(root: Path, old: _Old | None, report: Report) -> None:
     report.migrated = len(migrated)
 
 
+def _rekey_overrides(root: Path, before: list[str], after: list[str], report: Report) -> None:
+    """Overrides in doc-control's shape follow their paragraph to its new fingerprint.
+
+    ``before`` and ``after`` are the latest draft's addresses before and after it was
+    read again, paragraph for paragraph (same text); an override names a paragraph by
+    fingerprint (and ``nth``), which changes when doc-control now sees other text.
+    """
+    f = root / "analysis" / "structure-overrides.json"
+    data = _read_json(f)
+    if not isinstance(data, dict) or not isinstance(data.get("overrides"), list):
+        return
+    old_fps = [a.partition("#")[2] for a in before]
+    if len(before) != len(after) or old_fps == [a.partition("#")[2] for a in after]:
+        return
+    moved = 0
+    for o in data["overrides"]:
+        if not isinstance(o, dict) or not o.get("fp"):
+            continue
+        hits = [i for i, fp in enumerate(old_fps) if fp == o["fp"]]
+        k = int(o.get("nth") or 1) - 1
+        if not 0 <= k < len(hits):
+            continue  # it named no paragraph before either: lc anchor reports it
+        new = structure._forced(after, [hits[k]])[0]
+        if (new["fp"], new.get("nth")) == (o["fp"], o.get("nth")):
+            continue
+        o["fp"] = new["fp"]
+        o.pop("nth", None)
+        if "nth" in new:
+            o["nth"] = new["nth"]
+        moved += 1
+    if moved:
+        _write_atomic(f, json.dumps(data, ensure_ascii=False, indent=1) + "\n")
+    report.rekeyed = moved
+
+
 # --- Codex ---------------------------------------------------------------------------
 
 
@@ -418,9 +474,15 @@ def _language(root: Path) -> str:
 def _steps(root: Path, report: Report) -> None:
     old, names = _old_state(root)
     versions = list(old)
+    before = {v: _ats(root, v) for v in versions}
     for v in versions:
         result = ingest.reingest(root, v, names.get(v, ""))
         report.versions.append((v, len(old[v].paragraphs), result.paragraphs))
+        after = _ats(root, v)
+        if all(before[v]) and len(before[v]) == len(after):
+            report.readdressed[v] = sum(a != b for a, b in zip(before[v], after, strict=True))
+    if versions and old[versions[-1]].paragraphs == _lines(root / "text" / f"{versions[-1]}.txt"):
+        _rekey_overrides(root, before[versions[-1]], _ats(root, versions[-1]), report)
     _migrate_overrides(root, old.get(versions[-1]) if versions else None, report)
     for v in versions:
         _, _, errors = structure.build(root, v)

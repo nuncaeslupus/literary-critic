@@ -5,7 +5,7 @@ from pathlib import Path
 import docgen
 import pytest
 
-from litcritic import codex, convert, corpus, dc, docx_out, ingest, query, rounds
+from litcritic import codex, corpus, dc, docx_out, ingest, query, rounds
 from litcritic import spans as spanlib
 from litcritic.cli import main
 
@@ -16,7 +16,7 @@ DOCX = Path("draft.docx")  # a name for bytes read through doc-control
 def base(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("ws")
     (root / "work.toml").write_text('slug = "ws"\nlanguage = "es"\n', encoding="utf-8")
-    text = [p.text for p in convert.read_txt(corpus.get("marianela").path.read_bytes()).paragraphs]
+    text = [p.text for p in ingest.read(corpus.get("marianela").path).paragraphs]
     paras = [(t, bool(re.fullmatch(r"-[IVXL]+-", t))) for t in text]
     draft = root.parent / "novela.docx"
     draft.write_bytes(docgen.docx(paras, seed=5))

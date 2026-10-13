@@ -30,7 +30,7 @@ def _locations(root: Path, lang: str = "es") -> tuple[query.Index, locate.Locati
 def _document_texts(root: Path) -> list[str]:
     """Every paragraph of the draft's document, as doc-control reads it."""
     snapshot = next((root / "manuscript").glob("v001.*"))
-    with ingest.docx_of(snapshot) as (path, _), dc.open(path) as doc:
+    with ingest.readable(snapshot) as path, dc.open(path) as doc:
         return [str(p.get("text", "")) for p in doc.paragraphs()]
 
 

@@ -37,7 +37,13 @@ works grouped by any of them. `lc init <slug> --title … --language … [--auth
 
 `lc ingest <file> --workspace <slug|folder>` accepts `.txt`, `.md`, `.docx` and
 `.odt`. It copies the file to `manuscript/vNNN.<ext>` and writes `text/vNNN.txt`
-plus its meta file. Tracked deletions, field codes, footnotes and comments are
+plus its meta file. doc-control reads `.docx`, `.txt` and `.md` itself; an
+`.odt` is read through a converted `.docx` copy. A `.txt` with an empty line
+between two paragraphs is read as blocks (lines joined, one empty line
+separates, each extra one counts as a blank line); without one, every line is a
+paragraph (a kind may ask for that always: poems do). Markdown `#` headings are
+headings, emphasis markers are dropped and front matter is skipped. The meta's
+`source` records the format, encoding and mode doc-control used. Tracked deletions, field codes, footnotes and comments are
 left out; soft line breaks become spaces. Ingesting an unchanged file again
 does nothing. Page numbers come from the page breaks Word/LibreOffice last
 rendered, so they are approximate.
@@ -133,7 +139,7 @@ The LLM fills the Codex in bounded packets, each answered with JSON only:
 moved, modified (with similarity), split, merged or deleted — and its new
 anchors; the inserted paragraphs; and `stale_scenes`, the new scenes whose text
 changed. The alignment is doc-control's `diff` of the two snapshots in
-`manuscript/` (or of their converted `.docx` copies), read through each
+`manuscript/` (or of the converted `.docx` copies of `.odt` ones), read through each
 paragraph's address in `text/vNNN.meta.json`. `lc codex sync` uses the same
 alignment to move the Codex to the new draft.
 
@@ -200,8 +206,11 @@ comments are kept. The writer's original file is never modified.
 
 A workspace made before literary-critic read manuscripts through doc-control
 has schema-1 meta files (no `at` addresses), the old structure files and,
-perhaps, overrides in the first shape and the old safe-edit `backups/`. `lc`
-then says the draft "was ingested by an older release". Run once:
+perhaps, overrides in the first shape and the old safe-edit `backups/`. A
+`.txt` or `.md` draft ingested before doc-control read those formats itself (its
+meta has no `source`) has addresses into a converted `.docx` copy, which may
+differ from the file's own (empty lines, raw text). `lc` then says the draft
+"was ingested by an older release". Run once:
 
 ```
 lc upgrade --workspace <slug>
@@ -213,6 +222,8 @@ lc upgrade --workspace <slug>
    demand (the latest backup, checked first).
 2. Every draft is read again from its snapshot in `manuscript/` (the writer's
    own file is never opened) and its structure rebuilt, alignments included.
+   It prints how many paragraph addresses changed per draft; overrides in
+   doc-control's shape follow their paragraph to its new fingerprint.
 3. Overrides in the first shape are matched by paragraph text in the latest
    draft and rewritten in doc-control's shape. One whose paragraph changed, or
    that now matches several paragraphs, is kept under `unconfirmed` in the

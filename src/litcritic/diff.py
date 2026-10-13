@@ -1,7 +1,7 @@
 """Align two drafts paragraph by paragraph, through doc-control's ``diff``.
 
 doc-control aligns the two documents (the manuscript snapshots, or the ``.docx``
-copies converted from ``.txt``, ``.md`` and ``.odt``) and returns change records
+copies converted from ``.odt``) and returns change records
 and an address map (old address -> new address, or none for a paragraph that is
 gone). This module only translates that into the workspace's paragraphs, which
 hold each doc-control address in ``text/vNNN.meta.json``: every old paragraph
@@ -131,31 +131,31 @@ def align_documents(
 
 
 @contextmanager
-def as_docx(
+def as_document(
     paragraphs: list[str], folder: Path, name: str, *, normalized: bool = True
 ) -> Iterator[tuple[dc.Document, list[str]]]:
-    """``paragraphs`` written to a minimal ``folder/name.docx`` and held open, with each
-    paragraph's doc-control address. Blank paragraphs are told by their normalised text,
-    or by their raw text with ``normalized=False`` (faster; for text already clean)."""
-    from litcritic import convert
-    from litcritic.ingest import Draft, Para, clean
-
-    path = folder / f"{name}.docx"
-    path.write_bytes(convert.draft_to_docx(Draft([Para(t) for t in paragraphs], "docx")))
+    """``paragraphs`` written one per line to ``folder/name.txt`` and held open, with each
+    paragraph's doc-control address. With no empty line, doc-control reads every line as
+    a paragraph. ``normalized=False`` skips doc-control's normalised text (faster; for
+    text already clean)."""
+    if any(not p.strip() for p in paragraphs):
+        raise ValueError("an empty paragraph cannot be written one per line")
+    path = folder / f"{name}.txt"
+    lines = (re.sub("[\r\n]", " ", p) + "\n" for p in paragraphs)
+    path.write_text("".join(lines), encoding="utf-8", newline="\n")
     with dc.open(path) as doc:
         rows = doc.paragraphs(normalized=normalized)
-        ats = [str(r["at"]) for r in rows if clean(str(r.get("normalized", r["text"])))]
-        if len(ats) != len(paragraphs):
-            raise ValueError("paragraphs changed on their way through a .docx")
-        yield doc, ats
+        if len(rows) != len(paragraphs):
+            raise ValueError("paragraphs changed on their way through doc-control")
+        yield doc, [str(r["at"]) for r in rows]
 
 
 def align(old: list[str], new: list[str]) -> Alignment:
-    """Align paragraphs held in memory, written to minimal ``.docx`` copies first."""
+    """Align paragraphs held in memory, written to plain-text copies first."""
     with (
         tempfile.TemporaryDirectory() as tmp,
-        as_docx(old, Path(tmp), "old") as (a, a_at),
-        as_docx(new, Path(tmp), "new") as (b, b_at),
+        as_document(old, Path(tmp), "old") as (a, a_at),
+        as_document(new, Path(tmp), "new") as (b, b_at),
     ):
         return align_documents(Path(a.path), Path(b.path), a_at, b_at)
 
@@ -167,7 +167,9 @@ def _addresses(ws_root: Path, version: str, count: int) -> list[str]:
     meta_file = ws_root / "text" / f"{version}.meta.json"
     meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else {}
     ats = [str(r.get("at", "")) for r in meta.get("paragraphs") or []]
-    if len(ats) != count or not all(ats):
+    from litcritic import ingest
+
+    if len(ats) != count or not all(ats) or ingest.converted_text(meta):
         raise ValueError(f"{version} was ingested by an older release; run `lc upgrade`")
     return ats
 
@@ -191,9 +193,10 @@ def versions(ws_root: Path, va: str, vb: str) -> Alignment:
         counts.append(len(text.split("\n")) - (1 if text.endswith("\n") else 0))
     old_at = _addresses(ws_root, va, counts[0])
     new_at = _addresses(ws_root, vb, counts[1])
+    lines = ingest.txt_lines(ws_root)
     with (
-        ingest.docx_of(_manuscript(ws_root, va)) as (a, _),
-        ingest.docx_of(_manuscript(ws_root, vb)) as (b, _),
+        ingest.readable(_manuscript(ws_root, va), lines=lines) as a,
+        ingest.readable(_manuscript(ws_root, vb), lines=lines) as b,
     ):
         return align_documents(a, b, old_at, new_at)
 

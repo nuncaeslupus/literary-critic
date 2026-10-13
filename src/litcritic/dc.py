@@ -1,20 +1,23 @@
 """The one door to doc-control: every document read or write goes through here.
 
 doc-control (PyPI ``doc-control``, stdlib only) owns the generic primitives —
-reading, segmenting, diffing, locating and editing Word documents as tracked
-changes. This module is the only place that imports it, so a change in its API
-touches one file. Calls run in-process with doc-control's own request schemas.
+reading Word documents (and plain text or Markdown as if they were one),
+segmenting, diffing, locating and editing Word documents as tracked changes.
+This module is the only place that imports it, so a change in its API touches
+one file. Calls run in-process with doc-control's own request schemas.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-INSTALL_HINT = "install a doc-control release with API 1.x: pip install 'doc-control>=0.0.1,<0.1'"
+MIN_VERSION = (0, 4, 0)  # the first release that reads .txt and .md itself
+INSTALL_HINT = "install doc-control 0.4 (API 1.x): pip install 'doc-control>=0.4.0,<0.5'"
 
 
 class DocError(Exception):
@@ -48,7 +51,8 @@ def _execute(op: str, request: dict[str, Any]) -> dict[str, Any]:
 
 
 def check() -> None:
-    """Refuse a doc-control whose API major version this code does not know."""
+    """Refuse a doc-control whose API major version this code does not know, or one
+    older than ``MIN_VERSION``."""
     global _checked
     if _checked:
         return
@@ -56,6 +60,10 @@ def check() -> None:
     api = str(envelope.get("api", ""))
     if api.split(".")[0] != str(API_MAJOR):
         raise DocError("API_UNSUPPORTED", f"doc-control API {api} is not supported", INSTALL_HINT)
+    version = str((envelope.get("result") or {}).get("version", ""))
+    parts = tuple(int(n) for n in re.findall(r"\d+", version)[:3])
+    if parts and parts < MIN_VERSION:
+        raise DocError("API_UNSUPPORTED", f"doc-control {version} is too old", INSTALL_HINT)
     _checked = True
 
 
@@ -118,6 +126,13 @@ class Document:
             )
         return rows
 
+    def source(self) -> dict[str, Any]:
+        """How doc-control read a ``.txt`` or ``.md`` file: ``format``, ``encoding`` and
+        ``mode`` (``blocks``, ``lines`` or ``markdown``); empty for a Word document."""
+        with _errors():
+            reply = self._handle().reply("info")
+        return dict((reply.doc or {}).get("source") or {})
+
     def close(self) -> None:
         if self._doc is not None:
             self._doc.close()
@@ -128,6 +143,18 @@ class Document:
 
     def __exit__(self, *_: object) -> None:
         self.close()
+
+
+def decode_text(data: bytes) -> str:
+    """The text of a ``.txt`` file's bytes, decoded as doc-control decodes it (BOMs,
+    UTF-8 with a per-line Windows-1252 fallback), line ends made ``\\n``. Raises
+    ``ValueError`` for bytes it cannot read."""
+    try:
+        from doc_control.ooxml.plaintext import decode
+    except ImportError as exc:
+        raise _missing() from exc
+    text, _ = decode(data)
+    return text
 
 
 @contextmanager
