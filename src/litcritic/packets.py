@@ -73,7 +73,9 @@ INSTRUCTIONS = {
         "usual name; aliases = its other names and nicknames below; titles = role phrases "
         'the text uses as a name for it ("the doctor"), apart from aliases. A generic role '
         "phrase (the doctor, the man, the girl) is a reject unless the text consistently "
-        "uses it for one character. One person under two names the text keeps apart (a "
+        "uses it for one character. A place or group is an entity only if a scene happens "
+        "there or it acts or recurs (named in 2 or more places); a passing mention is a "
+        "reject. One person under two names the text keeps apart (a "
         "double identity) is two entities: give the second same_as = the first's name. "
         "If a candidate is another form of a name under Other names, give that exact name "
         "with your forms as aliases. quote (optional) = exact words of the text naming it, "

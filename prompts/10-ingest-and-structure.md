@@ -26,5 +26,7 @@
    changes, and list those fingerprints under `scene_starts`.
 7. Measure the draft: `lc metrics --workspace <slug>`.
 
+When the structure is right, index the novel: `20-codex-items.md`.
+
 Tell the writer, in plain words, how many chapters and scenes you found and
 anything that looked like a leftover note in the manuscript.

@@ -12,8 +12,10 @@
    `index/v002/alignment.json` maps every old paragraph to its new place and
    lists `stale_scenes`.
 3. Bring the Codex to the new draft: `lc codex sync --workspace <slug>`. It
-   moves every item's spans and lists the items to re-read; re-read only those
-   and fix them with `lc codex update <id> --workspace <slug>`.
+   moves every item's spans and lists the items to re-read. Then
+   `lc index plan --changed --workspace <slug>` packs only the new or changed
+   scenes and new names; run the packet loop of `20-codex-items.md` on them.
+   Fix other flagged items with `lc codex update <id> --workspace <slug>`.
 4. Re-run `lc metrics --workspace <slug>` and compare with the previous
    metrics file: say what moved and whether it moved the intended way.
 5. Open `issue` items moved with the sync; re-check those it flagged against
