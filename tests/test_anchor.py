@@ -64,7 +64,7 @@ def variants() -> dict[str, Variant]:
         v[f"{slug}-txt"] = (paras, meta, truth, set())
         text, text_meta, ch, sc = _with_breaks(paras, meta, truth, seed=3)
         v[f"{slug}-breaks"] = (text, text_meta, ch, sc)
-        md = "\n\n".join(f"# {t}" if i in ch else t for i, t in enumerate(text))
+        md = "\n\n".join(f"## {t}" if i in ch else t for i, t in enumerate(text))
         d = convert.read_md(md.encode())
         v[f"{slug}-md"] = ([p.text for p in d.paragraphs], [p.meta() for p in d.paragraphs], ch, sc)
         docx = ingest.read(DOCX, docgen.docx([(t, i in ch) for i, t in enumerate(text)], seed=4))
@@ -96,8 +96,11 @@ def _f1(expected: set[tuple[str, int]], got: set[tuple[str, int]]) -> float:
     return 2 * p * r / (p + r)
 
 
-def _detected(text: list[str], meta: list[dict[str, Any]]) -> tuple[set[int], set[int]]:
-    s = structure.detect(text, meta)
+FORMATS = {"txt": "txt", "breaks": "txt", "md": "md", "docx": "docx", "only": "docx"}
+
+
+def _detected(text: list[str], meta: list[dict[str, Any]], fmt: str) -> tuple[set[int], set[int]]:
+    s = structure.detect(text, meta, fmt=fmt)
     chapters = {c.start for c in s.chapters if c.reason != "front"}
     first_body = {c.heading[-1] + 1 if c.heading else c.start for c in s.chapters}
     return chapters, s.scene_starts - first_body
@@ -108,7 +111,7 @@ def scene_boundary_f1() -> tuple[float, dict[str, float]]:
     tot_exp: set[tuple[str, str, int]] = set()
     tot_got: set[tuple[str, str, int]] = set()
     for name, (text, meta, ch, sc) in variants().items():
-        got_ch, got_sc = _detected(text, meta)
+        got_ch, got_sc = _detected(text, meta, FORMATS[name.rsplit("-", 1)[1]])
         exp = {("c", i) for i in ch} | {("s", i) for i in sc}
         got = {("c", i) for i in got_ch} | {("s", i) for i in got_sc}
         per[name] = round(_f1(exp, got), 4)
@@ -127,16 +130,16 @@ def test_structure_detects_chapters_and_breaks() -> None:
 
 def test_known_corpus_structure() -> None:
     for slug, n in (("marianela", 22), ("jekyll-hyde", 10)):
-        s = structure.detect(*_read(slug))
+        s = structure.detect(*_read(slug), fmt="txt")
         assert len([c for c in s.chapters if c.reason != "front"]) == n
         assert s.chapters[0].reason == "front"
-    s = structure.detect(*_read("marianela"))
+    s = structure.detect(*_read("marianela"), fmt="txt")
     assert s.chapters[1].title == "-I- Perdido"  # doc-control's heading_last subtitle
 
 
 def test_anchors_unique_and_readable() -> None:
     text, meta, _, _ = variants()["marianela-breaks"]
-    s = structure.detect(text, meta)
+    s = structure.detect(text, meta, fmt="txt")
     anchors = s.anchors()
     assert len(set(anchors)) == len(anchors) == len(text)
     assert all(re.fullmatch(r"c\d\d\.s\d+\.p\d+", a) for a in anchors)
@@ -210,9 +213,9 @@ def test_review_regressions() -> None:
     assert s.scenes[-1].signals[0] == "scene_style"
     scene = structure.to_json(s, "v001")["chapters"][-1]["scenes"][-1]
     assert scene["start"] == 2 and scene["signals"][0] == "scene_style"
-    # An ornament under a chapter title opens no scene of its own.
+    # An ornament under a chapter title stays in the heading block.
     s = structure.detect(["Chapter 1", "* * *", body, "Chapter 2", body, "Chapter 3", body])
-    assert s.anchors()[:3] == ["c01.s0.p1", "c01.s1.p1", "c01.s1.p2"]
+    assert s.anchors()[:3] == ["c01.s0.p1", "c01.s0.p2", "c01.s1.p1"]
     # Many H1 chapters with H2 subheads: H1 stays the chapter level, H2 is ignored.
     text: list[str] = []
     meta2: list[dict[str, Any]] = []

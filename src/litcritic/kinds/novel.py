@@ -15,5 +15,11 @@ NAME = "novel"
 TYPES_DIR: Path | None = None
 CHECKLIST = repo_root() / "checklist"
 PROFILE: dict[str, Any] = {}
+# Per manuscript format: plain text marks a heading with a wider gap above a short
+# line; Markdown novels may use any heading level for chapters.
+FORMAT_PROFILE: dict[str, dict[str, Any]] = {
+    "txt": {"chapter_blank_lines": 2},
+    "md": {"chapter_level": "auto"},
+}
 
-__all__ = ["CHECKLIST", "NAME", "PROFILE", "TYPES_DIR"]
+__all__ = ["CHECKLIST", "FORMAT_PROFILE", "NAME", "PROFILE", "TYPES_DIR"]

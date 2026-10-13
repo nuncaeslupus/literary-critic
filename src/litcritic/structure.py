@@ -139,7 +139,8 @@ def segment(
         request["overrides"] = overrides
     found = doc.run("segment", {**request, "unit": "chapters"})
     parts_found = doc.run("segment", {**request, "unit": "parts"})["parts"]
-    scenes_found = doc.run("segment", {**request, "unit": "scenes"})["scenes"]
+    scene_reply = doc.run("segment", {**request, "unit": "scenes"})
+    scenes_found = scene_reply["scenes"]
     errors = [
         f"{o['kind']} {o['action']} {o['fp']}"
         + (f" (nth {o['nth']})" if "nth" in o else "")
@@ -185,6 +186,12 @@ def segment(
                 scene_starts.add(i + 1)
         else:
             scene_starts.add(i)
+    # A scene break doc-control did not open a scene at (an ornament under a title, or
+    # next to another break) is still a break: it stays in the heading block or closes
+    # the scene before it. The in-process list of suppressed starts is whole.
+    for row in scene_reply.get("suppressed", []):
+        if row["kind"] == "scene" and row["reason"] == "no_text_between":
+            breaks.add(index(_number(str(row["at"]))))
     for c in chapters:  # each chapter's first scene opens after its heading
         body = c.heading[-1] + 1 if c.heading else c.start
         while body in breaks or body in {p.start for p in parts}:
@@ -203,10 +210,14 @@ def segment(
 
 
 def _settings(
-    kind: Any, paragraphs: list[str], meta: list[dict[str, Any]]
+    kind: Any, paragraphs: list[str], meta: list[dict[str, Any]], fmt: str
 ) -> tuple[dict[str, Any], list[int]]:
+    """The kind's ``segment`` profile for a draft in format ``fmt``, and the chapter
+    starts the kind proposes."""
+    profile = dict(getattr(kind, "PROFILE", {}))
+    profile.update(getattr(kind, "FORMAT_PROFILE", {}).get(fmt, {}))
     propose = getattr(kind, "chapter_starts", None)
-    return dict(getattr(kind, "PROFILE", {})), (propose(paragraphs, meta) if propose else [])
+    return profile, (propose(paragraphs, meta) if propose else [])
 
 
 def detect(
@@ -215,11 +226,13 @@ def detect(
     kind: str = kinds.DEFAULT,
     overrides: list[dict[str, Any]] | None = None,
     language: str = "es",
+    fmt: str = "docx",
 ) -> Structure:
     """The structure of paragraphs held in memory (tests, examples).
 
     The paragraphs and their layout facts (``meta`` rows as ingest writes them)
-    are written to a minimal ``.docx`` and segmented like an ingested draft.
+    are written to a minimal ``.docx`` and segmented like an ingested draft of
+    format ``fmt`` (``txt``, ``md``, ``odt`` or ``docx``).
     """
     from litcritic import convert
     from litcritic.ingest import Draft, Para, clean
@@ -235,7 +248,7 @@ def detect(
         "docx",
     )
     module = kinds.get(kind)
-    profile, starts = _settings(module, paragraphs, meta)
+    profile, starts = _settings(module, paragraphs, meta, fmt)
     with tempfile.TemporaryDirectory() as tmp:
         path = Path(tmp) / "draft.docx"
         path.write_bytes(convert.draft_to_docx(draft))
@@ -443,7 +456,8 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     )
     if source is None:
         raise FileNotFoundError(f"no manuscript/{version}.* to read the structure from")
-    profile, starts = _settings(kinds.of_work(ws_root), paragraphs, rows)
+    fmt = str(meta.get("format") or source.suffix[1:])
+    profile, starts = _settings(kinds.of_work(ws_root), paragraphs, rows, fmt)
     overrides, errors = load_overrides(ws_root, paragraphs, ats)
     language = _work_language(ws_root)
     with ingest.docx_of(source) as (docx, _), dc.open(docx) as doc:
