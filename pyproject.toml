@@ -41,3 +41,6 @@ files = ["src", "tests"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.uv.sources]
+doc-control = { git = "https://github.com/nuncaeslupus/doc-control", rev = "101117f92c7727bb9a226cae40706926b2146af2" }

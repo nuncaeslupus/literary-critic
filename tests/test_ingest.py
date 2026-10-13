@@ -1,19 +1,22 @@
 import json
 import re
+import time
 from pathlib import Path
 
 import docgen
 import pytest
 
-from litcritic import corpus, ingest
+from litcritic import convert, corpus, dc, ingest
 from litcritic.cli import main
+
+DOCX = Path("draft.docx")  # a name for bytes read through doc-control
 
 CHAPTER = re.compile(r"^-[IVXL]+-$")
 
 
 def _twin() -> tuple[list[str], list[tuple[str, bool]]]:
     """Marianela as ingested from its .txt, and the same paragraphs for a .docx/.odt."""
-    txt = ingest.read_txt(corpus.get("marianela").path.read_bytes())
+    txt = convert.read_txt(corpus.get("marianela").path.read_bytes())
     texts = [p.text for p in txt.paragraphs]
     return texts, [(t, bool(CHAPTER.match(t))) for t in texts]
 
@@ -25,14 +28,17 @@ def _fidelity(expected: list[str], got: list[str]) -> float:
 
 def test_docx_paragraphs_match_text() -> None:
     texts, paras = _twin()
-    draft = ingest.read_docx(docgen.docx(paras, seed=1))
+    draft = ingest.read(DOCX, docgen.docx(paras, seed=1))
     got = [p.text for p in draft.paragraphs]
     assert _fidelity(texts, got) >= 0.999
     assert got == texts
     headings = [p for p in draft.paragraphs if p.heading]
     assert len(headings) == 22
     assert all(p.heading == 1 and p.centered and p.page_break_before for p in headings)
-    assert draft.pages_known and headings[-1].page == 23
+    # Pages are doc-control's estimate: rendered marks (here only before each
+    # heading) and a word-count model between them.
+    pages = [p.page for p in draft.paragraphs]
+    assert draft.pages_known and pages == sorted(pages) and headings[-1].page >= 23
     assert all(
         p.blank_before == 1
         for i, p in enumerate(draft.paragraphs[1:])
@@ -42,7 +48,7 @@ def test_docx_paragraphs_match_text() -> None:
 
 def test_odt_paragraphs_match_text() -> None:
     texts, paras = _twin()
-    draft = ingest.read_odt(docgen.odt(paras, seed=2))
+    draft = ingest.read(Path("x.odt"), docgen.odt(paras, seed=2))
     assert [p.text for p in draft.paragraphs] == texts
     headings = [p for p in draft.paragraphs if p.heading]
     assert len(headings) == 22 and all(p.centered for p in headings)
@@ -54,13 +60,13 @@ def test_txt_modes() -> None:
         b"One line that was wrapped by the editor at a fixed\nwidth.\n\n\n\n"
         b"Two lines that were also wrapped at that same\nwidth.\n"
     )
-    wrapped = ingest.read_txt(text)
+    wrapped = convert.read_txt(text)
     assert [p.text for p in wrapped.paragraphs] == [
         "One line that was wrapped by the editor at a fixed width.",
         "Two lines that were also wrapped at that same width.",
     ]
     assert wrapped.paragraphs[1].blank_before == 2
-    per_line = ingest.read_txt("Uno.\r\nDos.\r\n\r\nTres.".encode("cp1252"))
+    per_line = convert.read_txt("Uno.\r\nDos.\r\n\r\nTres.".encode("cp1252"))
     assert [(p.text, p.blank_before) for p in per_line.paragraphs] == [
         ("Uno.", 0),
         ("Dos.", 0),
@@ -69,7 +75,7 @@ def test_txt_modes() -> None:
 
 
 def test_markdown() -> None:
-    draft = ingest.read_md(
+    draft = convert.read_md(
         b"# Chapter *One*\n\nShe said *no*\nand **left**.\n\n* * *\n\nA \\*star\\*."
     )
     assert [(p.text, p.heading) for p in draft.paragraphs] == [
@@ -86,7 +92,7 @@ def test_clean_normalises() -> None:
 
 def test_bad_files(tmp_path: Path) -> None:
     with pytest.raises(ingest.IngestError):
-        ingest.read_docx(b"not a zip")
+        ingest.read(DOCX, b"not a zip")
     bad = tmp_path / "x.pdf"
     bad.write_bytes(b"%PDF")
     with pytest.raises(ingest.IngestError, match="unsupported"):
@@ -133,8 +139,9 @@ def test_docx_explicit_and_rendered_page_breaks() -> None:
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("[Content_Types].xml", docgen.CT)
         zf.writestr("word/document.xml", f"<w:document {w}><w:body>{body}</w:body></w:document>")
-    paras = ingest.read_docx(buf.getvalue()).paragraphs
+    paras = ingest.read(DOCX, buf.getvalue()).paragraphs
     assert [(p.page, p.page_break_before) for p in paras] == [
         (1, False),
         (2, True),  # explicit break: marked, counted once
@@ -145,13 +152,13 @@ def test_docx_explicit_and_rendered_page_breaks() -> None:
 
 def test_review_regressions(tmp_path: Path) -> None:
     # UTF-16 with BOM decodes; without BOM it is refused rather than garbled.
-    assert [p.text for p in ingest.read_txt("Hola mundo.\n".encode("utf-16")).paragraphs] == [
+    assert [p.text for p in convert.read_txt("Hola mundo.\n".encode("utf-16")).paragraphs] == [
         "Hola mundo."
     ]
     with pytest.raises(ingest.IngestError, match="UTF-16"):
-        ingest.read_txt("Hola mundo.".encode("utf-16-le"))
+        convert.read_txt("Hola mundo.".encode("utf-16-le"))
     # A Markdown heading directly followed by text keeps its level.
-    md = ingest.read_md(b"# Chapter One\nShe left.\n\nThen more.")
+    md = convert.read_md(b"# Chapter One\nShe left.\n\nThen more.")
     assert [(p.text, p.heading) for p in md.paragraphs] == [
         ("Chapter One", 1),
         ("She left.", 0),
@@ -161,7 +168,7 @@ def test_review_regressions(tmp_path: Path) -> None:
     lines = ["Short line.\n\n"] * 7 + [
         "A wrapped line that goes on and on, cut at a fixed\nwidth by the editor.\n\n"
     ] * 3
-    assert len(ingest.read_txt("".join(lines).encode()).paragraphs) == 10
+    assert len(convert.read_txt("".join(lines).encode()).paragraphs) == 10
     # A gap in version numbers never overwrites an existing snapshot.
     ws = tmp_path / "ws"
     (ws / "manuscript").mkdir(parents=True)
@@ -202,3 +209,43 @@ def test_workspace_inside_repo_is_refused(tmp_path: Path) -> None:
     finally:
         (inside / "work.toml").unlink()
         inside.rmdir()
+
+
+def _novel_docx(words: int) -> bytes:
+    """A generated .docx of at least ``words`` words: Marianela's paragraphs, repeated."""
+    _, paras = _twin()
+    out: list[tuple[str, bool]] = []
+    count = 0
+    while count < words:
+        for text, heading in paras:
+            out.append((text, heading))
+            count += len(text.split())
+            if count >= words:
+                break
+    return docgen.docx(out, seed=9)
+
+
+def test_ingest_100k_words_under_budget(tmp_path: Path) -> None:
+    src = tmp_path / "novel.docx"
+    src.write_bytes(_novel_docx(100_000))
+    dc.check()  # doc-control's import and version check are paid once per process
+    start = time.perf_counter()
+    result = ingest.ingest(src, tmp_path / "ws")
+    elapsed = time.perf_counter() - start
+    meta = json.loads((tmp_path / "ws" / "text" / "v001.meta.json").read_text(encoding="utf-8"))
+    assert meta["words"] >= 100_000 and result.paragraphs == len(meta["paragraphs"])
+    assert elapsed <= 3.0, f"ingest_100k_words_s = {elapsed:.2f}"
+
+
+def test_meta_paragraphs_carry_addresses(tmp_path: Path) -> None:
+    _, paras = _twin()
+    src = tmp_path / "draft.docx"
+    src.write_bytes(docgen.docx(paras[:120], seed=3))
+    ingest.ingest(src, tmp_path / "ws")
+    meta = json.loads((tmp_path / "ws" / "text" / "v001.meta.json").read_text(encoding="utf-8"))
+    lines = (tmp_path / "ws" / "text" / "v001.txt").read_text(encoding="utf-8").split("\n")[:-1]
+    assert meta["schema_version"] == 2 and len(meta["paragraphs"]) == len(lines) == 120
+    assert all("src" not in m for m in meta["paragraphs"])
+    for m, line in zip(meta["paragraphs"], lines, strict=True):
+        got = dc.run("para.get", {"doc": str(src), "at": m["at"]})
+        assert got["at"] == m["at"] and ingest.clean(got["text"]) == line

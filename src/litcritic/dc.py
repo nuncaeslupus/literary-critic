@@ -8,6 +8,9 @@ touches one file. Calls run in-process with doc-control's own request schemas.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
@@ -30,12 +33,16 @@ class DocError(Exception):
 _checked = False
 
 
+def _missing() -> DocError:
+    return DocError("NOT_INSTALLED", "doc-control is not installed", INSTALL_HINT)
+
+
 def _execute(op: str, request: dict[str, Any]) -> dict[str, Any]:
     try:
         from doc_control.cli import execute
         from doc_control.registry import load_operations
     except ImportError as exc:
-        raise DocError("NOT_INSTALLED", "doc-control is not installed", INSTALL_HINT) from exc
+        raise _missing() from exc
     envelope, _ = execute(load_operations(), op, request)
     return envelope
 
@@ -74,3 +81,69 @@ def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
     if envelope.get("next"):
         result["_next"] = envelope["next"]
     return result
+
+
+class Document:
+    """A document held open for several operations (doc-control's in-process API).
+
+    doc-control parses the file once and reuses the parse for every read until the
+    file changes. Results are whole: no response cap, no cursor to follow.
+    """
+
+    def __init__(self, path: str | Path) -> None:
+        self.path = str(path)
+        self._doc: Any = None
+
+    def _handle(self) -> Any:
+        if self._doc is None:
+            check()
+            try:
+                from doc_control import api
+            except ImportError as exc:
+                raise _missing() from exc
+            self._doc = api.open(self.path)
+        return self._doc
+
+    def run(self, op: str, request: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The result of ``op`` on this document (``doc`` filled in); raises ``DocError``."""
+        with _errors():
+            result: dict[str, Any] = self._handle().run(op, request or {})
+        return result
+
+    def paragraphs(self, *, normalized: bool = False, pages: bool = False) -> list[dict[str, Any]]:
+        """Every paragraph with its address (``at``), text, style and layout facts."""
+        with _errors():
+            rows: list[dict[str, Any]] = self._handle().paragraphs(
+                normalized=normalized, pages=pages
+            )
+        return rows
+
+    def close(self) -> None:
+        if self._doc is not None:
+            self._doc.close()
+            self._doc = None
+
+    def __enter__(self) -> Document:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+
+@contextmanager
+def _errors() -> Iterator[None]:
+    """doc-control's exceptions as ``DocError``."""
+    try:
+        from doc_control.errors import HINTS, DocControlError
+    except ImportError as exc:
+        raise _missing() from exc
+    try:
+        yield
+    except DocControlError as exc:
+        hint = HINTS.get(exc.code, "")
+        raise DocError(str(exc.code), exc.message, hint, dict(exc.details)) from exc
+
+
+def open(path: str | Path) -> Document:
+    """Open ``path`` for several doc-control operations; use it as a context manager."""
+    return Document(path)

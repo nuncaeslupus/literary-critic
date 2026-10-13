@@ -80,7 +80,7 @@ def test_convert_roundtrip_keeps_layout_facts(tmp_path: Path) -> None:
     total = checked = 0
     for name in ("marianela", "jekyll-hyde"):
         for suffix, data in _inputs(name).items():
-            draft = ingest.read(Path(f"x{suffix}"), data)
+            draft = convert.source(Path(f"x{suffix}"), data)
             assert draft.paragraphs
             docx = convert.to_docx(Path(f"x{suffix}"), data)
             checked += len(draft.paragraphs)
@@ -95,7 +95,7 @@ def test_convert_roundtrip_keeps_layout_facts(tmp_path: Path) -> None:
         ],
         "txt",
     )
-    total += _mismatches(synth, convert._docx(synth), tmp_path, "synth")
+    total += _mismatches(synth, convert.draft_to_docx(synth), tmp_path, "synth")
     checked += len(synth.paragraphs)
     EVIDENCE.write_text(
         json.dumps(

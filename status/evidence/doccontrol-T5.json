@@ -1,0 +1,7 @@
+{
+  "metric": "ingest_100k_words_s",
+  "value": 1.86,
+  "threshold": 3,
+  "detail": "Worst of three fresh-process runs of ingest.ingest on a generated 100,033-word .docx (2,506 paragraphs, 1.09 MB; Marianela's paragraphs repeated through tests/docgen.py): 1.63, 1.74, 1.86 s, doc-control's import and version check excluded. The whole ingest is timed: paragraphs.list (normalized, pages) plus page.estimate for the rendered-mark count, doc-control's open backup, snapshot, text and meta. Every meta paragraph's `at` resolves through para.get (test_meta_paragraphs_carry_addresses). doc-control at 101117f92c7727bb9a226cae40706926b2146af2.",
+  "command": "uv run pytest tests/test_ingest.py::test_ingest_100k_words_under_budget tests/test_ingest.py::test_meta_paragraphs_carry_addresses"
+}

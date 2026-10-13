@@ -219,11 +219,7 @@ wheels = [
 [[package]]
 name = "doc-control"
 version = "0.0.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5b/3a/2e984b923150b62b24e577deba12b8ef6a8696e321fc8122151417d79fa2/doc_control-0.0.1.tar.gz", hash = "sha256:e2218c9e000c4f124041a77ff5329b38ba1a7f707097e73a9ccb323db4fc7474", size = 387089, upload-time = "2026-10-12T23:17:23.576Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/dc/5385a333d69eab4a257b72c32b0bba2d445d2798a6a548b5a73bc0a90574/doc_control-0.0.1-py3-none-any.whl", hash = "sha256:7bb2009644d23e5e0976c3e0641e511e0fc0c8c3abea889d3461f07c5f036fa6", size = 246267, upload-time = "2026-10-12T23:17:21.995Z" },
-]
+source = { git = "https://github.com/nuncaeslupus/doc-control?rev=101117f92c7727bb9a226cae40706926b2146af2#101117f92c7727bb9a226cae40706926b2146af2" }
 
 [[package]]
 name = "filelock"
@@ -386,7 +382,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "doc-control", specifier = ">=0.0.1,<0.1" }]
+requires-dist = [{ name = "doc-control", git = "https://github.com/nuncaeslupus/doc-control?rev=101117f92c7727bb9a226cae40706926b2146af2" }]
 
 [package.metadata.requires-dev]
 dev = [

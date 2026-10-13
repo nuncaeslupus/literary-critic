@@ -157,15 +157,15 @@ class _Places:
     def __init__(self, ws_root: Path, doc: Path, data: bytes, lang: str = "en") -> None:
         self.ix: query.Index | None = None
         self.by_ordinal: dict[int, int] = {}
-        self.texts: list[str] = []  # paragraph text by position among all w:p
+        self.texts: list[str] = []  # paragraph text by doc-control number - 1
         try:
             draft = ingest.read(doc, data)
         except (OSError, ValueError, KeyError, ingest.IngestError):
             return
         for p in draft.paragraphs:
-            if p.src >= 0:
-                self.texts += [""] * (p.src + 1 - len(self.texts))
-                self.texts[p.src] = p.text
+            if p.ordinal >= 0:
+                self.texts += [""] * (p.ordinal + 1 - len(self.texts))
+                self.texts[p.ordinal] = p.text
         self.finder = Finder(self.texts)
         try:
             version = structure.latest_version(ws_root)
@@ -175,9 +175,9 @@ class _Places:
         if not ix.anchors or [p.text for p in draft.paragraphs] != ix.paragraphs:
             return
         self.ix = ix
-        self.by_ordinal = {p.src: i for i, p in enumerate(draft.paragraphs)}
+        self.by_ordinal = {p.ordinal: i for i, p in enumerate(draft.paragraphs)}
         self.builder = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
-        self.ordinal_of = {i: p.src for i, p in enumerate(draft.paragraphs)}
+        self.ordinal_of = {i: p.ordinal for i, p in enumerate(draft.paragraphs)}
 
     def locator(self, ordinal: int) -> dict[str, Any] | None:
         i = self.by_ordinal.get(ordinal)

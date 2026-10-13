@@ -136,6 +136,11 @@ def _tiny_docx() -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr(
+            "[Content_Types].xml",
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+            '<Default Extension="xml" ContentType="application/xml"/></Types>',
+        )
+        zf.writestr(
             "word/document.xml", f'<w:document xmlns:w="{w}"><w:body>{paras}</w:body></w:document>'
         )
     return buf.getvalue()
@@ -195,7 +200,9 @@ def doctor(home: Path | None = None) -> list[str]:
             if "c02" not in query.toc(query.load(ws.root)):
                 problems.append("queries did not run")
             pack.pack(ws.root, Path(tmp) / "check.zip")
-            if len(ingest.read_docx(_tiny_docx()).paragraphs) != 3:
+            tiny = Path(tmp) / "tiny.docx"
+            tiny.write_bytes(_tiny_docx())
+            if len(ingest.read(tiny).paragraphs) != 3:
                 problems.append("Word (.docx) reading gave an unexpected result")
     except Exception as exc:  # report, never crash: this is a diagnostic
         problems.append(f"{type(exc).__name__}: {exc}")

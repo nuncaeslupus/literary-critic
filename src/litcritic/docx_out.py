@@ -1,17 +1,16 @@
 """A copy of the writer's .docx with each action as an anchored comment.
 
 The original file is never modified: the copy is written next to the round's
-actions. Paragraphs are found by their position among the document's ``w:p``
-elements, recorded at ingest time; doc-control numbers the same paragraphs
-``p1``, ``p2``, ... and writes all the comments as one ``batch`` of
+actions. Paragraphs are named by their doc-control address (``at``), read at
+ingest time; doc-control writes all the comments as one ``batch`` of
 ``comment.add``, so no Word XML is handled here.
 """
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
-import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -25,46 +24,30 @@ class DocxError(Exception):
     """The comments copy cannot be made."""
 
 
-def _addresses(path: Path) -> list[str]:
-    """Doc-control's address of every paragraph of the file, in document order."""
-    out: list[str] = []
-    cursor: str | None = None
-    while True:
-        request: dict[str, Any] = {"doc": str(path), "limit": 1000}
-        if cursor:
-            request["cursor"] = cursor
-        result = dc.run("text.normalized", request)
-        for entry in result["paragraphs"]:
-            if not out or out[-1] != entry["at"]:  # a long paragraph comes as several entries
-                out.append(entry["at"])
-        cursor = result.get("_next")
-        if not cursor:
-            return out
+def add_comments(path: Path, targets: dict[str, list[str]]) -> int:
+    """Add comments, in place, to the paragraphs at the given doc-control addresses.
 
-
-def add_comments(path: Path, targets: dict[int, list[str]]) -> int:
-    """Add comments, in place, to the paragraphs at the given w:p ordinals.
-
-    ``targets`` maps a paragraph ordinal (as counted by ingest) to the
-    comment's lines. All comments are written as one all-or-nothing batch.
-    Returns how many comments were added.
+    ``targets`` maps a paragraph address (``p142#a7b2a7b2``, as read at ingest) to
+    the comment's lines. All comments are written as one all-or-nothing batch;
+    doc-control refuses an address whose paragraph changed. Returns how many
+    comments were added.
     """
+    ops = [
+        {"op": "comment.add", "at": at, "text": "\n".join(lines)}
+        for at, lines in sorted(targets.items(), key=lambda t: _number(t[0]))
+    ]
     try:
-        addresses = _addresses(path)
-        ops: list[dict[str, Any]] = []
-        for ordinal in sorted(targets):
-            if ordinal >= len(addresses):
-                raise DocxError(f"paragraph {ordinal} is not in the document")
-            if not addresses[ordinal].startswith(f"p{ordinal + 1}#"):
-                raise DocxError("could not map the document's paragraphs safely; no comments added")
-            ops.append(
-                {"op": "comment.add", "at": addresses[ordinal], "text": "\n".join(targets[ordinal])}
-            )
         if ops:
             dc.run("batch", {"doc": str(path), "ops": ops, "author": AUTHOR})
     except dc.DocError as exc:
         raise DocxError(str(exc)) from exc
     return len(ops)
+
+
+def _number(at: str) -> int:
+    """The paragraph number of an address, so comments go in document order."""
+    m = re.match(r"p(\d+)#", at)
+    return int(m.group(1)) if m else 0
 
 
 def comment_lines(action: dict[str, Any], lang: str) -> list[str]:
@@ -92,23 +75,23 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, int]:
         raise DocxError(f"draft {version} is not a .docx; comments need a Word file")
     data = snapshot.read_bytes()
     try:
-        draft = ingest.read_docx(data)
+        draft = ingest.read(snapshot, data)
         ix = query.load(ws_root, version)
-    except (ingest.IngestError, zipfile.BadZipFile) as exc:
+    except ingest.IngestError as exc:
         raise DocxError(str(exc)) from exc
     if [p.text for p in draft.paragraphs] != ix.paragraphs:
         raise DocxError(f"{snapshot.name} no longer matches text/{version}.txt; re-ingest it")
     lang = rounds.language(ws_root)
     index_of = {a: i for i, a in enumerate(ix.anchors)}
-    targets: dict[int, list[str]] = {}
+    targets: dict[str, list[str]] = {}
     for action in rounds.round_actions(ws_root, round_dir, cx):
         if action["status"] not in ("pending", "accepted") or not action["where"]:
             continue
         anchor = action["where"]["anchor"]
         if anchor not in index_of:
             raise DocxError(f"{action['id']}: {anchor} is not in {version}")
-        ordinal = draft.paragraphs[index_of[anchor]].src
-        targets[ordinal] = [*targets.get(ordinal, []), *comment_lines(action, lang)]
+        at = draft.paragraphs[index_of[anchor]].at
+        targets[at] = [*targets.get(at, []), *comment_lines(action, lang)]
     out = round_dir / f"{version}-comments.docx"
     with tempfile.TemporaryDirectory() as tmp:  # doc-control keeps backups beside the file
         work = Path(tmp) / out.name
