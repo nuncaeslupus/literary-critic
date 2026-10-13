@@ -7,10 +7,12 @@ character offset, at both ends) for speed, and a text quote (the exact text
 with a little context before and after) for truth. Long quotes keep only their
 head, tail, length and hash.
 
-``relocate`` moves a span to a new draft. A span is placed only where its
-exact text is found again. When the text changed, or more than one place fits
-equally well, the span is marked ``changed`` (or ``lost`` when the paragraphs
-it lived in are gone) and is never moved silently.
+``relocate`` moves a span to a new draft. Spans whose paragraphs kept their
+text keep their offsets (checked against the quote); the others are looked up
+with doc-control's ``anchor.resolve`` in exact mode, never fuzzily. A span is
+placed only where its exact text is found again. When the text changed, or more
+than one place fits equally well, the span is marked ``changed`` (or ``lost``
+when the paragraphs it lived in are gone) and is never moved silently.
 
 For a ``changed`` or ``lost`` span the position says where to look and the
 quote keeps the last text seen there; the two no longer agree until the span is
@@ -21,16 +23,25 @@ the writer restores is found again.
 from __future__ import annotations
 
 import hashlib
+import re
+import tempfile
+from contextlib import ExitStack
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+from litcritic import dc, diff
 from litcritic.diff import Alignment
 from litcritic.query import _bare
 
 QUOTE_MAX = 300  # longer quotes keep head, tail, length and hash
 HEAD = 150
 CONTEXT = 32
-TRUSTED_CONTEXT = 24  # matching context characters needed to accept a match away from home
+# doc-control's score (quote and context, 0-1) a match away from the span's old
+# paragraphs needs; the same bar doc-control sets for a far match (FAR_MIN_SCORE)
+AWAY_MIN_SCORE = 0.85
+ADDRESS = re.compile(r"p(\d+)#([^:.]+)")  # a doc-control paragraph address
+RANGE = re.compile(r"p(\d+)#[^:]*:(\d+)-(\d+)")  # a doc-control range in one paragraph
 STATES = ("ok", "moved", "changed", "lost")
 
 
@@ -194,34 +205,109 @@ def matches(span: Span, text: str, g0: int, g1: int) -> bool:
     return text[g0:g1] == span.exact
 
 
-def _occurrences(span: Span, text: str, lo: int = 0, hi: int = -1) -> list[tuple[int, int]]:
-    """Every place in ``text[lo:hi]`` where the stored quote matches exactly."""
-    needle = span.head or span.exact
-    if not needle:
-        raise SpanError("span has no quote (exact or head)")
-    size = span.length if span.head else len(span.exact)
-    hi = len(text) if hi < 0 else hi
-    out = []
-    g = text.find(needle, lo, hi)
-    while g != -1:
-        if g + size <= hi and matches(span, text, g, g + size):
-            out.append((g, g + size))
-        g = text.find(needle, g + 1, hi)
-    return out
+@dataclass(frozen=True)
+class Hit:
+    """A place doc-control gave for a quote: offset into ``Text.joined``, score, match kind."""
+
+    g: int
+    score: float
+    kind: str
 
 
-def _context_score(span: Span, text: str, g0: int, g1: int) -> int:
-    before, after = text[max(0, g0 - CONTEXT) : g0], text[g1 : g1 + CONTEXT]
-    score = 0
-    for a, b in zip(reversed(span.prefix), reversed(before), strict=False):
-        if a != b:
-            break
-        score += 1
-    for a, b in zip(span.suffix, after, strict=False):
-        if a != b:
-            break
-        score += 1
-    return score
+class Resolver:
+    """A draft as doc-control sees it, for ``anchor.resolve`` in exact mode.
+
+    The draft's paragraphs are written to a minimal ``.docx`` on first use (most spans
+    never need it: their paragraphs kept their text) and held open until ``close``.
+    Answers are cached per anchor. ``fuzzy`` counts places doc-control gave as fuzzy
+    matches: exact mode never should, and they are never used.
+    """
+
+    def __init__(self, text: Text) -> None:
+        self.text = text
+        self.calls = 0
+        self.fuzzy = 0
+        self._stack: ExitStack | None = None
+        self._doc: dc.Document | None = None
+        self._numbers: list[int] = []  # doc-control paragraph number of each text paragraph
+        self._fps: list[str] = []
+        self._index: dict[int, int] = {}
+        self._cache: dict[tuple[tuple[str, str], ...], tuple[str, list[Hit]]] = {}
+
+    def __enter__(self) -> Resolver:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        if self._stack is not None:
+            self._stack.close()
+        self._stack = self._doc = None
+
+    def _open(self) -> dc.Document:
+        if self._doc is None:
+            with ExitStack() as stack:
+                folder = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+                self._doc, ats = stack.enter_context(
+                    diff.as_docx(self.text.paragraphs, folder, "draft", normalized=False)
+                )
+                self._stack = stack.pop_all()
+            self._numbers, self._fps, self._index = [], [], {}
+            for k, at in enumerate(ats):
+                m = ADDRESS.fullmatch(at)
+                if m is None:
+                    raise SpanError(f"not a doc-control paragraph address: {at!r}")
+                self._numbers.append(int(m[1]))
+                self._fps.append(m[2])
+                self._index[int(m[1])] = k
+        return self._doc
+
+    def near(self, j: int) -> dict[str, str]:
+        """The ``hint`` and ``fingerprint`` that name paragraph ``j`` as the quote's home."""
+        self._open()
+        return {"hint": f"p{self._numbers[j]}", "fingerprint": self._fps[j]}
+
+    def resolve(self, anchor: dict[str, str]) -> tuple[str, list[Hit]]:
+        """``found`` (one hit), ``ambiguous`` (the tied hits) or ``not_found`` (none)."""
+        key = tuple(sorted(anchor.items()))
+        if key in self._cache:
+            return self._cache[key]
+        doc = self._open()
+        self.calls += 1
+        try:
+            status, rows = "found", [doc.run("anchor.resolve", {"anchor": anchor, "mode": "exact"})]
+        except dc.DocError as exc:
+            if exc.code == "ANCHOR_AMBIGUOUS":
+                status, rows = "ambiguous", list(exc.details.get("candidates") or [])
+            elif exc.code == "ANCHOR_NOT_FOUND":
+                status, rows = "not_found", []
+            else:
+                raise
+        hits = []
+        for row in rows:
+            m = RANGE.fullmatch(str(row["at"]))
+            if row.get("match") == "fuzzy" or m is None or int(m[1]) not in self._index:
+                self.fuzzy += row.get("match") == "fuzzy"
+                continue
+            g = self.text.starts[self._index[int(m[1])]] + int(m[2])
+            hits.append(Hit(g, float(row.get("score", 0.0)), str(row.get("match", "exact"))))
+        out = (status if hits else "not_found", hits)
+        self._cache[key] = out
+        return out
+
+
+def _piece(needle: str) -> tuple[int, str]:
+    """The quote's first line with text in it, and where it starts in the quote.
+
+    doc-control anchors quote one paragraph; the rest of the span is checked here.
+    """
+    k = 0
+    for line in needle.split("\n"):
+        if line.strip():
+            return k, line
+        k += len(line) + 1
+    return 0, ""
 
 
 def relocate(
@@ -231,11 +317,13 @@ def relocate(
     alignment: Alignment,
     draft: str,
     kept: dict[int, int] | None = None,
+    resolver: Resolver | None = None,
 ) -> Span:
     """The span in the new draft, or the same span marked ``changed`` / ``lost``.
 
-    ``kept`` is ``alignment.mapping()``; pass it when relocating many spans.
-    A span whose anchors are not in ``old`` (one already lost) is only searched for.
+    ``kept`` is ``alignment.mapping()`` and ``resolver`` a ``Resolver`` of ``new``; pass
+    both when relocating many spans. A span whose anchors are not in ``old`` (one already
+    lost) is only searched for.
     """
     kept = alignment.mapping() if kept is None else kept
     i0, i1 = old.index.get(span.start.para), old.index.get(span.end.para)
@@ -243,40 +331,66 @@ def relocate(
         i0 = i1 = None
     region: set[int] = set()
     out = Span(**{**span.__dict__, "draft": draft})
+    home: int | None = None
     if i0 is not None and i1 is not None:
         region = {j for i in range(i0, i1 + 1) for j in alignment.old[i]["new"]}
+        home = kept[i0] if i0 in kept else min(region, default=None)
         # Fast path: both end paragraphs kept their text; same offsets, verified.
         if i0 in kept and i1 in kept and kept[i0] <= kept[i1]:
             g0 = new.starts[kept[i0]] + span.start.off
             g1 = new.starts[kept[i1]] + span.end.off
             if matches(span, new.joined, g0, g1):
                 return _placed(out, new, g0, g1, span)
-    # Quote search: the old paragraphs' new home first, then the whole draft.
-    found: list[tuple[int, int]] = []
-    if region:
-        js = sorted(region)
-        lo, hi = new.starts[js[0]], new.starts[js[-1]] + len(new.paragraphs[js[-1]])
-        found = _occurrences(span, new.joined, lo, hi)
-    home = bool(found)
-    if not found:
-        found = _occurrences(span, new.joined)
-    if found:
-        ranked = sorted(
-            ((_context_score(span, new.joined, g0, g1), g0, g1) for g0, g1 in found),
-            reverse=True,
-        )
-        best = ranked[0]
-        unique = len(ranked) == 1 or ranked[1][0] != best[0]
-        # Away from home, a match must also agree with the text around it.
-        if unique and (home or best[0] >= TRUSTED_CONTEXT):
-            return _placed(out, new, best[1], best[2], span)
+    if resolver is None:
+        with Resolver(new) as own:
+            return _search(span, out, new, region, home, own)
+    if resolver.text is not new:
+        raise SpanError("the resolver reads another draft")
+    return _search(span, out, new, region, home, resolver)
+
+
+def _search(
+    span: Span, out: Span, new: Text, region: set[int], home: int | None, rs: Resolver
+) -> Span:
+    """Find the quote with doc-control's ``anchor.resolve`` (exact mode), or flag the span.
+
+    The anchor is the quote's first line, with the stored context; every place doc-control
+    gives is checked against the whole stored quote. One verified place is taken when it
+    is where the old paragraphs went, or when elsewhere doc-control scores its context at
+    least ``AWAY_MIN_SCORE``; a tie is taken only when one tied place is at home.
+    """
+    needle = span.head or span.exact
+    if not needle:
+        raise SpanError("span has no quote (exact or head)")
+    size = span.length if span.head else len(span.exact)
+    k, piece = _piece(needle)
+    status, places = "not_found", []
+    if piece:
+        rest = needle[k + len(piece) :]
+        anchor = {
+            "exact": piece,
+            "prefix": (span.prefix + needle[:k])[-CONTEXT:],
+            "suffix": rest[:CONTEXT] if rest or span.head else span.suffix,
+        }
+        if home is not None:
+            anchor |= rs.near(home)
+        status, hits = rs.resolve(anchor)
+        for h in hits:
+            g0 = h.g - k
+            if g0 >= 0 and matches(span, new.joined, g0, g0 + size):
+                at_home = new.para_of(g0) in region
+                trusted = at_home or (status == "found" and h.score >= AWAY_MIN_SCORE)
+                places.append((g0, g0 + size, trusted))
+    trusted_places = [p for p in places if p[2]]
+    if len(trusted_places) == 1:
+        return _placed(out, new, trusted_places[0][0], trusted_places[0][1], span)
     # Not found, ambiguous or untrusted: point at where to look, flag it.
-    if region or found:
+    if region or places:
         if region:
             js = sorted(region)
             first, last = js[0], js[-1]
         else:
-            first = last = new.para_of(found[0][0])
+            first = last = new.para_of(places[0][0])
         out.start = Pos(new.anchors[first], 0)
         out.end = Pos(new.anchors[last], len(new.paragraphs[last]))
         out.state = "changed"

@@ -1,9 +1,10 @@
 import functools
 import random
+from pathlib import Path
 
 import pytest
 
-from litcritic import corpus, diff, spans, synth
+from litcritic import corpus, dc, diff, spans, synth
 
 
 def _text(paras: list[str], draft: str = "v001") -> spans.Text:
@@ -38,14 +39,27 @@ def _random_spans(old: spans.Text, rng: random.Random, n: int) -> list[spans.Spa
     return out
 
 
+def _occurrences(span: spans.Span, text: str) -> list[tuple[int, int]]:
+    """Every place in ``text`` holding the span's stored quote exactly."""
+    needle = span.head or span.exact
+    size = span.length if span.head else len(span.exact)
+    out = []
+    g = text.find(needle)
+    while g != -1:
+        if spans.matches(span, text, g, g + size):
+            out.append((g, g + size))
+        g = text.find(needle, g + 1)
+    return out
+
+
 def _new_of(entry: dict[str, object]) -> list[int]:
     targets = entry["new"]
     assert isinstance(targets, list)
     return targets
 
 
-def _measure(slug: str, seed: int, rate: float) -> tuple[int, int, int]:
-    """(spans with a known new home, of those found there, misplaced spans)."""
+def _measure(slug: str, seed: int, rate: float) -> tuple[int, int, int, int]:
+    """(spans with a known new home, of those found there, misplaced spans, fuzzy matches)."""
     rng = random.Random(seed)
     source = corpus.get(slug).read()
     old = _text(synth.paragraphs(source))
@@ -54,6 +68,7 @@ def _measure(slug: str, seed: int, rate: float) -> tuple[int, int, int]:
     al = diff.align(old.paragraphs, new.paragraphs)
     kept = al.mapping()
     known = found = misplaced = 0
+    resolver = spans.Resolver(new)
     for span in _random_spans(old, rng, 400):
         i0, i1 = old.index[span.start.para], old.index[span.end.para]
         truth = sorted({j for i in range(i0, i1 + 1) for j in _new_of(draft.old[i])})
@@ -61,8 +76,8 @@ def _measure(slug: str, seed: int, rate: float) -> tuple[int, int, int]:
         if truth:
             lo = new.starts[truth[0]]
             hi = new.starts[truth[-1]] + len(new.paragraphs[truth[-1]])
-            homes = [h for h in spans._occurrences(span, new.joined) if lo <= h[0] and h[1] <= hi]
-        moved = spans.relocate(span, old, new, al, "v002", kept)
+            homes = [h for h in _occurrences(span, new.joined) if lo <= h[0] and h[1] <= hi]
+        moved = spans.relocate(span, old, new, al, "v002", kept, resolver)
         if moved.state in ("ok", "moved"):
             g0 = new.gpos(moved.start.para, moved.start.off)
             g1 = new.gpos(moved.end.para, moved.end.off)
@@ -73,7 +88,8 @@ def _measure(slug: str, seed: int, rate: float) -> tuple[int, int, int]:
             if moved.state in ("ok", "moved"):
                 g0 = new.gpos(moved.start.para, moved.start.off)
                 found += (g0, new.gpos(moved.end.para, moved.end.off)) == homes[0]
-    return known, found, misplaced
+    resolver.close()
+    return known, found, misplaced, resolver.fuzzy
 
 
 # The gate's measurement: both corpus texts, five seeds, edit rates 0.05-0.3.
@@ -81,18 +97,19 @@ RUNS = ((1, 0.05), (2, 0.1), (3, 0.2), (4, 0.1), (5, 0.3))
 
 
 @functools.cache
-def _totals(slug: str) -> tuple[int, int, int]:
+def _totals(slug: str) -> tuple[int, int, int, int]:
     results = [_measure(slug, seed, rate) for seed, rate in RUNS]
     return (
         sum(r[0] for r in results),
         sum(r[1] for r in results),
         sum(r[2] for r in results),
+        sum(r[3] for r in results),
     )
 
 
 @pytest.mark.parametrize("slug", ["marianela", "jekyll-hyde"])
 def test_spans_unchanged_text_relocated_after_edits(slug: str) -> None:
-    known, found, _ = _totals(slug)
+    known, found, _, _ = _totals(slug)
     assert known > 1000
     assert found / known >= 0.98, (found, known)
 
@@ -100,6 +117,39 @@ def test_spans_unchanged_text_relocated_after_edits(slug: str) -> None:
 @pytest.mark.parametrize("slug", ["marianela", "jekyll-hyde"])
 def test_spans_changed_text_never_silently_moved(slug: str) -> None:
     assert _totals(slug)[2] == 0
+    assert _totals(slug)[3] == 0  # doc-control never answered with a fuzzy match
+
+
+def test_relocate_exact_only(tmp_path: Path) -> None:
+    """A one-character edit inside a span yields ``changed``, never a fuzzy move."""
+    paras = [
+        "The lamp was lit early that evening, and the street lay quiet under the fog.",
+        "He walked to the door, listened for a while, and went back to his chair.",
+        "Nobody came.",
+    ]
+    old = _text(paras)
+    quote = "listened for a while, and went back"
+    span = spans.from_quote(old, "v001", quote)
+    edited = paras[1].replace("listened", "listenod")
+    new = _text([paras[0], edited, paras[2]], "v002")
+    al = diff.align(old.paragraphs, new.paragraphs)
+    with spans.Resolver(new) as resolver:
+        moved = spans.relocate(span, old, new, al, "v002", al.mapping(), resolver)
+        assert resolver.calls == 1 and resolver.fuzzy == 0
+    assert moved.state == "changed"
+    assert (moved.start, moved.end) == (
+        spans.Pos(new.anchors[1], 0),
+        spans.Pos(new.anchors[1], len(edited)),
+    )
+    assert moved.exact == quote  # the last text seen, until the item is re-read
+    # doc-control's default mode would have moved it: a fuzzy match, in that paragraph.
+    with diff.as_docx(new.paragraphs, tmp_path, "new") as (doc, ats):
+        anchor = {"exact": quote, "prefix": span.prefix, "suffix": span.suffix}
+        best = doc.run("anchor.resolve", {"anchor": anchor, "mode": "best"})
+        assert best["match"] == "fuzzy" and best["at"].startswith(ats[1] + ":")
+        with pytest.raises(dc.DocError) as exc:
+            doc.run("anchor.resolve", {"anchor": anchor, "mode": "exact"})
+        assert exc.value.code == "ANCHOR_NOT_FOUND"
 
 
 def test_spans_long_quote_keeps_hash_and_relocates() -> None:

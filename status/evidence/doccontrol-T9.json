@@ -1,0 +1,33 @@
+{
+  "metric": "fuzzy_relocations",
+  "value": 0,
+  "threshold": 0,
+  "detail": "spans.relocate keeps its fast path (both end paragraphs kept their text: same offsets, checked against the stored quote) and looks every other span up with doc-control's anchor.resolve in exact mode, on the new draft written once to a minimal .docx (spans.Resolver, opened on first need, answers cached per anchor). The anchor is the quote's first line with its stored context; every place doc-control gives is checked against the whole stored quote (text, or length + head + tail + SHA-1 for long ones), so multi-paragraph and long spans keep their guarantees. A verified place is taken at home (where the old paragraphs went) or, elsewhere, only when doc-control scores it at least 0.85 (its own far-match bar); a tie is taken only when one tied place is at home. Otherwise the span is changed (pointing at its home, or at the one place found) or lost, as before. Fuzzy answers are counted and never used; exact mode gave none. Replaced: the literary-critic quote search (_occurrences), its context score (_context_score) and the 24-character trust rule (TRUSTED_CONTEXT).",
+  "measurements": {
+    "test_relocate_exact_only": "a one-character edit inside a 35-character span: changed, pointing at its paragraph, 1 resolve call, 0 fuzzy; doc-control's best mode on the same anchor answers with a fuzzy match in that paragraph (so exact mode is what keeps the span from moving); switching the resolver to best mode fails the test",
+    "corpus_relocation": {
+      "how": "tests/test_spans.py _measure: 400 random spans (words, sentences, paragraphs, 2-5 paragraph stretches) per run, synth.generate seeds 1-5 at rates 0.05-0.3",
+      "marianela": {"known_home": 1690, "found_there": 1690, "misplaced": 0, "resolve_calls": 399, "fuzzy": 0},
+      "jekyll-hyde": {"known_home": 1696, "found_there": 1696, "misplaced": 0, "resolve_calls": 354, "fuzzy": 0},
+      "before_T9": {"marianela": [1690, 1690, 0], "jekyll-hyde": [1696, 1696, 0]}
+    },
+    "sync_scenarios": {
+      "how": "the eleven T7 scenarios on the Marianela Codex fixture (tests/codex_fixture.py plus 130 random facts: words, sentences, paragraphs, multi-paragraph stretches), each synced twice from the same workspace copy, once with the T7 relocation and once with this one: identical draft, one edit, a consistent rename, a deleted paragraph, a 10-paragraph block moved, two inserted paragraphs, a split, a merge, synth.generate seeds 1/2/3 at rates 0.05/0.1/0.2",
+      "same_report": "11 of 11 (report lines, changed, lost, dependents, renames, moved count)",
+      "items_with_different_spans": 0,
+      "resolve_calls": 147,
+      "fuzzy": 0
+    }
+  },
+  "timing": {
+    "sync_100k_words_20k_spans_s": {
+      "how": "tests/test_sync.py::test_sync_100k_words_under_5s's sync, three runs each, same machine",
+      "before": [2.69, 2.84, 3.27],
+      "after": [3.24, 3.34, 3.40],
+      "note": "918 of 20,000 spans miss the fast path; 97 distinct anchors reach doc-control. The new draft's .docx copy (write + parse, raw text only) costs about 0.25 s; each resolve 2-5 ms"
+    },
+    "spans_corpus_measurement_s": {"marianela": {"before": 7.2, "after": 14.5}, "jekyll-hyde": {"before": 1.3, "after": 3.9}, "note": "a .docx copy and parse per run, and one anchor.resolve per span that misses the fast path (~400 per novel)"}
+  },
+  "command": "uv run pytest tests/test_spans.py::test_relocate_exact_only",
+  "doc_control": "0.3.0"
+}

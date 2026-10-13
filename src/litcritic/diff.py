@@ -131,28 +131,33 @@ def align_documents(
 
 
 @contextmanager
-def _as_docx(paragraphs: list[str], folder: Path, name: str) -> Iterator[tuple[Path, list[str]]]:
+def as_docx(
+    paragraphs: list[str], folder: Path, name: str, *, normalized: bool = True
+) -> Iterator[tuple[dc.Document, list[str]]]:
+    """``paragraphs`` written to a minimal ``folder/name.docx`` and held open, with each
+    paragraph's doc-control address. Blank paragraphs are told by their normalised text,
+    or by their raw text with ``normalized=False`` (faster; for text already clean)."""
     from litcritic import convert
     from litcritic.ingest import Draft, Para, clean
 
     path = folder / f"{name}.docx"
     path.write_bytes(convert.draft_to_docx(Draft([Para(t) for t in paragraphs], "docx")))
     with dc.open(path) as doc:
-        rows = doc.paragraphs(normalized=True)
-    ats = [str(r["at"]) for r in rows if clean(str(r.get("normalized", r["text"])))]
-    if len(ats) != len(paragraphs):
-        raise ValueError("paragraphs changed on their way through a .docx")
-    yield path, ats
+        rows = doc.paragraphs(normalized=normalized)
+        ats = [str(r["at"]) for r in rows if clean(str(r.get("normalized", r["text"])))]
+        if len(ats) != len(paragraphs):
+            raise ValueError("paragraphs changed on their way through a .docx")
+        yield doc, ats
 
 
 def align(old: list[str], new: list[str]) -> Alignment:
     """Align paragraphs held in memory, written to minimal ``.docx`` copies first."""
     with (
         tempfile.TemporaryDirectory() as tmp,
-        _as_docx(old, Path(tmp), "old") as (a, a_at),
-        _as_docx(new, Path(tmp), "new") as (b, b_at),
+        as_docx(old, Path(tmp), "old") as (a, a_at),
+        as_docx(new, Path(tmp), "new") as (b, b_at),
     ):
-        return align_documents(a, b, a_at, b_at)
+        return align_documents(Path(a.path), Path(b.path), a_at, b_at)
 
 
 # --- workspace I/O -----------------------------------------------------------------

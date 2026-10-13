@@ -2,8 +2,8 @@
 
 1. Align the synced draft with the new one: doc-control's ``diff`` of the two
    manuscript snapshots, read through its address map (``diff.versions``).
-2. Relocate every span (``spans.relocate``): kept text moves silently; changed
-   or lost text is flagged.
+2. Relocate every span (``spans.relocate``, doc-control's ``anchor.resolve`` in
+   exact mode): kept text moves silently; changed or lost text is flagged.
 3. Items with a changed or lost span become ``needs_reread``, and so does every
    item that depends on one of them (one hop over ``depends_on``, ``refers_to``
    and ``pays_off`` links pointing at it).
@@ -152,10 +152,18 @@ def sync(work_root: Path, to: str | None = None, cx: Codex | None = None) -> Rep
     al = diff.versions(work_root, cx.draft, new_draft)
     kept = al.mapping()
     updates: dict[str, Item] = {}
+    with spanlib.Resolver(new) as resolver:
+        relocated = {
+            item.id: [
+                spanlib.relocate(s, old, new, al, new_draft, kept, resolver) for s in item.spans
+            ]
+            for item in cx.items.values()
+            if item.status != "retired" and item.spans
+        }
     for item in cx.items.values():
-        if item.status == "retired" or not item.spans:
+        if item.id not in relocated:
             continue
-        moved = [spanlib.relocate(s, old, new, al, new_draft, kept) for s in item.spans]
+        moved = relocated[item.id]
         states = {s.state for s in moved}
         report.moved += sum(s.state == "moved" for s in moved)
         status = item.status
