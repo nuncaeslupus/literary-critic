@@ -18,6 +18,7 @@ from litcritic import (
     docx_cli,
     docx_out,
     guard,
+    index_cli,
     ingest,
     kinds,
     kit,
@@ -569,6 +570,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_val.set_defaults(func=_cmd_validate)
     codex_cli.register(sub)
+    index_cli.register(sub)
     docx_cli.register(sub)
     setup.register(sub)
     word_live.register(sub)

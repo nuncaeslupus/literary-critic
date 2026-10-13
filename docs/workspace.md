@@ -61,6 +61,19 @@ fingerprints (from `structure.json`):
 
 Every fingerprint must match exactly one paragraph or nothing is applied.
 
+## Index pre-pass
+
+`lc index prepass --workspace <slug> [--version vNNN] [--json]` (no LLM) writes
+`index/work/prepass.json`: entity `candidates` (capitalised names outside
+sentence starts, honorific + name, article + name, repeated role titles such as
+"the lawyer"), each with its count, surface forms, first quote and up to two
+keyword-in-context snippets; `speakers`, the speaker tags found in dialogue per
+scene; `scenes`, with words, paragraph range and the candidates present; and
+`render`, the candidate list as compact text for the entity packet (names seen
+once are listed without context), kept under 10 % of the text's tokens by
+default (`--budget` to change). Word lists are in
+`src/litcritic/data/prepass_<lang>.toml`.
+
 ## Comparing drafts
 
 `lc diff v001 v002 --workspace <slug>` (both drafts anchored) writes

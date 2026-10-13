@@ -4,6 +4,7 @@ title: "T1: index prepass"
 label: "index prepass"
 priority: 5
 workspace: index
+status: merged
 ---
 
 # T1: index prepass
