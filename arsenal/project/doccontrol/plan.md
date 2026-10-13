@@ -102,12 +102,51 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
-| T1 | `api_major_mismatch_runs == 0` | 0 | `uv run pytest tests/test_dc.py::test_dc_check_rejects_other_major tests/test_stdlib_only.py::test_runtime_deps_only_doc_control` | (this PR) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
+| T1 | `api_major_mismatch_runs == 0` | 0 | `uv run pytest tests/test_dc.py::test_dc_check_rejects_other_major tests/test_stdlib_only.py::test_runtime_deps_only_doc_control` | 6a3830b (#95) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
+| T2 | `unintended_docx_changes == 0` | 0 | `uv run pytest tests/test_docx_cli.py::test_edits_change_only_target_text tests/test_docx_cli.py::test_edits_are_tracked_revisions tests/test_docx_cli.py::test_edit_refused_when_ambiguous_missing_or_overlapping tests/test_docx_cli.py::test_edit_refused_when_word_has_file_open tests/test_docx_cli.py::test_undo_restores_previous_bytes` | c0de6da (#100) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
+| T3 | `comments_on_wrong_paragraph == 0` | 0 | `uv run pytest tests/test_docx_out.py::test_comments_land_on_target_paragraph` | 8c4569a (#98) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
+| T4 | `converted_layout_fact_mismatches == 0` | 0 | `uv run pytest tests/test_convert.py::test_convert_roundtrip_keeps_layout_facts` | c2d3524 (#99) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
+| T11 | `kit_selftest_failures == 0` | 0 | `uv run pytest tests/test_kit.py::test_kit_selftest_offline tests/test_kit.py::test_kit_zip_contains_doc_control` | 521b75e (#97) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
 
 ### Dependency graph
 
 ```drawspec
-{"version": 1, "kind": "flow", "nodes": [{"id": "UP", "text": "doc-control\nbulk read API", "role": "start"}, {"id": "T1", "text": "T1 adapter"}, {"id": "G", "text": "T2 edits · T3 comments\nT11 kit"}, {"id": "T4", "text": "T4 convert"}, {"id": "T5", "text": "T5 ingest"}, {"id": "T6", "text": "T6 structure"}, {"id": "T7", "text": "T7 diff"}, {"id": "T8", "text": "T8 locate"}, {"id": "T9", "text": "T9 spans"}, {"id": "T10", "text": "T10 upgrade"}, {"id": "T12", "text": "T12 live docs"}, {"id": "T13", "text": "T13 sweep"}], "edges": [{"from": "T1", "to": "G"}, {"from": "T1", "to": "T4"}, {"from": "UP", "to": "T5"}, {"from": "T4", "to": "T5"}, {"from": "T5", "to": "T6"}, {"from": "T5", "to": "T7"}, {"from": "T6", "to": "T8"}, {"from": "T7", "to": "T9"}, {"from": "T6", "to": "T10"}, {"from": "T9", "to": "T10"}, {"from": "T8", "to": "T12"}, {"from": "G", "to": "T13"}, {"from": "T10", "to": "T13"}, {"from": "T12", "to": "T13"}]}
+{"version": 1, "kind": "flow", "title": "Task dependencies",
+ "nodes": [
+  {"id": "T1", "text": "T1\nAdapter litcritic/dc.py (run, check…"},
+  {"id": "T2", "text": "T2\nlc docx edits\\"},
+  {"id": "T3", "text": "T3\nFeedback comments (lc docx-out/docx…"},
+  {"id": "T4", "text": "T4\nlitcritic/convert.py: .txt/.md/.odt…"},
+  {"id": "T5", "text": "T5\nIngest through doc-control's uncapp…"},
+  {"id": "T6", "text": "T6\nStructure from segment: labels over…"},
+  {"id": "T7", "text": "T7\nDraft alignment from doc-control di…"},
+  {"id": "T8", "text": "T8\nWriter locators from locate/page.es…"},
+  {"id": "T9", "text": "T9\nCodex span relocation via anchor.re…"},
+  {"id": "T10", "text": "T10\nlc upgrade: backup, re-ingest every…"},
+  {"id": "T11", "text": "T11\nKit bundles doc-control; offline se…"},
+  {"id": "T12", "text": "T12\nLive Word: retire docs/word-control…"},
+  {"id": "T13", "text": "T13\nFinal sweep: source guard test, doc…"}
+ ],
+ "edges": [
+  {"from": "T1", "to": "T3"},
+  {"from": "T1", "to": "T4"},
+  {"from": "T4", "to": "T5"},
+  {"from": "T5", "to": "T6"},
+  {"from": "T5", "to": "T7"},
+  {"from": "T5", "to": "T8"},
+  {"from": "T6", "to": "T8"},
+  {"from": "T7", "to": "T9"},
+  {"from": "T6", "to": "T10"},
+  {"from": "T7", "to": "T10"},
+  {"from": "T9", "to": "T10"},
+  {"from": "T1", "to": "T11"},
+  {"from": "T8", "to": "T12"},
+  {"from": "T2", "to": "T13"},
+  {"from": "T3", "to": "T13"},
+  {"from": "T10", "to": "T13"},
+  {"from": "T11", "to": "T13"},
+  {"from": "T12", "to": "T13"}
+ ]}
 ```
 
 ---
