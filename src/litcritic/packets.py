@@ -45,16 +45,23 @@ SCENES_PER_PACKET = 40  # the answer schema allows 60
 FACT_NAMES = 12  # names and speakers listed per scene
 STATUSES = ("todo", "done", "failed")
 KIND_SCHEMA = {"entities": "index-entities-answer", "scenes": "index-scenes-answer"}
+# Model tier per packet kind, named, never a model id (spec, open question 1). Entity
+# resolution needs the strong tier: a cheap model agreed only 0.73 recall / 0.69 precision
+# with a strong one on a real manuscript (D-4); scene packets stay cheap until T4 decides.
+TIER = {"entities": "strong", "scenes": "cheap"}
 
 INSTRUCTIONS = {
     "entities": (
         "Task: decide which candidates are characters, places, objects, groups or motifs "
         "of the novel; put the rest in rejects. One entry per entity: name = its fullest "
-        'usual name; aliases = its other forms below (role titles such as "the doctor" '
-        "too, when the text uses them for it). Two names the text keeps apart are two "
-        "entities. If a candidate is another form of a name under Other names, give that "
-        "exact name with your forms as aliases. quote (optional) = exact words of the "
-        "text naming it, for a name that is not a candidate."
+        "usual name; aliases = its other names and nicknames below; titles = role phrases "
+        'the text uses as a name for it ("the doctor"), apart from aliases. A generic role '
+        "phrase (the doctor, the man, the girl) is a reject unless the text consistently "
+        "uses it for one character. One person under two names the text keeps apart (a "
+        "double identity) is two entities: give the second same_as = the first's name. "
+        "If a candidate is another form of a name under Other names, give that exact name "
+        "with your forms as aliases. quote (optional) = exact words of the text naming it, "
+        "for a name that is not a candidate."
     ),
     "scenes": (
         "Task: one entry per scene below. summary: what happens, at most 80 words, plain "
@@ -285,13 +292,25 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
     only = changed_scenes(ws_root, draft) if changed else None
     if not changed:
         for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
-            packets.append({"id": f"e{k}", "kind": "entities", "inputs": {"candidates": [a, b]}})
+            packets.append(
+                {
+                    "id": f"e{k}",
+                    "kind": "entities",
+                    "tier": TIER["entities"],
+                    "inputs": {"candidates": [a, b]},
+                }
+            )
     units = scene_units(draft, only)
     groups = scene_groups(units)
     width = max(3, len(str(len(groups))))
     for k, g in enumerate(groups, 1):
         packets.append(
-            {"id": f"s{k:0{width}d}", "kind": "scenes", "inputs": {"units": [units[i] for i in g]}}
+            {
+                "id": f"s{k:0{width}d}",
+                "kind": "scenes",
+                "tier": TIER["scenes"],
+                "inputs": {"units": [units[i] for i in g]},
+            }
         )
     old: dict[str, dict[str, Any]] = {}
     path = plan_path(ws_root)
@@ -370,7 +389,9 @@ def _frame(head: str, kind: str) -> str:
 
 
 def _entity_frame(pid: str, k: int, n: int, version: str, known: str) -> str:
-    out = _frame(f"packet {pid} · entities {k}/{n} · draft {version}", "entities")
+    out = _frame(
+        f"packet {pid} · entities {k}/{n} · tier {TIER['entities']} · draft {version}", "entities"
+    )
     if known:
         out += f"Other names: {known}\n"
     return out + "Candidates:\n"
@@ -457,7 +478,10 @@ def _render_scenes(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
     units = p["inputs"]["units"]
     first, last = units[0]["scene"], units[-1]["scene"]
     span = first if first == last else f"{first}..{last}"
-    head = _frame(f"packet {p['id']} · scenes {span} · draft {draft.version}", "scenes")
+    head = _frame(
+        f"packet {p['id']} · scenes {span} · tier {TIER['scenes']} · draft {draft.version}",
+        "scenes",
+    )
     blocks = []
     words: set[str] = set()
     for u in units:
@@ -482,6 +506,8 @@ def _render_scenes(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
             continue
         line = " = ".join([forms[0], " / ".join(forms[1:])]) if len(forms) > 1 else forms[0]
         line += f" ({item.fields.get('kind', '')})"
+        if item.fields.get("titles"):
+            line += " titles: " + " / ".join(item.fields["titles"])
         if used + len(line) + 1 > room:
             break
         lines.append(line)
@@ -493,9 +519,8 @@ def _render_scenes(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
 # --- importing -------------------------------------------------------------------
 
 
-def _anchor(
-    text: spanlib.Text, quote: str, lo: int, hi: int, path: str, scope: str
-) -> spanlib.Span:
+def _hits(text: spanlib.Text, quote: str, lo: int, hi: int) -> list[int]:
+    """Global offsets of every occurrence of ``quote`` in paragraphs lo..hi."""
     g0 = text.starts[lo]
     g1 = text.starts[hi] + len(text.paragraphs[hi])
     hits = []
@@ -503,16 +528,28 @@ def _anchor(
     while g != -1 and g + len(quote) <= g1:
         hits.append(g)
         g = text.joined.find(quote, g + 1, g1)
+    return hits
+
+
+def _span_at(text: spanlib.Text, g: int, length: int) -> spanlib.Span:
+    a, b = text.local(g), text.local(g + length)
+    return spanlib.make(text, text.draft, a.para, a.off, b.para, b.off)
+
+
+def _anchor(
+    text: spanlib.Text, quote: str, lo: int, hi: int, path: str, scope: str
+) -> spanlib.Span:
+    hits = _hits(text, quote, lo, hi)
     if not hits:
         raise Refused(path, f"not found in {scope} (copy the words exactly)")
     if len(hits) > 1:
         raise Refused(path, f"found {len(hits)} times in {scope}; quote more words")
-    a, b = text.local(hits[0]), text.local(hits[0] + len(quote))
-    return spanlib.make(text, text.draft, a.para, a.off, b.para, b.off)
+    return _span_at(text, hits[0], len(quote))
 
 
 def _forms(cx: Codex) -> dict[str, str]:
-    """Casefolded name and aliases of every live entity -> its id."""
+    """Casefolded name and aliases of every live entity -> its id (titles never
+    identify an entity: they are role phrases)."""
     out: dict[str, str] = {}
     for item in cx.live("entity"):
         for f in [item.fields.get("name", ""), *item.fields.get("aliases", [])]:
@@ -521,7 +558,14 @@ def _forms(cx: Codex) -> dict[str, str]:
     return out
 
 
-def _entity_items(ans: dict[str, Any], cx: Codex, draft: Draft, text: spanlib.Text) -> list[Item]:
+@dataclass
+class EntityImport:
+    items: list[Item]
+    fallbacks: int  # quotes anchored by a fallback (ambiguous or not found)
+    unlinked: int  # same_as names matching no entity yet
+
+
+def _entity_items(ans: dict[str, Any], cx: Codex, draft: Draft, text: spanlib.Text) -> EntityImport:
     known = _forms(cx)
     by_form: dict[str, dict[str, Any]] = {}
     pos = {a: i for i, a in enumerate(draft.anchors)}
@@ -533,6 +577,8 @@ def _entity_items(ans: dict[str, Any], cx: Codex, draft: Draft, text: spanlib.Te
     owner: dict[str, int] = {}
     items: dict[str, Item] = {}
     taken: set[str] = set()
+    fallbacks = 0
+    same: list[tuple[str, str, str]] = []  # item id, target name, path
     for i, e in enumerate(ans["entities"]):
         path = f"$.entities[{i}]"
         forms = [e["name"], *e.get("aliases", [])]
@@ -542,52 +588,107 @@ def _entity_items(ans: dict[str, Any], cx: Codex, draft: Draft, text: spanlib.Te
             if other is not None and other != i:
                 raise Refused(where, f"{f!r} is already in $.entities[{other}]")
             owner[f.casefold()] = i
+        low = {f.casefold() for f in forms}
+        titles = [t for t in dict.fromkeys(e.get("titles", [])) if t.casefold() not in low]
         hits = sorted({known[f.casefold()] for f in forms if f.casefold() in known})
         if len(hits) > 1:
             raise Refused(path, f"matches {len(hits)} known entities ({', '.join(hits)})")
         if hits:
             base = items.get(hits[0]) or Item.from_json(cx.get(hits[0]).as_json())
             current = [base.fields.get("name", ""), *base.fields.get("aliases", [])]
-            low = {h.casefold() for h in current}
-            new = [f for f in forms if f.casefold() not in low]
+            owned = {h.casefold() for h in current}
+            new = [f for f in forms if f.casefold() not in owned]
+            old_titles = base.fields.get("titles", [])
+            owned |= {t.casefold() for t in old_titles} | {f.casefold() for f in new}
+            more = [t for t in titles if t.casefold() not in owned]
             if new:
                 base.fields["aliases"] = [*base.fields.get("aliases", []), *new]
+            if more:
+                base.fields["titles"] = [*old_titles, *more]
+            if new or more:
                 items[base.id] = base
+            for f in new:
+                known[f.casefold()] = base.id
+            item_id = base.id
+        else:
+            span, fell = _entity_span(e, forms, titles, by_form, text, path)
+            fallbacks += fell
+            fields: dict[str, Any] = {"kind": e["kind"], "name": e["name"]}
+            if e.get("aliases"):
+                fields["aliases"] = list(e["aliases"])
+            if titles:
+                fields["titles"] = titles
+            item_id = cx.new_id("entity", taken)
+            taken.add(item_id)
+            items[item_id] = Item(
+                id=item_id,
+                type="entity",
+                text=f"{e['name']} ({e['kind']})",
+                spans=[span],
+                fields=fields,
+            )
+            for f in forms:
+                known[f.casefold()] = item_id
+        if e.get("same_as"):
+            same.append((item_id, e["same_as"], f"{path}.same_as"))
+    unlinked = 0
+    for item_id, target, where in same:
+        to = known.get(target.casefold())
+        if to is None:
+            unlinked += 1
             continue
-        span = _entity_span(e, forms, by_form, text, path)
-        fields: dict[str, Any] = {"kind": e["kind"], "name": e["name"]}
-        if e.get("aliases"):
-            fields["aliases"] = list(e["aliases"])
-        item_id = cx.new_id("entity", taken)
-        taken.add(item_id)
-        items[item_id] = Item(
-            id=item_id,
-            type="entity",
-            text=f"{e['name']} ({e['kind']})",
-            spans=[span],
-            fields=fields,
-        )
-        for f in forms:
-            known[f.casefold()] = item_id
-    return list(items.values())
+        if to == item_id:
+            raise Refused(where, "names this entity itself; same_as joins two entities")
+        it = items.get(item_id) or Item.from_json(cx.get(item_id).as_json())
+        if not any(x["rel"] == "same_as" and x["to"] == to for x in it.links):
+            it.links.append({"rel": "same_as", "to": to})
+            items[item_id] = it
+    return EntityImport(list(items.values()), fallbacks, unlinked)
 
 
 def _entity_span(
     e: dict[str, Any],
     forms: list[str],
+    titles: list[str],
     by_form: dict[str, dict[str, Any]],
     text: spanlib.Text,
     path: str,
-) -> spanlib.Span:
+) -> tuple[spanlib.Span, int]:
+    """Where a new entity is anchored, and 1 when a fallback placed it.
+
+    A quote found once anchors there. An entity's quote often names it in a few words
+    that recur, so an ambiguous quote anchors on its first occurrence inside the
+    candidate's first paragraph, else on its first occurrence in the draft; a quote not
+    found falls back to the candidate's first occurrence. Scene quotes stay strict.
+    """
     last = len(text.paragraphs) - 1
-    if e.get("quote"):
-        return _anchor(text, e["quote"], 0, last, f"{path}.quote", "the draft")
-    cands = [by_form[f.casefold()] for f in forms if f.casefold() in by_form]
-    if not cands:
-        raise Refused(f"{path}.name", "not a candidate name; add a quote naming it")
     pos = text.index
-    c = min(cands, key=lambda c: pos.get(c["first"]["para"], last + 1))
-    i = pos.get(c["first"]["para"])
+    cands = [by_form[f.casefold()] for f in forms if f.casefold() in by_form]
+    cands = cands or [by_form[t.casefold()] for t in titles if t.casefold() in by_form]
+    c = min(cands, key=lambda c: pos.get(c["first"]["para"], last + 1)) if cands else None
+    quote = e.get("quote")
+    if quote:
+        hits = _hits(text, quote, 0, last)
+        if len(hits) == 1:
+            return _span_at(text, hits[0], len(quote)), 0
+        if hits:
+            g = hits[0]
+            i = pos.get(c["first"]["para"]) if c else None
+            if i is not None:
+                g0, g1 = text.starts[i], text.starts[i] + len(text.paragraphs[i])
+                g = next((h for h in hits if g0 <= h < g1), g)
+            return _span_at(text, g, len(quote)), 1
+        if c is None:
+            raise Refused(f"{path}.quote", "not found in the draft (copy the words exactly)")
+        return _candidate_span(c, text, path), 1
+    if c is None:
+        raise Refused(f"{path}.name", "not a candidate name; add a quote naming it")
+    return _candidate_span(c, text, path), 0
+
+
+def _candidate_span(c: dict[str, Any], text: spanlib.Text, path: str) -> spanlib.Span:
+    """The candidate's first occurrence, narrowed to its longest form."""
+    i = text.index.get(c["first"]["para"])
     if i is None:
         raise Refused(f"{path}.name", "the pre-pass is out of date; run `lc index plan`")
     par, q = text.paragraphs[i], c["first"]["quote"]
@@ -729,11 +830,18 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
         if cx.draft != doc["draft"]:
             raise PacketError(f"the Codex is synced to {cx.draft}, the plan to {doc['draft']}")
         text = draft.text()
-        unlinked = 0
+        notes: list[str] = []
         if p["kind"] == "entities":
-            items = _entity_items(ans, cx, draft, text)
+            got = _entity_items(ans, cx, draft, text)
+            items = got.items
+            if got.fallbacks:
+                notes.append(f"{got.fallbacks} quote fallback{'s' * (got.fallbacks > 1)}")
+            if got.unlinked:
+                notes.append(f"{got.unlinked} same_as left unlinked: no entity with that name yet")
         else:
             items, unlinked = _scene_items(ans, p, cx, draft, text)
+            if unlinked:
+                notes.append(f"{unlinked} payoff(s) left unlinked: no setup with that label yet")
         try:
             cx.add_many(items, by="llm", batch=f"index:{doc['draft']}:{packet_id}")
         except CodexError as exc:
@@ -745,9 +853,7 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     p["status"], p["items"] = "done", len(items)
     p.pop("error", None)
     _save_plan(ws_root, doc)
-    note = (
-        f" ({unlinked} payoff(s) left unlinked: no setup with that label yet)" if unlinked else ""
-    )
+    note = f" ({'; '.join(notes)})" if notes else ""
     return f"ok {packet_id}: {len(items)} items{note}"
 
 

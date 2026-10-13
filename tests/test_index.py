@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import codex, corpus, packets
+from litcritic import codex, corpus, packets, view
 from litcritic.cli import main
 
 # --- fixtures ----------------------------------------------------------------------
@@ -361,3 +361,212 @@ def test_plan_changed_packs_only_scenes_to_reread(ws: Path) -> None:
     units = [u["scene"] for p in doc["packets"] for u in p["inputs"]["units"]]
     assert units == [scene.spans[0].start.para.rsplit(".p", 1)[0]]
     assert doc["stats"]["scenes"] == 1 and doc["stats"]["entity_packets"] == 0
+
+
+# --- entities and references (T3) --------------------------------------------------
+
+GOLD = Path(__file__).parent / "fixtures" / "gold"
+
+
+def _gold_fields(e: dict[str, Any]) -> dict[str, Any]:
+    """A gold entry as entity fields: all-lower-case forms are role titles."""
+    forms = list(dict.fromkeys([e["name"], *e["aliases"]]))
+    titles = [f for f in forms if f == f.lower()]
+    aliases = [f for f in forms[1:] if f not in titles]
+    fields: dict[str, Any] = {"kind": e["kind"], "name": e["name"]}
+    if aliases:
+        fields["aliases"] = aliases
+    if titles:
+        fields["titles"] = titles
+    return fields
+
+
+def _reference_recall(root: Path, slug: str) -> dict[str, Any]:
+    """Gold entities imported; recall = sum of min(found, gold) over gold occurrences."""
+    gold = json.loads((GOLD / f"{slug}.json").read_text("utf-8"))
+    cx = codex.Codex(root)
+    ids = [cx.add("entity", e["name"], _gold_fields(e)).id for e in gold["entities"]]
+    v = view.View(root, cx)
+    found = dict(v.run("SELECT entity_id, COUNT(*) FROM mentions GROUP BY entity_id")[1])
+    occ = [e["occurrences"] for e in gold["entities"]]
+    hits = sum(min(found.get(i, 0), n) for i, n in zip(ids, occ, strict=True))
+    titles = v.run("SELECT COUNT(*) FROM mentions WHERE via = 'title'")[1][0][0]
+    return {
+        "recall": hits / sum(occ),
+        "hits": hits,
+        "gold": sum(occ),
+        "found": sum(found.values()),
+        "title_hits": titles,
+    }
+
+
+@pytest.fixture(scope="module")
+def recall(base: Path, tmp_path_factory: pytest.TempPathFactory) -> dict[str, dict[str, Any]]:
+    out = {}
+    jh = tmp_path_factory.mktemp("jh-gold") / "ws"
+    shutil.copytree(base, jh)
+    out["jekyll-hyde"] = _reference_recall(jh, "jekyll-hyde")
+    mn = tmp_path_factory.mktemp("mn-gold") / "ws"
+    mn.mkdir()
+    (mn / "work.toml").write_text('slug = "mn"\nlanguage = "es"\n', "utf-8")
+    assert main(["ingest", str(corpus.get("marianela").path), "--workspace", str(mn)]) == 0
+    assert main(["anchor", "--workspace", str(mn)]) == 0
+    codex.Codex.init(mn, "v001")
+    out["marianela"] = _reference_recall(mn, "marianela")
+    return out
+
+
+def test_reference_recall_on_gold(recall: dict[str, dict[str, Any]]) -> None:
+    for slug, r in recall.items():
+        assert r["recall"] >= 0.95, (slug, r)
+
+
+def _entity(ws: Path, **fields: Any) -> codex.Item:
+    return codex.Codex(ws).add("entity", fields["name"], fields)
+
+
+def _mentions(ws: Path, sql: str) -> list[tuple[Any, ...]]:
+    return view.View(ws).run(sql)[1]
+
+
+def test_mentions_longest_match_counts_once(ws: Path) -> None:
+    jek = _entity(ws, kind="character", name="Henry Jekyll", aliases=["Jekyll"])
+    henry = _entity(ws, kind="character", name="Henry", exact_case=True)
+    rows = _mentions(
+        ws,
+        "SELECT m.entity_id, m.para_idx, m.off, m.form, m.via FROM mentions m"
+        " JOIN paragraphs p ON p.idx = m.para_idx WHERE p.text LIKE '%Henry Jekyll%'",
+    )
+    full = [r for r in rows if r[3] == "Henry Jekyll"]
+    assert full and all(r[0] == jek.id and r[4] == "name" for r in full)
+    starts = {(r[1], r[2]) for r in full}
+    inside = [r for r in rows if any(p == r[1] and s <= r[2] < s + 12 for p, s in starts)]
+    assert inside == full  # no second row for 'Henry' or 'Jekyll' inside 'Henry Jekyll'
+    assert henry.id not in {r[0] for r in full}
+    # exact_case: only 'Guest' with a capital counts; without it 'guest' counts too
+    guest = _entity(ws, kind="character", name="Guest", exact_case=True)
+    loose = _entity(ws, kind="character", name="Mr. Guest", aliases=["guest"])
+    forms = _mentions(ws, f"SELECT DISTINCT form FROM mentions WHERE entity_id = '{guest.id}'")
+    assert forms == [("Guest",)]
+    forms = _mentions(ws, f"SELECT DISTINCT form FROM mentions WHERE entity_id = '{loose.id}'")
+    assert {f for (f,) in forms} >= {"guest", "Guest"}
+
+
+def test_titles_count_only_in_scenes_naming_the_entity(ws: Path) -> None:
+    lan = _entity(
+        ws, kind="character", name="Lanyon", aliases=["Dr. Lanyon"], titles=["the lawyer"]
+    )
+    rows = _mentions(ws, f"SELECT scene, via, form FROM mentions WHERE entity_id = '{lan.id}'")
+    named = {s for s, via, _ in rows if via in ("name", "alias")}
+    titled = [(s, f) for s, via, f in rows if via == "title"]
+    assert titled and {s for s, _ in titled} <= named
+    total = sum(p.lower().count("the lawyer") for p in _draft(ws).paragraphs)
+    assert len(titled) < total  # 'the lawyer' elsewhere is Utterson, not Lanyon
+    assert all(f.lower() == "the lawyer" for _, f in titled)
+
+
+def test_entity_quote_ambiguous_anchors_first_occurrence(ws: Path) -> None:
+    answer = {
+        "entities": [
+            {"name": "Utterson", "kind": "character", "quote": "Utterson"},
+            {"name": "Edward Hyde", "kind": "character", "aliases": ["Hyde"], "quote": "Hyde"},
+            {"name": "Poole", "kind": "character", "quote": "words the novel never says"},
+        ]
+    }
+    assert _import(ws, "e1", answer) == "ok e1: 3 items (3 quote fallbacks)"
+    cx = codex.Codex(ws)
+    by = {i.fields["name"]: i for i in cx.live("entity")}
+    draft = _draft(ws)
+    first = next(k for k, p in enumerate(draft.paragraphs) if "Utterson" in p)
+    assert by["Utterson"].spans[0].start.para == draft.anchors[first]
+    assert by["Utterson"].spans[0].exact == "Utterson"
+    hyde = next(c for c in draft.pre["candidates"] if "Hyde" in [c["name"], *c["forms"]])
+    assert by["Edward Hyde"].spans[0].start.para == hyde["first"]["para"]
+    assert by["Edward Hyde"].spans[0].exact == "Hyde"
+    assert by["Poole"].spans[0].exact.endswith("Poole")
+    assert cx.check() == []
+
+
+def test_entity_quote_missing_without_candidate_is_refused(ws: Path) -> None:
+    nobody = {"entities": [{"name": "Nobody Atall", "kind": "character", "quote": "zzz qqq"}]}
+    assert _import(ws, "e1", nobody) == (
+        "error e1: $.entities[0].quote: not found in the draft (copy the words exactly)"
+    )
+
+
+def test_entity_titles_and_same_as(ws: Path) -> None:
+    answer = {
+        "entities": [
+            {
+                "name": "Henry Jekyll",
+                "kind": "character",
+                "aliases": ["Dr. Jekyll"],
+                "titles": ["the doctor", "Dr. Jekyll"],
+            },
+            {
+                "name": "Edward Hyde",
+                "kind": "character",
+                "aliases": ["Hyde"],
+                "same_as": "Dr. Jekyll",
+            },
+            {
+                "name": "Lanyon",
+                "kind": "character",
+                "titles": ["the doctor"],
+                "same_as": "Nobody Atall",
+            },
+        ]
+    }
+    assert _import(ws, "e1", answer) == (
+        "ok e1: 3 items (1 same_as left unlinked: no entity with that name yet)"
+    )
+    cx = codex.Codex(ws)
+    by = {i.fields["name"]: i for i in cx.live("entity")}
+    assert by["Henry Jekyll"].fields["titles"] == ["the doctor"]
+    assert by["Lanyon"].fields["titles"] == ["the doctor"]  # a title may be shared
+    assert by["Edward Hyde"].links == [{"rel": "same_as", "to": by["Henry Jekyll"].id}]
+    assert cx.check() == []
+    # A later packet links to an entity already in the Codex, and merges titles.
+    later = {
+        "entities": [
+            {"name": "Mr. Hyde", "kind": "character", "quote": "Mr. Hyde", "same_as": "Jekyll"},
+            {"name": "Henry Jekyll", "kind": "character", "aliases": ["Jekyll"]},
+            {
+                "name": "Dr. Lanyon",
+                "kind": "character",
+                "aliases": ["Lanyon"],
+                "titles": ["the physician"],
+            },
+        ]
+    }
+    doc = packets.load_plan(ws)
+    doc["packets"].append(
+        {
+            "id": "e9",
+            "kind": "entities",
+            "inputs": {"candidates": [0, 1]},
+            "status": "todo",
+            "tokens": 0,
+        }
+    )
+    packets._save_plan(ws, doc)
+    assert _import(ws, "e9", later) == "ok e9: 3 items (1 quote fallback)"
+    cx = codex.Codex(ws)
+    by = {i.fields["name"]: i for i in cx.live("entity")}
+    assert by["Mr. Hyde"].links == [{"rel": "same_as", "to": by["Henry Jekyll"].id}]
+    assert by["Henry Jekyll"].fields["aliases"] == ["Dr. Jekyll", "Jekyll"]
+    assert by["Lanyon"].fields["titles"] == ["the doctor", "the physician"]
+    assert by["Lanyon"].fields["aliases"] == ["Dr. Lanyon"]
+    assert cx.check() == []
+
+
+def test_packet_tiers_and_entity_rules(base: Path) -> None:
+    doc = packets.load_plan(base)
+    e1 = packets.render(base, doc, "e1")
+    s1 = packets.render(base, doc, "s001")
+    assert e1.startswith("packet e1 · entities 1/1 · tier strong · draft v001\n")
+    assert s1.startswith("packet s001 · scenes ") and " · tier cheap · " in s1.split("\n")[0]
+    assert {p["tier"] for p in doc["packets"] if p["kind"] == "entities"} == {"strong"}
+    assert {p["tier"] for p in doc["packets"] if p["kind"] == "scenes"} == {"cheap"}
+    for words in ("titles", "rejects", "same_as", '"titles"', '"same_as"'):
+        assert words in e1

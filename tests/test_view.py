@@ -70,7 +70,7 @@ def test_view_tables_and_typed_views(work: Path) -> None:
     )
     assert grams[0][1] > 20 and {"tokens", "ngrams"} <= v.built
     assert "v_dialogue(id, status, text, speaker, addressee, para_idx, words)" in v.schema()
-    assert "mentions(entity_id, para_idx, off, form)" in v.schema()
+    assert "mentions(entity_id, para_idx, off, form, scene, via)" in v.schema()
 
 
 def test_view_stops_runaway_queries(work: Path, monkeypatch: pytest.MonkeyPatch) -> None:

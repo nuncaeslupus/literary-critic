@@ -34,7 +34,7 @@ links); a work's kind can add its own. A new type needs no code change.
 
 | Type | Fields | For |
 |------|--------|-----|
-| `entity` | `kind` (character, place, object, group, rule, motif), `name`, `aliases` | who and what the novel is about |
+| `entity` | `kind` (character, place, object, group, rule, motif), `name`, `aliases`, `titles` (role titles used as names), `exact_case`; link `same_as` joins one character under two names the text keeps apart | who and what the novel is about |
 | `scene` | `summary`, `pov`, `location`, `time` | one per scene |
 | `dialogue` | `speaker`, `addressee` | who speaks where |
 | `fact` | `role` | a fact the text states, to keep continuity |
@@ -62,7 +62,7 @@ Computed tables are built only when a query names them.
 | `v_<type>` | id, status, text, the type's columns, para_idx, words |
 | `tokens` | para_idx, pos, form, norm, is_word (computed) |
 | `ngrams` | n, norm, para_idx, pos (computed) |
-| `mentions` | entity_id, para_idx, off, form (computed) |
+| `mentions` | entity_id, para_idx, off, form, scene, via (name, alias or title) (computed: whole words, longest match first; a title counts only in a scene that also names the entity) |
 | `copresence` | a, b, scene, chapter (computed) |
 | `changes` | at, draft, item, type, op (add, update, sync; a retirement is an update), by, status, text, fields_json, before_status, before_text, before_fields_json (computed, from the change log) |
 

@@ -69,9 +69,11 @@ COMPUTED: dict[str, tuple[tuple[str, ...], str, str]] = {
         " pos is the tokens.pos of the first word",
     ),
     "mentions": (
-        ("entity_id", "para_idx", "off", "form"),
+        ("entity_id", "para_idx", "off", "form", "scene", "via"),
         "entity_id",
-        "where each entity's name or alias appears (off = character offset in the paragraph)",
+        "where each entity's name, alias or title appears (off = character offset in the"
+        " paragraph; via = name, alias or title; whole words, longest match first; a title"
+        " counts only in a scene where the entity is also named)",
     ),
     "copresence": (
         ("a", "b", "scene", "chapter"),
@@ -118,6 +120,79 @@ def _phrase_sql(text: Any) -> str | None:
 def _norm_sql(text: Any) -> str | None:
     """SQL ``norm(x)``: lower case, no accents, single spaces (as tokens.norm)."""
     return None if text is None else " ".join(norm(str(text)).split())
+
+
+FIRST_WORD = re.compile(r"\w+")
+VIA_RANK = {"name": 0, "alias": 1, "title": 2}
+
+
+def _form_rx(form: str, fold: bool) -> re.Pattern[str]:
+    body = r"\s+".join(map(re.escape, form.split()))
+    return re.compile(body + r"(?!\w)", re.I if fold else 0)
+
+
+def mention_rows(
+    paragraphs: Sequence[str], scenes: Sequence[str], entities: Sequence[Any]
+) -> list[tuple[str, int, int, str, str, str]]:
+    """The reference index: ``(entity_id, para_idx, off, form, scene, via)`` rows.
+
+    Every entity's name, aliases and titles (``fields``) are matched as whole words;
+    names and aliases ignore case unless the entity sets ``exact_case``, titles always
+    ignore case (a title opens sentences). Forms of all entities are pooled and the
+    longest match wins at each position, so ``Henry Jekyll`` is one mention, never
+    also ``Jekyll`` or ``Henry``; a form two entities share is a mention of each.
+    A title ("the doctor") counts only inside a scene where the same entity is also
+    mentioned by name or alias, so a generic role phrase does not hit every doctor.
+    """
+    # first word (casefolded) -> [(length, pattern, entity id, via)], longest first
+    table: dict[str, list[tuple[int, re.Pattern[str], str, str]]] = {}
+    for ent in entities:
+        f = ent.fields
+        exact = bool(f.get("exact_case"))
+        seen: set[str] = set()
+        forms = [(f.get("name", ""), "name")]
+        forms += [(a, "alias") for a in f.get("aliases", [])]
+        forms += [(t, "title") for t in f.get("titles", [])]
+        for form, via in forms:
+            form = " ".join(form.split())
+            first = FIRST_WORD.search(form)
+            key = form.casefold()
+            if not first or key in seen:
+                continue
+            seen.add(key)
+            fold = via == "title" or not exact
+            entry = (len(form), _form_rx(form, fold), ent.id, via)
+            table.setdefault(first.group().casefold(), []).append(entry)
+    for entries in table.values():
+        entries.sort(key=lambda x: (-x[0], VIA_RANK[x[3]]))
+    rows: list[tuple[str, int, int, str, str, str]] = []
+    titles: list[tuple[str, int, int, str, str, str]] = []
+    named: set[tuple[str, str]] = set()  # (scene, entity) mentioned by name or alias
+    for i, p in enumerate(paragraphs):
+        scene = scenes[i]
+        end = 0
+        for w in FIRST_WORD.finditer(p):
+            at = w.start()
+            if at < end or (at and (p[at - 1].isalnum() or p[at - 1] == "_")):
+                continue
+            options = table.get(w.group().casefold())
+            if not options:
+                continue
+            best = -1
+            for _, rx, eid, via in options:
+                m = rx.match(p, at)
+                if m is None or m.end() < best:
+                    continue
+                best = m.end()
+                row = (eid, i, at, m.group(), scene, via)
+                (titles if via == "title" else rows).append(row)
+                if via != "title":
+                    named.add((scene, eid))
+            if best > 0:
+                end = best
+    rows += [r for r in titles if (r[4], r[0]) in named]
+    rows.sort(key=lambda r: (r[1], r[2], r[0]))
+    return rows
 
 
 class View:
@@ -323,29 +398,10 @@ class View:
         self.conn.executemany("INSERT INTO ngrams VALUES (?,?,?,?)", rows)
 
     def _build_mentions(self) -> None:
-        exact: dict[str, list[str]] = {}
-        folded: dict[str, list[str]] = {}
-        for ent in self.cx.of_type("entity"):
-            if ent.status == "retired":
-                continue
-            forms = {ent.fields.get("name", ""), *ent.fields.get("aliases", [])} - {""}
-            for n in forms:
-                if ent.fields.get("exact_case"):
-                    exact.setdefault(n, []).append(ent.id)
-                else:
-                    folded.setdefault(n.casefold(), []).append(ent.id)
-        patterns: list[tuple[re.Pattern[str], dict[str, list[str]], int]] = []
-        for names, flags in ((exact, 0), (folded, re.I)):
-            if names:
-                alts = "|".join(map(re.escape, sorted(names, key=len, reverse=True)))
-                patterns.append((re.compile(rf"(?<!\w)(?:{alts})(?!\w)", flags), names, flags))
-        rows = []
-        for i, p in enumerate(self.text.paragraphs):
-            for rx, names, flags in patterns:
-                for m in rx.finditer(p):
-                    key = m.group().casefold() if flags else m.group()
-                    rows += [(e, i, m.start(), m.group()) for e in names.get(key, [])]
-        self.conn.executemany("INSERT INTO mentions VALUES (?,?,?,?)", rows)
+        ents = [e for e in self.cx.of_type("entity") if e.status != "retired"]
+        scenes = [a.rsplit(".p", 1)[0] for a in self.text.anchors]
+        rows = mention_rows(self.text.paragraphs, scenes, ents)
+        self.conn.executemany("INSERT INTO mentions VALUES (?,?,?,?,?,?)", rows)
 
     def _build_copresence(self) -> None:
         by_scene: dict[tuple[str, str], set[str]] = {}

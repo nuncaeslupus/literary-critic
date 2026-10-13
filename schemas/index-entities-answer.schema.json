@@ -19,6 +19,8 @@
         "name": {"$ref": "#/$defs/name"},
         "kind": {"enum": ["character", "place", "object", "group", "rule", "motif"]},
         "aliases": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/name"}},
+        "titles": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/name"}},
+        "same_as": {"$ref": "#/$defs/name"},
         "quote": {"$ref": "#/$defs/quote"}
       }
     }
