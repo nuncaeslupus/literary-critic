@@ -173,12 +173,32 @@ def _with_find(payload: dict[str, Any]) -> dict[str, Any]:
     return {**payload, "find": locator["find"]}
 
 
+def _unfindable(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """The answer for a passage Word's search cannot reach, when its locator says where it is.
+
+    `lc docx locate` gives no Find string for a paragraph with no phrase of its own that
+    types into the Find box (it repeats others, or its words hold a soft or no-break hyphen).
+    """
+    if payload.get("find") or not payload.get("document"):
+        return None
+    lang = str(payload.get("language") or "en")
+    where = _where(payload.get("locator"), lang)
+    if not where:
+        return None
+    name = _name(payload)
+    steps = ["Word's search cannot find this passage: tell the writer where it is in plain words."]
+    writer = f"En {name}: {where}." if lang == "es" else f"In {name}: {where}."
+    return {"status": "manual", "how": "computer-use", "steps": steps, "writer": writer}
+
+
 def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
     """One operation's computer-use steps and writer line."""
     if op not in OPERATIONS:
         raise WordLiveError(f"unknown operation {op!r}; one of {', '.join(OPERATIONS)}")
     if op == "locate":
         payload = _with_find(payload)
+        if plain := _unfindable(payload):
+            return plain
     missing = [k for k in OPERATIONS[op] if k not in payload or payload[k] in ("", None)]
     if missing:
         raise WordLiveError(f"{op} needs {', '.join(missing)}")
