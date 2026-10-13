@@ -1,12 +1,15 @@
 """The chat kit: everything an assistant with code execution needs, in one zip.
 
 The kit holds the stdlib-only package, its data, the schemas, the checklist,
-the prompts, ``START_HERE.md`` and an ``lc.py`` launcher. ``doctor`` checks a
+the prompts, ``START_HERE.md`` and an ``lc.py`` launcher. The ``doc_control``
+package (the one runtime dependency, stdlib only) is copied in beside
+``litcritic`` so the kit runs with no pip and no network. ``doctor`` checks a
 platform by running a tiny pipeline in a temporary folder.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import io
 import os
 import sys
@@ -47,6 +50,25 @@ SKILL_NAME = "litcritic"
 SKILL_MAX_BYTES = 30 * 1024 * 1024
 
 
+def _doc_control_files() -> dict[str, Path]:
+    """The installed ``doc_control`` package (and its licence) under ``src/``."""
+    spec = importlib.util.find_spec(
+        "doc_control"
+    )  # find, never import: kit.py stays dependency-free
+    if spec is None or not spec.submodule_search_locations:
+        raise KitError("doc-control is not installed (pip install doc-control); the kit needs it")
+    out: dict[str, Path] = {}
+    for location in spec.submodule_search_locations:
+        base = Path(location)
+        for p in sorted(base.rglob("*")):
+            if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+                out["src/doc_control/" + p.relative_to(base).as_posix()] = p
+        for dist in sorted(base.parent.glob("doc_control-*.dist-info")):
+            for lic in sorted(dist.glob("licenses/LICENSE*")) + sorted(dist.glob("LICENSE*")):
+                out.setdefault("src/doc_control/LICENSE", lic)
+    return out
+
+
 def _files(root: Path) -> dict[str, Path]:
     """The kit's files from the checkout: name in the zip -> source."""
     out: dict[str, Path] = {}
@@ -54,6 +76,7 @@ def _files(root: Path) -> dict[str, Path]:
         for p in sorted((root / top).rglob("*")):
             if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
                 out[p.relative_to(root).as_posix()] = p
+    out.update(_doc_control_files())
     out["START_HERE.md"] = root / "kit" / "START_HERE.md"
     out["LICENSE"] = root / "LICENSE"
     return out
@@ -130,7 +153,13 @@ def doctor(home: Path | None = None) -> list[str]:
             f"Python {'.'.join(map(str, MIN_PYTHON))}+ needed, found {sys.version.split()[0]}"
         )
         return problems
-    from litcritic import ingest, metrics, pack, query, structure, workspace
+    from litcritic import dc, ingest, metrics, pack, query, structure, workspace
+
+    try:
+        if dc.run("capabilities", {}).get("api") is None:
+            problems.append("doc-control answered without its API version")
+    except Exception as exc:  # DocError, or anything doc-control raises
+        problems.append(f"doc-control: {type(exc).__name__}: {exc}")
 
     if home is not None:
         try:
