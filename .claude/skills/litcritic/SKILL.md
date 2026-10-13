@@ -61,7 +61,7 @@ Details in `prompts/20-codex-items.md`.
 | look at a new draft | `prompts/50-new-draft.md` |
 | a revision round, the editorial letter, recording decisions | `prompts/60-rounds.md` |
 | an agency/editor assessment, a reader report | `prompts/70-reader-report.md` |
-| go to a passage in Word, apply an approved change to the Word file | `prompts/80-live-word.md` |
+| go to a passage in Word, apply an approved change to the Word file | `prompts/80-live-word.md` (only `lc docx` and `lc word`; computer use follows the steps `lc word` gives) |
 
 Workspaces live outside the tool's own files: in the novel's folder
 (`<folder>/literary-critic/`, made by `lc setup`) or under
