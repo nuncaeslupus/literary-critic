@@ -5,6 +5,7 @@ label: "index prompts"
 priority: 10
 deps: [t-7598d368]
 workspace: index
+status: merged
 ---
 
 # T7: index prompts
