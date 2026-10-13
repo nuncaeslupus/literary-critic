@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Answer to an entity packet (lc index import)",
+  "type": "object",
+  "required": ["entities"],
+  "additionalProperties": false,
+  "properties": {
+    "entities": {"type": "array", "maxItems": 200, "items": {"$ref": "#/$defs/entity"}},
+    "rejects": {"type": "array", "maxItems": 400, "items": {"$ref": "#/$defs/name"}}
+  },
+  "$defs": {
+    "name": {"type": "string", "minLength": 1, "maxLength": 60},
+    "quote": {"type": "string", "minLength": 1, "maxLength": 200, "x-maxWords": 30},
+    "entity": {
+      "type": "object",
+      "required": ["name", "kind"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "kind": {"enum": ["character", "place", "object", "group", "rule", "motif"]},
+        "aliases": {"type": "array", "maxItems": 12, "items": {"$ref": "#/$defs/name"}},
+        "quote": {"$ref": "#/$defs/quote"}
+      }
+    }
+  }
+}

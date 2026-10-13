@@ -12,6 +12,7 @@ Nothing that can be recomputed from the text or from other items is stored.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import re
@@ -383,6 +384,85 @@ class Codex:
             self._save(t)
         for item, before in changed:
             self._log(op, item, before, by, draft)
+
+    def new_id(self, type_name: str, taken: set[str] | None = None) -> str:
+        """A fresh id for ``type_name``, also unused in ``taken`` (ids of a batch in progress)."""
+        t = self.types.get(type_name)
+        if t is None:
+            raise CodexError(f"unknown item type {type_name!r}; known: {sorted(self.types)}")
+        while True:
+            candidate = self._new_id(t.prefix)
+            if candidate not in (taken or set()):
+                return candidate
+
+    def add_many(self, items: list[Item], by: str = "llm", batch: str = "") -> None:
+        """Write new items and changed copies of existing ones as one batch: all or nothing.
+
+        Ids not in the Codex are added (``created``/``updated`` = the synced draft);
+        known ids are updates (``rev`` bumped). Every item is validated first, links may
+        point at other items of the batch, and nothing is written when any item fails.
+        The change log gets one entry per item, all tagged ``batch``, in one append.
+        """
+        ids = {i.id for i in items}
+        if len(ids) != len(items):
+            raise CodexError("the same item twice in one batch")
+        if by not in BY:
+            raise CodexError(f"by {by!r} not one of {BY}")
+        errs = []
+        for item in items:
+            errs += self.errors_for(item)
+            errs += [
+                f"{item.id}: link to unknown item {link['to']}"
+                for link in item.links
+                if link["to"] not in self.items and link["to"] not in ids
+            ]
+        if errs:
+            raise CodexError("; ".join(errs[:10]))
+        types = sorted({i.type for i in items})
+        for t in types:
+            if t in self.damaged:
+                self._save(t)  # raises: a file with unread rows is never rewritten
+        previous = {i.id: self.items.get(i.id) for i in items}
+        befores: list[tuple[Item, dict[str, Any] | None]] = []
+        for item in items:
+            old = previous[item.id]
+            item.by = by
+            if old is None:
+                item.rev, item.created, item.updated = 1, self.draft, self.draft
+            else:
+                item.rev, item.created, item.updated = old.rev + 1, old.created, self.draft
+            befores.append((item, self._put(item)))
+        try:
+            for t in types:
+                self._save(t)
+        except OSError:
+            for item in items:
+                old = previous[item.id]
+                if old is None:
+                    self._unindex(self.items.pop(item.id))
+                else:
+                    self._put(old)
+            for t in types:
+                with contextlib.suppress(OSError):
+                    self._save(t)
+            raise
+        at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        lines = []
+        for item, before in befores:
+            entry: dict[str, Any] = {
+                "at": at,
+                "draft": self.draft,
+                "item": item.id,
+                "op": "add" if before is None else "update",
+                "by": by,
+                "batch": batch,
+                "after": item.as_json(),
+            }
+            if before is not None:
+                entry["before"] = before
+            lines.append(json.dumps(entry, ensure_ascii=False) + "\n")
+        with (self.root / "changes.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write("".join(lines))
 
     # -- reading --------------------------------------------------------------
 
