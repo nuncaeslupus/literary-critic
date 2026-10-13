@@ -76,11 +76,13 @@ def read_rows(doc: dc.Document, ats: Iterable[str] | None = None) -> Rows:
     With ``ats``, the rows of those paragraphs alone: doc-control answers a
     paragraph asked by address without building its whole-document phrase index,
     so a single locator costs a fraction of the whole document's. Like the
-    whole-document rows, an empty paragraph has none.
+    whole-document rows, an empty paragraph has none. doc-control's chapter, part
+    and scene fields are not asked for (``structure: false``): the chapter and
+    scene shown come from the workspace's own structure.
     """
     if ats is not None:
         return dict(row for at in dict.fromkeys(ats) if (row := _read_row(doc, at)))
-    located = doc.run("locate", {})
+    located = doc.run("locate", {"structure": False})
     pages = doc.run("page.estimate", {})
     laid_out = str(located.get("basis", "model")) != "model"
     exact = {str(r["at"]): laid_out and r.get("source") != "model" for r in pages["paragraphs"]}
@@ -96,7 +98,7 @@ def _read_row(doc: dc.Document, at: str) -> tuple[str, dict[str, Any]] | None:
     text = str(doc.run("para.get", {"at": at}).get("text", ""))
     if not text.strip():
         return None  # whole-document ``locate`` leaves empty paragraphs out
-    located = doc.run("locate", {"at": at})
+    located = doc.run("locate", {"at": at, "structure": False})
     page = doc.run("page.estimate", {"at": at})
     laid_out = str(located.get("basis", "model")) != "model"
     row = located["paragraphs"][0]

@@ -218,11 +218,11 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.4.1"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/95/cbd7c47e5c9862a9d370dd7e4ed62fce3e1187097b59014c73a956acfbef/doc_control-0.4.1.tar.gz", hash = "sha256:a9d136b39ffa80c13de95bfa3971571fbab624a3bb1c3f701143c3142247ce01", size = 449370, upload-time = "2026-10-13T12:34:48.46Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/40/0f/6fa93e110a8096c6bb3abb4a2eda78e8987e0f3cb75866b0d48836d4d3bd/doc_control-0.5.0.tar.gz", hash = "sha256:59d6007af2e02d02d12b0dec28824ed82d86652a27483317251ac7957bdb46a8", size = 460722, upload-time = "2026-10-13T14:39:18.534Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/13/274540af7176226b012f09a4e1f3725e530b6fd8c1b8743a054d35cc5c25/doc_control-0.4.1-py3-none-any.whl", hash = "sha256:94779a78bf9c6a61eb26f232b78792553b9c964c83e82740197bafea08e67e1f", size = 287836, upload-time = "2026-10-13T12:34:46.94Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/5c/7a8b179bcf0f470f53fdb8acccee913639db06d083a9b3821e8da4a1c652/doc_control-0.5.0-py3-none-any.whl", hash = "sha256:6f87dccea6842008539cb5cfcd2ab68422b481998810ec985ae23d95ccc8215b", size = 294732, upload-time = "2026-10-13T14:39:16.928Z" },
 ]
 
 [[package]]
@@ -386,7 +386,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "doc-control", specifier = ">=0.4.1,<0.5" }]
+requires-dist = [{ name = "doc-control", specifier = ">=0.5.0,<0.6" }]
 
 [package.metadata.requires-dev]
 dev = [

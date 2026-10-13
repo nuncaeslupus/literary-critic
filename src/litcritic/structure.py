@@ -1,10 +1,10 @@
 """Structure from doc-control's ``segment``, and paragraph anchors.
 
 doc-control finds the parts, chapters and scenes of the file a draft was
-ingested from (``.docx``, ``.txt`` or ``.md``; a converted copy for ``.odt``), with a
-stable id and the signals behind each one. This module lays literary-critic's
-labels over them: chapter ``cNN`` (``c00`` is front matter), scene ``sN`` (``s0``
-holds heading lines) and paragraph ``pN``, so every paragraph of ``text/vNNN.txt``
+ingested from (``.docx``, ``.odt``, ``.txt`` or ``.md``), with a stable id and
+the signals behind each one. This module lays literary-critic's labels over
+them: chapter ``cNN`` (``c00`` is front matter), scene ``sN`` (``s0`` holds
+heading lines) and paragraph ``pN``, so every paragraph of ``text/vNNN.txt``
 gets a readable anchor ``[pN.]cNN.sN.pN`` and a content fingerprint.
 
 The kind of text decides the detection settings (its ``PROFILE``, passed to

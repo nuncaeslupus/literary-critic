@@ -433,20 +433,23 @@ def test_find_string_from_doc_control(tmp_path: Path) -> None:
     )
     places = docx_cli._Places(ws, doc, doc.read_bytes())
     ats = list(places.rows)
-    # A passage that needs the Find box's ^ codes gives way to doc-control's phrase.
-    assert places.find(ats[1] + ":4-5", "^") == {"find": "Uno", "unique": True}
+    # A passage met once is typed in the Find box's own ^ codes (doc-control's query_word).
+    assert places.find(ats[1] + ":4-5", "^") == {"find": "^^", "unique": True}
     # Otherwise the paragraph's Find phrase from doc-control's locate.
     assert places.find(ats[3], "") == {"find": "Fin.", "unique": True}
     found = places.find(ats[5], "said")  # Word's Find ignores case
     assert found["unique"] and found["find"].lower() not in ("said", "rose said")
-    # A paragraph that repeats another points to the nearest one before it.
-    assert places.find(ats[2], "") == {"find": "Uno", "unique": False, "paragraphs_after": 1}
+    # A paragraph that repeats another gets a phrase across the paragraph mark before it.
+    assert places.find(ats[2], "") == {"find": "^p***", "unique": True}
 
 
-def test_quotes_typed_as_they_are() -> None:
-    plain = docx_cli.TYPED_AS_IS.fullmatch
-    assert plain("Rose said it.") and not plain("a^b") and not plain("a\tb")
-    assert not plain("a\xa0b") and not plain("a  b") and not plain(" a")
+def test_quotes_typed_in_find_box_codes(tmp_path: Path) -> None:
+    ws, doc = _workspace(tmp_path, _plain("Uno dos\ttres.", "Rose said it.", "Fin."))
+    places = docx_cli._Places(ws, doc, doc.read_bytes())
+    ats = list(places.rows)
+    assert places.find(ats[0], "Uno dos\ttres") == {"find": "Uno^sdos^ttres", "unique": True}
+    assert places.find(ats[1], "Rose said it.") == {"find": "Rose said it.", "unique": True}
+    assert places.find(ats[1], "x" * 300)["find"] != "x" * 300  # past the Find box's limit
 
 
 def test_places_one_by_one_match_whole_document(novel: tuple[Path, Path]) -> None:

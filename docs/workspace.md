@@ -37,8 +37,10 @@ works grouped by any of them. `lc init <slug> --title … --language … [--auth
 
 `lc ingest <file> --workspace <slug|folder>` accepts `.txt`, `.md`, `.docx` and
 `.odt`. It copies the file to `manuscript/vNNN.<ext>` and writes `text/vNNN.txt`
-plus its meta file. doc-control reads `.docx`, `.txt` and `.md` itself; an
-`.odt` is read through a converted `.docx` copy. A hard-wrapped `.txt` is read
+plus its meta file. doc-control reads every one of them itself. From an `.odt`
+it reads the body paragraphs, headings (as Heading 1-9) and paragraph style
+names; notes, comments, drawings and tracked deletions are left out, and its
+pages are unknown. A hard-wrapped `.txt` is read
 as blocks (lines joined, one empty line separates, each extra one counts as a
 blank line); otherwise every line is a paragraph and every empty line a blank
 line (doc-control's `auto` text mode; a kind may set its own: poems read
@@ -140,7 +142,7 @@ The LLM fills the Codex in bounded packets, each answered with JSON only:
 moved, modified (with similarity), split, merged or deleted — and its new
 anchors; the inserted paragraphs; and `stale_scenes`, the new scenes whose text
 changed. The alignment is doc-control's `diff` of the two snapshots in
-`manuscript/` (or of the converted `.docx` copies of `.odt` ones), read through each
+`manuscript/`, read through each
 paragraph's address in `text/vNNN.meta.json`. `lc codex sync` uses the same
 alignment to move the Codex to the new draft.
 
@@ -192,8 +194,12 @@ on the draft's snapshot: the page (exact where Word's own page marks fix it,
 else ≈ from doc-control's page model), the paragraph's first and last words —
 doc-control's shortest start-and-end pair no other paragraph shares, shown
 with at least four words a side — and `find`, the phrase Word's Find meets
-once. A paragraph that repeats another word for word is placed after its
-neighbour.
+once, as typed in the Find box (`^` codes; a paragraph that repeats another
+word for word gets one across the paragraph mark, `^p`). A repeated paragraph's
+first and last words place it after its neighbour. `lc docx locate "<quote>"`
+gives the quote itself as `find` when Word meets it once, coded for the Find
+box by doc-control's `find` (`query_word`; Word's default options: any case,
+any part of a word).
 
 ## Comments in Word
 
@@ -208,9 +214,9 @@ comments are kept. The writer's original file is never modified.
 A workspace made before literary-critic read manuscripts through doc-control
 has schema-1 meta files (no `at` addresses), the old structure files and,
 perhaps, overrides in the first shape and the old safe-edit `backups/`. A
-`.txt` or `.md` draft ingested before doc-control read those formats itself (its
-meta has no `source`) has addresses into a converted `.docx` copy, which may
-differ from the file's own (empty lines, raw text). `lc` then says the draft
+`.txt`, `.md` or `.odt` draft ingested before doc-control read those formats
+itself (its meta has no `source`) has addresses into a converted `.docx` copy,
+which may differ from the file's own (empty lines, raw text). `lc` then says the draft
 "was ingested by an older release". Run once:
 
 ```
