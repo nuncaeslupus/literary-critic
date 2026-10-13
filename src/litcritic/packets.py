@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import prepass, query, structure, validate
+from litcritic import prepass, query, structure, validate, view
 from litcritic import spans as spanlib
 from litcritic.codex import Codex, CodexError, Item, _write_atomic
 
@@ -40,15 +40,21 @@ SCENE_TEXT_CAP = 8000  # tokens of scene text per scene packet
 SPLIT_AT = 11000  # a scene above this many tokens is cut at paragraph boundaries
 PACKET_MAX = 12000  # no rendered packet exceeds this
 KNOWN_CAP = 300  # tokens for the names an entity packet shares with the others
-ENTITY_LINES_CAP = 600  # tokens for the Codex entities listed in a scene packet
+KNOWN_LINES_CAP = 1500  # tokens for the known entities listed under the scenes of a packet
+SETUP_LINES_CAP = 300  # tokens for the open setups listed in a scene packet
 SCENES_PER_PACKET = 40  # the answer schema allows 60
 FACT_NAMES = 12  # names and speakers listed per scene
 STATUSES = ("todo", "done", "failed")
 KIND_SCHEMA = {"entities": "index-entities-answer", "scenes": "index-scenes-answer"}
-# Model tier per packet kind, named, never a model id (spec, open question 1). Entity
-# resolution needs the strong tier: a cheap model agreed only 0.73 recall / 0.69 precision
-# with a strong one on a real manuscript (D-4); scene packets stay cheap until T4 decides.
-TIER = {"entities": "strong", "scenes": "cheap"}
+# Model tier per packet kind, named, never a model id (spec, open question 1): cheap
+# (Haiku-class), standard (Sonnet-class), strong (the session's best). Entity resolution
+# needs the strong tier: a cheap model agreed only 0.73 recall / 0.69 precision with a
+# strong one on a real manuscript (D-4). Scene packets need the standard tier: against a
+# strong reference on a real manuscript the cheap tier left pov out in first-person
+# scenes (5/18 right) and missed half the setups; the standard tier agreed on >= 17/18
+# scenes per field once told to always give pov.
+TIERS = ("cheap", "standard", "strong")
+TIER = {"entities": "strong", "scenes": "standard"}
 
 INSTRUCTIONS = {
     "entities": (
@@ -64,12 +70,18 @@ INSTRUCTIONS = {
         "for a name that is not a candidate."
     ),
     "scenes": (
-        "Task: one entry per scene below. summary: what happens, at most 80 words, plain "
-        "and factual, never prose for the novel. pov, location, time: as the text gives "
-        "them; leave out what it does not say. setups: details planted for later "
-        "(side setup) or paying off earlier ones (side payoff, pays_off = that setup's "
-        "label). entities: only ones not listed under Entities. Every quote: exact words "
-        "copied from that scene, enough of them to occur only once in it."
+        "Task: one entry per scene below; facts only, never prose for the novel. "
+        "pov: always; whose eyes the scene is told through; first person: "
+        '"narrator (first person)", plus the name if the text gives it. '
+        "location: where the scene happens, not where someone comes from. "
+        'time: as precise as the text allows, else "unspecified". '
+        "summary: what happens and what changes, who does what to whom (check who is who "
+        "against known and speakers), no interpretation. "
+        "setups: only details planted for a later scene, never one resolved in the same "
+        "scene, never a theme. side payoff only in the scene that resolves a setup, "
+        "pays_off = that setup's label or id (Open setups lists earlier ones). "
+        "entities: only people, places or things missing from known. Every quote: exact "
+        "words copied from that scene, enough to occur only once in it."
     ),
 }
 
@@ -458,12 +470,51 @@ def _render_entities(doc: dict[str, Any], p: dict[str, Any], draft: Draft, cx: C
     return head + body
 
 
-def _scene_facts(unit: dict[str, Any], draft: Draft) -> list[str]:
+def _known(units: list[dict[str, Any]], draft: Draft, cx: Codex | None) -> list[list[str]]:
+    """Per unit, the Codex entities the reference index finds in it, most mentioned
+    first: ``Name [id]``, plus the other forms (aliases, titles) the unit uses."""
+    ents = _codex_entities(cx)
+    out: list[list[str]] = [[] for _ in units]
+    if not ents:
+        return out
+    paras: list[str] = []
+    owner: list[str] = []
+    for k, u in enumerate(units):
+        lo, hi = u["paras"]
+        paras += draft.paragraphs[lo : hi + 1]
+        owner += [str(k)] * (hi - lo + 1)
+    by_id = {e.id: e for e in ents}
+    count: list[Counter[str]] = [Counter() for _ in units]
+    forms: list[dict[str, dict[str, str]]] = [{} for _ in units]
+    for eid, _, _, form, scene, _ in view.mention_rows(paras, owner, ents):
+        k = int(scene)
+        count[k][eid] += 1
+        name = by_id[eid].fields.get("name", "")
+        if form.casefold() != name.casefold():
+            forms[k].setdefault(eid, {}).setdefault(form.casefold(), form)
+    for k in range(len(units)):
+        for eid, _ in count[k].most_common():
+            line = f"{by_id[eid].fields.get('name', '')} [{eid}]"
+            seen = list(forms[k].get(eid, {}).values())
+            if seen:
+                line += f" ({' / '.join(seen[:4])})"
+            out[k].append(line)
+    return out
+
+
+def _scene_facts(unit: dict[str, Any], draft: Draft, known: list[str]) -> list[str]:
     pre_sc = draft.pre["scenes"].get(unit["scene"], {})
     lines = []
-    names = pre_sc.get("names", [])[:FACT_NAMES]
+    if known:
+        lines.append("known: " + "; ".join(known))
+    told = {w.casefold() for w in prepass.TOKEN.findall(" ".join(known))}
+    names = [
+        n
+        for n in pre_sc.get("names", [])
+        if not all(w.casefold() in told for w in prepass.TOKEN.findall(n))
+    ][:FACT_NAMES]
     if names:
-        lines.append("names: " + ", ".join(names))
+        lines.append("other names: " + ", ".join(names))
     lo, hi = unit["paras"]
     span = set(draft.anchors[lo : hi + 1])
     who = Counter(
@@ -474,6 +525,29 @@ def _scene_facts(unit: dict[str, Any], draft: Draft) -> list[str]:
     return lines
 
 
+def _open_setups(units: list[dict[str, Any]], draft: Draft, cx: Codex | None) -> str:
+    """Setups placed before the packet and not paid off yet, nearest first."""
+    if cx is None:
+        return ""
+    paid = {
+        x["to"]
+        for it in cx.live("setup")
+        for x in it.links
+        if x["rel"] == "pays_off" and it.fields.get("side") == "payoff"
+    }
+    pos = {a: i for i, a in enumerate(draft.anchors)}
+    lo = units[0]["paras"][0]
+    found: list[tuple[int, str]] = []
+    for it in cx.live("setup"):
+        if it.fields.get("side") != "setup" or it.id in paid or not it.spans:
+            continue
+        at = pos.get(it.spans[0].start.para)
+        if at is not None and at < lo:
+            found.append((at, f"{it.fields.get('label', '')} [{it.id}]"))
+    found.sort(reverse=True)
+    return _cap_join([x for _, x in found], SETUP_LINES_CAP)
+
+
 def _render_scenes(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
     units = p["inputs"]["units"]
     first, last = units[0]["scene"], units[-1]["scene"]
@@ -482,38 +556,23 @@ def _render_scenes(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
         f"packet {p['id']} · scenes {span} · tier {TIER['scenes']} · draft {draft.version}",
         "scenes",
     )
+    opened = _open_setups(units, draft, cx)
+    if opened:
+        head += f"Open setups: {opened}\n"
+    known = _known(units, draft, cx)
+    bodies = ["\n".join(draft.paragraphs[u["paras"][0] : u["paras"][1] + 1]) for u in units]
+    room = min(KNOWN_LINES_CAP * 4, PACKET_MAX * 4 - len(head) - sum(map(len, bodies)) - 2000)
+    k = max((len(x) for x in known), default=0)
+    while k > 0 and sum(len("; ".join(x[:k])) + 9 for x in known if x) > room:
+        k -= 1
     blocks = []
-    words: set[str] = set()
-    for u in units:
-        lo, hi = u["paras"]
+    for u, body, kn in zip(units, bodies, known, strict=True):
         title = f"## {u['scene']}"
         if "part" in u:
             title += f" part {u['part'][0]}/{u['part'][1]} (answer for this part only)"
         title += f" ({u['words']} words)"
-        body = "\n".join(draft.paragraphs[lo : hi + 1])
-        words.update(w.casefold() for w in prepass.TOKEN.findall(body))
-        blocks.append("\n".join([title, *_scene_facts(u, draft), body]))
-    text = "\n".join(blocks) + "\n"
-    room = min(ENTITY_LINES_CAP * 4, PACKET_MAX * 4 - len(head) - len(text) - 40)
-    lines: list[str] = []
-    used = 0
-    for item in _codex_entities(cx):
-        forms = [item.fields.get("name", ""), *item.fields.get("aliases", [])]
-        present = any(
-            f and all(w.casefold() in words for w in prepass.TOKEN.findall(f)) for f in forms
-        )
-        if not present:
-            continue
-        line = " = ".join([forms[0], " / ".join(forms[1:])]) if len(forms) > 1 else forms[0]
-        line += f" ({item.fields.get('kind', '')})"
-        if item.fields.get("titles"):
-            line += " titles: " + " / ".join(item.fields["titles"])
-        if used + len(line) + 1 > room:
-            break
-        lines.append(line)
-        used += len(line) + 1
-    ents = "Entities: " + ("; ".join(lines) if lines else "none yet") + "\n"
-    return head + ents + text
+        blocks.append("\n".join([title, *_scene_facts(u, draft, kn[:k]), body]))
+    return head + "\n".join(blocks) + "\n"
 
 
 # --- importing -------------------------------------------------------------------
@@ -704,9 +763,16 @@ def _candidate_span(c: dict[str, Any], text: spanlib.Text, path: str) -> spanlib
     return spanlib.make(text, text.draft, text.anchors[i], at, text.anchors[i], at + len(q))
 
 
+@dataclass
+class SceneImport:
+    items: list[Item]
+    unlinked: int  # payoffs matching no setup label or id yet
+    same_scene: int  # payoffs linked to a setup planted in the same scene
+
+
 def _scene_items(
     ans: dict[str, Any], p: dict[str, Any], cx: Codex, draft: Draft, text: spanlib.Text
-) -> tuple[list[Item], int]:
+) -> SceneImport:
     units = {u["scene"]: u for u in p["inputs"]["units"]}
     seen: dict[str, int] = {}
     for i, s in enumerate(ans["scenes"]):
@@ -727,6 +793,8 @@ def _scene_items(
         for it in cx.live("setup")
         if it.fields.get("side") == "setup"
     }
+    setup_ids = {it.id for it in cx.live("setup") if it.fields.get("side") == "setup"}
+    planted: dict[str, str] = {}  # setup id -> scene, for setups of this answer
     items: list[Item] = []
     taken: set[str] = set()
     unlinked = 0
@@ -736,7 +804,7 @@ def _scene_items(
         taken.add(item_id)
         return item_id
 
-    pending: list[tuple[Item, str, str]] = []  # payoff item, label, path
+    pending: list[tuple[Item, str, str]] = []  # payoff item, setup label or id, scene
     for i, s in enumerate(ans["scenes"]):
         u = units[s["scene"]]
         lo, hi = u["paras"]
@@ -788,15 +856,18 @@ def _scene_items(
             items.append(it)
             if su["side"] == "setup":
                 setups[su["label"].casefold()] = it.id
-            elif "pays_off" in su:
-                pending.append((it, su["pays_off"], f"{spath}.pays_off"))
-    for it, target, _ in pending:
-        to = setups.get(target.casefold())
+                planted[it.id] = s["scene"]
+            else:  # linked by pays_off (a setup's label or id), else by its own label
+                pending.append((it, su.get("pays_off", su["label"]), s["scene"]))
+    same_scene = 0
+    for it, target, scene in pending:
+        to = setups.get(target.casefold()) or (target if target in setup_ids else None)
         if to is None:
             unlinked += 1
-        else:
-            it.links.append({"rel": "pays_off", "to": to})
-    return items, unlinked
+            continue
+        it.links.append({"rel": "pays_off", "to": to})
+        same_scene += planted.get(to) == scene
+    return SceneImport(items, unlinked, same_scene)
 
 
 def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
@@ -839,9 +910,14 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
             if got.unlinked:
                 notes.append(f"{got.unlinked} same_as left unlinked: no entity with that name yet")
         else:
-            items, unlinked = _scene_items(ans, p, cx, draft, text)
-            if unlinked:
-                notes.append(f"{unlinked} payoff(s) left unlinked: no setup with that label yet")
+            got_s = _scene_items(ans, p, cx, draft, text)
+            items = got_s.items
+            if got_s.unlinked:
+                notes.append(
+                    f"{got_s.unlinked} payoff(s) left unlinked: no setup with that label yet"
+                )
+            if got_s.same_scene:
+                notes.append(f"{got_s.same_scene} payoff(s) in the scene of their setup")
         try:
             cx.add_many(items, by="llm", batch=f"index:{doc['draft']}:{packet_id}")
         except CodexError as exc:
@@ -851,10 +927,22 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
         _save_plan(ws_root, doc)
         return f"error {packet_id}: {exc}"
     p["status"], p["items"] = "done", len(items)
+    if p["kind"] == "scenes":
+        p["out_tokens"] = tokens(_compact(ans))
     p.pop("error", None)
     _save_plan(ws_root, doc)
     note = f" ({'; '.join(notes)})" if notes else ""
     return f"ok {packet_id}: {len(items)} items{note}"
+
+
+def _compact(ans: Any) -> str:
+    return json.dumps(ans, ensure_ascii=False, separators=(",", ":"))
+
+
+def output_tokens_per_scene(ans: dict[str, Any]) -> float:
+    """Estimated output tokens of a scene answer (compact JSON) per scene in it."""
+    n = len(ans.get("scenes", [])) or 1
+    return round(tokens(_compact(ans)) / n, 1)
 
 
 def _save_plan(ws_root: Path, doc: dict[str, Any]) -> None:
@@ -877,7 +965,11 @@ def status_lines(doc: dict[str, Any]) -> list[str]:
                 what += f" part {us[0]['part'][0]}/{us[0]['part'][1]}"
         line = f"{p['id']} {p['kind']} {p['status']} ~{p['tokens']} tokens {what}"
         if p["status"] == "done":
-            line += f" ({p.get('items', 0)} items)"
+            out_tok = ""
+            if p.get("out_tokens"):
+                per = round(p["out_tokens"] / len(p["inputs"]["units"]), 1)
+                out_tok = f", ~{per} out tokens/scene"
+            line += f" ({p.get('items', 0)} items{out_tok})"
         elif p["status"] == "failed":
             line += f": {p.get('error', '')}"
         out.append(line)
