@@ -138,6 +138,9 @@ TXT_NOT_HEADING = re.compile(r"[,;:]$|^[\u2014\u2013«\"“]")
 def _txt_headings(paras: list[Para], wrapped: bool) -> list[Para]:
     """Mark plain text's heading convention as heading level 1.
 
+    TODO: remove once doc-control's ``chapter_blank_lines`` profile setting (T50) is
+    released; pass it in the novel profile instead.
+
     A heading in a plain-text manuscript is a short line with a wider gap above it
     than paragraphs have, and a blank line below it. ``blank_before`` already counts
     only the extra blank lines when paragraphs are blank-line separated (``wrapped``).

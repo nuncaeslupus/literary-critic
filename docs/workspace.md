@@ -51,8 +51,10 @@ is front matter), scene (`s0` holds heading lines) and paragraph.
 doc-control's `segment` finds the parts, chapters and scenes, each with a
 stable id and the signals behind it (`stable_id` and `signals` in
 `structure.json`): heading styles and outline levels, chapter words and
-numerals ("Capítulo 3", "Prólogo"), a chapter-start paragraph style; ornament
-lines ("* * *") start scenes. A plain-text draft has no styles, so a short line
+numerals ("Capítulo 3", "-IV-", "Prólogo"), a chapter-start paragraph style; a
+short line under an untitled heading is its subtitle (part of the title, scene
+0). Ornament lines ("* * *") and "after break" paragraph styles start scenes.
+A plain-text draft has no styles, so a short line
 with two or more extra blank lines above it is read as a heading. The kind of
 text sets the detection settings. When it gets something wrong, put corrections
 in `analysis/structure-overrides.json`, in doc-control's override shape: force or

@@ -131,7 +131,7 @@ def test_known_corpus_structure() -> None:
         assert len([c for c in s.chapters if c.reason != "front"]) == n
         assert s.chapters[0].reason == "front"
     s = structure.detect(*_read("marianela"))
-    assert s.chapters[1].title == "-I-"  # the title line under it is body text
+    assert s.chapters[1].title == "-I- Perdido"  # doc-control's heading_last subtitle
 
 
 def test_anchors_unique_and_readable() -> None:
@@ -203,11 +203,13 @@ def test_review_regressions() -> None:
     # Body sentences starting "Part one…" or with roman-looking words are not parts.
     s = structure.detect(["CHAPTER ONE", "Part one of the plan failed, as everyone knew.", body])
     assert s.parts == []
-    # An "after break" style is not itself a separator (doc-control opens no scene
-    # by style name yet: blank lines or an ornament mark the break).
+    # An "after break" style opens a scene; it is not itself a separator.
     meta = [{}, {}, {"style": "Text after break"}, {}]
     s = structure.detect(["CHAPTER ONE", body, "No one.", body], meta)
-    assert 2 not in s.breaks
+    assert 2 not in s.breaks and 2 in s.scene_starts
+    assert s.scenes[-1].signals[0] == "scene_style"
+    scene = structure.to_json(s, "v001")["chapters"][-1]["scenes"][-1]
+    assert scene["start"] == 2 and scene["signals"][0] == "scene_style"
     # An ornament under a chapter title opens no scene of its own.
     s = structure.detect(["Chapter 1", "* * *", body, "Chapter 2", body, "Chapter 3", body])
     assert s.anchors()[:3] == ["c01.s0.p1", "c01.s1.p1", "c01.s1.p2"]

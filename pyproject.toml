@@ -43,4 +43,4 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.uv.sources]
-doc-control = { git = "https://github.com/nuncaeslupus/doc-control", rev = "b04298e" }
+doc-control = { git = "https://github.com/nuncaeslupus/doc-control", rev = "0e5a0c3" }

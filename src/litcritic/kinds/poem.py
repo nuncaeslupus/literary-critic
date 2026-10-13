@@ -24,6 +24,8 @@ PROFILE: dict[str, Any] = {
     "chapter_patterns": False,
     "chapter_styles": False,
     "scene_markers": False,
+    "scene_styles": False,
+    "heading_subtitles": False,
 }
 TITLE_MAX_WORDS = 8
 CLOSING = re.compile(r"[.,;:!?…»”\"')\]-]$")

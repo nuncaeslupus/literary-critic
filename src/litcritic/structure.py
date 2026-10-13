@@ -149,24 +149,23 @@ def segment(
     if not paragraphs:
         return Structure([], [], [], set(), set(), ["0 parts, 0 chapters, 0 scenes"]), errors
 
-    parts = [
-        Unit(index(p["first"]), [index(p["first"])], paragraphs[index(p["first"])], "part")
-        for p in parts_found
-    ]
-    for unit, p in zip(parts, parts_found, strict=True):
-        unit.uid, unit.signals = p["id"], list(p["signals"])
+    def heading(unit: dict[str, Any]) -> list[int]:
+        """The heading lines doc-control reports (title and subtitle); [] for none."""
+        last = unit.get("heading_last")
+        return [] if last is None else list(range(index(unit["first"]), index(last) + 1))
+
+    def title(lines: list[int]) -> str:
+        return " ".join(paragraphs[i] for i in lines)
+
+    parts: list[Unit] = []
+    for p in parts_found:
+        lines = heading(p) or [index(p["first"])]
+        parts.append(Unit(lines[0], lines, title(lines), "part", p["id"], list(p["signals"])))
     chapters: list[Unit] = []
     for c in found["chapters"]:
-        i = index(c["first"])
+        lines = heading(c)
         signals = list(c["signals"])
-        untitled = signals == ["chapter_style"] or (
-            "chapter_style" in signals
-            and not {"heading_style", "outline_level", "chapter_word", "section_name", "numeral"}
-            & set(signals)
-        )
-        heading = [] if untitled else [i]
-        title = "" if untitled else paragraphs[i]
-        chapters.append(Unit(i, heading, title, signals[0], c["id"], signals))
+        chapters.append(Unit(index(c["first"]), lines, title(lines), signals[0], c["id"], signals))
     first = min([c.start for c in chapters] + [p.start for p in parts] + [len(paragraphs)])
     if found.get("front") is not None or not chapters or first > 0:
         chapters.insert(0, Unit(0, [], "", "front"))
@@ -259,11 +258,12 @@ def detect(
 def chapter_starts(s: Structure) -> list[int]:
     """First paragraph of each chapter, a part heading just before it included."""
     part_heads = {p.start for p in s.parts}
+    part_lines = {i for p in s.parts for i in p.heading} | part_heads
     starts = [c.start for c in s.chapters]
     for ps in sorted(part_heads):
         for k, st in enumerate(starts):
             between = range(ps + 1, st)
-            if st > ps and all(i in s.breaks or i in part_heads for i in between):
+            if st > ps and all(i in s.breaks or i in part_lines for i in between):
                 starts[k] = min(st, ps)
                 break
     return starts
@@ -278,7 +278,7 @@ def _anchor_list(s: Structure) -> list[str]:
     n = len(s.paragraphs)
     part_heads = {p.start for p in s.parts}
     starts = chapter_starts(s)
-    heads = {i for c in s.chapters for i in c.heading} | part_heads
+    heads = {i for u in [*s.chapters, *s.parts] for i in u.heading} | part_heads
     has_front = bool(s.chapters) and s.chapters[0].reason == "front"
     out: list[str] = []
     ci, scene, counts = -1, 0, {0: 0}
