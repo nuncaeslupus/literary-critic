@@ -1,7 +1,9 @@
 # The bible: characters, places, objects, groups and world rules.
 type = "entity"
 prefix = "en"
-links = ["knows", "part_of", "refers_to", "depends_on", "contradicts", "about"]
+# same_as: one character under two names the text keeps apart (Jekyll / Hyde), two
+# entities linked; plain aliases stay in one entity.
+links = ["knows", "part_of", "refers_to", "depends_on", "contradicts", "about", "same_as"]
 columns = ["kind", "name"]
 spans_required = false
 standalone = true
@@ -16,6 +18,11 @@ enum = ["character", "place", "object", "group", "rule", "motif"]
 type = "string"
 minLength = 1
 [schema.properties.aliases]
+type = "array"
+items = { type = "string", minLength = 1 }
+# Role titles used as names ("the doctor"): counted as mentions only in scenes where
+# the entity is also named.
+[schema.properties.titles]
 type = "array"
 items = { type = "string", minLength = 1 }
 [schema.properties.exact_case]
