@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -42,11 +43,34 @@ class WordLiveError(Exception):
     """A request that cannot be answered (unknown operation, missing keys)."""
 
 
-def _keys(platform: str) -> tuple[str, str]:
-    """(modifier key name, app switch hint) for the writer's system."""
+# Word for Windows translates its shortcuts along with its menus. Measured on a Spanish
+# Word (16.0.17932, `Application.FindKey`): Ctrl+F indents the paragraph, Ctrl+S
+# underlines and Ctrl+W resets the paragraph's formatting; Find is Ctrl+B. Shift+F12
+# (save) and Ctrl+F4 (close) do the same in every language, so the steps use those,
+# and Find names its key by language.
+WINDOWS_FIND = {"English": "Ctrl+F", "Spanish": "Ctrl+B"}
+
+
+@dataclass(frozen=True)
+class Keys:
+    """How the agent reaches Word and its commands on the writer's system."""
+
+    switch: str
+    find: str
+    save: str
+    close: str
+
+
+def _keys(platform: str) -> Keys:
     if platform == "darwin":
-        return "Cmd", "click Word in the Dock"
-    return "Ctrl", "click Word in the taskbar"
+        return Keys("click Word in the Dock", "Press Cmd+F", "Cmd+S", "Cmd+W")
+    by_language = ", ".join(f"{key} in {lang}" for lang, key in WINDOWS_FIND.items())
+    find = (
+        f"Open Word's search with the key for the language of its menus ({by_language}; "
+        "in any other language click Find on the Home tab: a wrong key changes the "
+        "paragraph's formatting)"
+    )
+    return Keys("click Word in the taskbar", find, "Shift+F12", "Ctrl+F4")
 
 
 def _name(payload: dict[str, Any]) -> str:
@@ -78,13 +102,13 @@ def _below(payload: dict[str, Any]) -> int:
 
 def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
     """What the agent does with computer use, and what to tell the writer otherwise."""
-    mod, switch = _keys(platform)
+    keys = _keys(platform)
     name = _name(payload)
     steps: list[str]
     if op == "locate":
         steps = [
-            f"Bring Word to the front with {name} open ({switch}).",
-            f"Press {mod}+F, type exactly: {payload['find']}",
+            f"Bring Word to the front with {name} open ({keys.switch}).",
+            f"{keys.find}, then type exactly: {payload['find']}",
             "Press Enter: Word selects the passage. Close the search box; leave the "
             "selection for the writer to see.",
         ]
@@ -105,19 +129,20 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
     elif op in ("apply_edits", "rename"):
         steps = [
             f"Run `lc docx status` first. If {name} is open in Word, save and close it "
-            f"({mod}+S, then {mod}+W), or ask the writer to.",
+            f"({keys.save}, then {keys.close}), or ask the writer to.",
             "Apply the change with `lc docx edits` or `lc docx rename`.",
             f"Reopen {name} in Word (double-click it in its folder); the change shows "
             "as a tracked change the writer can accept or reject.",
         ]
         writer = f"Please save and close {name} in Word; I will tell you when to open it again."
     elif op == "save":
-        steps = [f"Bring Word to the front ({switch}) and press {mod}+S."]
-        writer = f"Please save {name} in Word ({mod}+S)."
+        steps = [f"Bring Word to the front ({keys.switch}) and press {keys.save}."]
+        writer = f"Please save {name} in Word."
     elif op == "close":
-        verb = f"press {mod}+S, then {mod}+W" if payload.get("save") else f"press {mod}+W"
+        both = f"press {keys.save}, then {keys.close}"
+        verb = both if payload.get("save") else f"press {keys.close}"
         steps = [
-            f"Bring Word to the front ({switch}) and {verb}.",
+            f"Bring Word to the front ({keys.switch}) and {verb}.",
             "If Word asks whether to save, answer as the writer decided; never discard "
             "their unsaved work without asking.",
         ]

@@ -31,7 +31,9 @@ def test_every_operation_answers_with_computer_use_steps() -> None:
 def test_manual_steps_follow_the_system_and_the_locator() -> None:
     mac = word_live.manual("locate", PAYLOADS["locate"], "darwin")
     win = word_live.manual("locate", PAYLOADS["locate"], "win32")
-    assert "Cmd+F" in " ".join(mac["steps"]) and "Ctrl+F" in " ".join(win["steps"])
+    assert "Cmd+F" in " ".join(mac["steps"])
+    # Word for Windows translates its shortcuts: Find is named by the language of its menus
+    assert "Ctrl+F in English, Ctrl+B in Spanish" in " ".join(win["steps"])
     assert "Ya voy^pdijo" in " ".join(win["steps"]) and "Chapter 7" in win["writer"]
     no_loc = word_live.manual("locate", {"document": "N.docx", "find": "Ya voy"})
     assert "Ya voy" in no_loc["writer"]
@@ -50,6 +52,18 @@ def test_manual_steps_follow_the_system_and_the_locator() -> None:
         word_live.call("locate", {"document": "N.docx"})
     with pytest.raises(word_live.WordLiveError, match="unknown"):
         word_live.call("print", {})
+
+
+def test_windows_steps_use_keys_that_mean_the_same_in_every_word() -> None:
+    """In a Spanish Word, Ctrl+S underlines and Ctrl+W resets the paragraph's formatting."""
+    for op in ("apply_edits", "save", "close"):
+        out = word_live.manual(op, PAYLOADS[op], "win32")
+        said = " ".join(out["steps"]) + out["writer"]
+        assert "Ctrl+S" not in said and "Ctrl+W" not in said, op
+    close = " ".join(word_live.manual("close", PAYLOADS["close"], "win32")["steps"])
+    assert "Shift+F12, then Ctrl+F4" in close
+    mac = " ".join(word_live.manual("close", PAYLOADS["close"], "darwin")["steps"])
+    assert "Cmd+S, then Cmd+W" in mac
 
 
 def test_locate_is_fed_by_the_find_string_of_lc_docx_locate(

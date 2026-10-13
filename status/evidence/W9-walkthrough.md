@@ -146,10 +146,10 @@ evidence log.
 **Cowork main path (Windows 11 Pro and a Mac with Apple silicon)**
 - [ ] Count the actions from a fresh account to the first overview (target ≤ 5).
 - [ ] `lc setup` on the real novel folder names the right manuscript.
-- [ ] An approved change appears in Word as a tracked change by `literary-critic`, and rejecting it restores the text.
-- [ ] With the document open in Word, the change is refused and nothing is lost.
+- [x] An approved change appears in Word as a tracked change by `literary-critic`, and rejecting it restores the text. *(Windows 11 Pro, Word 16.0.17932, 2026-10-13, with `lc` run from a checkout rather than Cowork: Word reports one deletion and one insertion by `literary-critic`; after Reject All its text equals the original's.)*
+- [x] With the document open in Word, the change is refused and nothing is lost. *(Same machine: `lc docx status` says `locked`, `lc docx edits` answers `refused` / `locked` with exit 1, the file's bytes are the same and no backup is added; once Word closes it, the same edit applies.)*
 
 **Computer-use locate (`live_locate_success >= 0.9`)**
-- [ ] 10 located actions on Windows: Claude brings Word to the front and Ctrl+F selects the paragraph. Successes: __/10.
+- [ ] 10 located actions on Windows: Claude brings Word to the front and the search selects the paragraph. Successes: __/10. *(Not run with computer use yet. Checked without it, 2026-10-13: Word's own Find, given the `find` string of `lc docx locate`, lands on the right paragraph for 100 of 100 random paragraphs of the corpus novel as a Word-made `.docx`, 37 of them with accented characters. The key that opens the search depends on Word's language: in a Spanish Word, Ctrl+F indents the paragraph and Find is Ctrl+B, so `lc word` now names the key by language.)*
 - [ ] 10 on Mac (Cmd+F): __/10.
 - [ ] When it fails, the writer gets the plain location instead.
