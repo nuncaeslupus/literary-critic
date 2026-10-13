@@ -1,6 +1,7 @@
 """Bring a Codex up to a new draft, flagging exactly what the change touched.
 
-1. Align the synced draft with the new one (``diff.align``).
+1. Align the synced draft with the new one: doc-control's ``diff`` of the two
+   manuscript snapshots, read through its address map (``diff.versions``).
 2. Relocate every span (``spans.relocate``): kept text moves silently; changed
    or lost text is flagged.
 3. Items with a changed or lost span become ``needs_reread``, and so does every
@@ -62,7 +63,7 @@ class Report:
 
 
 def _text(work_root: Path, draft: str) -> spanlib.Text:
-    ix = query.load(work_root, draft)
+    ix = query.load(work_root, draft, codex=False)  # no scene lines: only the text is read
     return spanlib.Text(ix.paragraphs, ix.anchors, draft)
 
 
@@ -148,7 +149,7 @@ def sync(work_root: Path, to: str | None = None, cx: Codex | None = None) -> Rep
     if cx.damaged:
         raise CodexError(f"fix the unreadable rows first (lc codex check): {sorted(cx.damaged)}")
     old, new = _text(work_root, cx.draft), _text(work_root, new_draft)
-    al = diff.align(old.paragraphs, new.paragraphs)
+    al = diff.versions(work_root, cx.draft, new_draft)
     kept = al.mapping()
     updates: dict[str, Item] = {}
     for item in cx.items.values():

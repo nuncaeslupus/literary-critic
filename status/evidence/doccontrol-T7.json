@@ -1,0 +1,29 @@
+{
+  "metric": "sync_report_mismatches",
+  "value": 0,
+  "threshold": 0,
+  "scenarios": 11,
+  "detail": "Eleven sync scenarios on the Marianela Codex fixture (tests/codex_fixture.py plus 130 single-paragraph facts) were run with the old literary-critic aligner (origin/main) and with doc-control's diff (this branch), and every Report compared: report lines (item ids normalised), changed, lost and dependent items, renames and the moved-span count. Scenarios: identical draft, one edit, a consistent rename, a deleted paragraph, a 10-paragraph block moved, two inserted paragraphs, a split, a merge, and synth.generate edits at seeds 1/2/3 with rates 0.05/0.1/0.2. All 11 reports are identical. Every kept span lands at the same place; in the three synthetic scenarios 13 flagged (changed/lost) spans point the writer at a different neighbouring region (doc-control calls a 2-paragraph edit a split or modified where the old aligner said otherwise); their state and the flagged items are the same. The two gate tests also pass against the old aligner, so they pin the same report through both.",
+  "differences_from_old_aligner": {
+    "notes": "doc-control's diff has no 'large gap compared along a band' notes; alignment.json keeps a `notes` list (empty)",
+    "moved_and_edited": "doc-control's `moved` flag on a modified paragraph is kept as `moved: true` in alignment.json",
+    "small_example": "a short paragraph whose words reappear in an unrelated new one can be paired as modified+moved by doc-control; test_spans_lone_match_elsewhere_without_context_is_not_trusted now uses a paragraph edited in place"
+  },
+  "timing": {
+    "how": "in-process `lc diff v001 v002` and `lc codex sync` on .txt workspaces (v002 = synth.generate seed 5, rate 0.05; 200 facts, 2,000 for the doubled text), best of three, same machine",
+    "lc_diff_s": {
+      "jekyll-hyde": {"before": 0.036, "after": 0.093},
+      "marianela": {"before": 0.083, "after": 0.271},
+      "marianela x2 (~100k words)": {"before": 0.262, "after": 0.497}
+    },
+    "lc_codex_sync_s": {
+      "jekyll-hyde": {"before": 0.088, "after": 0.138},
+      "marianela": {"before": 0.185, "after": 0.324},
+      "marianela x2 (~100k words)": {"before": 0.686, "after": 0.883}
+    },
+    "sync_100k_words_20k_spans_s": {"before": 3.32, "after": 2.71, "note": "tests/test_sync.py::test_sync_100k_words_under_5s's sync; sync now loads drafts without the Codex scene lines it never used (query.load codex=False), which more than pays for the slower diff"},
+    "why_slower": "both manuscripts are converted (.txt) and parsed as .docx by doc-control on every diff, where the old aligner read text/vNNN.txt"
+  },
+  "command": "uv run pytest tests/test_sync.py::test_sync_flags_changed_spans tests/test_sync.py::test_sync_moves_kept_spans_silently",
+  "doc_control": "0.3.0"
+}

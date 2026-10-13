@@ -131,7 +131,10 @@ The LLM fills the Codex in bounded packets, each answered with JSON only:
 `index/v002/alignment.json`: for every old paragraph its status — unchanged,
 moved, modified (with similarity), split, merged or deleted — and its new
 anchors; the inserted paragraphs; and `stale_scenes`, the new scenes whose text
-changed. `lc codex sync` uses it to move the Codex to the new draft.
+changed. The alignment is doc-control's `diff` of the two snapshots in
+`manuscript/` (or of their converted `.docx` copies), read through each
+paragraph's address in `text/vNNN.meta.json`. `lc codex sync` uses the same
+alignment to move the Codex to the new draft.
 
 ## Metrics
 

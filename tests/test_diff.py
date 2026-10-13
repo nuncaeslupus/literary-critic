@@ -105,7 +105,7 @@ def test_review_regressions() -> None:
     al = diff.align([a, "* * *", b, "* * *", c], ["* * *", a, "* * *", b, "* * *", c])
     assert [e["status"] for e in al.old] == ["unchanged"] * 5
     assert al.old[1]["new"] == [2] and al.new[0]["status"] == "inserted"
-    # Unrelated drafts stay fast (banded comparison) and say so.
+    # Unrelated drafts stay fast and pair nothing.
     import random
     import time
 
@@ -116,4 +116,34 @@ def test_review_regressions() -> None:
     start = time.monotonic()
     al = diff.align(old, new)
     assert time.monotonic() - start < 15
-    assert al.notes
+    assert al.counts == {"deleted": 1500, "inserted": 1500}
+
+
+def test_alignment_reads_doc_control_address_map() -> None:
+    """Every old paragraph that kept its text maps through doc-control's address map."""
+    paras = synth.paragraphs(corpus.get("jekyll-hyde").read())
+    new = [*paras[:10], "An inserted paragraph of several plain words.", *paras[10:]]
+    al = diff.align(paras, new)
+    assert len(al.address_map) == len(paras)
+    assert al.mapping() == {i: i + (i >= 10) for i in range(len(paras))}
+    assert all(al.address_map[al.old_at[i]] == al.new_at[j] for i, j in al.mapping().items())
+    assert al.new[10] == {"status": "inserted", "old": []}
+
+
+def test_from_diff_skips_blank_paragraphs() -> None:
+    """Blank document paragraphs (no workspace paragraph) drop out of every record."""
+    result = {
+        "changes": [
+            {"kind": "unchanged", "old": ["p3#cc"], "new": ["p2#cc"]},
+            {"kind": "deleted", "old": ["p2#00"], "new": []},  # a blank line
+            {"kind": "modified", "old": ["p4#dd"], "new": ["p3#ee"], "similarity": 0.9},
+            {"kind": "inserted", "old": [], "new": ["p4#ff"]},
+        ],
+        "address_map": {"p3#cc": "p2#cc", "p2#00": None, "p4#dd": "p3#ee"},
+    }
+    al = diff.from_diff(result, ["p1#aa", "p3#cc", "p4#dd"], ["p1#aa", "p2#cc", "p3#ee", "p4#ff"])
+    assert [e["status"] for e in al.old] == ["unchanged", "unchanged", "modified"]
+    assert [e["new"] for e in al.old] == [[0], [1], [2]] and al.old[2]["ratio"] == 0.9
+    assert al.new[3] == {"status": "inserted", "old": []}
+    assert al.counts == {"inserted": 1, "modified": 1, "unchanged": 2}
+    assert al.mapping() == {0: 0, 1: 1}
