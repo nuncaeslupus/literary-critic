@@ -42,6 +42,9 @@ def _packets(args: argparse.Namespace) -> int:
             if args.json:
                 print(json.dumps({**st, "path": str(packets.plan_path(ws.root))}))
                 return 0
+            if args.changed and not doc["packets"]:
+                print("nothing to do: no new or changed scene, no new name")
+                return 0
             print(
                 f"{st['entity_packets']} entity packet(s), {st['scene_packets']} scene packet(s) "
                 f"for {st['scenes']} scene(s); largest ~{st['max_packet_tokens']} tokens; "
