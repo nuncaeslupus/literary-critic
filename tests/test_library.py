@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from conftest import symlink_or_skip
 
 from litcritic import workspace
 from litcritic.cli import main
@@ -47,7 +48,7 @@ def test_same_slug_in_two_folders_needs_the_id(tmp_path: Path) -> None:
 def test_discovery_survives_loops_broken_works_and_copies(tmp_path: Path) -> None:
     home = tmp_path / "home"
     ws = workspace.create("good", "Good", "es", home)
-    (home / "loop").symlink_to(home, target_is_directory=True)
+    symlink_or_skip(home / "loop", home)
     broken = home / "broken"
     broken.mkdir()
     (broken / workspace.MANIFEST).write_text("not = [valid", encoding="utf-8")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import sys
 import tomllib
@@ -578,7 +579,15 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _utf8_streams() -> None:
+    """Read and print UTF-8 on every platform: a Windows pipe defaults to the ANSI code page."""
+    for stream in (sys.stdin, sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _utf8_streams()
     args = build_parser().parse_args(argv)
     return int(args.func(args))
 

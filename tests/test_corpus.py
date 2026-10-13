@@ -24,7 +24,7 @@ sha256 = "{sha}"
 def _text(root: Path, slug: str, body: str = "One.\n\nTwo.\n", note: str | None = None) -> Path:
     d = root / slug
     d.mkdir(parents=True)
-    (d / "text.txt").write_text(body, encoding="utf-8")
+    (d / "text.txt").write_bytes(body.encode())
     sha = hashlib.sha256(body.encode()).hexdigest()
     if note is None:
         note = NOTE.format(sha=sha)

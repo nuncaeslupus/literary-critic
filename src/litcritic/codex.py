@@ -217,9 +217,9 @@ class Codex:
         text = "".join(json.dumps(i.as_json(), ensure_ascii=False) + "\n" for i in rows)
         _write_atomic(self.root / "items" / f"{type_name}.jsonl", text)
 
-    def _log(
+    def _entry(
         self, op: str, item: Item, before: dict[str, Any] | None, by: str, draft: str = ""
-    ) -> None:
+    ) -> str:
         entry = {
             "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "draft": draft or self.draft,
@@ -230,8 +230,13 @@ class Codex:
         }
         if before is not None:
             entry["before"] = before
-        with (self.root / "changes.jsonl").open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        return json.dumps(entry, ensure_ascii=False) + "\n"
+
+    def _log(self, entries: list[str]) -> None:
+        """Append to the change log, opening it once however many entries there are."""
+        if entries:
+            with (self.root / "changes.jsonl").open("a", encoding="utf-8") as fh:
+                fh.write("".join(entries))
 
     def _reindex(self) -> None:
         self.by_type: dict[str, set[str]] = defaultdict(set)
@@ -353,7 +358,7 @@ class Codex:
             else:
                 self._put(previous)
             raise
-        self._log(op, item, before, by)
+        self._log([self._entry(op, item, before, by)])
 
     def replace_all(
         self,
@@ -382,8 +387,7 @@ class Codex:
             changed.append((item, self._put(item)))
         for t in sorted({i.type for i, _ in changed}):
             self._save(t)
-        for item, before in changed:
-            self._log(op, item, before, by, draft)
+        self._log([self._entry(op, item, before, by, draft) for item, before in changed])
 
     def new_id(self, type_name: str, taken: set[str] | None = None) -> str:
         """A fresh id for ``type_name``, also unused in ``taken`` (ids of a batch in progress)."""
