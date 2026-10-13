@@ -135,6 +135,7 @@ Each check needs a real account or computer. Record the result in the plan's
 evidence log.
 
 **D-18: Skills on each plan**
+- [x] Free plan: is Cowork offered? No. *(2026-10-13, Claude desktop app on Windows 11 Pro, an account without a paid plan: Cowork cannot be used. The README now states the paid plan as a requirement of the full experience; `prompts/05-setup.md` already sends the free plan to basic mode.)*
 - [ ] Free plan: can a Skill be uploaded and used? Does code execution run?
 - [ ] Pro plan: upload `litcritic-skill-<version>.zip` (Settings → Capabilities → Skills); a new chat saying "I want to use literary-critic for my novel" loads it.
 - [ ] Python version in the chat sandbox (expected 3.11; `lc doctor` prints ok).
