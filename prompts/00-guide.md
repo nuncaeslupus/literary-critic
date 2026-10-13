@@ -31,6 +31,13 @@ sentences (what, why, how long), then let them **accept**, **change** or
 2. A revision round (`60-rounds.md`): one action at a time.
 3. After the writer's changes, a new draft (`50-new-draft.md`) and what changed.
 
+Say plainly when something will take a while. Before any step that takes
+more than a minute or two (setting up, indexing the novel, a full analysis,
+building a round, opening Word), tell the writer in one line that it will
+take a while and roughly how long ("this will take a few minutes"), and, in a
+long step, say briefly what you are on as you go. A writer left waiting
+without a word thinks something broke.
+
 Keep every reply short: the answer first, at most about 120 words, one
 question at a time. Offer more detail instead of giving it unasked.
 
