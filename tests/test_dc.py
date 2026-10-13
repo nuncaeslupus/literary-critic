@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -22,6 +23,29 @@ def test_dc_check_rejects_other_major(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(dc.DocError) as err:
         dc.run("capabilities", {})
     assert err.value.code == "API_UNSUPPORTED" and "pip install" in err.value.hint
+
+
+def test_dc_check_rejects_a_release_before_text_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        return {"api": "1.0", "ok": True, "op": op, "result": {"version": "0.4.0"}}
+
+    monkeypatch.setattr(dc, "_execute", fake)
+    with pytest.raises(dc.DocError) as err:
+        dc.check()
+    assert err.value.code == "API_UNSUPPORTED" and "0.4.1" in err.value.hint
+
+
+def test_dc_source_names_how_a_text_file_was_read(tmp_path: Path) -> None:
+    f = tmp_path / "x.md"
+    f.write_text("# Title\n\nBody.\n", encoding="utf-8")
+    with dc.open(f) as doc:
+        assert doc.source() == {"format": "md", "encoding": "utf-8", "mode": "markdown"}
+    verse = tmp_path / "x.txt"
+    verse.write_text("Line one\nline two\n\nLine three\nline four\n", encoding="utf-8")
+    with dc.open(verse, text_mode="lines") as doc:
+        assert doc.source()["mode"] == "lines" and len(doc.paragraphs()) == 5
+    with pytest.raises(dc.DocError):
+        dc.open(verse, text_mode="poem").paragraphs()
 
 
 def test_dc_run_returns_result_and_raises_error_envelopes() -> None:

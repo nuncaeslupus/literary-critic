@@ -14,15 +14,15 @@
     "marianela": {
       "paragraphs": 1270,
       "phrases": 1259,
-      "finds": 1242,
+      "finds": 1259,
       "locators_not_unique": 0,
       "repeated_paragraph_after_neighbour": 11,
-      "no_find_phrase": 28
+      "no_find_phrase": 11
     }
   },
-  "detail": "Both corpus texts ingested from .txt with `lc ingest` and indexed with `lc anchor`; every paragraph located with locate.Locations.of_workspace (doc-control `locate` and `page.estimate` on the snapshot's converted .docx, one call each). A head … tail counts as met by each paragraph of the document (doc-control's paragraph text, cleaned, case ignored) that starts with the head's words and ends with the tail's; a Find string by each place the joined document text holds it (paragraph marks included, any case, overlaps counted). Every returned phrase and Find string is met exactly once. Phrases show doc-control's head/tail widened to at least four words a side (more words never make a unique pair ambiguous). Not returned: 11 Marianela paragraphs that repeat another word for word (doc-control reason `duplicate`) point to the paragraph before them (`after`); 28 have no Find phrase (11 duplicates, 17 `none_within_25_words`: short lines whose every word occurs elsewhere), and `lc docx locate` then gives the Find phrase of the nearest paragraph above with `paragraphs_after`.",
+  "detail": "Both corpus texts ingested from .txt with `lc ingest` and indexed with `lc anchor`; every paragraph located with locate.Locations.of_workspace (doc-control `locate` and `page.estimate` on the snapshot (the .txt itself), one call each). A head … tail counts as met by each paragraph of the document (doc-control's paragraph text, cleaned, case ignored) that starts with the head's words and ends with the tail's; a Find string by each place the joined document text holds it (paragraph marks included, any case, overlaps counted). Every returned phrase and Find string is met exactly once. Phrases show doc-control's head/tail widened to at least four words a side (more words never make a unique pair ambiguous). Not returned: 11 Marianela paragraphs that repeat another word for word (doc-control reason `duplicate`) point to the paragraph before them (`after`); 11 have no Find phrase, all duplicates (doc-control 0.4.1 gives the 17 short lines with no unique run of their own a phrase across a paragraph mark, `find_phrase_across`); Find strings are doc-control's `find_phrase_word` (Find-box ^ codes, ^p for the mark), and `lc docx locate` then gives the Find phrase of the nearest paragraph above with `paragraphs_after`.",
   "timing": "worst of three in-process runs, workspace already ingested and anchored. Locators for every 25th paragraph (load + locate): jekyll-hyde 0.04 s before, 0.23 s after; marianela 0.20 s before, 1.09 s after. Every paragraph: jekyll-hyde 0.33 s before, 0.42 s after; marianela 3.75 s before, 3.87 s after (both dominated by query.paragraph_range's linear scan per anchor). `lc docx locate <anchor>` on the corpus converted to .docx: jekyll-hyde 0.09 s before, 0.33 s after; marianela 0.34 s before, 1.07 s after. The fixed cost is doc-control's whole-document `locate` (its Find-phrase index, about 0.5 s of 0.54 s on Marianela, more under the .txt conversion and a second parse), paid once per process.",
   "removed": "locate.LocatorBuilder (own unique-run search, 300 words per page model), docx_cli.Finder and find_string (own Word Find search); load_meta no longer drops pages",
   "command": "uv run pytest tests/test_locate.py::test_locator_phrase_unique_in_document",
-  "doc_control": "0.3.0"
+  "doc_control": "0.4.1"
 }

@@ -143,7 +143,7 @@ def test_relocate_exact_only(tmp_path: Path) -> None:
     )
     assert moved.exact == quote  # the last text seen, until the item is re-read
     # doc-control's default mode would have moved it: a fuzzy match, in that paragraph.
-    with diff.as_docx(new.paragraphs, tmp_path, "new") as (doc, ats):
+    with diff.as_document(new.paragraphs, tmp_path, "new") as (doc, ats):
         anchor = {"exact": quote, "prefix": span.prefix, "suffix": span.suffix}
         best = doc.run("anchor.resolve", {"anchor": anchor, "mode": "best"})
         assert best["match"] == "fuzzy" and best["at"].startswith(ats[1] + ":")

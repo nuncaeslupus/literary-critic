@@ -7,17 +7,19 @@ from pathlib import Path
 import docgen
 import pytest
 
-from litcritic import convert, corpus, dc, ingest
+from litcritic import corpus, dc, ingest
 from litcritic.cli import main
 
-DOCX = Path("draft.docx")  # a name for bytes read through doc-control
+DOCX = Path("draft.docx")  # names for bytes read through doc-control
+TXT = Path("draft.txt")
+MD = Path("draft.md")
 
 CHAPTER = re.compile(r"^-[IVXL]+-$")
 
 
 def _twin() -> tuple[list[str], list[tuple[str, bool]]]:
     """Marianela as ingested from its .txt, and the same paragraphs for a .docx/.odt."""
-    txt = convert.read_txt(corpus.get("marianela").path.read_bytes())
+    txt = ingest.read(corpus.get("marianela").path)
     texts = [p.text for p in txt.paragraphs]
     return texts, [(t, bool(CHAPTER.match(t))) for t in texts]
 
@@ -65,26 +67,53 @@ def test_txt_modes() -> None:
         b"One line that was wrapped by the editor at a fixed\nwidth.\n\n\n\n"
         b"Two lines that were also wrapped at that same\nwidth.\n"
     )
-    wrapped = convert.read_txt(text)
+    wrapped = ingest.read(TXT, text)
     assert [p.text for p in wrapped.paragraphs] == [
         "One line that was wrapped by the editor at a fixed width.",
         "Two lines that were also wrapped at that same width.",
     ]
     assert wrapped.paragraphs[1].blank_before == 2
-    per_line = convert.read_txt("Uno.\r\nDos.\r\n\r\nTres.".encode("cp1252"))
+    assert wrapped.notes == ["hard-wrapped blocks"] and wrapped.source["mode"] == "blocks"
+    # No empty line between two lines: every line is a paragraph (doc-control's lines mode).
+    per_line = ingest.read(TXT, "Uno.\r\nDos.\r\nTres é.".encode("cp1252"))
     assert [(p.text, p.blank_before) for p in per_line.paragraphs] == [
         ("Uno.", 0),
         ("Dos.", 0),
-        ("Tres.", 1),
+        ("Tres é.", 0),
+    ]
+    assert per_line.source == {"format": "txt", "encoding": "cp1252", "mode": "lines"}
+    assert per_line.notes == ["encoding: cp1252"]
+    # A writer's export: one paragraph per line (long lines, no wrap), empty lines only
+    # around headings.
+    tail = " and nothing else happened for a long while, so she kept looking and waiting there."
+    export = (
+        "Chapter One\n\n"
+        f"She opened the door and looked out at the empty street{tail}\n"
+        f"Nobody was there, only the wind moving slowly in the trees{tail}\n"
+        f"She went back inside, sat down at the table{tail}\n\n\n"
+        "Chapter Two\n\n"
+        f"The morning came slowly over the roofs of the old town{tail}\n"
+    )
+    exported = ingest.read(TXT, export.encode())
+    assert exported.source["mode"] == "lines"
+    assert [(p.text[:12], p.blank_before) for p in exported.paragraphs] == [
+        ("Chapter One", 0),
+        ("She opened t", 1),
+        ("Nobody was t", 0),
+        ("She went bac", 0),
+        ("Chapter Two", 2),
+        ("The morning ", 1),
     ]
 
 
 def test_markdown() -> None:
-    draft = convert.read_md(
-        b"# Chapter *One*\n\nShe said *no*\nand **left**.\n\n* * *\n\nA \\*star\\*."
+    draft = ingest.read(
+        MD,
+        b"---\ntitle: x\n---\n# Chapter *One*\n\nShe said *no*\nand **left**.\n\n* * *\n\n"
+        b"A \\*star\\*.",
     )
     assert [(p.text, p.heading) for p in draft.paragraphs] == [
-        ("Chapter *One*", 1),
+        ("Chapter One", 1),
         ("She said no and left.", 0),
         ("* * *", 0),
         ("A *star*.", 0),
@@ -157,13 +186,13 @@ def test_docx_explicit_and_rendered_page_breaks() -> None:
 
 def test_review_regressions(tmp_path: Path) -> None:
     # UTF-16 with BOM decodes; without BOM it is refused rather than garbled.
-    assert [p.text for p in convert.read_txt("Hola mundo.\n".encode("utf-16")).paragraphs] == [
+    assert [p.text for p in ingest.read(TXT, "Hola mundo.\n".encode("utf-16")).paragraphs] == [
         "Hola mundo."
     ]
     with pytest.raises(ingest.IngestError, match="UTF-16"):
-        convert.read_txt("Hola mundo.".encode("utf-16-le"))
+        ingest.read(TXT, "Hola mundo.".encode("utf-16-le"))
     # A Markdown heading directly followed by text keeps its level.
-    md = convert.read_md(b"# Chapter One\nShe left.\n\nThen more.")
+    md = ingest.read(MD, b"# Chapter One\nShe left.\n\nThen more.")
     assert [(p.text, p.heading) for p in md.paragraphs] == [
         ("Chapter One", 1),
         ("She left.", 0),
@@ -173,7 +202,7 @@ def test_review_regressions(tmp_path: Path) -> None:
     lines = ["Short line.\n\n"] * 7 + [
         "A wrapped line that goes on and on, cut at a fixed\nwidth by the editor.\n\n"
     ] * 3
-    assert len(convert.read_txt("".join(lines).encode()).paragraphs) == 10
+    assert len(ingest.read(TXT, "".join(lines).encode()).paragraphs) == 10
     # A gap in version numbers never overwrites an existing snapshot.
     ws = tmp_path / "ws"
     (ws / "manuscript").mkdir(parents=True)

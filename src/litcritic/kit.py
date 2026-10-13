@@ -132,8 +132,9 @@ def build_skill(out: Path | None = None) -> tuple[Path, int]:
 def _tiny_docx() -> bytes:
     """A three-paragraph ``.docx``, built by ``convert`` (the one module that writes parts)."""
     from litcritic import convert
+    from litcritic.ingest import Draft, Para
 
-    return convert.draft_to_docx(convert.read_txt(b"Uno.\n\nDos.\n\nTres.\n"))
+    return convert.draft_to_docx(Draft([Para(t) for t in ("Uno.", "Dos.", "Tres.")], "docx"))
 
 
 def doctor(home: Path | None = None) -> list[str]:

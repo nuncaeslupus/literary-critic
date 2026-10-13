@@ -1,5 +1,4 @@
 import json
-import random
 from pathlib import Path
 from typing import Any
 
@@ -59,21 +58,9 @@ def _sample(name: str) -> list[str]:
 
 
 def _inputs(name: str) -> dict[str, bytes]:
+    """Inputs in the formats doc-control cannot read itself (``.txt`` and ``.md`` it reads)."""
     paras = _sample(name)
-    rng = random.Random(7)
-    md: list[str] = []
-    txt: list[str] = []
-    for i, p in enumerate(paras):
-        if i % 25 == 0:
-            md.append(f"{'#' * (1 + i // 25 % 3)} {p[:40]}")
-        md.append(p)
-        txt.append(p)
-        txt.append("\n" * rng.randrange(0, 3))
-    return {
-        ".md": "\n\n".join(md).encode(),
-        ".txt": "\n".join(txt).encode(),
-        ".odt": odt([(p, i % 30 == 0) for i, p in enumerate(paras)], seed=3),
-    }
+    return {".odt": odt([(p, i % 30 == 0) for i, p in enumerate(paras)], seed=3)}
 
 
 def test_convert_roundtrip_keeps_layout_facts(tmp_path: Path) -> None:
@@ -85,7 +72,7 @@ def test_convert_roundtrip_keeps_layout_facts(tmp_path: Path) -> None:
             docx = convert.to_docx(Path(f"x{suffix}"), data)
             checked += len(draft.paragraphs)
             total += _mismatches(draft, docx, tmp_path, f"{name}{suffix[1:]}")
-    # Page breaks have no source in .txt/.md/.odt readers: check them on a synthetic draft.
+    # Page breaks have no source in the .odt reader: check them on a synthetic draft.
     synth = Draft(
         [
             Para("Title", heading=1, centered=True),
@@ -102,7 +89,7 @@ def test_convert_roundtrip_keeps_layout_facts(tmp_path: Path) -> None:
             {
                 "metric": "converted_layout_fact_mismatches",
                 "value": total,
-                "detail": f"{checked} paragraphs from both corpus texts as .txt, .md and .odt "
+                "detail": f"{checked} paragraphs from both corpus texts as .odt "
                 "plus a synthetic draft; text, heading level, centring, page break before and "
                 "blank lines read back through doc-control equal the reader's",
                 "command": "uv run pytest tests/test_convert.py::"

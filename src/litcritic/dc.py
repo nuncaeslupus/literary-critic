@@ -1,20 +1,23 @@
 """The one door to doc-control: every document read or write goes through here.
 
 doc-control (PyPI ``doc-control``, stdlib only) owns the generic primitives —
-reading, segmenting, diffing, locating and editing Word documents as tracked
-changes. This module is the only place that imports it, so a change in its API
-touches one file. Calls run in-process with doc-control's own request schemas.
+reading Word documents (and plain text or Markdown as if they were one),
+segmenting, diffing, locating and editing Word documents as tracked changes.
+This module is the only place that imports it, so a change in its API touches
+one file. Calls run in-process with doc-control's own request schemas.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-INSTALL_HINT = "install a doc-control release with API 1.x: pip install 'doc-control>=0.0.1,<0.1'"
+MIN_VERSION = (0, 4, 1)  # reads .txt and .md itself, with a text mode per document
+INSTALL_HINT = "install doc-control 0.4 (API 1.x): pip install 'doc-control>=0.4.1,<0.5'"
 
 
 class DocError(Exception):
@@ -48,7 +51,8 @@ def _execute(op: str, request: dict[str, Any]) -> dict[str, Any]:
 
 
 def check() -> None:
-    """Refuse a doc-control whose API major version this code does not know."""
+    """Refuse a doc-control whose API major version this code does not know, or one
+    older than ``MIN_VERSION``."""
     global _checked
     if _checked:
         return
@@ -56,6 +60,10 @@ def check() -> None:
     api = str(envelope.get("api", ""))
     if api.split(".")[0] != str(API_MAJOR):
         raise DocError("API_UNSUPPORTED", f"doc-control API {api} is not supported", INSTALL_HINT)
+    version = str((envelope.get("result") or {}).get("version", ""))
+    parts = tuple(int(n) for n in re.findall(r"\d+", version)[:3])
+    if parts and parts < MIN_VERSION:
+        raise DocError("API_UNSUPPORTED", f"doc-control {version} is too old", INSTALL_HINT)
     _checked = True
 
 
@@ -90,8 +98,9 @@ class Document:
     file changes. Results are whole: no response cap, no cursor to follow.
     """
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(self, path: str | Path, text_mode: str | None = None) -> None:
         self.path = str(path)
+        self.text_mode = text_mode  # how a .txt is cut into paragraphs; None: doc-control's auto
         self._doc: Any = None
 
     def _handle(self) -> Any:
@@ -101,7 +110,8 @@ class Document:
                 from doc_control import api
             except ImportError as exc:
                 raise _missing() from exc
-            self._doc = api.open(self.path)
+            with _errors():
+                self._doc = api.open(self.path, text_mode=self.text_mode)
         return self._doc
 
     def run(self, op: str, request: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -117,6 +127,13 @@ class Document:
                 normalized=normalized, pages=pages
             )
         return rows
+
+    def source(self) -> dict[str, Any]:
+        """How doc-control read a ``.txt`` or ``.md`` file: ``format``, ``encoding`` and
+        ``mode`` (``blocks``, ``lines`` or ``markdown``); empty for a Word document."""
+        with _errors():
+            reply = self._handle().reply("info")
+        return dict((reply.doc or {}).get("source") or {})
 
     def close(self) -> None:
         if self._doc is not None:
@@ -144,6 +161,10 @@ def _errors() -> Iterator[None]:
         raise DocError(str(exc.code), exc.message, hint, dict(exc.details)) from exc
 
 
-def open(path: str | Path) -> Document:
-    """Open ``path`` for several doc-control operations; use it as a context manager."""
-    return Document(path)
+def open(path: str | Path, text_mode: str | None = None) -> Document:
+    """Open ``path`` for several doc-control operations; use it as a context manager.
+
+    ``text_mode`` (``auto``, ``blocks`` or ``lines``) is how doc-control cuts a ``.txt``
+    into paragraphs; None leaves doc-control's default (``auto``).
+    """
+    return Document(path, text_mode)

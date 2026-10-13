@@ -16,7 +16,7 @@ Variant = tuple[list[str], list[dict[str, Any]], set[int], set[int]]
 
 
 def _read(slug: str) -> tuple[list[str], list[dict[str, Any]]]:
-    d = convert.read_txt(corpus.get(slug).path.read_bytes())
+    d = ingest.read(corpus.get(slug).path)
     return [p.text for p in d.paragraphs], [p.meta() for p in d.paragraphs]
 
 
@@ -65,7 +65,7 @@ def variants() -> dict[str, Variant]:
         text, text_meta, ch, sc = _with_breaks(paras, meta, truth, seed=3)
         v[f"{slug}-breaks"] = (text, text_meta, ch, sc)
         md = "\n\n".join(f"## {t}" if i in ch else t for i, t in enumerate(text))
-        d = convert.read_md(md.encode())
+        d = ingest.read(Path("draft.md"), md.encode())
         v[f"{slug}-md"] = ([p.text for p in d.paragraphs], [p.meta() for p in d.paragraphs], ch, sc)
         docx = ingest.read(DOCX, docgen.docx([(t, i in ch) for i, t in enumerate(text)], seed=4))
         v[f"{slug}-docx"] = (
