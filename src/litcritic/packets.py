@@ -492,6 +492,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
                 "kind": "entities",
                 "tier": TIER["entities"],
                 "inputs": {"candidates": [a, b]},
+                "names": [c["name"] for c in draft.pre["candidates"][a:b]],
             }
         )
     units = scene_units(draft, only)
@@ -530,7 +531,17 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
     for p in packets:
         p["status"] = "todo"
         was = old.get(p["id"])
-        if was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]:
+        same = was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]
+        # a done entity packet stays done when a re-plan only removed names from it
+        # (rejects or newly covered names), so nobody is asked about them again
+        shrunk = (
+            was
+            and p["kind"] == "entities"
+            and was.get("kind") == "entities"
+            and was.get("status") == "done"
+            and set(p.get("names", [])) <= set(was.get("names", []))
+        )
+        if was is not None and (same or shrunk):
             for key in KEPT:
                 if key in was:
                     p[key] = was[key]
