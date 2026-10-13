@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="caa0c8f45b363a08825fd0857d7562e6019739b702afd32be48055511e5048e3">
+<meta name="arsenal-source-sha256" content="7fc8eae0942d327deb4c8ee0d6dc36ef03736b6191536e1ada013b6017a9fa5e">
 <title>Literary Critic — Plan (annotatable)</title>
 <style>
 :root{
@@ -544,7 +544,7 @@ word_live adapter ── locate / save / close / reopen
 <tr>
 <td>W9</td>
 <td>hand tests on Windows with Word (file level)</td>
-<td>tracked change by <code>literary-critic</code> seen by Word, Reject All restores the text; edit refused while Word has the file open, bytes and backups unchanged; Word's Find lands on the right paragraph for 100/100 <code>lc docx locate</code> Find strings. <code>live_locate_success</code> with computer use still unmeasured. Found: Word's shortcuts follow its language (Spanish: Ctrl+F indents, Ctrl+S underlines, Ctrl+W resets the paragraph), fixed in <code>lc word</code></td>
+<td>tracked change by <code>literary-critic</code> seen by Word, Reject All restores the text; edit refused while Word has the file open, bytes and backups unchanged; Word's Find lands on the right paragraph for 100/100 <code>lc docx locate</code> Find strings. <code>live_locate_success</code> 10/10 on Windows with the keys sent by script (Ctrl+B, the Find string, a wait for the search to refresh, Enter, Esc) and the selection read back from Word; not yet with computer-use screenshots, nor on a Mac. Found: Word's shortcuts follow its language (Spanish: Ctrl+F indents, Ctrl+S underlines, Ctrl+W resets the paragraph), fixed in <code>lc word</code></td>
 <td>by hand, Word driven through its automation interface; <code>status/evidence/W9-walkthrough.md</code></td>
 <td>[HERE]</td>
 <td>Windows 11 Pro, Word 16.0.17932 (Spanish), Python 3.13.16</td>
