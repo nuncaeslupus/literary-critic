@@ -1,0 +1,12 @@
+{
+  "metric": "docx_xml_modules_in_litcritic",
+  "value": 0,
+  "threshold": 0,
+  "before": 1,
+  "scanned": "every .py under src/litcritic/ (AST): a module counts when a non-docstring string literal names a Word part (word/..., [Content_Types].xml, the wordprocessingml namespace) outside convert.py, or when any module, convert.py included, passes one to a read/open/getinfo call.",
+  "detail": "kit.py was the one offender: lc doctor's self-test built its tiny .docx by writing word/document.xml itself; it now builds it with convert.draft_to_docx. convert.py writes the parts of the stopgap .docx for .txt/.md/.odt manuscripts (spec D-6) and reads none. Every other document read or write goes through dc.py.",
+  "docs": "docs/architecture.md (new: doc-control as the document layer, dc.py, module-to-operation table, data flow); README.md and kit/START_HERE.md say the runtime is stdlib plus doc-control; docs/word-control-starter.md marked historical. No doc, prompt or skill names safe_edit, docx_edit, LocatorBuilder, Finder, the old aligner or the retired interface doc (remaining safe-edit mentions describe what lc upgrade removes).",
+  "doc_control_requests": "locate performance (doc-control T53); find phrases that cross mark boundaries; range phrases (head...tail of a span) in locate; find_phrase_word; in-memory open (bytes, no temp file); live engine (pending the owner). Follow-up here: drop read-side .txt/.md -> .docx conversion once doc-control releases T52 on PyPI.",
+  "command": "uv run pytest tests/test_stdlib_only.py::test_no_module_reads_docx_parts",
+  "doc_control": "0.3.0"
+}
