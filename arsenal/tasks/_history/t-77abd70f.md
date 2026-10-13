@@ -5,6 +5,7 @@ label: "exact anchors for spans"
 priority: 5
 deps: [t-570f081a]
 workspace: doccontrol
+status: merged
 ---
 
 # T9: exact anchors for spans
