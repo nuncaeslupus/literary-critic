@@ -100,6 +100,18 @@ The LLM fills the Codex in bounded packets, each answered with JSON only:
   the next packet after an `ok`, so a sequential run needs one call per packet.
   Raw answers are kept in `index/work/answers/<id>.json`.
 - `lc index status` prints one line per packet and a count by status.
+- Scene answers never create entities. Each scene may list `new_names` (at most
+  8): proper names of people or places the text uses and its `known:` line lacks,
+  never roles, relations or common nouns. Import queues them in `plan.json`
+  (`new_names`, deduplicated, with the scenes where each was seen). The next
+  `lc index plan` drops queued names the Codex already covers or the draft never
+  uses and packs the rest into one small entities packet on the strong tier
+  (`n1`: each name with its count in the draft and up to two contexts); importing
+  it clears those names from the queue. An answer that still carries a scene
+  `entities` field is refused naming it.
+- Scene `time` is when the scene's main action happens (not an opening frame,
+  memory or dream unless that is the scene); `location` is where it happens (not
+  where a character lives or comes from).
 
 ## Comparing drafts
 
