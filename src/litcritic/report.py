@@ -100,7 +100,7 @@ def render(ws_root: Path, version: str | None = None) -> tuple[Path, dict[str, b
     synopsis_file = ws_root / "analysis" / "synopsis.md"
     synopsis = synopsis_file.read_text(encoding="utf-8").strip() if synopsis_file.is_file() else ""
     ix = query.load(ws_root, version)
-    loc = locate.LocatorBuilder(ix, locate.load_meta(ws_root, cx.draft), lang)
+    loc = locate.Locations.of_workspace(ws_root, cx.draft, ix, lang)
 
     def lines_for(items: list[Item]) -> list[str]:
         return [line for i in items if (line := rounds.located_line(cx, i, loc, lang))]

@@ -74,81 +74,20 @@ def _shown(ws_root: Path, doc: Path) -> str:
         return str(doc)
 
 
-# -- the Find string ----------------------------------------------------------
+# -- the Find string and writer locators -------------------------------------------
 
 
 SPECIAL = {"^": "^^", "\n": "^p", "\t": "^t", "\x0b": "^l", "\x1e": "^~", "\u00a0": "^s"}
 
 
 def _escape(text: str) -> str:
+    """Text as typed in Word's Find box (its own ``^`` codes for special characters)."""
     return "".join(SPECIAL.get(c, c) for c in text)
 
 
-def _fold(text: str) -> str:
-    """Lower case, one character for one (Word's Find ignores case by default)."""
-    return "".join(c if len(c.lower()) != 1 else c.lower() for c in text)
-
-
-class Finder:
-    """Word Find strings for one document (its paragraphs' text, by position)."""
-
-    def __init__(self, paras: list[str]) -> None:
-        self.offsets = []
-        total = 0
-        for p in paras:
-            self.offsets.append(total)
-            total += len(p) + 1
-        self.whole = "\n".join(paras)
-        self.folded = _fold(self.whole)
-
-    def _once(self, a: int, b: int) -> bool:
-        needle = self.folded[a:b]
-        i = self.folded.find(needle)
-        return i >= 0 and self.folded.find(needle, i + 1) < 0
-
-    def _fits(self, a: int, b: int) -> bool:
-        return len(_escape(self.whole[a:b])) <= FIND_LIMIT
-
-    def find(self, k: int, start: int = 0, min_end: int = 0) -> tuple[str, bool]:
-        """Shortest Find string that occurs once in the document (any case) and
-        starts at character ``start`` of paragraph ``k``, reaching at least ``min_end``.
-
-        It grows word by word, into the next paragraphs (``^p``) when needed, and
-        then backwards from the previous paragraph's end. Returns the escaped
-        string and whether it is unique within Word's 255 characters.
-        """
-        whole, span = self.whole, 4 * FIND_LIMIT
-        at = self.offsets[k] + start
-        floor = self.offsets[k] + max(min_end, start + 1)
-        ends = [at + m.end() for m in re.finditer(r"\S+", whole[at : at + span])]
-        ends = [e for e in ends if e >= floor] or [min(floor, len(whole))]
-        for e in ends:
-            if not self._fits(at, e):
-                break
-            if self._once(at, e):
-                return _escape(whole[at:e]), True
-        first = ends[0]
-        base = max(0, at - span)
-        for m in reversed(list(re.finditer(r"\S+", whole[base:at]))):
-            if not self._fits(base + m.start(), first):
-                break
-            if self._once(base + m.start(), first):
-                return _escape(whole[base + m.start() : first]), True
-        end = first
-        while end > at + 1 and not self._fits(at, end):
-            end -= 1
-        return _escape(whole[at:end]), False
-
-
-def find_string(paras: list[str], k: int, start: int = 0, min_end: int = 0) -> tuple[str, bool]:
-    return Finder(paras).find(k, start, min_end)
-
-
-# -- writer locators ------------------------------------------------------------
-
-
 class _Places:
-    """Find strings and writer locators for spots in the document.
+    """Find strings and writer locators for spots in the document, from doc-control's
+    ``locate`` (one call for the whole document, on the first spot asked for).
 
     Locators are only given while the document still matches the latest ingested
     draft (otherwise the chapter and page could be wrong): `lc ingest` it again.
@@ -157,16 +96,14 @@ class _Places:
     def __init__(self, ws_root: Path, doc: Path, data: bytes, lang: str = "en") -> None:
         self.ix: query.Index | None = None
         self.by_ordinal: dict[int, int] = {}
-        self.texts: list[str] = []  # paragraph text by doc-control number - 1
+        self.ordinal_of: dict[int, int] = {}
+        self.handle = dc.open(doc)
+        self.counts: dict[str, int] = {}
+        self._rows: locate.Rows | None = None
         try:
             draft = ingest.read(doc, data)
         except (OSError, ValueError, KeyError, ingest.IngestError):
             return
-        for p in draft.paragraphs:
-            if p.ordinal >= 0:
-                self.texts += [""] * (p.ordinal + 1 - len(self.texts))
-                self.texts[p.ordinal] = p.text
-        self.finder = Finder(self.texts)
         try:
             version = structure.latest_version(ws_root)
             ix = query.load(ws_root, version, codex=False)
@@ -176,42 +113,53 @@ class _Places:
             return
         self.ix = ix
         self.by_ordinal = {p.ordinal: i for i, p in enumerate(draft.paragraphs)}
-        self.builder = locate.LocatorBuilder(ix, locate.load_meta(ws_root, version), lang)
         self.ordinal_of = {i: p.ordinal for i, p in enumerate(draft.paragraphs)}
+        ats = [p.at for p in draft.paragraphs]
+        self.locations = locate.Locations(ix, ats, lambda: self.rows, lang)
+
+    @property
+    def rows(self) -> locate.Rows:
+        if self._rows is None:
+            self._rows = locate.read_rows(self.handle)
+        return self._rows
 
     def locator(self, ordinal: int) -> dict[str, Any] | None:
         i = self.by_ordinal.get(ordinal)
         if self.ix is None or i is None:
             return None
-        return self.builder.locate(self.ix.anchors[i]).as_where()
+        return self.locations.locate(self.ix.anchors[i]).as_where()
 
-    def spot(self, at: str, text: str) -> tuple[int, int, int]:
-        """(paragraph position, start, end) in this text of a doc-control range.
+    def _once(self, text: str) -> bool:
+        """``text`` occurs exactly once in the document under Word's Find (any case)."""
+        if text not in self.counts:
+            req = {"query": text, "ignore_case": True, "limit": 1, "context": 0}
+            self.counts[text] = int(self.handle.run("find", req).get("total", 0))
+        return self.counts[text] == 1
 
-        doc-control numbers paragraphs from 1 and counts the original characters;
-        the text here is normalised (whitespace collapsed, soft hyphens dropped), so
-        the passage sits at or before the range's offset: the nearest one is taken.
+    def find(self, at: str, text: str = "") -> dict[str, Any]:
+        """What to type in Word's Find to reach ``text`` at ``at`` (a doc-control
+        address or range): ``find``, and ``unique`` when Word meets it only there.
+
+        The passage itself when Word meets it once; otherwise doc-control's Find
+        phrase of its paragraph. When no run of its words is unique (a short or
+        repeated paragraph), the Find phrase of the nearest paragraph before it
+        that has one, and ``paragraphs_after``: how far down from there it is.
         """
-        m = ADDRESS.fullmatch(at)
-        if m is None:
-            return -1, 0, 0
-        k, a = int(m.group(1)) - 1, int(m.group(3))
-        para = self.texts[k] if 0 <= k < len(self.texts) else ""
-        needle = ingest.clean(text)
-        found = [i.start() for i in re.finditer(re.escape(needle), para)] if needle else []
-        start = max((i for i in found if i <= a), default=found[0] if found else 0)
-        return k, start, start + len(needle)
-
-    def find(self, k: int, start: int = 0, end: int = 0) -> tuple[str, bool]:
-        if not 0 <= k < len(self.texts):
-            return "", False
-        return self.finder.find(k, start, end)
+        if text.strip() and len(_escape(text)) <= FIND_LIMIT and self._once(text):
+            return {"find": _escape(text), "unique": True}
+        row = self.rows.get(at.split(":")[0], {})
+        if row.get("find_phrase"):
+            return {"find": _escape(str(row["find_phrase"])), "unique": True}
+        context = row.get("context") or {}
+        out: dict[str, Any] = {"find": _escape(str(context.get("after", ""))), "unique": False}
+        if context:
+            out["paragraphs_after"] = int(context.get("paragraphs_after", 0))
+        return out
 
     def hit(self, at: str, text: str, why: str = "") -> dict[str, Any]:
-        k, start, end = self.spot(at, text)
-        find, unique = self.find(k, start, end)
-        out: dict[str, Any] = {"text": text, "find": find, "unique": unique}
-        out["locator"] = self.locator(k)
+        out: dict[str, Any] = {"text": text, **self.find(at, text)}
+        m = ADDRESS.fullmatch(at)
+        out["locator"] = self.locator(int(m.group(1)) - 1) if m else None
         if why:
             out["reason"] = why
         return out
@@ -506,7 +454,7 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
         except KeyError:
             i = None
     if i is not None:
-        k, start, end = places.ordinal_of[i], 0, 0
+        k, at, text = places.ordinal_of[i], places.locations.ats[i], ""
     else:
         try:
             at = _resolve(doc, args.target)
@@ -519,14 +467,13 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
                 return _out({"status": "refused", "reason": "changed", "message": why}, 1)
             why = str(exc) + ("; quote more words" if exc.count else "")
             return _out({"status": "refused", "reason": "quote", "message": why}, 1)
-        k, start, end = places.spot(at, args.target)
-    find, unique = places.find(k, start, end)
+        m = ADDRESS.fullmatch(at)
+        k, text = (int(m.group(1)) - 1 if m else -1), args.target
     return _out(
         {
             "status": "ok",
             "document": _shown(root, doc),
-            "find": find,
-            "unique": unique,
+            **places.find(at, text),
             "locator": places.locator(k),
         }
     )

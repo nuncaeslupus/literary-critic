@@ -139,7 +139,7 @@ def _anchor(issue: Item) -> str | None:
     return issue.spans[0].start.para if issue.spans else None
 
 
-def located(cx: Codex, issue: Item, loc: locate.LocatorBuilder) -> locate.Locator | None:
+def located(cx: Codex, issue: Item, loc: locate.Locations) -> locate.Locator | None:
     """Where an issue is, for the writer; None when it has no place in the synced draft."""
     a = _anchor(issue)
     if a is None or issue.spans[0].draft != cx.draft:
@@ -150,9 +150,9 @@ def located(cx: Codex, issue: Item, loc: locate.LocatorBuilder) -> locate.Locato
         return None
 
 
-def _locator(ws_root: Path, cx: Codex, lang: str) -> tuple[query.Index, locate.LocatorBuilder]:
+def _locator(ws_root: Path, cx: Codex, lang: str) -> tuple[query.Index, locate.Locations]:
     ix = query.load(ws_root, cx.draft)
-    return ix, locate.LocatorBuilder(ix, locate.load_meta(ws_root, cx.draft), lang)
+    return ix, locate.Locations.of_workspace(ws_root, cx.draft, ix, lang)
 
 
 def _round_meta(d: Path) -> dict[str, Any]:
@@ -163,7 +163,7 @@ def round_actions(
     ws_root: Path,
     d: Path,
     cx: Codex | None = None,
-    loc: locate.LocatorBuilder | None = None,
+    loc: locate.Locations | None = None,
 ) -> list[dict[str, Any]]:
     """A round's actions with their issue's current text, place and status.
 
@@ -420,7 +420,7 @@ def letter(ws_root: Path, version: str | None = None) -> Path:
     return out
 
 
-def located_line(cx: Codex, issue: Item, loc: locate.LocatorBuilder, lang: str) -> str | None:
+def located_line(cx: Codex, issue: Item, loc: locate.Locations, lang: str) -> str | None:
     """'- why (where)' for an issue, or None when its place is gone."""
     where = located(cx, issue, loc)
     if where is None:
@@ -440,7 +440,7 @@ def live(cx: Codex, kind: str) -> list[Item]:
 
 
 def strength_lines(
-    ws_root: Path, cx: Codex, lang: str, loc: locate.LocatorBuilder | None = None
+    ws_root: Path, cx: Codex, lang: str, loc: locate.Locations | None = None
 ) -> list[str]:
     strengths = live(cx, "strength")
     if not strengths:

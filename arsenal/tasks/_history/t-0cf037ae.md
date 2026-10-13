@@ -5,6 +5,7 @@ label: "locators via doc-control"
 priority: 10
 deps: [t-ebc95c85, t-36595e44]
 workspace: doccontrol
+status: merged
 ---
 
 # T8: locators via doc-control
