@@ -4,6 +4,7 @@ title: "T1: doc-control adapter"
 label: "doc-control adapter"
 priority: 10
 workspace: doccontrol
+status: merged
 ---
 
 # T1: doc-control adapter
