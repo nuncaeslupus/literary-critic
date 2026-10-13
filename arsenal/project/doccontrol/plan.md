@@ -102,6 +102,7 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
+| T1 | `api_major_mismatch_runs == 0` | 0 | `uv run pytest tests/test_dc.py::test_dc_check_rejects_other_major tests/test_stdlib_only.py::test_runtime_deps_only_doc_control` | (this PR) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
 
 ### Dependency graph
 

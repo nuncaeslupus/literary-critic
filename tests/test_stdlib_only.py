@@ -7,6 +7,9 @@ from pathlib import Path
 from litcritic import kit
 from litcritic.workspace import repo_root
 
+# AGENTS.md rule 9: stdlib plus doc-control, imported only by the adapter.
+ALLOWED = ("doc_control",)
+
 
 def third_party_imports() -> list[str]:
     found = []
@@ -20,12 +23,14 @@ def third_party_imports() -> list[str]:
                 names = [node.module]
             for name in names:
                 top = name.split(".")[0]
-                if top != "litcritic" and top not in sys.stdlib_module_names:
+                if top not in ("litcritic", *ALLOWED) and top not in sys.stdlib_module_names:
                     found.append(f"{path.name}: {name}")
+                if top in ALLOWED and path.name != "dc.py":
+                    found.append(f"{path.name}: {name} (only dc.py may import it)")
     return found
 
 
-def test_runtime_is_stdlib_only() -> None:
+def test_runtime_deps_only_doc_control() -> None:
     assert third_party_imports() == []
 
 

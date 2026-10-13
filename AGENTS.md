@@ -57,15 +57,17 @@ generic change to the repo — and phrase it without any trace of the novel.
    used for judgment: reading, interpreting, critiquing, writing feedback.
 8. **Measure.** Every capability ships with a metric and a gate (see
    `status/plan.md`); evidence goes to `status/evidence/`.
-9. **Runtime code is Python standard library only** (`src/litcritic/`), so the
-   kit runs inside chat code interpreters. Dev tools (ruff, mypy, pytest) are
-   fine.
+9. **Runtime code is Python standard library plus doc-control** (`src/litcritic/`),
+   so the kit runs inside chat code interpreters. doc-control (itself stdlib only)
+   does every generic document read and write; only `dc.py` imports it, and
+   literary-critic never rebuilds what doc-control owns. Dev tools (ruff, mypy,
+   pytest) are fine.
 
 ## Layout
 
 | Path | Purpose |
 |------|---------|
-| `src/litcritic/` | The `litcritic` package and `lc` CLI (stdlib only) |
+| `src/litcritic/` | The `litcritic` package and `lc` CLI (stdlib plus doc-control) |
 | `checklist/` | Generic analysis-check catalogue (part 2) |
 | `schemas/` | JSON schemas for the profile and the reader report |
 | `prompts/` | Portable LLM prompts (usable from any chatbot) |
