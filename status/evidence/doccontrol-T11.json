@@ -1,0 +1,7 @@
+{
+  "metric": "kit_selftest_failures",
+  "value": 0,
+  "detail": "both kit zips (lc kit, lc kit --skill) hold src/doc_control/ (modules, bundled recipes, py.typed, LICENSE); the unpacked kit passes `python -I -S lc.py doctor` with no site-packages and no network, doctor runs dc.run('capabilities') and doc_control resolves from the kit; the python311 CI job runs the same pytest suite",
+  "command": "uv run pytest tests/test_kit.py::test_kit_selftest_offline tests/test_kit.py::test_kit_zip_contains_doc_control",
+  "doc_control": "0.0.1 (API 1.0)"
+}

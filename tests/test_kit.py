@@ -99,3 +99,47 @@ def test_failed_skill_build_keeps_the_previous_zip(tmp_path: Path) -> None:
     finally:
         kit.SKILL_MAX_BYTES = saved
     assert out.read_bytes() == good and not list(tmp_path.glob("*.partial"))
+
+
+def test_kit_zip_contains_doc_control(tmp_path: Path) -> None:
+    for build in (kit.build, kit.build_skill):
+        out, count = build(tmp_path / f"{build.__name__}.zip")
+        names = zipfile.ZipFile(out).namelist()
+        assert count == len(names)
+        root = "litcritic/" if build is kit.build_skill else ""
+        for needed in (
+            "__init__.py",
+            "cli.py",
+            "py.typed",
+            "LICENSE",
+            "recipes/bundled/dashes-em.json",
+        ):
+            assert f"{root}src/doc_control/{needed}" in names
+        assert not any("__pycache__" in n for n in names)
+
+
+def test_kit_selftest_offline(tmp_path: Path) -> None:
+    out, _ = kit.build(tmp_path / "kit.zip")
+    folder = tmp_path / "unpacked"
+    zipfile.ZipFile(out).extractall(folder)
+    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
+    # -I -S: no site-packages, so doc_control can only come from the unpacked kit
+    doctor = subprocess.run(
+        [sys.executable, "-I", "-S", "lc.py", "doctor", "--home", "./home"],
+        cwd=folder, capture_output=True, text=True, env=env, check=False,
+    )  # fmt: skip
+    assert doctor.returncode == 0, doctor.stderr
+    assert doctor.stdout.strip() == "ok"
+    probe = (
+        "import sys; sys.path.insert(0, 'src')\n"
+        "import doc_control; from litcritic import dc\n"
+        "print(doc_control.__file__); print(dc.run('capabilities', {})['api'])"
+    )
+    ran = subprocess.run(
+        [sys.executable, "-I", "-S", "-c", probe],
+        cwd=folder, capture_output=True, text=True, env=env, check=False,
+    )  # fmt: skip
+    assert ran.returncode == 0, ran.stderr
+    where, api = ran.stdout.split()
+    assert Path(where).resolve().is_relative_to(folder.resolve())
+    assert api.startswith("1.")
