@@ -27,8 +27,8 @@ PROFILE: dict[str, Any] = {
     "scene_styles": False,
     "heading_subtitles": False,
 }
-# A .txt is read one paragraph per line (verse), not as blank-line separated blocks.
-TXT_LINES = True
+# doc-control cuts a .txt one paragraph per line (verse), whatever empty lines it holds.
+TEXT_MODE = "lines"
 TITLE_MAX_WORDS = 8
 CLOSING = re.compile(r"[.,;:!?…»”\"')\]-]$")
 

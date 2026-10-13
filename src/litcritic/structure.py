@@ -460,8 +460,8 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     profile, starts = _settings(kinds.of_work(ws_root), paragraphs, rows, fmt)
     overrides, errors = load_overrides(ws_root, paragraphs, ats)
     language = _work_language(ws_root)
-    lines = ingest.txt_lines(ws_root)
-    with ingest.readable(source, lines=lines) as file, dc.open(file) as doc:
+    mode = ingest.text_mode(ws_root)
+    with ingest.readable(source) as file, dc.open(file, text_mode=mode) as doc:
         try:
             s, unmatched = segment(
                 doc, paragraphs, ats, profile, _forced(ats, starts) + overrides, language
