@@ -34,6 +34,9 @@ def test_manual_steps_follow_the_system_and_the_locator() -> None:
     assert "Cmd+F" in " ".join(mac["steps"])
     # Word for Windows translates its shortcuts: Find is named by the language of its menus
     assert "Ctrl+F in English, Ctrl+B in Spanish" in " ".join(win["steps"])
+    # ...and its search pane searches by itself: an early Enter lands on the previous result
+    assert "Wait until the result count" in " ".join(win["steps"])
+    assert "Wait until" not in " ".join(mac["steps"])
     assert "Ya voy^pdijo" in " ".join(win["steps"]) and "Chapter 7" in win["writer"]
     no_loc = word_live.manual("locate", {"document": "N.docx", "find": "Ya voy"})
     assert "Ya voy" in no_loc["writer"]

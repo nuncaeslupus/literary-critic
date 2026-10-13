@@ -57,20 +57,33 @@ class Keys:
 
     switch: str
     find: str
+    land: str
     save: str
     close: str
 
 
 def _keys(platform: str) -> Keys:
     if platform == "darwin":
-        return Keys("click Word in the Dock", "Press Cmd+F", "Cmd+S", "Cmd+W")
+        land = (
+            "Press Enter: Word selects the passage. Close the search box; leave the "
+            "selection for the writer to see."
+        )
+        return Keys("click Word in the Dock", "Press Cmd+F", land, "Cmd+S", "Cmd+W")
     by_language = ", ".join(f"{key} in {lang}" for lang, key in WINDOWS_FIND.items())
     find = (
         f"Open Word's search with the key for the language of its menus ({by_language}; "
         "in any other language click Find on the Home tab: a wrong key changes the "
         "paragraph's formatting)"
     )
-    return Keys("click Word in the taskbar", find, "Shift+F12", "Ctrl+F4")
+    # Measured on the same Word: the pane searches by itself about two seconds after the
+    # typing stops; an Enter before that goes to the previous search's result.
+    land = (
+        "Wait until the result count under the search box is for what you typed: Word "
+        "searches by itself a moment after the typing stops and selects the passage (an "
+        "Enter before that jumps to the previous search's result). Then press Enter, and "
+        "Esc to close the search pane; the selection stays for the writer to see."
+    )
+    return Keys("click Word in the taskbar", find, land, "Shift+F12", "Ctrl+F4")
 
 
 def _name(payload: dict[str, Any]) -> str:
@@ -109,8 +122,7 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
         steps = [
             f"Bring Word to the front with {name} open ({keys.switch}).",
             f"{keys.find}, then type exactly: {payload['find']}",
-            "Press Enter: Word selects the passage. Close the search box; leave the "
-            "selection for the writer to see.",
+            keys.land,
         ]
         if below := _below(payload):
             steps.append(
