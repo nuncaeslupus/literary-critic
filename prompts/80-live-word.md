@@ -3,18 +3,21 @@
 Use this when the writer works with the manuscript open in Word. The goal: the
 writer never searches for anything, and never loses a word of their work.
 
+Everything goes through `lc`. `lc word` gives the steps for the open Word, which
+you do with computer use, and the plain line for the writer when you cannot.
+
 ## Take the writer to a passage
 
 1. `lc docx locate "<first words of the passage>" --workspace <ws>` (or an
-   anchor such as `c07.s2.p4`). It prints `find` (Word's search text) and the
-   plain `locator` (chapter, page, first and last words).
-2. Write the request to a file, `locate.json`: `{"document": …, "find": …,
-   "locator": …, "language": …}` with the values from step 1 (a
-   file, because passages contain quotes and apostrophes), then
-   `lc word locate --payload locate.json`. Follow its `steps` with computer use: bring Word to the front, open the
+   anchor such as `c07.s2.p4`). It prints `find` (Word's search text), `unique`,
+   `paragraphs_after` and the plain `locator` (chapter, page, first and last words).
+2. Save that answer, exactly as printed, to a file, `locate.json` (a file,
+   because passages contain quotes and apostrophes); add `"language": "es"` for
+   a writer line in Spanish. Then `lc word locate --payload locate.json`.
+   Follow its `steps` with computer use: bring Word to the front, open the
    search (Ctrl+F, or Cmd+F on a Mac), type `find` exactly, press Enter. Word
-   selects the passage. When `unique` is false, `find` is on a paragraph
-   above it: move down `paragraphs_after` paragraphs from there.
+   selects the passage. When Find lands on a paragraph above it, the steps say
+   how many paragraphs to move down.
 3. If computer use is off, or the passage is not found, give the writer the
    `writer` line instead: chapter, page, and the quoted first and last words.
 

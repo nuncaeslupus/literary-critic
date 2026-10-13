@@ -1,50 +1,45 @@
-"""The one adapter to the writer's open Word (see ``docs/word-control-interface.md``).
+"""Steps for the writer's open Word, done by the agent with computer use.
 
-Every operation takes and returns a JSON object. Two backends:
+The live engine that drives an open Word belongs to doc-control (one core, two
+engines, one API; its ``capabilities`` lists the engines it has). Until it ships,
+``lc word`` answers every operation with ``{"status": "manual", "how":
+"computer-use", "steps": [...], "writer": "..."}``: the steps the agent performs
+with computer use, and the plain instruction for the writer when computer use is
+not available. literary-critic builds no live-Word code of its own.
 
-- **manual** (default, today): returns ``{"status": "manual", "how": "computer-use",
-  "steps": [...], "writer": "..."}`` — the steps the agent performs with computer
-  use, and the plain instruction for the writer when computer use is not available;
-- **command**: when ``$LITCRITIC_WORD_CONTROL`` names the Word-control extension's
-  command, it runs ``<command> <operation>`` with the request on stdin and returns
-  the JSON it prints. Nothing else in literary-critic changes when it arrives.
-
-Edits never go through Word itself today: ``lc docx edits`` / ``rename`` change the
-file while Word has it closed, and this adapter only saves, closes, reopens and
-brings Word to the passage.
+``locate`` is fed by ``lc docx locate``: its whole answer is a valid request
+(``document``, ``find``, ``unique``, ``paragraphs_after``, ``locator``; ``find``
+may also come from the locator alone). Edits never go through Word: ``lc docx
+edits`` / ``rename`` change the file while Word has it closed, and these steps
+only save, close, reopen and bring Word to the passage.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import shlex
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 from litcritic import locate
 
-ENV = "LITCRITIC_WORD_CONTROL"
-TIMEOUT = 60
-
-# operation -> (request keys, response keys when the extension did it)
-OPERATIONS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
-    "locate": (("document", "find"), ("status", "found")),
-    "apply_edits": (("document", "edits"), ("status", "applied", "skipped")),
-    "rename": (("document", "old", "new", "case_sensitive"), ("status", "count")),
-    "save": (("document",), ("status",)),
-    "close": (("document", "save"), ("status",)),
-    "reopen": (("document",), ("status",)),
-    "selection": (("document",), ("status", "text", "find")),
+# operation -> request keys it needs
+OPERATIONS: dict[str, tuple[str, ...]] = {
+    "locate": ("document", "find"),
+    "apply_edits": ("document", "edits"),
+    "rename": ("document", "old", "new", "case_sensitive"),
+    "save": ("document",),
+    "close": ("document", "save"),
+    "reopen": ("document",),
+    "selection": ("document",),
 }
 MANUAL_KEYS = ("status", "how", "steps", "writer")
-OPTIONAL = {"locate": ("locator", "language")}  # request keys that may be absent
+# request keys that may be absent
+OPTIONAL = {"locate": ("locator", "language", "unique", "paragraphs_after")}
 
 
 class WordLiveError(Exception):
-    """A request the adapter cannot send (unknown operation, missing keys)."""
+    """A request that cannot be answered (unknown operation, missing keys)."""
 
 
 def _keys(platform: str) -> tuple[str, str]:
@@ -71,6 +66,16 @@ def _where(locator: Any, lang: str) -> str:
         return ""
 
 
+def _below(payload: dict[str, Any]) -> int:
+    """Paragraphs to move down from where Find lands (0 when it lands on the passage)."""
+    if payload.get("unique", True) is not False:
+        return 0
+    try:
+        return max(int(payload.get("paragraphs_after") or 0), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
     """What the agent does with computer use, and what to tell the writer otherwise."""
     mod, switch = _keys(platform)
@@ -82,8 +87,13 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
             f"Press {mod}+F, type exactly: {payload['find']}",
             "Press Enter: Word selects the passage. Close the search box; leave the "
             "selection for the writer to see.",
-            "If nothing is found, tell the writer where it is in plain words instead.",
         ]
+        if below := _below(payload):
+            steps.append(
+                f"Find lands on a paragraph above the passage: move down {below} "
+                "paragraph(s) (Down arrow) and select that one."
+            )
+        steps.append("If nothing is found, tell the writer where it is in plain words instead.")
         lang = str(payload.get("language") or "en")
         where = _where(payload.get("locator"), lang)
         if lang == "es":
@@ -128,49 +138,25 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
     return {"status": "manual", "how": "computer-use", "steps": steps, "writer": writer}
 
 
-def _split(command: str) -> list[str]:
-    """The command's words; Windows paths keep their backslashes."""
-    if os.name != "nt":
-        return shlex.split(command)
-    return [w.strip('"') for w in shlex.split(command, posix=False)]
-
-
-def _command(op: str, payload: dict[str, Any], command: str) -> dict[str, Any]:
-    try:
-        done = subprocess.run(
-            [*_split(command), op],
-            input=json.dumps(payload, ensure_ascii=False),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            timeout=TIMEOUT,
-            check=False,
-        )
-        out = json.loads(done.stdout)
-    except (OSError, subprocess.TimeoutExpired, ValueError) as exc:
-        return {"status": "error", "message": f"Word-control did not answer: {exc}"}
-    if not isinstance(out, dict):
-        return {"status": "error", "message": "Word-control answered with something else"}
-    return out
+def _with_find(payload: dict[str, Any]) -> dict[str, Any]:
+    """A ``locate`` request with ``find`` taken from its locator when not given."""
+    locator = payload.get("locator")
+    if locator is not None and not isinstance(locator, dict):
+        raise WordLiveError("locator must be the object `lc docx locate` prints")
+    if payload.get("find") or not isinstance(locator, dict) or not locator.get("find"):
+        return payload
+    return {**payload, "find": locator["find"]}
 
 
 def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
-    """Run one operation; falls back to manual steps when the extension is not there
-    or fails."""
+    """One operation's computer-use steps and writer line."""
     if op not in OPERATIONS:
         raise WordLiveError(f"unknown operation {op!r}; one of {', '.join(OPERATIONS)}")
-    request, _ = OPERATIONS[op]
-    missing = [k for k in request if k not in payload and k not in OPTIONAL.get(op, ())]
+    if op == "locate":
+        payload = _with_find(payload)
+    missing = [k for k in OPERATIONS[op] if k not in payload or payload[k] in ("", None)]
     if missing:
         raise WordLiveError(f"{op} needs {', '.join(missing)}")
-    if payload.get("locator") is not None and not isinstance(payload["locator"], dict):
-        raise WordLiveError("locator must be the object `lc docx locate` prints")
-    command = os.environ.get(ENV, "").strip()
-    if command:
-        out = _command(op, payload, command)
-        if out.get("status") not in ("error", None):
-            return out
-        return {**manual(op, payload, platform), "extension_error": out.get("message", "")}
     return manual(op, payload, platform)
 
 
@@ -186,11 +172,15 @@ def _cmd(args: Any) -> int:
         print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False))
         return 2
     print(json.dumps(out, ensure_ascii=False, indent=1))
-    return 1 if out.get("status") == "refused" else 0
+    return 0
 
 
 def register(sub: Any) -> None:
-    p = sub.add_parser("word", help="act on the open Word (computer-use steps today)")
+    p = sub.add_parser("word", help="steps for the open Word, done with computer use")
     p.add_argument("op", choices=list(OPERATIONS))
-    p.add_argument("--payload", required=True, help="the request: JSON, or a JSON file")
+    p.add_argument(
+        "--payload",
+        required=True,
+        help="the request: JSON, or a JSON file (for locate, what `lc docx locate` printed)",
+    )
     p.set_defaults(func=_cmd)

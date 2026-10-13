@@ -109,6 +109,7 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 | T11 | `kit_selftest_failures == 0` | 0 | `uv run pytest tests/test_kit.py::test_kit_selftest_offline tests/test_kit.py::test_kit_zip_contains_doc_control` | 521b75e (#97) | local (Linux, CPython 3.11 via uv, doc-control 0.0.1) | 2026-10-13 |
 | T6 | `chapter_boundary_f1 >= 0.99` | 1.0 (jekyll-hyde 1.0, marianela 1.0) | `uv run pytest tests/test_structure.py::test_corpus_chapters_match_gold tests/test_structure.py::test_override_forces_and_denies_chapter` | branch claude/focused-hopper-0nq71a-t6 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.2.0 at 7561a28) | 2026-10-13 |
 | T8 | `locators_not_unique == 0` | 0 (jekyll-hyde 0 of 350 phrases and 350 Find strings, marianela 0 of 1,259 and 1,242) | `uv run pytest tests/test_locate.py::test_locator_phrase_unique_in_document` | branch claude/focused-hopper-0nq71a-t8 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.3.0) | 2026-10-13 |
+| T12 | `docs_naming_word_control_interface == 0` | 0 (interface doc deleted; no prompt, skill, doc, kit, code or test file names it or its extension hook; prompts_reference_valid_commands 1.0) | `uv run pytest tests/test_prompts.py::test_prompts_name_only_lc_commands` | branch claude/focused-hopper-0nq71a-t12 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.3.0) | 2026-10-13 |
 
 ### Dependency graph
 
