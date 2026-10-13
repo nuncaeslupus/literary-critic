@@ -5,6 +5,8 @@ import sys
 import zipfile
 from pathlib import Path
 
+from conftest import bare_env
+
 from litcritic import kit
 from litcritic.workspace import repo_root
 
@@ -112,7 +114,7 @@ def test_kit_runs_on_its_own(tmp_path: Path) -> None:
     assert not any("__pycache__" in n or n.startswith(("tests/", "corpus/")) for n in names)
     folder = tmp_path / "unpacked"
     zipfile.ZipFile(out).extractall(folder)
-    env = {"PATH": "/usr/bin:/bin", "HOME": str(tmp_path)}
+    env = bare_env(tmp_path)
     result = subprocess.run(
         [sys.executable, "-I", "lc.py", "doctor", "--home", "./home"],
         cwd=folder,

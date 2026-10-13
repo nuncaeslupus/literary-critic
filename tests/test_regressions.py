@@ -42,6 +42,7 @@ def test_workspace_outside_home_is_registered_for_guard(tmp_path: Path) -> None:
 
 def test_tilde_base_is_expanded(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))  # where Windows looks
     monkeypatch.chdir(tmp_path)
     ws = workspace.create("n", "T", "en", Path("~/novels"))
     assert ws.root == (tmp_path / "novels" / "n").resolve()
