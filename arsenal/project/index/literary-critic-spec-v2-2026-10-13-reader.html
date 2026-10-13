@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="c70ec16a65087636c5db10facdf6642686fd548da14b2a449ddf7b00bfae649d">
+<meta name="arsenal-source-sha256" content="5f5328f149c4dcfa6b8e4ca0fcc94f66822929295d126bcc44e8fcf5e0bab709">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -200,10 +200,11 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-13
 <strong>Ticket / PR</strong>: workspace <code>index</code>
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 1
-<strong>Status</strong>: draft
+<strong>Revision</strong>: 2
+<strong>Status</strong>: approved (2026-10-13, revision 2) — without annotations
 <strong>Revision log</strong>:
-- r1 — first draft, from the owner's request (2026-10-13): "be especially careful with the index part doc-control doesn't provide (references, etc.); build the part that may need an LLM and make it time and token efficient"</p>
+- r1 — first draft, from the owner's request (2026-10-13): "be especially careful with the index part doc-control doesn't provide (references, etc.); build the part that may need an LLM and make it time and token efficient"
+- r2 — owner approved Option B and the plan in advance (in conversation); dual-identity decision D-3 (owner confirmed: two linked entities); validation on the owner's manuscript with a stronger model as reference (D-4)</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied
@@ -448,6 +449,24 @@ and wall time per run.</p>
 <td>agreed</td>
 <td>2026-10-13</td>
 </tr>
+<tr>
+<td>D-3</td>
+<td>One character under two names that the text keeps apart (e.g. Jekyll / Hyde) is two entities linked <code>same_as</code>; plain aliases stay in one entity</td>
+<td>agreed (owner deferred to recommendation)</td>
+<td>2026-10-13</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>Every cheap-model step is first validated against a stronger model's output on the corpus and, locally, on the owner's manuscript (numbers only); a step stays on the cheap tier only where it agrees ≥ 0.9</td>
+<td>agreed</td>
+<td>2026-10-13</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>Option B approved; plan approved in advance</td>
+<td>agreed</td>
+<td>2026-10-13</td>
+</tr>
 </tbody>
 </table></div>
 <div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
@@ -531,7 +550,7 @@ and wall time per run.</p>
   function pad(n){return n<10?'0'+n:''+n;}
   function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
-  function exportName(){return 'literary-critic-spec-v1-'+today()+'-notes.md';}
+  function exportName(){return 'literary-critic-spec-v2-'+today()+'-notes.md';}
 
   function buildExport(){
     var byPart={},order=[],data={},n=0;

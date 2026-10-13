@@ -3,10 +3,11 @@
 **Date**: 2026-10-13
 **Ticket / PR**: workspace `index`
 **Author**: Claude (with the owner)
-**Revision**: 1
-**Status**: draft
+**Revision**: 2
+**Status**: approved (2026-10-13, revision 2) — without annotations
 **Revision log**:
 - r1 — first draft, from the owner's request (2026-10-13): "be especially careful with the index part doc-control doesn't provide (references, etc.); build the part that may need an LLM and make it time and token efficient"
+- r2 — owner approved Option B and the plan in advance (in conversation); dual-identity decision D-3 (owner confirmed: two linked entities); validation on the owner's manuscript with a stronger model as reference (D-4)
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied
@@ -125,3 +126,6 @@ and wall time per run.
 |---|----------|--------|------|
 | D-1 | The literary index (entities, references, scenes, setups) is literary-critic's; generic segmentation and reading come from doc-control | agreed | 2026-10-13 |
 | D-2 | Time and tokens are first-class gates for the index | agreed | 2026-10-13 |
+| D-3 | One character under two names that the text keeps apart (e.g. Jekyll / Hyde) is two entities linked `same_as`; plain aliases stay in one entity | agreed (owner deferred to recommendation) | 2026-10-13 |
+| D-4 | Every cheap-model step is first validated against a stronger model's output on the corpus and, locally, on the owner's manuscript (numbers only); a step stays on the cheap tier only where it agrees ≥ 0.9 | agreed | 2026-10-13 |
+| D-5 | Option B approved; plan approved in advance | agreed | 2026-10-13 |
