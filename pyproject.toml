@@ -5,7 +5,7 @@ description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
-dependencies = ["doc-control>=0.2.0,<0.3"]  # stdlib + doc-control only (AGENTS.md rule 9)
+dependencies = ["doc-control>=0.3.0,<0.4"]  # stdlib + doc-control only (AGENTS.md rule 9)
 
 [project.scripts]
 lc = "litcritic.cli:main"
@@ -41,6 +41,3 @@ files = ["src", "tests"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
-
-[tool.uv.sources]
-doc-control = { git = "https://github.com/nuncaeslupus/doc-control", rev = "b04298e" }
