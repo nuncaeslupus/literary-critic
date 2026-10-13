@@ -7,7 +7,12 @@ into packets of bounded size and writes ``<ws>/index/work/plan.json``:
   cut into self-contained packets of at most ``ENTITY_CAP`` tokens;
 - **scenes** packets: consecutive scenes up to ``SCENE_TEXT_CAP`` tokens of text,
   never splitting a scene; a scene over the cap gets a packet of its own, and one
-  over ``SPLIT_AT`` is cut at paragraph boundaries into parts.
+  over ``SPLIT_AT`` is cut at paragraph boundaries into parts;
+- one **names** packet (an entities packet on the strong tier) when scene answers
+  queued ``new_names``: proper names the scene text uses and its ``known:`` line
+  lacks. Scene answers never create entities; their names wait in ``plan.json``
+  (``new_names``) until the next ``plan`` packs them, with their count and contexts
+  in the draft, for the strong tier to resolve.
 
 ``render`` prints one packet: short instructions, the closed JSON answer schema
 (``schemas/index-<kind>-answer.schema.json``) and the inputs, nothing else.
@@ -25,6 +30,7 @@ import bisect
 import hashlib
 import json
 import math
+import re
 from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -45,6 +51,7 @@ KNOWN_LINES_CAP = 1500  # tokens for the known entities listed under the scenes 
 SETUP_LINES_CAP = 300  # tokens for the open setups listed in a scene packet
 SCENES_PER_PACKET = 40  # the answer schema allows 60
 FACT_NAMES = 12  # names and speakers listed per scene
+NAMES_PACKET = "n1"  # the packet resolving names queued by scene answers
 STATUSES = ("todo", "done", "failed")
 # what a re-plan keeps of an unchanged packet: its state and its cost record
 KEPT = ("status", "items", "error", "out_tokens", "prints", "imports", "started", "finished")
@@ -76,15 +83,18 @@ INSTRUCTIONS = {
         "Task: one entry per scene below; facts only, never prose for the novel. "
         "pov: always; whose eyes the scene is told through; first person: "
         '"narrator (first person)", plus the name if the text gives it. '
-        "location: where the scene happens, not where someone comes from. "
-        'time: as precise as the text allows, else "unspecified". '
+        "location: where the scene happens, not where a character lives or comes from. "
+        "time: when the scene's main action happens (not an opening frame, a memory or "
+        'a dream unless that is the scene), as precise as the text allows, else "unspecified". '
         "summary: what happens and what changes, who does what to whom (check who is who "
         "against known and speakers), no interpretation. "
         "setups: only details planted for a later scene, never one resolved in the same "
         "scene, never a theme. side payoff only in the scene that resolves a setup, "
         "pays_off = that setup's label or id (Open setups lists earlier ones). "
-        "entities: only people, places or things missing from known. Every quote: exact "
-        "words copied from that scene, enough to occur only once in it."
+        "new_names: proper names (capitalised names of people or places) the scene uses "
+        "that known lacks, as written; never roles, relations, titles or common nouns "
+        "(the doctor, her mother, the mayor, the house). Every quote: exact words copied "
+        "from that scene, enough to occur only once in it."
     ),
 }
 
@@ -508,6 +518,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             }
         )
     old: dict[str, dict[str, Any]] = {}
+    queue: list[dict[str, Any]] = []
     base_hashes: dict[str, str] | None = None
     path = plan_path(ws_root)
     if path.is_file():
@@ -516,8 +527,23 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             if prev.get("changed_only") == changed:
                 old = {p["id"]: p for p in prev.get("packets", [])}
             base_hashes = prev.get("base_hashes")
+            queue = prev.get("new_names", [])
         else:
             base_hashes = prev.get("scene_hashes")
+    covered = _forms(cx)
+    queue = [q for q in queue if q["name"].casefold() not in covered]
+    used = {c["name"] for c in name_candidates(draft, [q["name"] for q in queue])}
+    queue = [q for q in queue if q["name"] in used]  # a name the draft never uses goes
+    names = names_for_packet(draft, [q["name"] for q in queue])
+    if names:
+        packets.append(
+            {
+                "id": NAMES_PACKET,
+                "kind": "entities",
+                "tier": TIER["entities"],
+                "inputs": {"names": names},
+            }
+        )
     doc: dict[str, Any] = {
         "schema_version": PLAN_SCHEMA,
         "draft": draft.version,
@@ -525,6 +551,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         "changed_only": changed,
         "scene_hashes": scene_hashes(draft),
         "packets": packets,
+        "new_names": queue,
     }
     if base_hashes is not None:
         doc["base_hashes"] = base_hashes
@@ -539,7 +566,8 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             and p["kind"] == "entities"
             and was.get("kind") == "entities"
             and was.get("status") == "done"
-            and set(p.get("names", [])) <= set(was.get("names", []))
+            and "names" in p
+            and set(p["names"]) <= set(was.get("names", []))
         )
         if was is not None and (same or shrunk):
             for key in KEPT:
@@ -550,6 +578,80 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
     path.parent.mkdir(parents=True, exist_ok=True)
     _write_atomic(path, json.dumps(doc, ensure_ascii=False, indent=1) + "\n")
     return doc
+
+
+def name_candidates(draft: Draft, names: list[str]) -> list[dict[str, Any]]:
+    """Candidates shaped like the pre-pass's for names queued by scene answers: the
+    name, its count in the draft (whole words, exact case), its first occurrence and
+    up to two contexts. A name the draft never uses is left out."""
+    out = []
+    for name in names:
+        rx = re.compile(rf"(?<!\w){re.escape(name)}(?!\w)")
+        hits = [
+            (i, m.start(), m.end())
+            for i, par in enumerate(draft.paragraphs)
+            for m in rx.finditer(par)
+        ]
+        if not hits:
+            continue
+        f = hits[0]
+        picks = [f]
+        if len(hits) > 1:
+            later = [h for h in hits[len(hits) // 2 :] if h[0] != f[0]] or hits[len(hits) // 2 :]
+            picks.append(later[0])
+        out.append(
+            {
+                "name": name,
+                "forms": [name],
+                "count": len(hits),
+                "first": {
+                    "para": draft.anchors[f[0]],
+                    "quote": prepass.quote(draft.paragraphs[f[0]], f[1], f[2]),
+                },
+                "snippets": [prepass.snippet(draft.paragraphs[i], a, b) for i, a, b in picks],
+            }
+        )
+    return out
+
+
+def _name_lines(cands: list[dict[str, Any]]) -> str:
+    lines = ["# name (count in the draft); then up to 2 contexts, [the name]"]
+    for c in cands:
+        lines.append(f"{c['name']} ({c['count']})")
+        lines.extend("  " + x for x in c["snippets"])
+    return "\n".join(lines) + "\n"
+
+
+def names_for_packet(draft: Draft, names: list[str], cap: int = ENTITY_CAP) -> list[str]:
+    """The queued names the draft uses, most frequent first, as many as fit in one
+    packet of ``cap`` tokens; the rest stay queued for the next plan."""
+    cands = sorted(name_candidates(draft, names), key=lambda c: -c["count"])
+    room = cap * 4 - len(_frame("", "entities")) - KNOWN_CAP * 4 - 200
+    used = len(_name_lines([]))
+    out: list[str] = []
+    for c in cands:
+        used += len(_name_lines([c])) - len(_name_lines([]))
+        if used > room:
+            break
+        out.append(c["name"])
+    return out
+
+
+def queue_names(doc: dict[str, Any], found: list[tuple[str, str]]) -> int:
+    """Add ``(name, scene)`` pairs to the plan's queue (casefold-deduplicated, scenes
+    merged); returns how many names are new to the queue."""
+    queue: list[dict[str, Any]] = doc.setdefault("new_names", [])
+    by = {q["name"].casefold(): q for q in queue}
+    added = 0
+    for name, scene in found:
+        q = by.get(name.casefold())
+        if q is None:
+            q = by[name.casefold()] = {"name": name, "scenes": []}
+            queue.append(q)
+            added += 1
+        if scene not in q["scenes"]:
+            q["scenes"] = sorted([*q["scenes"], scene])
+    return added
 
 
 def plan_stats(doc: dict[str, Any], scenes: int) -> dict[str, Any]:
@@ -641,16 +743,35 @@ def render(
             cx = Codex(ws_root)
         except CodexError:
             cx = None
+    if p["kind"] == "entities" and "names" in p["inputs"]:
+        return _render_names(p, draft, cx)
     if p["kind"] == "entities":
         return _render_entities(doc, p, draft, cx)
     return _render_scenes(p, draft, cx)
+
+
+def _render_names(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
+    head = _frame(
+        f"packet {p['id']} · new names · tier {TIER['entities']} · draft {draft.version}",
+        "entities",
+    )
+    head += "Candidates are names proposed while reading scenes; reject what is not one.\n"
+    uniq: dict[str, str] = {}
+    for i in _codex_entities(cx):
+        name = i.fields.get("name", "")
+        if name:
+            uniq.setdefault(name.casefold(), name)
+    known = _cap_join(list(uniq.values()), KNOWN_CAP)
+    if known:
+        head += f"Other names: {known}\n"
+    return head + "Candidates:\n" + _name_lines(name_candidates(draft, p["inputs"]["names"]))
 
 
 def _render_entities(doc: dict[str, Any], p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
     cands = draft.pre["candidates"]
     nsnip, side = _render_params(draft.pre)
     a, b = p["inputs"]["candidates"]
-    ent = [x for x in doc["packets"] if x["kind"] == "entities"]
+    ent = [x for x in doc["packets"] if x["kind"] == "entities" and "candidates" in x["inputs"]]
     k = next(i for i, x in enumerate(ent, 1) if x["id"] == p["id"])
     names = [i.fields.get("name", "") for i in _codex_entities(cx)]
     if len(ent) > 1:
@@ -825,11 +946,17 @@ class EntityImport:
     unlinked: int  # same_as names matching no entity yet
 
 
-def _entity_items(ans: dict[str, Any], cx: Codex, draft: Draft, text: spanlib.Text) -> EntityImport:
+def _entity_items(
+    ans: dict[str, Any],
+    cx: Codex,
+    draft: Draft,
+    text: spanlib.Text,
+    extra: list[dict[str, Any]] | None = None,
+) -> EntityImport:
     known = _forms(cx)
     by_form: dict[str, dict[str, Any]] = {}
     pos = {a: i for i, a in enumerate(draft.anchors)}
-    for c in draft.pre["candidates"]:
+    for c in [*draft.pre["candidates"], *(extra or [])]:
         for f in [c["name"], *c["forms"]]:
             have = by_form.get(f.casefold())
             if have is None or pos.get(c["first"]["para"], 0) < pos.get(have["first"]["para"], 0):
@@ -969,6 +1096,7 @@ class SceneImport:
     items: list[Item]
     unlinked: int  # payoffs matching no setup label or id yet
     same_scene: int  # payoffs linked to a setup planted in the same scene
+    names: list[tuple[str, str]]  # (new name, scene) to queue: names the Codex lacks
 
 
 def _scene_items(
@@ -1006,6 +1134,7 @@ def _scene_items(
         return item_id
 
     pending: list[tuple[Item, str, str]] = []  # payoff item, setup label or id, scene
+    names: list[tuple[str, str]] = []
     for i, s in enumerate(ans["scenes"]):
         u = units[s["scene"]]
         lo, hi = u["paras"]
@@ -1025,21 +1154,10 @@ def _scene_items(
         else:
             item = Item(id=new("scene"), type="scene", text=line, spans=[span], fields=fields)
         items.append(item)
-        for j, e in enumerate(s.get("entities", [])):
-            if e["name"].casefold() in known:
-                continue
-            espan = _anchor(text, e["quote"], lo, hi, f"{path}.entities[{j}].quote", scope)
-            eid = new("entity")
-            known[e["name"].casefold()] = eid
-            items.append(
-                Item(
-                    id=eid,
-                    type="entity",
-                    text=f"{e['name']} ({e['kind']})",
-                    spans=[espan],
-                    fields={"kind": e["kind"], "name": e["name"]},
-                )
-            )
+        for raw_name in s.get("new_names", []):
+            name = " ".join(raw_name.split())
+            if name and name.casefold() not in known:
+                names.append((name, s["scene"]))
         for j, su in enumerate(s.get("setups", [])):
             spath = f"{path}.setups[{j}]"
             sspan = _anchor(text, su["quote"], lo, hi, f"{spath}.quote", scope)
@@ -1066,7 +1184,7 @@ def _scene_items(
             continue
         it.links.append({"rel": "pays_off", "to": to})
         same_scene += planted.get(to) == scene
-    return SceneImport(items, unlinked, same_scene)
+    return SceneImport(items, unlinked, same_scene, names)
 
 
 def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
@@ -1102,8 +1220,10 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
             raise PacketError(f"the Codex is synced to {cx.draft}, the plan to {doc['draft']}")
         text = draft.text()
         notes: list[str] = []
+        queued: list[tuple[str, str]] = []
         if p["kind"] == "entities":
-            got = _entity_items(ans, cx, draft, text)
+            extra = name_candidates(draft, p["inputs"].get("names", []))
+            got = _entity_items(ans, cx, draft, text, extra)
             items = got.items
             if got.fallbacks:
                 notes.append(f"{got.fallbacks} quote fallback{'s' * (got.fallbacks > 1)}")
@@ -1118,6 +1238,7 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
                 )
             if got_s.same_scene:
                 notes.append(f"{got_s.same_scene} payoff(s) in the scene of their setup")
+            queued = got_s.names
         try:
             cx.add_many(items, by="llm", batch=f"index:{doc['draft']}:{packet_id}")
         except CodexError as exc:
@@ -1131,6 +1252,12 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     p["status"], p["items"] = "done", len(items)
     p["out_tokens"] = tokens(_compact(ans))
     p["finished"] = _now()
+    added = queue_names(doc, queued)
+    if added:
+        notes.append(f"{added} new names queued for `lc index plan`")
+    if "names" in p["inputs"]:  # resolved: these names leave the queue
+        gone = {n.casefold() for n in p["inputs"]["names"]}
+        doc["new_names"] = [q for q in doc.get("new_names", []) if q["name"].casefold() not in gone]
     p.pop("error", None)
     _save_plan(ws_root, doc)
     note = f" ({'; '.join(notes)})" if notes else ""
@@ -1172,7 +1299,9 @@ def _save_plan(ws_root: Path, doc: dict[str, Any]) -> None:
 def status_lines(doc: dict[str, Any]) -> list[str]:
     out = []
     for p in doc["packets"]:
-        if p["kind"] == "entities":
+        if "names" in p["inputs"]:
+            what = f"{len(p['inputs']['names'])} new names"
+        elif p["kind"] == "entities":
             a, b = p["inputs"]["candidates"]
             what = f"candidates {a + 1}-{b}"
         else:

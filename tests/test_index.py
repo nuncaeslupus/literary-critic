@@ -289,15 +289,13 @@ def test_payoff_links_to_its_setup(ws: Path) -> None:
             "pays_off": first["label"].upper(),
         }
     )
-    answer["scenes"][0]["entities"] = [
-        {"name": "Somebody New", "kind": "object", "quote": _unique_quote(draft, lo, hi, skip=2)}
-    ]
+    answer["scenes"][0]["new_names"] = ["Somebody New"]
     assert _import(ws, "s001", answer).startswith("ok s001: ")
     cx = codex.Codex(ws)
     pay = next(i for i in cx.live("setup") if i.fields["side"] == "payoff")
     target = cx.get(pay.links[0]["to"])
     assert pay.links[0]["rel"] == "pays_off" and target.fields["label"] == first["label"]
-    assert any(i.fields["name"] == "Somebody New" for i in cx.live("entity"))
+    assert cx.live("entity") == []  # scene answers never create entities
 
 
 def test_add_many_is_all_or_nothing(ws: Path) -> None:
@@ -849,6 +847,81 @@ def test_output_tokens_per_scene_recorded(ws: Path) -> None:
         packets.tokens(compact) / len(answer["scenes"]), 1
     )
     assert any("out tokens/scene" in x for x in packets.status_lines(packets.load_plan(ws)))
+
+
+# --- new names: queued by scene answers, resolved by one strong packet --------------
+
+
+def test_scene_instructions_state_time_location_and_name_rules() -> None:
+    text = packets.INSTRUCTIONS["scenes"]
+    for words in ("main action", "dream", "lives", "new_names", "proper names", "roles"):
+        assert words in text
+
+
+def test_scene_answer_with_entities_is_refused(ws: Path) -> None:
+    answer = _scene_answer(ws, "s001")
+    answer["scenes"][0]["entities"] = [{"name": "Poole", "kind": "character", "quote": "Poole"}]
+    assert _import(ws, "s001", answer) == "error s001: $.scenes[0]: unknown field entities"
+    answer["scenes"][0].pop("entities")
+    answer["scenes"][0]["new_names"] = [f"Name{k}" for k in range(9)]
+    assert _import(ws, "s001", answer).startswith(
+        "error s001: $.scenes[0].new_names: 9 items, limit 8"
+    )
+    assert codex.Codex(ws).items == {}
+
+
+def test_new_names_are_queued_deduplicated(ws: Path) -> None:
+    _entity(ws, kind="character", name="Gabriel John Utterson", aliases=["Utterson"])
+    answer = _scene_answer(ws, "s001")
+    a, b = answer["scenes"][0]["scene"], answer["scenes"][1]["scene"]
+    answer["scenes"][0]["new_names"] = ["Poole", "Somebody New", "poole", "Utterson"]
+    answer["scenes"][1]["new_names"] = ["Poole"]
+    line = _import(ws, "s001", answer)
+    assert line.startswith("ok s001: ") and "2 new names queued" in line
+    assert [i.type for i in codex.Codex(ws).live("entity")] == ["entity"]  # only Utterson
+    queue = packets.load_plan(ws)["new_names"]
+    assert queue == [
+        {"name": "Poole", "scenes": sorted([a, b])},
+        {"name": "Somebody New", "scenes": [a]},
+    ]
+    second = _scene_answer(ws, "s002")
+    second["scenes"][0]["new_names"] = ["Poole"]
+    assert _import(ws, "s002", second).startswith("ok s002: ")
+    queue = packets.load_plan(ws)["new_names"]
+    assert queue[0]["name"] == "Poole" and second["scenes"][0]["scene"] in queue[0]["scenes"]
+    assert len(queue) == 2
+
+
+def test_names_packet_planned_only_when_needed(ws: Path) -> None:
+    def names_packets(doc: dict[str, Any]) -> list[dict[str, Any]]:
+        return [p for p in doc["packets"] if "names" in p["inputs"]]
+
+    assert names_packets(packets.load_plan(ws)) == []
+    assert names_packets(packets.plan(ws)) == []
+    _entity(ws, kind="character", name="Gabriel John Utterson", aliases=["Utterson"])
+    answer = _scene_answer(ws, "s001")
+    answer["scenes"][0]["new_names"] = ["Poole", "Nobody Atall", "Lanyon"]
+    assert _import(ws, "s001", answer).startswith("ok s001: ")
+    _entity(ws, kind="character", name="Hastie Lanyon", aliases=["Lanyon"])  # known since
+    doc = packets.plan(ws)
+    (p,) = names_packets(doc)
+    assert p["kind"] == "entities" and p["tier"] == "strong" and p["status"] == "todo"
+    assert p["inputs"]["names"] == ["Poole"]  # known and absent names dropped
+    assert [x["name"] for x in doc["new_names"]] == ["Poole"]
+    assert doc["packets"][-1] is p
+    e1 = packets.render(ws, doc, "e1")
+    assert e1.startswith("packet e1 · entities 1/1 · ")
+    text = packets.render(ws, doc, p["id"])
+    assert text.startswith(f"packet {p['id']} · new names · tier strong · draft v001\n")
+    assert '"rejects"' in text and "Poole (" in text and "[Poole]" in text
+    assert "Nobody Atall" not in text and "Lanyon (" not in text
+    assert p["tokens"] < 1000
+    line = _import(ws, p["id"], {"entities": [{"name": "Poole", "kind": "character"}]})
+    assert line == f"ok {p['id']}: 1 items"
+    poole = next(i for i in codex.Codex(ws).live("entity") if i.fields["name"] == "Poole")
+    assert poole.spans and poole.spans[0].exact == "Poole"
+    assert packets.load_plan(ws)["new_names"] == []
+    assert names_packets(packets.plan(ws)) == []
 
 
 def test_reindex_inserted_scene_mid_book_packs_only_it(tmp_path: Path) -> None:

@@ -67,7 +67,12 @@ def _packets(args: argparse.Namespace) -> int:
             if args.next:
                 doc = packets.load_plan(ws.root)
                 nxt = next((p["id"] for p in doc["packets"] if p["status"] != "done"), None)
-                if nxt is None:
+                if nxt is None and doc.get("new_names"):
+                    print(
+                        f"all packets done; {len(doc['new_names'])} new names queued: "
+                        "run `lc index plan` for their entity packet"
+                    )
+                elif nxt is None:
                     print("all packets done")
                 else:
                     sys.stdout.write(packets.render(ws.root, doc, nxt))

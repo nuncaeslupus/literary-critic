@@ -22,7 +22,7 @@
         "location": {"$ref": "#/$defs/short"},
         "time": {"$ref": "#/$defs/short"},
         "setups": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/setup"}},
-        "entities": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/entity"}}
+        "new_names": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/name"}}
       }
     },
     "setup": {
@@ -34,16 +34,6 @@
         "side": {"enum": ["setup", "payoff"]},
         "quote": {"$ref": "#/$defs/quote"},
         "pays_off": {"$ref": "#/$defs/name"}
-      }
-    },
-    "entity": {
-      "type": "object",
-      "required": ["name", "kind", "quote"],
-      "additionalProperties": false,
-      "properties": {
-        "name": {"$ref": "#/$defs/name"},
-        "kind": {"enum": ["character", "place", "object", "group", "rule", "motif"]},
-        "quote": {"$ref": "#/$defs/quote"}
       }
     }
   }

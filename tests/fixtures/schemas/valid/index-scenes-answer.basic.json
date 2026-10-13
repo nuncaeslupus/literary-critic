@@ -7,7 +7,7 @@
       "location": "a by-street in London",
       "time": "a Sunday walk",
       "setups": [{"label": "the door", "side": "setup", "quote": "a certain sinister block of building"}],
-      "entities": [{"name": "Enfield", "kind": "character", "quote": "Mr. Richard Enfield"}]
+      "new_names": ["Enfield"]
     }
   ]
 }
