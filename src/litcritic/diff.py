@@ -168,7 +168,7 @@ def _addresses(ws_root: Path, version: str, count: int) -> list[str]:
     meta = json.loads(meta_file.read_text(encoding="utf-8")) if meta_file.is_file() else {}
     ats = [str(r.get("at", "")) for r in meta.get("paragraphs") or []]
     if len(ats) != count or not all(ats):
-        raise ValueError(f"{version} was ingested by an older release; run `lc ingest` again")
+        raise ValueError(f"{version} was ingested by an older release; run `lc upgrade`")
     return ats
 
 

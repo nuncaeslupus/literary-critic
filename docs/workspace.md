@@ -17,6 +17,7 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
   analysis/             # novel profile (adapted checklist) and findings
   revisions/            # round-NN/: editorial letter + action backlog with statuses
   log/                  # session log: what was done, decisions, next step
+  upgrade-backup/       # copies made by `lc upgrade` before it changed anything
 ```
 
 Everything is text (TOML, JSON, Markdown) except the manuscript snapshots, so a
@@ -194,6 +195,40 @@ snapshot to `revisions/round-NN/vNNN-comments.docx` with each pending or
 accepted action of the latest round as a comment on its paragraph. Paragraphs
 are matched by their position in the document recorded at ingest; existing
 comments are kept. The writer's original file is never modified.
+
+## Upgrading a workspace from an older release
+
+A workspace made before literary-critic read manuscripts through doc-control
+has schema-1 meta files (no `at` addresses), the old structure files and,
+perhaps, overrides in the first shape and the old safe-edit `backups/`. `lc`
+then says the draft "was ingested by an older release". Run once:
+
+```
+lc upgrade --workspace <slug>
+```
+
+1. The whole workspace is copied to `upgrade-backup/<stamp>/` and the copy is
+   checked file by file before anything changes. Any failure later puts the
+   copy back by itself; `lc upgrade --restore --workspace <slug>` does it on
+   demand (the latest backup, checked first).
+2. Every draft is read again from its snapshot in `manuscript/` (the writer's
+   own file is never opened) and its structure rebuilt, alignments included.
+3. Overrides in the first shape are matched by paragraph text in the latest
+   draft and rewritten in doc-control's shape. One whose paragraph changed, or
+   that now matches several paragraphs, is kept under `unconfirmed` in the
+   overrides file and listed for the writer to confirm again.
+4. Every Codex span moves from the old text and labels to the new ones, exact
+   only. A span that resolved before and does not now is flagged
+   `needs_reread` (`codex/reread.jsonl`); the gate is that none is.
+5. The old safe-edit `backups/` (and any `.safe-edit/`) are removed:
+   doc-control keeps its own backups and undo log. They stay in the backup.
+6. `analysis/upgrade-report.md` tells the writer, in the work's language,
+   what changed, what needs a fresh look and how to go back.
+
+It prints one line per step and exits 1 when something waits on the writer
+(a flagged span or an override to confirm). A workspace already in the new
+formats is left untouched. Delete `upgrade-backup/` once the writer is happy:
+`lc pack` includes it.
 
 ## Moving a workspace between sessions
 

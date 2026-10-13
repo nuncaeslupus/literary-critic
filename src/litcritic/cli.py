@@ -31,6 +31,7 @@ from litcritic import (
     setup,
     structure,
     synth,
+    upgrade,
     validate,
     word_live,
     workspace,
@@ -571,6 +572,7 @@ def build_parser() -> argparse.ArgumentParser:
     index_cli.register(sub)
     docx_cli.register(sub)
     setup.register(sub)
+    upgrade.register(sub)
     word_live.register(sub)
     return parser
 

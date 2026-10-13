@@ -277,14 +277,35 @@ def ingest(path: Path, ws_root: Path) -> Result:
             return Result(version, True, len(draft.paragraphs), text)
         # A previous run stopped after the snapshot: finish writing text and meta.
     (ws_root / "manuscript").mkdir(parents=True, exist_ok=True)
-    (ws_root / "text").mkdir(parents=True, exist_ok=True)
     (ws_root / "manuscript" / f"{version}{path.suffix.lower()}").write_bytes(data)
+    return _write_text(ws_root, version, path.name, digest, draft)
+
+
+def reingest(ws_root: Path, version: str, source_name: str = "") -> Result:
+    """Read ``manuscript/<version>.*`` again and rewrite its text and meta.
+
+    For a workspace made by an older release (``lc upgrade``): the snapshot is only
+    read, and the writer's own file is not looked at.
+    """
+    found = [p for p in _versions(ws_root) if p.stem == version and p.suffix in FORMATS]
+    if not found:
+        raise IngestError(f"no manuscript/{version}.* to read again")
+    data = found[0].read_bytes()
+    draft = read(found[0], data)
+    if not draft.paragraphs:
+        raise IngestError(f"no text found in manuscript/{found[0].name}")
+    digest = hashlib.sha256(data).hexdigest()
+    return _write_text(ws_root, version, source_name or found[0].name, digest, draft)
+
+
+def _write_text(ws_root: Path, version: str, source_name: str, digest: str, draft: Draft) -> Result:
+    (ws_root / "text").mkdir(parents=True, exist_ok=True)
     text_path = ws_root / "text" / f"{version}.txt"
     text_path.write_text(draft.text, encoding="utf-8")
     meta = {
         "schema_version": META_SCHEMA,
         "version": version,
-        "source_name": path.name,
+        "source_name": source_name,
         "source_sha256": digest,
         "format": draft.format,
         "ingested_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

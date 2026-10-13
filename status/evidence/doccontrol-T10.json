@@ -1,0 +1,32 @@
+{
+  "metric": "codex_spans_lost_on_upgrade",
+  "value": 0,
+  "threshold": 0,
+  "detail": "lc upgrade (src/litcritic/upgrade.py) backs the whole workspace up to upgrade-backup/<stamp>/ (every file hashed and checked, restorable with lc upgrade --restore, restored by itself on any failure), re-reads every draft from its manuscript/ snapshot through doc-control (ingest.reingest: schema-2 meta with at addresses; the writer's own file is never opened), migrates first-shape overrides by paragraph text in the latest draft (D-7; unmatched or ambiguous ones kept under 'unconfirmed' and listed for the writer, never dropped), rebuilds structure.json and existing alignment.json, moves every Codex span from the old text and labels to the new ones with spans.relocate (exact only; identical text uses an identity alignment, otherwise doc-control's diff of the two texts), flags any span that resolved before and does not now (needs_reread + codex/reread.jsonl), removes the old safe-edit backups/ (and .safe-edit/), and writes analysis/upgrade-report.md in the work's language (en, es). A workspace already in the new formats is left untouched.",
+  "measurements": {
+    "fixture": "tests/fixtures/upgrade/<slug>.zip, built by the release before doc-control ingest (6eab457) with tests/fixtures/upgrade/build.py: two drafts (corpus text, then synth seed 11/12 at rate 0.03), first-shape overrides (a forced scene, a denied chapter), a Codex of scene cards, sentence facts, dialogue paragraphs and two-paragraph spans on v001, synced to v002 by that release, plus items on v002; manuscripts rebuilt by the tests and checked against manifest.json",
+    "jekyll-hyde (txt)": {"spans": 73, "resolved_before": 66, "kept": 66, "lost": 0, "overrides_migrated": 2, "unconfirmed": 0, "paragraphs": "350 -> 350 per draft"},
+    "marianela (docx)": {"spans": 214, "resolved_before": 196, "kept": 196, "lost": 0, "overrides_migrated": 2, "unconfirmed": 0, "paragraphs": "1270 -> 1270, 1271 -> 1271", "relabelled": "974 and 973 paragraphs get another cNN.sN.pN label (doc-control puts the line under '-I-' in scene 1 where the old detector made it part of the heading), every span moved to its new label"},
+    "jekyll-hyde with drift": {"how": "an extra paragraph the old reader kept in v002 (old and new text differ, so the doc-control diff path aligns them)", "resolved_before": 66, "kept": 66, "lost": 0},
+    "test_upgrade_lists_unmatched_overrides": "a scene override whose paragraph text differs in the re-read draft: exit 1, kept under 'unconfirmed' with reason 'missing', listed in the report with the paragraph's first words; the other override migrated",
+    "pin": "with the Codex step skipped, the span-in-place check fails on both fixtures (SpanError: old labels)"
+  },
+  "timing": {
+    "lc_upgrade_wall_s": {
+      "how": "lc upgrade as a subprocess on a freshly unpacked fixture, three runs",
+      "jekyll-hyde (26k words, 2 txt drafts)": [0.83, 0.76, 0.76],
+      "marianela (50k words, 2 docx drafts)": [2.31, 2.51, 2.54],
+      "second run (no-op)": [0.14, 0.19]
+    }
+  },
+  "tests": [
+    "tests/test_upgrade.py::test_upgrade_keeps_every_resolved_span (jekyll-hyde, marianela, jekyll-hyde with drift)",
+    "tests/test_upgrade.py::test_upgrade_lists_unmatched_overrides",
+    "tests/test_upgrade.py::test_second_upgrade_changes_nothing",
+    "tests/test_upgrade.py::test_restore_puts_the_old_workspace_back",
+    "tests/test_upgrade.py::test_failed_upgrade_restores_the_workspace",
+    "tests/test_upgrade.py::test_damaged_backup_is_not_restored"
+  ],
+  "command": "uv run pytest tests/test_upgrade.py::test_upgrade_keeps_every_resolved_span tests/test_upgrade.py::test_upgrade_lists_unmatched_overrides",
+  "doc_control": "0.3.0"
+}
