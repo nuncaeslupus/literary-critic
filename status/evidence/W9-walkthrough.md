@@ -154,3 +154,30 @@ evidence log.
 - [x] 10 located actions on Windows: Claude brings Word to the front and the search selects the paragraph. Successes: 10/10. *(2026-10-13, Spanish Word 16.0.17932, keys sent by script to a visible Word and the selection read back from Word, not through computer-use screenshots: window to the front, Ctrl+B, the `find` string typed, a wait for the search to refresh, Enter, Esc; the selection was the `find` text inside the right paragraph for 10 of 10 random paragraphs. Without the wait, an early Enter jumps to the previous search's result (8/10 and 1/10 on two runs), so `lc word` now says to wait. Also checked without the keyboard: Word's own Find, given the `find` string of `lc docx locate`, lands on the right paragraph for 100 of 100 random paragraphs of the corpus novel as a Word-made `.docx`, 37 of them with accented characters. The key that opens the search depends on Word's language: in a Spanish Word, Ctrl+F indents the paragraph and Find is Ctrl+B, so `lc word` now names the key by language.)*
 - [ ] 10 on Mac (Cmd+F): __/10.
 - [ ] When it fails, the writer gets the plain location instead.
+
+## Owner's run in Cowork (2026-10-13)
+
+Windows 11 Pro, Spanish Word 16.0.17932, a paid plan, the desktop app; the
+corpus novel as a `.docx` in its own folder. Reported by the owner and read
+from the conversation.
+
+- Start: "I want to use literary-critic for my novel" with the repository's
+  link. Claude took the tool from the repository. The one writer action before
+  the questions was choosing the novel's folder.
+- Setup questions, indexing in parallel packets, overview and a full analysis
+  ran to the end. Locations came as page plus first and last words.
+- "Take me to..." with computer use: Word opened on the right chapter through
+  its search pane (1 of 1). It took about 15 steps, the Word window and
+  Claude's small window alternated on screen many times, and afterwards
+  Claude's main window stayed always on top, hiding Word, until the flag was
+  cleared by hand.
+- Replies ran well over the guide's 120 words (an analysis reply of about 450).
+- The assistant talked about the tool's faults unasked and, asked with
+  `[[...]]`, opened a change and four issues. The guide now keeps the tool out
+  of a writer's session unless asked with `[[...]]`.
+- The test `.docx` was made by this project's own script with one Word
+  paragraph per line of the source text, which is what the assistant met and
+  worked around with a cleaned copy. The earlier Find check (100 of 100) ran on
+  a document made the same way.
+- Not seen yet: whether a new conversation needs the folder picked again (a
+  Cowork project should keep it).
