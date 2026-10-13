@@ -5,6 +5,7 @@ label: "feedback comments on doc-control"
 priority: 10
 deps: [t-b6a67a3b]
 workspace: doccontrol
+status: merged
 ---
 
 # T3: feedback comments on doc-control

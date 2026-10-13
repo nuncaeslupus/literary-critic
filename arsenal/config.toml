@@ -22,6 +22,7 @@
 # and stopping to ask a question this file already answers. Do not set a policy
 # nothing in the repo can ever satisfy — it gets waved through, and then it
 # stays waved through on the day it starts meaning something again.
+config-acknowledged = "5.7.0"
 merge-policy = "after-ci"
 
 # Shell command run before any task PR is opened; a non-zero exit means no PR.

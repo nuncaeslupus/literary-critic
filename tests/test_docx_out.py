@@ -1,18 +1,13 @@
-import io
 import re
 import shutil
-import zipfile
 from pathlib import Path
-from xml.etree import ElementTree as ET
 
 import docgen
 import pytest
 
-from litcritic import codex, corpus, docx_out, ingest, query, rounds
+from litcritic import codex, corpus, dc, docx_out, ingest, query, rounds
 from litcritic import spans as spanlib
 from litcritic.cli import main
-
-W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
 @pytest.fixture(scope="module")
@@ -53,29 +48,31 @@ def _issues(root: Path, anchors: list[str]) -> None:
         cx.add("issue", f"Punto {k}", fields, [spanlib.make(text, "v001", a, 0, a, n)])
 
 
-def docx_comment_anchor_accuracy(
-    out: bytes, ix: query.Index, actions: list[dict[str, object]]
-) -> float:
-    """Share of comments whose range sits in the paragraph the action targets."""
-    root = ET.fromstring(zipfile.ZipFile(io.BytesIO(out)).read("word/document.xml"))
-    draft = ingest.read_docx(out)
-    by_src = {p.src: p.text for p in draft.paragraphs}
-    ordinal_of = {}
-    for k, p in enumerate(root.iter(f"{W}p")):
-        for start in p.iter(f"{W}commentRangeStart"):
-            ordinal_of[start.get(f"{W}id")] = k
-    comments = ET.fromstring(zipfile.ZipFile(io.BytesIO(out)).read("word/comments.xml"))
-    hits = 0
-    for c in comments.iter(f"{W}comment"):
-        body = "".join(t.text or "" for t in c.iter(f"{W}t"))
-        for action in actions:
-            if f"[{action['id']}]" in body:
-                target = ix.paragraphs[ix.anchors.index(str(action["where"]["anchor"]))]  # type: ignore[index]
-                hits += by_src.get(ordinal_of[c.get(f"{W}id")]) == target
-    return hits / len(actions)
+def _comments(path: Path) -> list[dict[str, str]]:
+    out: list[dict[str, str]] = []
+    request: dict[str, object] = {"doc": str(path), "limit": 1000}
+    while True:
+        result = dc.run("comments.list", request)
+        out += result["comments"]
+        if "_next" not in result:
+            return out
+        request["cursor"] = result["_next"]
 
 
-def test_comments_attach_to_target_paragraphs(ws: Path) -> None:
+def comments_on_wrong_paragraph(
+    out: Path, ix: query.Index, actions: list[dict[str, object]]
+) -> int:
+    """Actions whose comment is missing or sits on a paragraph other than the one they name."""
+    texts = {c["at"].split("#")[0]: c["text"] for c in _comments(out)}
+    draft = ingest.read_docx(out.read_bytes())
+    wrong = 0
+    for action in actions:
+        k = ix.anchors.index(str(action["where"]["anchor"]))  # type: ignore[index]
+        wrong += f"[{action['id']}]" not in texts.get(f"p{draft.paragraphs[k].src + 1}", "")
+    return wrong
+
+
+def test_comments_land_on_target_paragraph(ws: Path) -> None:
     ix = query.load(ws)
     anchors = [ix.anchors[i] for i in range(5, len(ix.anchors), 97) if ".s0." not in ix.anchors[i]]
     _issues(ws, anchors)
@@ -84,58 +81,23 @@ def test_comments_attach_to_target_paragraphs(ws: Path) -> None:
     out_path, n = docx_out.build(ws)
     assert n == len(actions) >= 10
     assert (ws / "manuscript" / "v001.docx").read_bytes() == original  # never touched
-    out = out_path.read_bytes()
-    assert docx_comment_anchor_accuracy(out, ix, actions) == 1.0
-    # The text is unchanged and the package is well formed.
-    assert [p.text for p in ingest.read_docx(out).paragraphs] == ix.paragraphs
-    z = zipfile.ZipFile(io.BytesIO(out))
-    assert "comments.xml" in z.read("word/_rels/document.xml.rels").decode()
-    assert "/word/comments.xml" in z.read("[Content_Types].xml").decode()
-    assert "Motivo 1 &amp; &lt;detalle&gt;." in z.read("word/comments.xml").decode()
+    assert comments_on_wrong_paragraph(out_path, ix, actions) == 0
+    # The text is unchanged and nothing but the copy is left beside it.
+    assert [p.text for p in ingest.read_docx(out_path.read_bytes()).paragraphs] == ix.paragraphs
+    assert not (out_path.parent / ".doc-control").exists()
+    comments = _comments(out_path)
+    assert {c["author"] for c in comments} == {"literary-critic"}
+    assert any("Motivo 1 & <detalle>." in c["text"] for c in comments)
 
 
-def _docx(body: str, comments: str | None = None, prefix: str = "w") -> bytes:
-    ns = f'xmlns:{prefix}="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr(
-            "word/document.xml",
-            f"<{prefix}:document {ns}><{prefix}:body>{body}</{prefix}:body></{prefix}:document>",
-        )
-        if comments is not None:
-            zf.writestr("word/comments.xml", comments.replace("NS", ns))
-        zf.writestr("word/_rels/document.xml.rels", "<Relationships></Relationships>")
-        zf.writestr("[Content_Types].xml", "<Types></Types>")
-    return buf.getvalue()
-
-
-def test_existing_comments_and_odd_markup() -> None:
-    body = (
-        '<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:t>Uno</w:t></w:r></w:p><w:p/>'
-        "<w:p><w:pPr/><w:r><w:t>Dos</w:t><w:txbxContent><w:p><w:pPr><w:jc/></w:pPr></w:p>"
-        "</w:txbxContent></w:r></w:p>"
-    )
-    kept = _docx(body, '<w:comments NS><w:comment w:id="4"><w:p/></w:comment></w:comments>')
-    z = zipfile.ZipFile(io.BytesIO(docx_out.add_comments(kept, {0: ["a"], 2: ["b"]})))
-    doc = z.read("word/document.xml").decode()
-    assert '</w:pPr><w:commentRangeStart w:id="5"/>' in doc
-    assert '<w:pPr/><w:commentRangeStart w:id="6"/>' in doc  # not inside the text box
-    assert z.read("word/comments.xml").decode().count("<w:comment ") == 3
-    ET.fromstring(doc)
-    # An emptied comments part (self-closing) is extended, not ignored.
-    emptied = _docx(body, "<w:comments NS/>")
-    comments = zipfile.ZipFile(io.BytesIO(docx_out.add_comments(emptied, {0: ["a"]}))).read(
-        "word/comments.xml"
-    )
-    assert ET.fromstring(comments).find(f"{W}comment") is not None
-    # Another prefix for the main namespace.
-    other = _docx("<x:p><x:r><x:t>Uno</x:t></x:r></x:p>", prefix="x")
-    other_xml = zipfile.ZipFile(io.BytesIO(docx_out.add_comments(other, {0: ["a"]}))).read(
-        "word/document.xml"
-    )
-    assert b'<x:commentRangeStart x:id="0"/>' in other_xml
-    with pytest.raises(docx_out.DocxError, match="empty"):
-        docx_out.add_comments(kept, {1: ["a"]})
+def test_add_comments_errors(tmp_path: Path) -> None:
+    path = tmp_path / "d.docx"
+    path.write_bytes(docgen.docx([("Uno dos tres.", False), ("", False), ("Tres cuatro.", False)]))
+    assert docx_out.add_comments(path, {0: ["a", "b"], 2: ["c"]}) == 2
+    texts = [c["text"] for c in dc.run("comments.list", {"doc": str(path)})["comments"]]
+    assert texts == ["a\nb", "c"]
+    with pytest.raises(docx_out.DocxError, match="not in the document"):
+        docx_out.add_comments(path, {9: ["x"]})
 
 
 def test_round_draft_and_statuses(ws: Path) -> None:
@@ -146,7 +108,7 @@ def test_round_draft_and_statuses(ws: Path) -> None:
     rounds.mark(ws, actions[1]["id"], "deferred")
     out_path, n = docx_out.build(ws)
     assert n == 2  # the deferred action is not commented
-    assert docx_comment_anchor_accuracy(out_path.read_bytes(), ix, [actions[0], actions[2]]) == 1.0
+    assert comments_on_wrong_paragraph(out_path, ix, [actions[0], actions[2]]) == 0
     # A newer draft does not move the round's comments: they stay on its own draft.
     newer = ws.parent / "novela-v2.docx"
     newer.write_bytes(docgen.docx([("Texto nuevo al principio.", False)] * 3, seed=1))

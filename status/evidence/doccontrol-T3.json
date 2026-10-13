@@ -1,0 +1,7 @@
+{
+  "metric": "comments_on_wrong_paragraph",
+  "value": 0,
+  "detail": "every feedback action's comment, written as one doc-control batch of comment.add on a copy, is read back with comments.list on the paragraph its locator names; docx_out.py no longer touches any Word XML. Gap: doc-control's text.normalized is capped (about 18 paragraphs per response), so mapping addresses pages through about 70 re-parsing calls on a 1,300-paragraph draft (the bulk-read API requested 2026-10-13 removes this)",
+  "command": "uv run pytest tests/test_docx_out.py::test_comments_land_on_target_paragraph",
+  "doc_control": "0.0.1 (API 1.0)"
+}
