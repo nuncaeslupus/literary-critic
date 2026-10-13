@@ -1,7 +1,8 @@
 """The one door to doc-control: every document read or write goes through here.
 
 doc-control (PyPI ``doc-control``, stdlib only) owns the generic primitives —
-reading Word documents (and plain text or Markdown as if they were one),
+reading Word documents (and plain text, Markdown or OpenDocument text as if
+they were one),
 segmenting, diffing, locating and editing Word documents as tracked changes.
 This module is the only place that imports it, so a change in its API touches
 one file. Calls run in-process with doc-control's own request schemas.
@@ -16,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 4, 1)  # reads .txt and .md itself, with a text mode per document
-INSTALL_HINT = "install doc-control 0.4 (API 1.x): pip install 'doc-control>=0.4.1,<0.5'"
+MIN_VERSION = (0, 5, 1)  # reads .odt with pages and centring; locate structure=false
+INSTALL_HINT = "install doc-control 0.5 (API 1.x): pip install 'doc-control>=0.5.1,<0.6'"
 
 
 class DocError(Exception):
@@ -129,8 +130,9 @@ class Document:
         return rows
 
     def source(self) -> dict[str, Any]:
-        """How doc-control read a ``.txt`` or ``.md`` file: ``format``, ``encoding`` and
-        ``mode`` (``blocks``, ``lines`` or ``markdown``); empty for a Word document."""
+        """How doc-control read a ``.txt``, ``.md`` or ``.odt`` file: ``format`` and, for
+        text, ``encoding`` and ``mode`` (``blocks``, ``lines`` or ``markdown``); empty
+        for a Word document."""
         with _errors():
             reply = self._handle().reply("info")
         return dict((reply.doc or {}).get("source") or {})

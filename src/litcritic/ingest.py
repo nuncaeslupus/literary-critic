@@ -1,8 +1,7 @@
 """Ingest a manuscript draft into a workspace.
 
-Every manuscript is read through doc-control: a ``.docx``, ``.txt`` or ``.md``
-directly, an ``.odt`` through a converted ``.docx`` copy (:mod:`litcritic.convert`,
-spec D-6). The text becomes normalised text: one paragraph per line, whitespace
+Every manuscript (``.docx``, ``.odt``, ``.txt`` or ``.md``) is read directly
+through doc-control. The text becomes normalised text: one paragraph per line, whitespace
 collapsed, Unicode NFC. Each paragraph's doc-control address (``at``) and the
 layout facts structure detection and writer locators need (heading level,
 centred, page, blank lines before, page break before, style) go to a sidecar
@@ -28,8 +27,6 @@ from typing import Any
 from litcritic import dc
 
 FORMATS = (".txt", ".md", ".docx", ".odt")
-TEXT_FORMATS = (".txt", ".md")  # doc-control reads them as they are
-CONVERTED = (".odt",)  # doc-control cannot read these: a .docx copy is read instead
 META_SCHEMA = 2  # 2: each paragraph carries its doc-control address ``at``
 
 
@@ -69,7 +66,7 @@ class Draft:
     format: str
     pages_known: bool = False
     notes: list[str] = field(default_factory=list)
-    source: dict[str, Any] = field(default_factory=dict)  # doc-control's, for .txt and .md
+    source: dict[str, Any] = field(default_factory=dict)  # doc-control's, for .txt, .md and .odt
 
     @property
     def text(self) -> str:
@@ -109,8 +106,9 @@ def _read_doc(path: Path, fmt: str, text_mode: str | None = None) -> Draft:
     """Every paragraph of a document as doc-control reads it, in one bulk call.
 
     Pages count only when the file holds Word's rendered page marks (it was laid
-    out by Word); otherwise every page is 0 (unknown). For a ``.txt`` or ``.md``
-    file, doc-control's ``source`` (encoding and reading mode) becomes the notes;
+    out by Word); otherwise every page is 0 (unknown). For a ``.txt``, ``.md`` or
+    ``.odt`` file, doc-control's ``source`` (format; for text, encoding and reading
+    mode) is kept, and becomes the notes;
     ``text_mode`` (``lines``, ``blocks``; doc-control's ``auto`` when None) is how a
     ``.txt`` is cut into paragraphs.
     """
@@ -121,7 +119,7 @@ def _read_doc(path: Path, fmt: str, text_mode: str | None = None) -> Draft:
             if rows:
                 head = doc.run("page.estimate", {"at": rows[0]["at"]})
                 marks = int(head.get("rendered_marks") or 0)
-            source = doc.source() if path.suffix.lower() in TEXT_FORMATS else {}
+            source = doc.source()  # empty for a .docx
     except dc.DocError as exc:
         raise IngestError(f"not a readable {path.suffix.lower() or 'file'}: {exc}") from exc
     raw = [
@@ -150,10 +148,11 @@ def _source_notes(source: dict[str, Any]) -> list[str]:
 
 
 def converted_text(meta: dict[str, Any]) -> bool:
-    """A ``.txt`` or ``.md`` draft whose addresses point into the ``.docx`` copy an
-    older release converted it to (its meta has no ``source``): doc-control now reads
-    the file itself, and its addresses may differ (``lc upgrade`` reads it again)."""
-    return meta.get("format") in ("txt", "md") and not meta.get("source")
+    """A ``.txt``, ``.md`` or ``.odt`` draft whose addresses point into the ``.docx``
+    copy an older release converted it to (its meta has no ``source``): doc-control
+    now reads the file itself, and its addresses may differ (``lc upgrade`` reads it
+    again)."""
+    return meta.get("format") in ("txt", "md", "odt") and not meta.get("source")
 
 
 def text_mode(ws_root: Path) -> str | None:
@@ -169,23 +168,16 @@ def text_mode(ws_root: Path) -> str | None:
 def readable(path: Path, data: bytes | None = None) -> Iterator[Path]:
     """The file doc-control reads for the manuscript at ``path`` (or ``data``).
 
-    doc-control reads a ``.docx``, ``.txt`` or ``.md`` itself: the file is used as it
-    is (a temporary copy when ``data`` differs from it). An ``.odt`` is converted to
-    a ``.docx`` copy first (:mod:`litcritic.convert`); converting the same bytes
-    again rebuilds the same copy, so addresses taken from it stay valid.
+    doc-control reads every supported format itself: the file is used as it is (a
+    temporary copy when ``data`` differs from it).
     """
     suffix = path.suffix.lower()
     if suffix not in FORMATS:
         raise IngestError(f"unsupported format {suffix!r} (use {', '.join(FORMATS)})")
-    if suffix in CONVERTED:
-        from litcritic import convert  # convert builds on this module's Para and Draft
-
-        data, name = convert.to_docx(path, data), f"{path.stem or 'draft'}.docx"
-    elif data is None or (path.is_file() and path.read_bytes() == data):
+    if data is None or (path.is_file() and path.read_bytes() == data):
         yield path
         return
-    else:
-        name = f"{path.stem or 'draft'}{suffix}"
+    name = f"{path.stem or 'draft'}{suffix}"
     with tempfile.TemporaryDirectory() as tmp:
         copy = Path(tmp) / name
         copy.write_bytes(data)
@@ -196,8 +188,7 @@ def read(path: Path, data: bytes | None = None, *, text_mode: str | None = None)
     """The manuscript at ``path`` (or ``data``, its bytes) as doc-control reads it.
 
     A ``.txt`` is cut into paragraphs by ``text_mode`` (doc-control's ``auto`` when
-    None). An ``.odt`` file is converted to a ``.docx`` copy first; its addresses then
-    point into that copy, which converting the same bytes again rebuilds identically.
+    None).
     """
     with readable(path, data) as doc:
         return _read_doc(doc, path.suffix.lower()[1:], text_mode)

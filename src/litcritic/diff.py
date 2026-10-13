@@ -1,7 +1,7 @@
 """Align two drafts paragraph by paragraph, through doc-control's ``diff``.
 
-doc-control aligns the two documents (the manuscript snapshots, or the ``.docx``
-copies converted from ``.odt``) and returns change records
+doc-control aligns the two documents (the manuscript snapshots) and returns change
+records
 and an address map (old address -> new address, or none for a paragraph that is
 gone). This module only translates that into the workspace's paragraphs, which
 hold each doc-control address in ``text/vNNN.meta.json``: every old paragraph

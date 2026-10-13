@@ -77,9 +77,9 @@ def _shown(ws_root: Path, doc: Path) -> str:
 # -- the Find string and writer locators -------------------------------------------
 
 
-# Words and single spaces, none of them a character Word's Find box types as a ^ code
-# (caret, tab, no-break space, soft or no-break hyphen): such a quote is typed as it is.
-TYPED_AS_IS = re.compile(r"[^\^\s\u00ad\u2011]+(?: [^\^\s\u00ad\u2011]+)*")
+# The Find box's own options for a quote counted as Word counts it: any case, any part
+# of a word (doc-control's ``query_word_options`` for that search).
+WORD_DEFAULTS = {"match_case": False, "whole_words": False}
 
 
 class _Places:
@@ -100,7 +100,7 @@ class _Places:
         self.by_ordinal: dict[int, int] = {}
         self.ordinal_of: dict[int, int] = {}
         self.handle = dc.open(doc)
-        self.counts: dict[str, int] = {}
+        self.typed: dict[str, str | None] = {}
         self.few = few
         self._rows: locate.Rows | None = None
         self._some: dict[str, dict[str, Any]] = {}
@@ -151,27 +151,32 @@ class _Places:
             return None
         return self.locations.locate(self.ix.anchors[i]).as_where()
 
-    def _once(self, text: str) -> bool:
-        """``text`` occurs exactly once in the document under Word's Find (any case)."""
-        if text not in self.counts:
+    def _typed_once(self, text: str) -> str | None:
+        """``text`` as typed in Word's Find box (doc-control's ``query_word``, in the
+        box's ``^`` codes) when Word's Find, with its default options, meets it exactly
+        once in the document; None otherwise."""
+        if text not in self.typed:
             req = {"query": text, "ignore_case": True, "limit": 1, "context": 0}
-            self.counts[text] = int(self.handle.run("find", req).get("total", 0))
-        return self.counts[text] == 1
+            found = self.handle.run("find", req)
+            word = found.get("query_word")
+            once = int(found.get("total", 0)) == 1
+            defaults = found.get("query_word_options") == WORD_DEFAULTS
+            self.typed[text] = str(word) if word and once and defaults else None
+        return self.typed[text]
 
     def find(self, at: str, text: str = "") -> dict[str, Any]:
         """What to type in Word's Find to reach ``text`` at ``at`` (a doc-control
         address or range): ``find``, and ``unique`` when Word meets it only there.
 
-        The passage itself when it types as it is and Word meets it once; otherwise
-        doc-control's Find phrase of its paragraph, in the Find box's own ``^`` codes
-        (``find_phrase_word``; it may cross a paragraph mark, ``^p``). When there is
-        none (a paragraph that repeats another), the Find phrase of the nearest
-        paragraph before it that has one, and ``paragraphs_after``: how far down
-        from there it is.
+        The passage itself, as typed in the Find box, when Word meets it once;
+        otherwise doc-control's Find phrase of its paragraph, in the Find box's own
+        ``^`` codes (``find_phrase_word``; it may cross a paragraph mark, ``^p``).
+        When there is none, the Find phrase of the nearest paragraph before it that
+        has one, and ``paragraphs_after``: how far down from there it is.
         """
-        typed = len(text) <= FIND_LIMIT and TYPED_AS_IS.fullmatch(text)
-        if typed and self._once(text):
-            return {"find": text, "unique": True}
+        typed = self._typed_once(text) if text.strip() and len(text) <= FIND_LIMIT else None
+        if typed:
+            return {"find": typed, "unique": True}
         row = self._row(at.split(":")[0])
         if row.get("find_phrase_word"):  # doc-control's phrase as typed in Word's Find box
             return {"find": str(row["find_phrase_word"]), "unique": True}

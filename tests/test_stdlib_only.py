@@ -38,7 +38,7 @@ def test_runtime_deps_only_doc_control() -> None:
 
 
 # Spec §5: doc-control is the document layer. Only convert.py builds a .docx (for
-# .txt/.md/.odt manuscripts); no module reads Word parts itself.
+# drafts held in memory); no module reads Word parts itself.
 DOCX_PART = re.compile(r"(?:^|[\"'/])word/|wordprocessingml|\[Content_Types\]\.xml")
 WRITER = "convert.py"
 

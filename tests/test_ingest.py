@@ -55,11 +55,16 @@ def test_docx_paragraphs_match_text() -> None:
 
 def test_odt_paragraphs_match_text() -> None:
     texts, paras = _twin()
-    draft = ingest.read(Path("x.odt"), docgen.odt(paras, seed=2))
+    draft = ingest.read(Path("x.odt"), docgen.odt(paras, seed=2))  # read by doc-control itself
     assert [p.text for p in draft.paragraphs] == texts
     headings = [p for p in draft.paragraphs if p.heading]
-    assert len(headings) == 22 and all(p.centered for p in headings)
+    assert len(headings) == 22 and all(p.heading == 1 and p.centered for p in headings)
+    assert all(p.at for p in draft.paragraphs) and draft.source == {"format": "odt"}
+    body = [p for p in draft.paragraphs if not p.heading]
+    assert {p.style for p in body} == {"Body"}  # an undefined style keeps its raw name
+    # Soft page breaks are doc-control's rendered page marks: one before each heading.
     assert draft.pages_known and headings[0].page == 2
+    assert [p.page for p in headings] == list(range(2, 24))
 
 
 def test_txt_modes() -> None:

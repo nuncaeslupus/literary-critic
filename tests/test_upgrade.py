@@ -1,8 +1,10 @@
 """`lc upgrade`: an old workspace moves onto doc-control's formats and loses nothing."""
 
 import hashlib
+import io
 import json
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -270,4 +272,60 @@ def test_text_drafts_read_through_a_converted_copy_are_readdressed(
     assert errors == []
     assert Codex(root).items[item.id].spans[0].state in RESOLVED
     _check_in_place(root)
+    assert upgrade.needed(root) == []
+
+
+def _odt(lines: list[str]) -> bytes:
+    """A bare .odt, one paragraph per line, a double space written as ``text:s``."""
+    from docgen import ODT_NS
+
+    body = "".join(f"<text:p>{line.replace('  ', ' <text:s/>')}</text:p>" for line in lines)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as zf:
+        zf.writestr("mimetype", "application/vnd.oasis.opendocument.text")
+        zf.writestr(
+            "content.xml",
+            f"<office:document-content {ODT_NS}><office:body><office:text>{body}"
+            "</office:text></office:body></office:document-content>",
+        )
+    return buf.getvalue()
+
+
+def test_odt_drafts_read_through_a_converted_copy_are_readdressed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An .odt ingested by the release that converted it to a .docx first (cleaned
+    text; its meta has no ``source``): doc-control now reads the .odt itself, so the
+    upgrade reads it again and gives the new addresses."""
+    from litcritic import convert, ingest, workspace
+
+    src = tmp_path / "draft.odt"
+    src.write_bytes(_odt(LINES_DRAFT.split("\n")))
+    root = workspace.create("w", "W", "en", tmp_path / "home").root
+    assert main(["ingest", str(src), "--workspace", str(root)]) == 0
+    assert main(["anchor", "--workspace", str(root)]) == 0
+    now = ingest.read(src)
+    assert now.source == {"format": "odt"}
+    # What that release read: the cleaned paragraphs, through a converted .docx copy.
+    old_paras = [ingest.Para(line) for line in LINES_DRAFT.split("\n")]
+    old_docx = convert.draft_to_docx(ingest.Draft(ingest._collect(old_paras), "odt"))
+    old = ingest.read(Path("old.docx"), old_docx)
+    assert [p.text for p in old.paragraphs] == [p.text for p in now.paragraphs]
+    assert [p.at for p in old.paragraphs] != [p.at for p in now.paragraphs]
+    meta_file = root / "text" / "v001.meta.json"
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    del meta["source"]
+    meta["paragraphs"] = [p.meta() for p in old.paragraphs]
+    meta_file.write_text(json.dumps(meta), encoding="utf-8")
+
+    assert "text/v001.meta.json" in upgrade.needed(root)
+    with pytest.raises(ValueError, match="lc upgrade"):
+        structure.build(root)
+    capsys.readouterr()
+    assert main(["upgrade", "--workspace", str(root)]) == 0
+    assert "paragraph addresses changed" in capsys.readouterr().out
+    meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    assert meta["source"] == {"format": "odt"}
+    assert [r["at"] for r in meta["paragraphs"]] == [p.at for p in now.paragraphs]
+    assert structure.build(root)[2] == []
     assert upgrade.needed(root) == []
