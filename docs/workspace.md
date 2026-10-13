@@ -48,18 +48,30 @@ parts, chapters (with titles, word counts and scenes) and one anchor plus
 fingerprint per paragraph. Anchors read `[pN.]cNN.sN.pN` — part, chapter (`c00`
 is front matter), scene (`s0` holds heading lines) and paragraph.
 
-Detection uses the strongest kind of signal the draft uses consistently:
-chapter words or numbers, then a chapter-start paragraph style, heading
-styles, explicit page breaks, and short upper-case lines. Symbol-only lines and
-"after break" styles start scenes. When it gets something wrong, put
-corrections in `analysis/structure-overrides.json`, keyed by paragraph
-fingerprints (from `structure.json`):
+doc-control's `segment` finds the parts, chapters and scenes, each with a
+stable id and the signals behind it (`stable_id` and `signals` in
+`structure.json`): heading styles and outline levels, chapter words and
+numerals ("Capítulo 3", "-IV-", "Prólogo"), a chapter-start paragraph style; a
+short line under an untitled heading is its subtitle (part of the title, scene
+0). Ornament lines ("* * *") and "after break" paragraph styles start scenes.
+The kind of text sets the detection settings, per
+manuscript format: a plain-text draft has no styles, so a short line with two or
+more extra blank lines above it is a heading (`chapter_blank_lines`), and a
+Markdown draft's chapters may use any heading level (`chapter_level` auto). When it gets something wrong, put corrections
+in `analysis/structure-overrides.json`, in doc-control's override shape: force or
+deny a chapter or scene at a paragraph, named by its doc-control fingerprint
+(`lc show <chapter> --fp`; `nth` picks one of several identical paragraphs):
 
 ```json
-{"chapter_starts": ["<fp>"], "not_chapter": ["<fp>"], "scene_starts": [], "not_scene": []}
+{"schema_version": 2, "overrides": [{"fp": "7d3684d2", "kind": "chapter", "action": "force"},
+                                    {"fp": "a1b2c3d4", "kind": "scene", "action": "deny", "nth": 2}]}
 ```
 
-Every fingerprint must match exactly one paragraph or nothing is applied.
+An override whose paragraph no longer exists is reported by `lc anchor` (exit
+1) and the others still apply. The first format (`chapter_starts`,
+`not_chapter`, `scene_starts`, `not_scene` lists of 12-hex fingerprints) is still
+read; there every fingerprint must match exactly one paragraph or nothing is
+applied.
 
 ## Index pre-pass
 

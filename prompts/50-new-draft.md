@@ -5,8 +5,8 @@
    fingerprints, so an edited paragraph no longer matches: if `lc anchor`
    reports a rejected override, find that paragraph's new fingerprint with
    `lc show <chapter> --fp --workspace <slug>`, fix
-   `<ws>/analysis/structure-overrides.json` and run `lc anchor` again — none of
-   the overrides apply until all of them match.
+   `<ws>/analysis/structure-overrides.json` and run `lc anchor` again (the
+   overrides that still match keep applying meanwhile).
 2. Compare with the previous version:
    `lc diff v001 v002 --workspace <slug>`.
    `index/v002/alignment.json` maps every old paragraph to its new place and

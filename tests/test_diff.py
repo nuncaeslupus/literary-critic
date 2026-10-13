@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -83,7 +84,10 @@ def test_cli_diff(tmp_path: Path) -> None:
     (ws / "work.toml").write_text('slug = "ws"\n', encoding="utf-8")
     text = corpus.get("jekyll-hyde").read()
     (tmp_path / "a.txt").write_text(text, encoding="utf-8")
-    (tmp_path / "b.txt").write_text(synth.generate(text, 5).text, encoding="utf-8")
+    # Plain text marks a heading by the gaps around it; keep them in the new draft.
+    headings = "|".join(re.escape(h) for h in re.findall(r"\n\n\n\n([^\n]+)\n", text))
+    edited = re.sub(rf"\n\n((?:{headings})\n)\n", r"\n\n\n\n\1\n\n", synth.generate(text, 5).text)
+    (tmp_path / "b.txt").write_text(edited, encoding="utf-8")
     for name in ("a", "b"):
         assert main(["ingest", str(tmp_path / f"{name}.txt"), "--workspace", str(ws)]) == 0
     assert main(["diff", "v001", "v002", "--workspace", str(ws)]) == 2  # no structure yet

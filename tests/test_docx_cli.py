@@ -20,7 +20,7 @@ AUTHOR = docx_cli.AUTHOR
 
 def _corpus_docx(n: int | None = None) -> bytes:
     draft = ingest.read(corpus.get("marianela").path)
-    paras = [(p.text, bool(p.heading)) for p in draft.paragraphs]
+    paras = [(p.text, bool(re.fullmatch(r"-[IVXL]+-", p.text))) for p in draft.paragraphs]
     return docx(paras[:n] if n else paras, seed=4)
 
 
@@ -370,7 +370,7 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     ck(not out["changed_on_disk"] and out["last_read_sha256"] != "")
     # locate, by anchor and by quote
     loc_keys = {"chapter", "page", "first_words", "last_words"}
-    code, out = _lc(capsys, "docx", "locate", "c01.s0.p2", *w)
+    code, out = _lc(capsys, "docx", "locate", "c01.s1.p1", *w)
     ck(code == 0 and out["unique"] and len(out["find"]) <= 255)
     ck(out["locator"] is not None and loc_keys <= out["locator"].keys())
     quote = _quote(doc)
@@ -389,7 +389,7 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     code, out = _edits(capsys, ws, edits)
     ck(code == 1 and out["status"] == "refused" and out["skipped"][0]["reason"] == "not found")
     # the document no longer matches the ingested draft: no anchor locate, quotes still work
-    code, out = _lc(capsys, "docx", "locate", "c01.s0.p2", *w)
+    code, out = _lc(capsys, "docx", "locate", "c01.s1.p1", *w)
     ck(code == 1 and out["reason"] == "changed")
     code, out = _lc(capsys, "docx", "locate", quote.upper(), *w)
     ck(code == 0 and out["locator"] is None)

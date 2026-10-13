@@ -15,8 +15,13 @@ DOCX = Path("draft.docx")  # a name for bytes read through doc-control
 Variant = tuple[list[str], list[dict[str, Any]], set[int], set[int]]
 
 
+def _read(slug: str) -> tuple[list[str], list[dict[str, Any]]]:
+    d = convert.read_txt(corpus.get(slug).path.read_bytes())
+    return [p.text for p in d.paragraphs], [p.meta() for p in d.paragraphs]
+
+
 def _paras(slug: str) -> list[str]:
-    return [p.text for p in convert.read_txt(corpus.get(slug).path.read_bytes()).paragraphs]
+    return _read(slug)[0]
 
 
 def _truth_chapters(slug: str, paras: list[str]) -> set[int]:
@@ -27,11 +32,12 @@ def _truth_chapters(slug: str, paras: list[str]) -> set[int]:
 
 
 def _with_breaks(
-    paras: list[str], chapters: set[int], seed: int
-) -> tuple[list[str], set[int], set[int]]:
-    """Insert '* * *' lines inside chapter bodies; return text, chapter starts, scene starts."""
+    paras: list[str], meta: list[dict[str, Any]], chapters: set[int], seed: int
+) -> tuple[list[str], list[dict[str, Any]], set[int], set[int]]:
+    """Insert '* * *' lines inside chapter bodies; return text, meta, chapter and scene starts."""
     rng = random.Random(seed)
     out: list[str] = []
+    out_meta: list[dict[str, Any]] = []
     ch: set[int] = set()
     scenes: set[int] = set()
     since = 99
@@ -41,21 +47,23 @@ def _with_breaks(
             since = 0
         elif since > 4 and len(t.split()) > 20 and rng.random() < 0.04:
             out.append("* * *")
+            out_meta.append({})
             scenes.add(len(out))
             since = 0
         out.append(t)
+        out_meta.append(meta[i])
         since += 1
-    return out, ch, scenes
+    return out, out_meta, ch, scenes
 
 
 def variants() -> dict[str, Variant]:
     v: dict[str, Variant] = {}
     for slug in ("marianela", "jekyll-hyde"):
-        paras = _paras(slug)
+        paras, meta = _read(slug)
         truth = _truth_chapters(slug, paras)
-        v[f"{slug}-txt"] = (paras, [{} for _ in paras], truth, set())
-        text, ch, sc = _with_breaks(paras, truth, seed=3)
-        v[f"{slug}-breaks"] = (text, [{} for _ in text], ch, sc)
+        v[f"{slug}-txt"] = (paras, meta, truth, set())
+        text, text_meta, ch, sc = _with_breaks(paras, meta, truth, seed=3)
+        v[f"{slug}-breaks"] = (text, text_meta, ch, sc)
         md = "\n\n".join(f"## {t}" if i in ch else t for i, t in enumerate(text))
         d = convert.read_md(md.encode())
         v[f"{slug}-md"] = ([p.text for p in d.paragraphs], [p.meta() for p in d.paragraphs], ch, sc)
@@ -88,8 +96,11 @@ def _f1(expected: set[tuple[str, int]], got: set[tuple[str, int]]) -> float:
     return 2 * p * r / (p + r)
 
 
-def _detected(text: list[str], meta: list[dict[str, Any]]) -> tuple[set[int], set[int]]:
-    s = structure.detect(text, meta)
+FORMATS = {"txt": "txt", "breaks": "txt", "md": "md", "docx": "docx", "only": "docx"}
+
+
+def _detected(text: list[str], meta: list[dict[str, Any]], fmt: str) -> tuple[set[int], set[int]]:
+    s = structure.detect(text, meta, fmt=fmt)
     chapters = {c.start for c in s.chapters if c.reason != "front"}
     first_body = {c.heading[-1] + 1 if c.heading else c.start for c in s.chapters}
     return chapters, s.scene_starts - first_body
@@ -100,7 +111,7 @@ def scene_boundary_f1() -> tuple[float, dict[str, float]]:
     tot_exp: set[tuple[str, str, int]] = set()
     tot_got: set[tuple[str, str, int]] = set()
     for name, (text, meta, ch, sc) in variants().items():
-        got_ch, got_sc = _detected(text, meta)
+        got_ch, got_sc = _detected(text, meta, FORMATS[name.rsplit("-", 1)[1]])
         exp = {("c", i) for i in ch} | {("s", i) for i in sc}
         got = {("c", i) for i in got_ch} | {("s", i) for i in got_sc}
         per[name] = round(_f1(exp, got), 4)
@@ -119,16 +130,16 @@ def test_structure_detects_chapters_and_breaks() -> None:
 
 def test_known_corpus_structure() -> None:
     for slug, n in (("marianela", 22), ("jekyll-hyde", 10)):
-        s = structure.detect(_paras(slug))
+        s = structure.detect(*_read(slug), fmt="txt")
         assert len([c for c in s.chapters if c.reason != "front"]) == n
         assert s.chapters[0].reason == "front"
-    s = structure.detect(_paras("marianela"))
-    assert s.chapters[1].title == "-I- Perdido"
+    s = structure.detect(*_read("marianela"), fmt="txt")
+    assert s.chapters[1].title == "-I- Perdido"  # doc-control's heading_last subtitle
 
 
 def test_anchors_unique_and_readable() -> None:
     text, meta, _, _ = variants()["marianela-breaks"]
-    s = structure.detect(text, meta)
+    s = structure.detect(text, meta, fmt="txt")
     anchors = s.anchors()
     assert len(set(anchors)) == len(anchors) == len(text)
     assert all(re.fullmatch(r"c\d\d\.s\d+\.p\d+", a) for a in anchors)
@@ -146,29 +157,24 @@ def test_parts_prefix_anchors() -> None:
     assert anchors[0].startswith("p1.") and anchors[text.index("Capítulo 2")] == "p2.c02.s0.p2"
 
 
-def test_thin_caps_lines_are_not_chapters() -> None:
+def test_caps_lines_need_layout_to_be_chapters() -> None:
     body = "word " * 300
     text = ["A TITLE", "by Someone", "ONE", body, "SIGNED NAME", "TWO", body, "THREE", body]
-    s = structure.detect(text)
-    assert [c.start for c in s.chapters] == [0, 2, 5, 7]
+    assert [c.start for c in structure.detect(text).chapters] == [0]
+    meta: list[dict[str, Any]] = [{} for _ in text]
+    for i in (2, 5, 7):
+        meta[i] = {"heading": 1}
+    assert [c.start for c in structure.detect(text, meta).chapters] == [0, 2, 5, 7]
 
 
-def test_overrides_validated_then_applied(tmp_path: Path) -> None:
+def test_overrides_force_and_deny_in_memory() -> None:
     text = ["CHAPTER ONE", "x " * 200, "y " * 200, "CHAPTER TWO", "z " * 200, "*", "*"]
     s = structure.detect(text)
-    fp = structure.fingerprint
-    assert structure.apply_overrides(s, {"chapter_starts": [fp("nope")]}) == [
-        f"chapter_starts: {fp('nope')} not found"
-    ]
-    assert "matches 2 paragraphs" in structure.apply_overrides(s, {"scene_starts": [fp("*")]})[0]
-    assert structure.apply_overrides(s, {"bogus": []}) == ["unknown key 'bogus'"]
-    assert (
-        structure.apply_overrides(
-            s, {"chapter_starts": [fp(text[2])], "not_chapter": [fp(text[3])]}
-        )
-        == []
-    )
-    assert [c.start for c in s.chapters] == [0, 2]
+    assert [c.start for c in s.chapters] == [0, 3]
+    again = structure.detect(text).chapters  # same document, same stable ids
+    assert [c.uid for c in again] == [c.uid for c in s.chapters]
+    with pytest.raises(ValueError, match="no paragraph has this fingerprint"):
+        structure.detect(text, overrides=[{"fp": "0badf00d", "kind": "chapter", "action": "force"}])
 
 
 def test_fingerprint_ignores_case_accents_spacing() -> None:
@@ -204,6 +210,9 @@ def test_review_regressions() -> None:
     meta = [{}, {}, {"style": "Text after break"}, {}]
     s = structure.detect(["CHAPTER ONE", body, "No one.", body], meta)
     assert 2 not in s.breaks and 2 in s.scene_starts
+    assert s.scenes[-1].signals[0] == "scene_style"
+    scene = structure.to_json(s, "v001")["chapters"][-1]["scenes"][-1]
+    assert scene["start"] == 2 and scene["signals"][0] == "scene_style"
     # An ornament under a chapter title stays in the heading block.
     s = structure.detect(["Chapter 1", "* * *", body, "Chapter 2", body, "Chapter 3", body])
     assert s.anchors()[:3] == ["c01.s0.p1", "c01.s0.p2", "c01.s1.p1"]
@@ -221,10 +230,12 @@ def test_review_regressions() -> None:
     c2 = data["chapters"][1]
     assert c2["end"] == 4 and data["chapters"][2]["start"] == 5
     # Overrides refresh the summary and give a short override line a heading.
-    s = structure.detect(["CHAPTER ONE", body, "Interlude", body, "CHAPTER TWO", body])
-    assert (
-        structure.apply_overrides(s, {"chapter_starts": [structure.fingerprint("Interlude")]}) == []
+    text = ["CHAPTER ONE", body, "Interlude", body, "CHAPTER TWO", body]
+    draft = ingest.read(
+        DOCX, convert.draft_to_docx(ingest.Draft([ingest.Para(t) for t in text], ""))
     )
+    fp = draft.paragraphs[2].at.split("#")[1]
+    s = structure.detect(text, overrides=[{"fp": fp, "kind": "chapter", "action": "force"}])
     assert s.notes[0].startswith("0 parts, 3 chapters")
-    assert any(c.title == "Interlude" for c in s.chapters)
-    assert structure.apply_overrides(s, [])[0] == "overrides must be a JSON object"  # type: ignore[arg-type]
+    assert s.notes[-1] == "overrides applied: 1"
+    assert any(c.title == "Interlude" and c.reason == "override" for c in s.chapters)
