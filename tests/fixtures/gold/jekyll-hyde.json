@@ -1,0 +1,209 @@
+{
+ "entities": [
+  {
+   "kind": "character",
+   "name": "Utterson",
+   "aliases": [
+    "Mr. Utterson",
+    "Utterson",
+    "the lawyer",
+    "the dry lawyer"
+   ],
+   "occurrences": 202
+  },
+  {
+   "kind": "character",
+   "name": "Dr. Jekyll",
+   "aliases": [
+    "Henry Jekyll",
+    "Dr. Jekyll",
+    "Dr. Henry Jekyll",
+    "Jekyll",
+    "Harry Jekyll",
+    "Henry",
+    "Harry",
+    "the doctor"
+   ],
+   "occurrences": 129
+  },
+  {
+   "kind": "character",
+   "name": "Mr. Hyde",
+   "aliases": [
+    "Edward Hyde",
+    "Mr. Hyde",
+    "Master Hyde",
+    "Hyde"
+   ],
+   "occurrences": 98
+  },
+  {
+   "kind": "character",
+   "name": "Dr. Lanyon",
+   "aliases": [
+    "Dr. Lanyon",
+    "Lanyon"
+   ],
+   "occurrences": 30
+  },
+  {
+   "kind": "character",
+   "name": "Poole",
+   "aliases": [
+    "Poole",
+    "the butler",
+    "the servant"
+   ],
+   "occurrences": 74
+  },
+  {
+   "kind": "character",
+   "name": "Enfield",
+   "aliases": [
+    "Richard Enfield",
+    "Mr. Enfield",
+    "Enfield",
+    "Richard"
+   ],
+   "occurrences": 20
+  },
+  {
+   "kind": "character",
+   "name": "Guest",
+   "aliases": [
+    "Mr. Guest",
+    "Guest",
+    "the clerk"
+   ],
+   "occurrences": 14
+  },
+  {
+   "kind": "character",
+   "name": "Sir Danvers Carew",
+   "aliases": [
+    "Sir Danvers Carew",
+    "Sir Danvers",
+    "Carew"
+   ],
+   "occurrences": 7
+  },
+  {
+   "kind": "character",
+   "name": "Bradshaw",
+   "aliases": [
+    "Bradshaw",
+    "the footman"
+   ],
+   "occurrences": 5
+  },
+  {
+   "kind": "place",
+   "name": "London",
+   "aliases": [
+    "London"
+   ],
+   "occurrences": 12
+  },
+  {
+   "kind": "place",
+   "name": "Soho",
+   "aliases": [
+    "Soho"
+   ],
+   "occurrences": 7
+  },
+  {
+   "kind": "place",
+   "name": "Cavendish Square",
+   "aliases": [
+    "Cavendish Square"
+   ],
+   "occurrences": 3
+  }
+ ],
+ "minor": [
+  {
+   "kind": "place",
+   "name": "Gaunt Street",
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Edinburgh",
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Portland Street",
+   "occurrences": 1
+  },
+  {
+   "kind": "place",
+   "name": "Queer Street",
+   "occurrences": 1,
+   "note": "idiom"
+  },
+  {
+   "kind": "group",
+   "name": "Scotland Yard",
+   "occurrences": 1
+  },
+  {
+   "kind": "group",
+   "name": "Messrs. Maw",
+   "occurrences": 1
+  },
+  {
+   "kind": "object",
+   "name": "Mail",
+   "occurrences": 1,
+   "note": "the mail (coach), not a name"
+  },
+  {
+   "kind": "character",
+   "name": "Inspector Newcomen",
+   "occurrences": 1
+  },
+  {
+   "kind": "character",
+   "name": "Dr. Denman",
+   "occurrences": 1
+  },
+  {
+   "kind": "character",
+   "name": "Dr. Fell",
+   "occurrences": 1,
+   "note": "quoted epigram"
+  },
+  {
+   "kind": "character",
+   "name": "Damon and Pythias",
+   "occurrences": 1,
+   "note": "allusion"
+  },
+  {
+   "kind": "character",
+   "name": "Sawbones",
+   "occurrences": 2,
+   "note": "nickname of the unnamed doctor in Enfield's story; 'the doctor' there is not counted under Jekyll"
+  },
+  {
+   "kind": "character",
+   "name": "Satan",
+   "occurrences": 3,
+   "note": "figurative (\"Satan's signature\"); not scored"
+  },
+  {
+   "kind": "character",
+   "name": "Cain",
+   "occurrences": 1,
+   "note": "allusion"
+  },
+  {
+   "kind": "character",
+   "name": "Coutts",
+   "occurrences": 1,
+   "note": "bank"
+  }
+ ]
+}

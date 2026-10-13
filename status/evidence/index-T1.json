@@ -1,0 +1,60 @@
+{
+  "metric": "candidate_entity_recall",
+  "value": 1.0,
+  "threshold": 0.92,
+  "detail": "every gold entity of both corpus texts is reached by some candidate form (forms compared after dropping honorifics and articles); the rendered candidate list stays well under 12 % of the text's tokens",
+  "command": "uv run pytest tests/test_prepass.py::test_prepass_recall_on_gold tests/test_prepass.py::test_candidate_list_tokens_bounded",
+  "corpus": {
+    "jekyll-hyde": {
+      "gold_entities": 12,
+      "reached": 12,
+      "recall": 1.0,
+      "candidates": 52,
+      "precision_strict": 0.462,
+      "precision_lenient": 0.75,
+      "candidates_count_ge_2": 28,
+      "recall_count_ge_2": 1.0,
+      "precision_strict_count_ge_2": 0.786,
+      "precision_lenient_count_ge_2": 0.893,
+      "text_tokens": 34550,
+      "render_tokens": 1897,
+      "render_share": 0.055,
+      "speaker_tags": 150,
+      "seconds": 0.34
+    },
+    "marianela": {
+      "gold_entities": 37,
+      "reached": 37,
+      "recall": 1.0,
+      "candidates": 165,
+      "precision_strict": 0.4,
+      "precision_lenient": 0.473,
+      "candidates_count_ge_2": 78,
+      "recall_count_ge_2": 0.973,
+      "precision_strict_count_ge_2": 0.769,
+      "precision_lenient_count_ge_2": 0.821,
+      "text_tokens": 73159,
+      "render_tokens": 5611,
+      "render_share": 0.077,
+      "speaker_tags": 260,
+      "seconds": 0.7
+    }
+  },
+  "precision_note": "not gated; precision_lenient counts candidates matching a gold 'minor' entry as correct. Most false candidates are names seen once, which the rendered list shows as bare names without context.",
+  "owner_manuscript": {
+    "note": "local validation on a copy of the owner's ingested manuscript; counts only, no content",
+    "language": "es",
+    "words": 74418,
+    "paragraphs": 1543,
+    "text_tokens": 106361,
+    "candidates": 367,
+    "candidates_count_ge_2": 163,
+    "speaker_tags": 28,
+    "render_tokens": 10634,
+    "render_share": 0.1,
+    "render_trimmed_to_one_context": 53,
+    "seconds": 1.0
+  },
+  "token_estimate": "characters / 4",
+  "env": "Python 3.13, Linux"
+}

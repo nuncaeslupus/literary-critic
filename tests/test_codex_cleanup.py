@@ -25,7 +25,7 @@ OLD_NAMES = re.compile(
     r"scene_cards\.json|chapter_summaries\.json|registers/|20-scene-cards|25-summaries"
     r"|(?:scene-card|register|finding|action)\.schema"
     r"|schema `(?:scene-card|register|finding|action)`"
-    r"|lc index\b|lc validate (?:scene-card|register|finding|action)\b"
+    r"|lc index --|lc validate (?:scene-card|register|finding|action)\b"
     r"|litcritic\.index\b|from litcritic import[^\n]*\bindex\b"
 )
 # Records of past work and the vendored bundle keep their history.
