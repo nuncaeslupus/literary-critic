@@ -3,10 +3,11 @@
 **Date**: 2026-10-13
 **Specification**: `arsenal/project/doccontrol/spec.md` (approved, revision 2)
 **Author**: Claude (with the owner)
-**Revision**: 1
-**Status**: draft
+**Revision**: 2
+**Status**: approved (2026-10-13, revision 2) — without annotations
 **Revision log**:
 - r1 — first draft
+- r2 — dependency graph drawn with drawspec; approved by the owner in conversation
 
 > Review record, kept the way the spec keeps its own: each round of notes bumps
 > **Revision** with a log line naming the `<project>-plan-notes-<date>-rN.md`
@@ -104,14 +105,8 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 
 ### Dependency graph
 
-```text
-T1 ─┬─> T2 ───────────────────────────────┐
-    ├─> T3 ───────────────────────────────┤
-    ├─> T11 ──────────────────────────────┤
-    └─> T4 ─> T5* ─┬─> T6 ─┬─> T8 ─> T12 ─┤
-                   │       └──────┐       ├─> T13
-                   └─> T7 ─> T9 ──┴─> T10 ┘
-* T5 also waits on doc-control's uncapped in-process read API
+```drawspec
+{"version": 1, "kind": "flow", "nodes": [{"id": "UP", "text": "doc-control\nbulk read API", "role": "start"}, {"id": "T1", "text": "T1 adapter"}, {"id": "G", "text": "T2 edits · T3 comments\nT11 kit"}, {"id": "T4", "text": "T4 convert"}, {"id": "T5", "text": "T5 ingest"}, {"id": "T6", "text": "T6 structure"}, {"id": "T7", "text": "T7 diff"}, {"id": "T8", "text": "T8 locate"}, {"id": "T9", "text": "T9 spans"}, {"id": "T10", "text": "T10 upgrade"}, {"id": "T12", "text": "T12 live docs"}, {"id": "T13", "text": "T13 sweep"}], "edges": [{"from": "T1", "to": "G"}, {"from": "T1", "to": "T4"}, {"from": "UP", "to": "T5"}, {"from": "T4", "to": "T5"}, {"from": "T5", "to": "T6"}, {"from": "T5", "to": "T7"}, {"from": "T6", "to": "T8"}, {"from": "T7", "to": "T9"}, {"from": "T6", "to": "T10"}, {"from": "T9", "to": "T10"}, {"from": "T8", "to": "T12"}, {"from": "G", "to": "T13"}, {"from": "T10", "to": "T13"}, {"from": "T12", "to": "T13"}]}
 ```
 
 ---

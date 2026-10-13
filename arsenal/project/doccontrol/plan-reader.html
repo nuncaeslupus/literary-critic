@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="fd7ea9c6ccad3c66ab27d2b2c54e48094f01dd7aed226984f67a718cb055b2d0">
+<meta name="arsenal-source-sha256" content="a7520ca04360fbc3228890551e36a964e3d83acff003f8b788a1bd6f318c0253">
 <title>Literary Critic — Plan (annotatable)</title>
 <style>
 :root{
@@ -171,10 +171,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-13
 <strong>Specification</strong>: <code>arsenal/project/doccontrol/spec.md</code> (approved, revision 2)
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 1
-<strong>Status</strong>: draft
+<strong>Revision</strong>: 2
+<strong>Status</strong>: approved (2026-10-13, revision 2) — without annotations
 <strong>Revision log</strong>:
-- r1 — first draft</p>
+- r1 — first draft
+- r2 — dependency graph drawn with drawspec; approved by the owner in conversation</p>
 <blockquote>
 <p>Review record, kept the way the spec keeps its own: each round of notes bumps
 <strong>Revision</strong> with a log line naming the <code>&lt;project&gt;-plan-notes-&lt;date&gt;-rN.md</code>
@@ -453,14 +454,7 @@ and the kit. Non-<code>.docx</code> manuscripts pass through <code>litcritic.con
 </article>
 <article class="sec" id="s-plan-dependency-graph">
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Dependency graph</span></h4>
-<div class="sec-body"><pre><code class="language-text">T1 ─┬─&gt; T2 ───────────────────────────────┐
-    ├─&gt; T3 ───────────────────────────────┤
-    ├─&gt; T11 ──────────────────────────────┤
-    └─&gt; T4 ─&gt; T5* ─┬─&gt; T6 ─┬─&gt; T8 ─&gt; T12 ─┤
-                   │       └──────┐       ├─&gt; T13
-                   └─&gt; T7 ─&gt; T9 ──┴─&gt; T10 ┘
-* T5 also waits on doc-control's uncapped in-process read API
-</code></pre></div>
+<div class="sec-body"><figure class="drawspec"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-0.75 -0.75 665.5 601.15" role="img"><path d="M 324.016 56.275 L 324.016 87.7 L 244.488 87.7 L 244.488 111.7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="244.488,111.7 240.888,103.7 248.088,103.7" fill="currentColor" stroke="none"/><path d="M 357.78 56.275 L 357.78 87.7 L 437.309 87.7 L 437.309 119.125" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="437.309,119.125 433.709,111.125 440.909,111.125" fill="currentColor" stroke="none"/><path d="M 179.523 63.7 L 179.523 87.7 L 143.836 87.7 L 143.836 181.4 L 291.534 181.4 L 291.534 211.4" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="291.534,211.4 287.934,203.4 295.134,203.4" fill="currentColor" stroke="none"/><path d="M 437.309 155.975 L 437.309 187.4 L 325.298 187.4 L 325.298 211.4" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="325.298,211.4 321.698,203.4 328.898,203.4" fill="currentColor" stroke="none"/><path d="M 325.298 248.25 L 325.298 272.25 L 404.826 272.25 L 404.826 296.25" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="404.826,296.25 401.226,288.25 408.426,288.25" fill="currentColor" stroke="none"/><path d="M 291.534 248.25 L 291.534 266.25 L 212.005 266.25 L 212.005 296.25" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="212.005,296.25 208.405,288.25 215.605,288.25" fill="currentColor" stroke="none"/><path d="M 421.708 333.1 L 421.708 357.1 L 404.826 357.1 L 404.826 381.1" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="404.826,381.1 401.226,373.1 408.426,373.1" fill="currentColor" stroke="none"/><path d="M 212.005 333.1 L 212.005 381.1" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="212.005,381.1 208.405,373.1 215.605,373.1" fill="currentColor" stroke="none"/><path d="M 387.944 333.1 L 387.944 357.1 L 314.416 357.1 L 314.416 447.95 L 277.093 447.95 L 277.093 465.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="277.093,465.95 273.493,457.95 280.693,457.95" fill="currentColor" stroke="none"/><path d="M 212.005 417.95 L 212.005 441.95 L 243.328 441.95 L 243.328 465.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="243.328,465.95 239.728,457.95 246.928,457.95" fill="currentColor" stroke="none"/><path d="M 404.826 417.95 L 404.826 441.95 L 453.031 441.95 L 453.031 465.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="453.031,465.95 449.431,457.95 456.631,457.95" fill="currentColor" stroke="none"/><path d="M 244.488 163.4 L 244.488 193.4 L 176.005 193.4 L 176.005 278.25 L 302.416 278.25 L 302.416 435.95 L 352.898 435.95 L 352.898 514.8 L 293.92 514.8 L 293.92 550.8" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="293.92,550.8 290.32,542.8 297.52,542.8" fill="currentColor" stroke="none"/><path d="M 260.211 502.8 L 260.211 526.8 L 319.243 526.8 L 319.243 550.8" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="319.243,550.8 315.643,542.8 322.843,542.8" fill="currentColor" stroke="none"/><path d="M 453.031 502.8 L 453.031 538.8 L 344.566 538.8 L 344.566 550.8" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="344.566,550.8 340.966,542.8 348.166,542.8" fill="currentColor" stroke="none"/><rect x="160.077" y="111.7" width="168.821" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="244.488" y="132.933" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T2 edits · T3 comments</tspan></text><text x="244.488" y="147.783" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T11 kit</tspan></text><rect x="256.488" y="19.425" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="340.898" y="40.658" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T1 adapter</tspan></text><rect x="175.8" y="465.95" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="260.211" y="487.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T10 upgrade</tspan></text><rect x="368.621" y="465.95" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="453.031" y="487.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T12 live docs</tspan></text><rect x="234.833" y="550.8" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="319.243" y="572.033" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T13 sweep</tspan></text><rect x="352.898" y="119.125" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="437.309" y="140.358" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T4 convert</tspan></text><rect x="224.005" y="211.4" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="308.416" y="232.633" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T5 ingest</tspan></text><rect x="320.416" y="296.25" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="404.826" y="317.483" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T6 structure</tspan></text><rect x="127.595" y="296.25" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="212.005" y="317.483" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T7 diff</tspan></text><rect x="320.416" y="381.1" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="404.826" y="402.333" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T8 locate</tspan></text><rect x="127.595" y="381.1" width="168.821" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="212.005" y="402.333" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>T9 spans</tspan></text><rect x="126.558" y="12" width="105.93" height="51.7" rx="25.85" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="179.523" y="33.233" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">doc-control</tspan></text><text x="179.523" y="48.083" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>bulk read API</tspan></text></svg></figure></div>
 <div class="note" data-for="s-plan-dependency-graph"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Dependency graph</span></div><textarea class="note-ta" data-key="s-plan-dependency-graph" data-label="Dependency graph" data-part="Plan" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 <article class="sec" id="s-plan-sign-off">
@@ -593,7 +587,7 @@ and the kit. Non-<code>.docx</code> manuscripts pass through <code>litcritic.con
   document.getElementById('btn-export').addEventListener('click',function(){
     var r=buildExport();
     if(r.n===0){toast('No notes yet — add some first.');return;}
-    var name='literary-critic-plan-notes-'+today()+'-r1.md';
+    var name='literary-critic-plan-notes-'+today()+'-r2.md';
     var saved=download(name,r.text);openModal(r.text);
     try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
     if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
@@ -615,7 +609,7 @@ and the kit. Non-<code>.docx</code> manuscripts pass through <code>litcritic.con
     if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
     else{report(false);}
   });
-  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-plan-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-plan-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
   document.getElementById('modal-close').addEventListener('click',closeModal);
   modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
 
