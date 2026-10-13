@@ -565,8 +565,153 @@ def test_packet_tiers_and_entity_rules(base: Path) -> None:
     e1 = packets.render(base, doc, "e1")
     s1 = packets.render(base, doc, "s001")
     assert e1.startswith("packet e1 · entities 1/1 · tier strong · draft v001\n")
-    assert s1.startswith("packet s001 · scenes ") and " · tier cheap · " in s1.split("\n")[0]
+    assert s1.startswith("packet s001 · scenes ") and " · tier standard · " in s1.split("\n")[0]
     assert {p["tier"] for p in doc["packets"] if p["kind"] == "entities"} == {"strong"}
-    assert {p["tier"] for p in doc["packets"] if p["kind"] == "scenes"} == {"cheap"}
+    assert {p["tier"] for p in doc["packets"] if p["kind"] == "scenes"} == {"standard"}
     for words in ("titles", "rejects", "same_as", '"titles"', '"same_as"'):
         assert words in e1
+
+
+# --- scene packets (T4) ------------------------------------------------------------
+
+
+def test_scene_answer_schema_caps_lengths(ws: Path) -> None:
+    def refused(change: Any) -> str:
+        answer = _scene_answer(ws, "s001")
+        change(answer["scenes"][0])
+        line = _import(ws, "s001", answer)
+        assert codex.Codex(ws).items == {}
+        return line
+
+    def put(key: str, value: Any) -> Any:
+        return lambda s: s.__setitem__(key, value)
+
+    assert refused(lambda s: s.pop("pov")) == "error s001: $.scenes[0]: missing pov"
+    assert refused(put("pov", "  ")) == "error s001: $.scenes[0].pov: must not be empty"
+    assert refused(put("pov", "x" * 61)) == ("error s001: $.scenes[0].pov: 61 characters, limit 60")
+    assert refused(put("summary", " ".join(["word"] * 81))) == (
+        "error s001: $.scenes[0].summary: 81 words, limit 80"
+    )
+    assert refused(put("location", "y" * 81)) == (
+        "error s001: $.scenes[0].location: 81 characters, limit 80"
+    )
+    assert refused(put("time", "z" * 81)) == (
+        "error s001: $.scenes[0].time: 81 characters, limit 80"
+    )
+    assert refused(put("setups", [{"label": "a", "side": "setup"}] * 7)).startswith(
+        "error s001: $.scenes[0].setups: 7 items, limit 6"
+    )
+    for key in ("label", "side", "quote"):
+        line = refused(lambda s, key=key: s["setups"][0].pop(key))
+        assert line == f"error s001: $.scenes[0].setups[0]: missing {key}"
+    line = refused(lambda s: s["setups"][0].__setitem__("quote", " ".join(["w"] * 31)))
+    assert line == "error s001: $.scenes[0].setups[0].quote: 31 words, limit 30"
+    answer = _scene_answer(ws, "s001")
+    for s in answer["scenes"]:
+        s.pop("pov")
+    line = _import(ws, "s001", answer)
+    assert line == f"error s001: $.scenes[0]: missing pov (+{len(answer['scenes']) - 1} more)"
+
+
+def test_first_person_pov_is_accepted(ws: Path) -> None:
+    answer = _scene_answer(ws, "s001")
+    answer["scenes"][0]["pov"] = "narrator (first person), Utterson"
+    answer["scenes"][1]["pov"] = "narrator (first person)"
+    assert _import(ws, "s001", answer).startswith("ok s001: ")
+    povs = {i.fields["pov"] for i in codex.Codex(ws).live("scene")}
+    assert {"narrator (first person), Utterson", "narrator (first person)"} <= povs
+
+
+def test_tiers_are_three_valued(base: Path) -> None:
+    assert packets.TIERS == ("cheap", "standard", "strong")
+    assert packets.TIER == {"entities": "strong", "scenes": "standard"}
+    assert set(packets.TIER.values()) <= set(packets.TIERS)
+    for p in packets.load_plan(base)["packets"]:
+        assert p["tier"] in packets.TIERS
+
+
+def test_payoffs_link_across_packets_by_label_or_id(ws: Path) -> None:
+    first = _scene_answer(ws, "s001")
+    planted = next(su for s in first["scenes"] for su in s["setups"])
+    planted["label"] = "the locked door"
+    assert _import(ws, "s001", first).startswith("ok s001: ")
+    cx = codex.Codex(ws)
+    target = next(i for i in cx.live("setup") if i.fields["label"] == "the locked door")
+    assert f"the locked door [{target.id}]" in packets.render(ws, packets.load_plan(ws), "s002")
+
+    draft = _draft(ws)
+    second = _scene_answer(ws, "s002")
+    doc = packets.load_plan(ws)
+    units = {u["scene"]: u for u in _status(ws, "s002")["inputs"]["units"]}
+    scene = second["scenes"][0]
+    lo, hi = units[scene["scene"]]["paras"]
+    quotes = [_unique_quote(draft, lo, hi, skip=k) for k in range(4)]
+    assert all(quotes), doc["packets"]
+    scene["setups"] = [
+        {
+            "label": "door opened",
+            "side": "payoff",
+            "quote": quotes[0],
+            "pays_off": "THE LOCKED DOOR",
+        },
+        {"label": "door again", "side": "payoff", "quote": quotes[1], "pays_off": target.id},
+        {"label": "the locked door", "side": "payoff", "quote": quotes[2]},
+        {"label": "nothing", "side": "payoff", "quote": quotes[3], "pays_off": "never planted"},
+    ]
+    line = _import(ws, "s002", second)
+    assert line.startswith("ok s002: ") and "1 payoff(s) left unlinked" in line
+    pays = [i for i in codex.Codex(ws).live("setup") if i.fields["side"] == "payoff"]
+    linked = {i.fields["label"]: [x["to"] for x in i.links] for i in pays}
+    assert linked == {
+        "door opened": [target.id],
+        "door again": [target.id],
+        "the locked door": [target.id],
+        "nothing": [],
+    }
+
+
+def test_payoff_in_the_scene_of_its_setup_is_reported(ws: Path) -> None:
+    answer = _scene_answer(ws, "s001")
+    draft = _draft(ws)
+    scene = answer["scenes"][0]
+    units = {u["scene"]: u for u in _status(ws, "s001")["inputs"]["units"]}
+    lo, hi = units[scene["scene"]]["paras"]
+    scene["setups"].append(
+        {
+            "label": "closed",
+            "side": "payoff",
+            "quote": _unique_quote(draft, lo, hi, skip=1),
+            "pays_off": scene["setups"][0]["label"],
+        }
+    )
+    line = _import(ws, "s001", answer)
+    assert line.startswith("ok s001: ") and "1 payoff(s) in the scene of their setup" in line
+
+
+def test_scene_packet_lists_known_entities_and_speakers(ws: Path) -> None:
+    ut = _entity(
+        ws, kind="character", name="Utterson", aliases=["Mr. Utterson"], titles=["the lawyer"]
+    )
+    text = packets.render(ws, packets.load_plan(ws), "s001")
+    head, _, body = text.partition("\n## ")
+    for words in ("pov", "narrator (first person)", "unspecified", "same scene", "who is who"):
+        assert words in head
+    facts = [line for b in body.split("\n## ") for line in b.split("\n")[1:4]]
+    known = [x for x in facts if x.startswith("known: ")]
+    assert known and all(f"Utterson [{ut.id}]" in x for x in known)
+    assert any(f"Utterson [{ut.id}] (Mr. Utterson" in x for x in known)
+    others = [x for x in facts if x.startswith("other names: ")]
+    assert all("Utterson" not in x for x in others)
+    assert any(x.startswith("speakers: ") for x in facts)
+
+
+def test_output_tokens_per_scene_recorded(ws: Path) -> None:
+    answer = _scene_answer(ws, "s001")
+    assert _import(ws, "s001", answer).startswith("ok s001: ")
+    p = _status(ws, "s001")
+    compact = json.dumps(answer, ensure_ascii=False, separators=(",", ":"))
+    assert p["out_tokens"] == packets.tokens(compact)
+    assert packets.output_tokens_per_scene(answer) == round(
+        packets.tokens(compact) / len(answer["scenes"]), 1
+    )
+    assert any("out tokens/scene" in x for x in packets.status_lines(packets.load_plan(ws)))

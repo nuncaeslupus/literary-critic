@@ -13,7 +13,7 @@
     "quote": {"type": "string", "minLength": 1, "maxLength": 200, "x-maxWords": 30},
     "scene": {
       "type": "object",
-      "required": ["scene", "summary"],
+      "required": ["scene", "summary", "pov"],
       "additionalProperties": false,
       "properties": {
         "scene": {"type": "string", "pattern": "^(p\\d+\\.)?c\\d+\\.s\\d+$"},
