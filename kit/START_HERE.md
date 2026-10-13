@@ -13,7 +13,8 @@ full path to `lc.py`):
 python lc.py doctor --home ./home
 ```
 
-It needs Python 3.11 or newer and only the standard library. If it prints
+It needs Python 3.11 or newer and only the standard library (the kit
+bundles doc-control, which is standard library only too). If it prints
 `ok`, use the full procedures below. If you cannot run code at all, use the
 **reduced mode** (section 4).
 

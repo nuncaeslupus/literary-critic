@@ -28,6 +28,13 @@ git clone https://github.com/nuncaeslupus/literary-critic.git && cd literary-cri
 
 Status: early development. See `status/specification.md` and `status/plan.md`.
 
+Documents are read and written through
+[doc-control](https://github.com/nuncaeslupus/doc-control), which owns the generic
+document work (paragraph addresses, chapters and scenes, diff, locating,
+tracked-change edits, comments, undo). literary-critic owns the literary side: the
+index, the Codex, the checks, letters and revision rounds. See
+[`docs/architecture.md`](docs/architecture.md).
+
 ## How it is used
 
 | Where | How |
@@ -43,7 +50,7 @@ repo** — a Google Drive folder works well. See `docs/workspace.md`.
 ## Development
 
 ```bash
-uv sync          # Python >= 3.11; runtime uses only the standard library
+uv sync          # Python >= 3.11; runtime is the standard library plus doc-control
 make ci          # lint, typecheck, tests, content guard
 ```
 
@@ -56,7 +63,7 @@ spec-driven Claude Code workflow and gated task queue this repo is developed on.
 Same author:
 
 - [claude-arsenal](https://github.com/nuncaeslupus/claude-arsenal) — a Claude Code skill and plugin marketplace: specs before code, failing tests first, gates with numbers.
-- [doc-control](https://github.com/nuncaeslupus/doc-control) — a deterministic tool for AI agents to edit Word documents as tracked changes; literary-critic is its first planned consumer (in development).
+- [doc-control](https://github.com/nuncaeslupus/doc-control) — a deterministic tool for AI agents to read and edit Word documents as tracked changes; literary-critic's document layer.
 - [drawspec](https://github.com/nuncaeslupus/drawspec) — declarative diagram spec → clean, themeable SVG; JSON with no coordinates, so an LLM can write it.
 - [integral-job-search](https://github.com/nuncaeslupus/integral-job-search) — a candidate-centred job search run as a conversation in Claude Code.
 

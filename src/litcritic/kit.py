@@ -10,7 +10,6 @@ platform by running a tiny pipeline in a temporary folder.
 from __future__ import annotations
 
 import importlib.util
-import io
 import os
 import sys
 import tempfile
@@ -131,19 +130,11 @@ def build_skill(out: Path | None = None) -> tuple[Path, int]:
 
 
 def _tiny_docx() -> bytes:
-    w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
-    paras = "".join(f"<w:p><w:r><w:t>{t}</w:t></w:r></w:p>" for t in ("Uno.", "Dos.", "Tres."))
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w") as zf:
-        zf.writestr(
-            "[Content_Types].xml",
-            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-            '<Default Extension="xml" ContentType="application/xml"/></Types>',
-        )
-        zf.writestr(
-            "word/document.xml", f'<w:document xmlns:w="{w}"><w:body>{paras}</w:body></w:document>'
-        )
-    return buf.getvalue()
+    """A three-paragraph ``.docx``, built by ``convert`` (the one module that writes parts)."""
+    from litcritic import convert
+    from litcritic.ingest import Draft, Para
+
+    return convert.draft_to_docx(Draft([Para(t) for t in ("Uno.", "Dos.", "Tres.")], "docx"))
 
 
 def doctor(home: Path | None = None) -> list[str]:
