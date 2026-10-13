@@ -1,38 +1,33 @@
 """Ingest a manuscript draft into a workspace.
 
-``.txt``, ``.md``, ``.docx`` and ``.odt`` become normalised text: one paragraph
-per line, whitespace collapsed, Unicode NFC. Layout facts that structure
-detection and writer locators need (heading level, centred, page, blank lines
-before, page break before) go to a sidecar ``vNNN.meta.json``. The original file
-is kept as a snapshot ``manuscript/vNNN.<ext>``; ingesting an unchanged file
-again is a no-op.
+Every manuscript is read through doc-control: a ``.docx`` directly, a ``.txt``,
+``.md`` or ``.odt`` through a converted ``.docx`` copy (:mod:`litcritic.convert`,
+spec D-6). The text becomes normalised text: one paragraph per line, whitespace
+collapsed, Unicode NFC. Each paragraph's doc-control address (``at``) and the
+layout facts structure detection and writer locators need (heading level,
+centred, page, blank lines before, page break before, style) go to a sidecar
+``vNNN.meta.json``. The original file is kept as a snapshot
+``manuscript/vNNN.<ext>``; ingesting an unchanged file again is a no-op.
 """
 
 from __future__ import annotations
 
 import contextlib
 import hashlib
-import io
 import json
 import os
 import re
+import tempfile
 import unicodedata
-import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree as ET
 
 from litcritic import dc
 
 FORMATS = (".txt", ".md", ".docx", ".odt")
-W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
-MC_FALLBACK = "{http://schemas.openxmlformats.org/markup-compatibility/2006}Fallback"
-TEXT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
-OFFICE = "{urn:oasis:names:tc:opendocument:xmlns:office:1.0}"
-STYLE = "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}"
-FO = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}"
+META_SCHEMA = 2  # 2: each paragraph carries its doc-control address ``at``
 
 
 class IngestError(Exception):
@@ -48,10 +43,16 @@ class Para:
     page_break_before: bool = False
     blank_before: int = 0  # empty paragraphs/lines skipped just before this one
     style: str = ""
-    src: int = -1  # docx: position among all w:p elements (for anchored comments)
+    at: str = ""  # doc-control address, e.g. p142#a7b2a7b2 ("" before doc-control read it)
+
+    @property
+    def ordinal(self) -> int:
+        """Position among all the document's paragraphs, from 0 (-1 when unknown)."""
+        m = re.match(r"p(\d+)#", self.at)
+        return int(m.group(1)) - 1 if m else -1
 
     def meta(self) -> dict[str, Any]:
-        out: dict[str, Any] = {}
+        out: dict[str, Any] = {"at": self.at} if self.at else {}
         for key in ("heading", "centered", "page", "page_break_before", "blank_before", "style"):
             value = getattr(self, key)
             if value:
@@ -97,336 +98,66 @@ def _collect(raw: list[Para]) -> list[Para]:
     return out
 
 
-# --- plain text and Markdown ------------------------------------------------
+# --- reading through doc-control ----------------------------------------------
 
 
-def _decode(data: bytes) -> str:
-    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
-        return data.decode("utf-16")
-    if b"\x00" in data[:4096]:
-        raise IngestError("text file looks like UTF-16 without a BOM; save it as UTF-8")
-    for enc in ("utf-8-sig", "cp1252"):
-        try:
-            return data.decode(enc)
-        except UnicodeDecodeError:
-            continue
-    raise IngestError("unknown text encoding (use UTF-8)")
+def _read_docx(path: Path, fmt: str = "docx") -> Draft:
+    """Every paragraph of a ``.docx`` file as doc-control reads it, in one bulk call.
 
-
-def read_txt(data: bytes) -> Draft:
-    """Blank-line separated blocks when lines are hard-wrapped, else one paragraph per line."""
-    lines = _decode(data).replace("\r\n", "\n").replace("\r", "\n").split("\n")
-    blocks = [b.strip("\n") for b in re.split(r"\n[ \t]*\n", "\n".join(lines)) if b.strip()]
-    multi = [b for b in blocks if "\n" in b]
-    # Lines that a wrap cut (every line of a block but its last) sit near a fixed width.
-    cut = sorted(len(x) for b in multi for x in b.split("\n")[:-1])
-    wrapped = (
-        len(blocks) > 1
-        and len(multi) >= 0.2 * len(blocks)
-        and bool(cut)
-        and cut[len(cut) // 2] >= 40
-        and cut[int(0.9 * (len(cut) - 1))] <= 100
-    )
-    if not wrapped:
-        return Draft(_collect([Para(line) for line in lines]), "txt")
-    # Hard-wrapped: one blank line separates paragraphs; extra blank lines are spacing.
-    out: list[Para] = []
-    block: list[str] = []
-    blanks = 0
-    for line in [*lines, ""]:
-        if line.strip():
-            block.append(line)
-            continue
-        if block:
-            p = Para(clean(" ".join(block)), blank_before=max(0, blanks - 1) if out else blanks)
-            out.append(p)
-            block, blanks = [], 0
-        blanks += 1
-    return Draft(out, "txt", notes=["hard-wrapped blocks"])
-
-
-MD_EMPHASIS = re.compile(r"(\*\*|__|\*|_)(?=\S)(.+?)(?<=\S)\1")
-
-
-def read_md(data: bytes) -> Draft:
-    text = _decode(data).replace("\r\n", "\n")
-    raw: list[Para] = []
-    for block in re.split(r"\n[ \t]*\n", text):
-        block = block.strip("\n")
-        if not block.strip():
-            continue
-        m = re.match(r"^(#{1,6})\s+(.*)$", block.split("\n", 1)[0])
-        if m:
-            raw.append(Para(m.group(2).rstrip("#").strip(), heading=len(m.group(1))))
-            if "\n" not in block:
-                continue
-            block = block.split("\n", 1)[1]
-        # Hide escaped characters from the emphasis pass, then restore them literally.
-        line = re.sub(
-            r"\\([\\`*_{}\[\]()#+.!-])", lambda m: chr(0xE000 + ord(m.group(1))), block
-        ).replace("\n", " ")
-        if not re.fullmatch(r"[\s*_#~-]+", line):  # keep scene-break lines like "* * *"
-            line = MD_EMPHASIS.sub(r"\2", line)
-        raw.append(Para(re.sub("[\ue000-\ue0ff]", lambda m: chr(ord(m.group()) - 0xE000), line)))
-    return Draft(_collect(raw), "md")
-
-
-# --- docx -------------------------------------------------------------------
-
-
-def _docx_styles(zf: zipfile.ZipFile) -> dict[str, tuple[str, int, bool]]:
-    """styleId -> (name, outline level 1-9 or 0, centred), following basedOn."""
-    if "word/styles.xml" not in zf.namelist():
-        return {}
-    root = ET.fromstring(zf.read("word/styles.xml"))
-    raw: dict[str, tuple[str, str, int, bool | None]] = {}
-    for st in root.iter(f"{W}style"):
-        sid = st.get(f"{W}styleId", "")
-        name_el = st.find(f"{W}name")
-        name = name_el.get(f"{W}val", sid) if name_el is not None else sid
-        based = st.find(f"{W}basedOn")
-        lvl = st.find(f"{W}pPr/{W}outlineLvl")
-        jc = st.find(f"{W}pPr/{W}jc")
-        level = int(lvl.get(f"{W}val", "9")) + 1 if lvl is not None else 0
-        centred = jc.get(f"{W}val") == "center" if jc is not None else None
-        parent = based.get(f"{W}val", "") if based is not None else ""
-        raw[sid] = (name, parent, level if level <= 9 else 0, centred)
-
-    def resolve(sid: str, depth: int = 0) -> tuple[str, int, bool]:
-        name, parent, level, centred = raw[sid]
-        if parent in raw and depth < 20 and (not level or centred is None):
-            _, plevel, pcentred = resolve(parent, depth + 1)
-            level = level or plevel
-            centred = pcentred if centred is None else centred
-        if not level and re.fullmatch(r"(?i)(heading|t[ií]tulo)\s*([1-9])", name.strip()):
-            level = int(name.strip()[-1])
-        return name, level, bool(centred)
-
-    out = {sid: resolve(sid) for sid in raw}
-    # "" stands for the default paragraph style (used when a paragraph names none).
-    default = next(
-        (
-            st.get(f"{W}styleId", "")
-            for st in root.iter(f"{W}style")
-            if st.get(f"{W}type") == "paragraph" and st.get(f"{W}default") in ("1", "true")
-        ),
-        "Normal",
-    )
-    if default in out:
-        out[""] = out[default]
-    return out
-
-
-def read_docx(data: bytes) -> Draft:
+    Pages count only when the file holds Word's rendered page marks (it was laid
+    out by Word); otherwise every page is 0 (unknown).
+    """
     try:
-        zf = zipfile.ZipFile(_as_file(data))
-        root = ET.fromstring(zf.read("word/document.xml"))
-    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
+        with dc.open(path) as doc:
+            rows = doc.paragraphs(normalized=True, pages=True)
+            marks = 0
+            if rows:
+                head = doc.run("page.estimate", {"at": rows[0]["at"]})
+                marks = int(head.get("rendered_marks") or 0)
+    except dc.DocError as exc:
         raise IngestError(f"not a readable .docx: {exc}") from exc
-    styles = _docx_styles(zf)
-    body = root.find(f"{W}body")
-    if body is None:
-        raise IngestError("document has no body")
-    # Word records both explicit breaks and, once laid out, where pages actually
-    # fell (lastRenderedPageBreak). Pages are counted from the rendered marks when
-    # present, so an explicit break is not counted twice.
-    state = {"page": 1, "rendered": _has_rendered_breaks(root), "break_next": False}
-    raw: list[Para] = []
-    ordinal = {id(el): k for k, el in enumerate(root.iter(f"{W}p"))}
-
-    def para(p: ET.Element) -> Para:
-        out = Para("", page=state["page"], page_break_before=bool(state["break_next"]))
-        out.src = ordinal[id(p)]
-        state["break_next"] = False
-        ppr = p.find(f"{W}pPr")
-        if ppr is not None:
-            sid_el = ppr.find(f"{W}pStyle")
-            sid = sid_el.get(f"{W}val", "") if sid_el is not None else ""
-            out.style, out.heading, out.centered = styles.get(sid, (sid, 0, False))
-            lvl = ppr.find(f"{W}outlineLvl")
-            if lvl is not None and int(lvl.get(f"{W}val", "9")) < 9:
-                out.heading = int(lvl.get(f"{W}val", "9")) + 1
-            jc = ppr.find(f"{W}jc")
-            if jc is not None:
-                out.centered = jc.get(f"{W}val") == "center"
-            pb = ppr.find(f"{W}pageBreakBefore")
-            if pb is not None and pb.get(f"{W}val", "true") not in ("0", "false"):
-                out.page_break_before = True
-        else:
-            out.style, out.heading, out.centered = styles.get("", ("", 0, False))
-        parts: list[str] = []
-        seen_text = False
-
-        def walk(el: ET.Element) -> None:
-            nonlocal seen_text
-            for ch in el:
-                tag = ch.tag
-                if tag in (f"{W}del", f"{W}moveFrom", MC_FALLBACK, f"{W}instrText", f"{W}pPr"):
-                    continue
-                if tag in (f"{W}txbxContent", f"{W}footnoteReference", f"{W}endnoteReference"):
-                    continue
-                if tag == f"{W}t":
-                    parts.append(ch.text or "")
-                    seen_text = seen_text or bool((ch.text or "").strip())
-                elif tag in (f"{W}tab", f"{W}cr"):
-                    parts.append(" ")
-                elif tag == f"{W}noBreakHyphen":
-                    parts.append("-")
-                elif tag == f"{W}lastRenderedPageBreak":
-                    state["rendered"] = True
-                    _new_page(seen_text, explicit=False)
-                elif tag == f"{W}br":
-                    if ch.get(f"{W}type") == "page":
-                        _new_page(seen_text, explicit=True)
-                    else:
-                        parts.append(" ")
-                else:
-                    walk(ch)
-
-        def _new_page(after_text: bool, explicit: bool) -> None:
-            """Rendered breaks only move the page; explicit ones also mark a break."""
-            if explicit and after_text:
-                state["break_next"] = True
-            if not (explicit and state["rendered"]):
-                state["page"] += 1
-            if not after_text:
-                out.page = state["page"]
-                out.page_break_before = out.page_break_before or explicit
-
-        walk(p)
-        if out.page_break_before and out.page < state["page"]:
-            out.page = state["page"]
-        out.text = "".join(parts)
-        return out
-
-    def blocks(el: ET.Element) -> None:
-        for ch in el:
-            if ch.tag == f"{W}p":
-                raw.append(para(ch))
-                if ch.find(f"{W}pPr/{W}sectPr") is not None:
-                    state["break_next"] = True
-                    if not state["rendered"]:
-                        state["page"] += 1
-            elif ch.tag in (f"{W}tbl", f"{W}tr", f"{W}tc", f"{W}sdt", f"{W}sdtContent"):
-                blocks(ch)
-
-    blocks(body)
-    draft = Draft(_collect(raw), "docx", pages_known=bool(state["rendered"]))
-    if not draft.pages_known:
-        for p in draft.paragraphs:
-            p.page = 0
-    return draft
-
-
-def _has_rendered_breaks(root: ET.Element) -> bool:
-    return next(root.iter(f"{W}lastRenderedPageBreak"), None) is not None
-
-
-def _as_file(data: bytes) -> io.BytesIO:
-    return io.BytesIO(data)
-
-
-# --- odt --------------------------------------------------------------------
-
-
-def _odt_centred(zf: zipfile.ZipFile, content: ET.Element) -> dict[str, bool]:
-    styles: dict[str, tuple[str, bool | None]] = {}
-    roots = [ET.fromstring(zf.read("styles.xml"))] if "styles.xml" in zf.namelist() else []
-    roots.append(content)  # the body's automatic styles win over same-named ones in styles.xml
-    for root in roots:
-        for st in root.iter(f"{STYLE}style"):
-            if st.get(f"{STYLE}family", "paragraph") != "paragraph":
-                continue
-            props = st.find(f"{STYLE}paragraph-properties")
-            align = props.get(f"{FO}text-align") if props is not None else None
-            centred = align == "center" if align else None
-            styles[st.get(f"{STYLE}name", "")] = (st.get(f"{STYLE}parent-style-name", ""), centred)
-
-    def resolve(name: str, depth: int = 0) -> bool:
-        parent, centred = styles.get(name, ("", None))
-        if centred is None and parent and depth < 20:
-            return resolve(parent, depth + 1)
-        return bool(centred)
-
-    return {name: resolve(name) for name in styles}
-
-
-def read_odt(data: bytes) -> Draft:
-    try:
-        zf = zipfile.ZipFile(_as_file(data))
-        root = ET.fromstring(zf.read("content.xml"))
-    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
-        raise IngestError(f"not a readable .odt: {exc}") from exc
-    centred = _odt_centred(zf, root)
-    body = root.find(f"{OFFICE}body/{OFFICE}text")
-    if body is None:
-        raise IngestError("document has no text body")
-    state = {"page": 1, "soft": False}
-    raw: list[Para] = []
-    skip = {f"{TEXT}note", f"{OFFICE}annotation", f"{TEXT}tracked-changes", f"{TEXT}sequence-decls"}
-
-    def para(p: ET.Element) -> Para:
-        style = p.get(f"{TEXT}style-name", "")
-        out = Para("", page=state["page"], style=style, centered=centred.get(style, False))
-        if p.tag == f"{TEXT}h":
-            out.heading = int(p.get(f"{TEXT}outline-level", "1"))
-        parts: list[str] = [p.text or ""]
-
-        def walk(el: ET.Element) -> None:
-            for ch in el:
-                if ch.tag in skip:
-                    pass
-                elif ch.tag == f"{TEXT}s":
-                    parts.append(" " * int(ch.get(f"{TEXT}c", "1")))
-                elif ch.tag in (f"{TEXT}tab", f"{TEXT}line-break"):
-                    parts.append(" ")
-                elif ch.tag == f"{TEXT}soft-page-break":
-                    state["page"] += 1
-                    state["soft"] = True
-                    if not "".join(parts).strip():
-                        out.page = state["page"]
-                else:
-                    if ch.text:
-                        parts.append(ch.text)
-                    walk(ch)
-                if ch.tail:
-                    parts.append(ch.tail)
-
-        walk(p)
-        out.text = "".join(parts)
-        return out
-
-    def blocks(el: ET.Element) -> None:
-        for ch in el:
-            if ch.tag in (f"{TEXT}p", f"{TEXT}h"):
-                raw.append(para(ch))
-            elif ch.tag == f"{TEXT}soft-page-break":
-                state["page"] += 1
-                state["soft"] = True
-            elif ch.tag not in skip:
-                blocks(ch)
-
-    blocks(body)
-    draft = Draft(_collect(raw), "odt", pages_known=bool(state["soft"]))
-    if not draft.pages_known:
-        for p in draft.paragraphs:
-            p.page = 0
-    return draft
-
-
-READERS = {".txt": read_txt, ".md": read_md, ".docx": read_docx, ".odt": read_odt}
+    raw = [
+        Para(
+            str(row.get("normalized", row["text"])),
+            heading=int(row.get("heading_level") or 0),
+            centered=bool(row.get("centred")),
+            page=int(row.get("page") or 0) if marks else 0,
+            page_break_before=bool(row.get("page_break_before")),
+            style=str(row.get("style_name") or row.get("style") or ""),
+            at=str(row["at"]),
+        )
+        for row in rows
+    ]
+    return Draft(_collect(raw), fmt, pages_known=bool(marks))
 
 
 def read(path: Path, data: bytes | None = None) -> Draft:
+    """The manuscript at ``path`` (or ``data``, its bytes) as doc-control reads it.
+
+    A ``.txt``, ``.md`` or ``.odt`` file is converted to a ``.docx`` copy first;
+    its addresses then point into that copy, which converting the same bytes
+    again rebuilds identically.
+    """
     suffix = path.suffix.lower()
-    if suffix not in READERS:
+    if suffix not in FORMATS:
         raise IngestError(f"unsupported format {suffix!r} (use {', '.join(FORMATS)})")
-    try:
-        return READERS[suffix](path.read_bytes() if data is None else data)
-    except (ET.ParseError, ValueError, KeyError, zipfile.BadZipFile) as exc:
-        if isinstance(exc, IngestError):
-            raise
-        raise IngestError(f"not a readable {suffix} file: {exc}") from exc
+    notes: list[str] = []
+    if suffix == ".docx":
+        if data is None or (path.is_file() and path.read_bytes() == data):
+            return _read_docx(path)
+        docx = data
+    else:
+        from litcritic import convert  # convert builds on this module's Para and Draft
+
+        source = convert.source(path, data)
+        notes = source.notes
+        docx = convert.draft_to_docx(source)
+    with tempfile.TemporaryDirectory() as tmp:
+        copy = Path(tmp) / f"{path.stem or 'draft'}.docx"
+        copy.write_bytes(docx)
+        draft = _read_docx(copy, suffix[1:])
+    draft.notes = notes
+    return draft
 
 
 # --- documents read -----------------------------------------------------------
@@ -535,7 +266,7 @@ def ingest(path: Path, ws_root: Path) -> Result:
     text_path = ws_root / "text" / f"{version}.txt"
     text_path.write_text(draft.text, encoding="utf-8")
     meta = {
-        "schema_version": 1,
+        "schema_version": META_SCHEMA,
         "version": version,
         "source_name": path.name,
         "source_sha256": digest,

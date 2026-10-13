@@ -2,26 +2,33 @@
 
 doc-control reads only Word documents, so ``.txt``, ``.md`` and ``.odt`` files are
 turned into a bare ``.docx`` copy that doc-control can read; the writer's file is
-never changed. The paragraphs come from the readers in :mod:`litcritic.ingest`; this
-module only writes them out, one Word paragraph per source paragraph, with heading
-level (built-in ``Heading N`` styles), centring, page break before, and blank lines
-as empty paragraphs.
+never changed. Each format has a small reader (``read_txt``, ``read_md``,
+``read_odt``) whose paragraphs are written out one Word paragraph per source
+paragraph, with heading level (built-in ``Heading N`` styles), centring, page break
+before, blank lines as empty paragraphs, and, where the source knows its pages
+(``.odt`` soft page breaks), a rendered page mark where each page starts.
 
-Each format has its own small function (``txt_to_docx``, ``md_to_docx``,
-``odt_to_docx``). Delete a function, and its row in ``CONVERTERS``, as soon as
-doc-control reads that format natively. This is the one module allowed to write
-``word/`` parts.
+Delete a format's reader, and its row in ``READERS``, as soon as doc-control reads
+that format natively. This is the one module allowed to write ``word/`` parts, and
+the only one that reads ``.txt``, ``.md`` or ``.odt`` layout.
 """
 
 from __future__ import annotations
 
 import io
+import re
 import zipfile
+from collections.abc import Callable
 from pathlib import Path
+from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
-from litcritic import ingest
-from litcritic.ingest import Draft, IngestError, Para
+from litcritic.ingest import Draft, IngestError, Para, _collect, clean
+
+TEXT = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
+OFFICE = "{urn:oasis:names:tc:opendocument:xmlns:office:1.0}"
+STYLE = "{urn:oasis:names:tc:opendocument:xmlns:style:1.0}"
+FO = "{urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0}"
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -68,7 +75,7 @@ def _styles() -> str:
     return "".join(out)
 
 
-def _paragraph(p: Para) -> str:
+def _paragraph(p: Para, new_pages: int = 0) -> str:
     props = ""
     if p.heading:
         props += f'<w:pStyle w:val="Heading{min(max(p.heading, 1), 9)}"/>'
@@ -77,14 +84,19 @@ def _paragraph(p: Para) -> str:
     if p.centered:
         props += '<w:jc w:val="center"/>'
     ppr = f"<w:pPr>{props}</w:pPr>" if props else ""
-    return f'<w:p>{ppr}<w:r><w:t xml:space="preserve">{escape(p.text)}</w:t></w:r></w:p>'
+    marks = "<w:r><w:lastRenderedPageBreak/></w:r>" * new_pages
+    return f'<w:p>{ppr}{marks}<w:r><w:t xml:space="preserve">{escape(p.text)}</w:t></w:r></w:p>'
 
 
-def _docx(draft: Draft) -> bytes:
+def draft_to_docx(draft: Draft) -> bytes:
+    """A minimal ``.docx`` holding ``draft``'s paragraphs and layout facts."""
     body: list[str] = []
+    page = 1
     for p in draft.paragraphs:
         body.extend("<w:p/>" for _ in range(p.blank_before))
-        body.append(_paragraph(p))
+        new_pages = max(0, p.page - page) if draft.pages_known else 0
+        page += new_pages
+        body.append(_paragraph(p, new_pages))
     document = (
         f'{XML_HEAD}<w:document xmlns:w="{W_NS}"><w:body>{"".join(body)}</w:body></w:document>'
     )
@@ -98,24 +110,184 @@ def _docx(draft: Draft) -> bytes:
     return buf.getvalue()
 
 
-def txt_to_docx(data: bytes) -> bytes:
-    return _docx(ingest.read_txt(data))
+# --- plain text and Markdown ------------------------------------------------
 
 
-def md_to_docx(data: bytes) -> bytes:
-    return _docx(ingest.read_md(data))
+def _decode(data: bytes) -> str:
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff"):
+        return data.decode("utf-16")
+    if b"\x00" in data[:4096]:
+        raise IngestError("text file looks like UTF-16 without a BOM; save it as UTF-8")
+    for enc in ("utf-8-sig", "cp1252"):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    raise IngestError("unknown text encoding (use UTF-8)")
 
 
-def odt_to_docx(data: bytes) -> bytes:
-    return _docx(ingest.read_odt(data))
+def read_txt(data: bytes) -> Draft:
+    """Blank-line separated blocks when lines are hard-wrapped, else one paragraph per line."""
+    lines = _decode(data).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    blocks = [b.strip("\n") for b in re.split(r"\n[ \t]*\n", "\n".join(lines)) if b.strip()]
+    multi = [b for b in blocks if "\n" in b]
+    # Lines that a wrap cut (every line of a block but its last) sit near a fixed width.
+    cut = sorted(len(x) for b in multi for x in b.split("\n")[:-1])
+    wrapped = (
+        len(blocks) > 1
+        and len(multi) >= 0.2 * len(blocks)
+        and bool(cut)
+        and cut[len(cut) // 2] >= 40
+        and cut[int(0.9 * (len(cut) - 1))] <= 100
+    )
+    if not wrapped:
+        return Draft(_collect([Para(line) for line in lines]), "txt")
+    # Hard-wrapped: one blank line separates paragraphs; extra blank lines are spacing.
+    out: list[Para] = []
+    block: list[str] = []
+    blanks = 0
+    for line in [*lines, ""]:
+        if line.strip():
+            block.append(line)
+            continue
+        if block:
+            p = Para(clean(" ".join(block)), blank_before=max(0, blanks - 1) if out else blanks)
+            out.append(p)
+            block, blanks = [], 0
+        blanks += 1
+    return Draft(out, "txt", notes=["hard-wrapped blocks"])
 
 
-CONVERTERS = {".txt": txt_to_docx, ".md": md_to_docx, ".odt": odt_to_docx}
+MD_EMPHASIS = re.compile(r"(\*\*|__|\*|_)(?=\S)(.+?)(?<=\S)\1")
+
+
+def read_md(data: bytes) -> Draft:
+    text = _decode(data).replace("\r\n", "\n")
+    raw: list[Para] = []
+    for block in re.split(r"\n[ \t]*\n", text):
+        block = block.strip("\n")
+        if not block.strip():
+            continue
+        m = re.match(r"^(#{1,6})\s+(.*)$", block.split("\n", 1)[0])
+        if m:
+            raw.append(Para(m.group(2).rstrip("#").strip(), heading=len(m.group(1))))
+            if "\n" not in block:
+                continue
+            block = block.split("\n", 1)[1]
+        # Hide escaped characters from the emphasis pass, then restore them literally.
+        line = re.sub(
+            r"\\([\\`*_{}\[\]()#+.!-])", lambda m: chr(0xE000 + ord(m.group(1))), block
+        ).replace("\n", " ")
+        if not re.fullmatch(r"[\s*_#~-]+", line):  # keep scene-break lines like "* * *"
+            line = MD_EMPHASIS.sub(r"\2", line)
+        raw.append(Para(re.sub("[\ue000-\ue0ff]", lambda m: chr(ord(m.group()) - 0xE000), line)))
+    return Draft(_collect(raw), "md")
+
+
+# --- odt --------------------------------------------------------------------
+
+
+def _odt_centred(zf: zipfile.ZipFile, content: ET.Element) -> dict[str, bool]:
+    styles: dict[str, tuple[str, bool | None]] = {}
+    roots = [ET.fromstring(zf.read("styles.xml"))] if "styles.xml" in zf.namelist() else []
+    roots.append(content)  # the body's automatic styles win over same-named ones in styles.xml
+    for root in roots:
+        for st in root.iter(f"{STYLE}style"):
+            if st.get(f"{STYLE}family", "paragraph") != "paragraph":
+                continue
+            props = st.find(f"{STYLE}paragraph-properties")
+            align = props.get(f"{FO}text-align") if props is not None else None
+            centred = align == "center" if align else None
+            styles[st.get(f"{STYLE}name", "")] = (st.get(f"{STYLE}parent-style-name", ""), centred)
+
+    def resolve(name: str, depth: int = 0) -> bool:
+        parent, centred = styles.get(name, ("", None))
+        if centred is None and parent and depth < 20:
+            return resolve(parent, depth + 1)
+        return bool(centred)
+
+    return {name: resolve(name) for name in styles}
+
+
+def read_odt(data: bytes) -> Draft:
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+        root = ET.fromstring(zf.read("content.xml"))
+    except (zipfile.BadZipFile, KeyError, ET.ParseError) as exc:
+        raise IngestError(f"not a readable .odt: {exc}") from exc
+    centred = _odt_centred(zf, root)
+    body = root.find(f"{OFFICE}body/{OFFICE}text")
+    if body is None:
+        raise IngestError("document has no text body")
+    state = {"page": 1, "soft": False}
+    raw: list[Para] = []
+    skip = {f"{TEXT}note", f"{OFFICE}annotation", f"{TEXT}tracked-changes", f"{TEXT}sequence-decls"}
+
+    def para(p: ET.Element) -> Para:
+        style = p.get(f"{TEXT}style-name", "")
+        out = Para("", page=state["page"], style=style, centered=centred.get(style, False))
+        if p.tag == f"{TEXT}h":
+            out.heading = int(p.get(f"{TEXT}outline-level", "1"))
+        parts: list[str] = [p.text or ""]
+
+        def walk(el: ET.Element) -> None:
+            for ch in el:
+                if ch.tag in skip:
+                    pass
+                elif ch.tag == f"{TEXT}s":
+                    parts.append(" " * int(ch.get(f"{TEXT}c", "1")))
+                elif ch.tag in (f"{TEXT}tab", f"{TEXT}line-break"):
+                    parts.append(" ")
+                elif ch.tag == f"{TEXT}soft-page-break":
+                    state["page"] += 1
+                    state["soft"] = True
+                    if not "".join(parts).strip():
+                        out.page = state["page"]
+                else:
+                    if ch.text:
+                        parts.append(ch.text)
+                    walk(ch)
+                if ch.tail:
+                    parts.append(ch.tail)
+
+        walk(p)
+        out.text = "".join(parts)
+        return out
+
+    def blocks(el: ET.Element) -> None:
+        for ch in el:
+            if ch.tag in (f"{TEXT}p", f"{TEXT}h"):
+                raw.append(para(ch))
+            elif ch.tag == f"{TEXT}soft-page-break":
+                state["page"] += 1
+                state["soft"] = True
+            elif ch.tag not in skip:
+                blocks(ch)
+
+    blocks(body)
+    draft = Draft(_collect(raw), "odt", pages_known=bool(state["soft"]))
+    if not draft.pages_known:
+        for p in draft.paragraphs:
+            p.page = 0
+    return draft
+
+
+READERS: dict[str, Callable[[bytes], Draft]] = {".txt": read_txt, ".md": read_md, ".odt": read_odt}
+
+
+def source(path: Path, data: bytes | None = None) -> Draft:
+    """The paragraphs and layout facts of a ``.txt``, ``.md`` or ``.odt`` manuscript."""
+    suffix = path.suffix.lower()
+    if suffix not in READERS:
+        raise IngestError(f"cannot convert {suffix!r} to .docx (use {', '.join(READERS)})")
+    try:
+        return READERS[suffix](path.read_bytes() if data is None else data)
+    except (ET.ParseError, ValueError, KeyError, zipfile.BadZipFile) as exc:
+        if isinstance(exc, IngestError):
+            raise
+        raise IngestError(f"not a readable {suffix} file: {exc}") from exc
 
 
 def to_docx(path: Path, data: bytes | None = None) -> bytes:
     """The ``.docx`` bytes for a ``.txt``, ``.md`` or ``.odt`` manuscript."""
-    suffix = path.suffix.lower()
-    if suffix not in CONVERTERS:
-        raise IngestError(f"cannot convert {suffix!r} to .docx (use {', '.join(CONVERTERS)})")
-    return CONVERTERS[suffix](path.read_bytes() if data is None else data)
+    return draft_to_docx(source(path, data))

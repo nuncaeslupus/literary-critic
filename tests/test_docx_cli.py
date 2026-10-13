@@ -13,6 +13,8 @@ from docgen import CT, docx
 from litcritic import corpus, dc, docx_cli, ingest
 from litcritic.cli import main
 
+DOCX = Path("draft.docx")  # a name for bytes read through doc-control
+
 AUTHOR = docx_cli.AUTHOR
 
 
@@ -46,7 +48,7 @@ def _members(data: bytes) -> dict[str, bytes]:
 
 def _texts(data: bytes) -> list[str]:
     """What the writer reads, paragraph by paragraph (tracked changes shown)."""
-    return [p.text for p in ingest.read_docx(data).paragraphs]
+    return [p.text for p in ingest.read(DOCX, data).paragraphs]
 
 
 def _paragraph_xml(data: bytes) -> list[str]:

@@ -7,14 +7,16 @@ from typing import Any
 import docgen
 import pytest
 
-from litcritic import corpus, ingest, structure
+from litcritic import convert, corpus, ingest, structure
 from litcritic.cli import main
+
+DOCX = Path("draft.docx")  # a name for bytes read through doc-control
 
 Variant = tuple[list[str], list[dict[str, Any]], set[int], set[int]]
 
 
 def _paras(slug: str) -> list[str]:
-    return [p.text for p in ingest.read_txt(corpus.get(slug).path.read_bytes()).paragraphs]
+    return [p.text for p in convert.read_txt(corpus.get(slug).path.read_bytes()).paragraphs]
 
 
 def _truth_chapters(slug: str, paras: list[str]) -> set[int]:
@@ -55,9 +57,9 @@ def variants() -> dict[str, Variant]:
         text, ch, sc = _with_breaks(paras, truth, seed=3)
         v[f"{slug}-breaks"] = (text, [{} for _ in text], ch, sc)
         md = "\n\n".join(f"## {t}" if i in ch else t for i, t in enumerate(text))
-        d = ingest.read_md(md.encode())
+        d = convert.read_md(md.encode())
         v[f"{slug}-md"] = ([p.text for p in d.paragraphs], [p.meta() for p in d.paragraphs], ch, sc)
-        docx = ingest.read_docx(docgen.docx([(t, i in ch) for i, t in enumerate(text)], seed=4))
+        docx = ingest.read(DOCX, docgen.docx([(t, i in ch) for i, t in enumerate(text)], seed=4))
         v[f"{slug}-docx"] = (
             [p.text for p in docx.paragraphs],
             [p.meta() for p in docx.paragraphs],

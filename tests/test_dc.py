@@ -29,3 +29,9 @@ def test_dc_run_returns_result_and_raises_error_envelopes() -> None:
     with pytest.raises(dc.DocError) as err:
         dc.run("info", {"doc": "/nonexistent/x.docx"})
     assert err.value.code and err.value.message
+
+
+def test_dc_open_maps_errors_to_doc_error() -> None:
+    with dc.open("/nonexistent/x.docx") as doc, pytest.raises(dc.DocError) as err:
+        doc.paragraphs()
+    assert err.value.code == "DOC_NOT_FOUND" and err.value.hint

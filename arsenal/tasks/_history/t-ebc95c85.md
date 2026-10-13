@@ -5,6 +5,7 @@ label: "ingest via doc-control"
 priority: 5
 deps: [t-ed4e78a9]
 workspace: doccontrol
+status: merged
 ---
 
 # T5: ingest via doc-control

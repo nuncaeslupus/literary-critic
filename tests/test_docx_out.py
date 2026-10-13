@@ -5,16 +5,18 @@ from pathlib import Path
 import docgen
 import pytest
 
-from litcritic import codex, corpus, dc, docx_out, ingest, query, rounds
+from litcritic import codex, convert, corpus, dc, docx_out, ingest, query, rounds
 from litcritic import spans as spanlib
 from litcritic.cli import main
+
+DOCX = Path("draft.docx")  # a name for bytes read through doc-control
 
 
 @pytest.fixture(scope="module")
 def base(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("ws")
     (root / "work.toml").write_text('slug = "ws"\nlanguage = "es"\n', encoding="utf-8")
-    text = [p.text for p in ingest.read_txt(corpus.get("marianela").path.read_bytes()).paragraphs]
+    text = [p.text for p in convert.read_txt(corpus.get("marianela").path.read_bytes()).paragraphs]
     paras = [(t, bool(re.fullmatch(r"-[IVXL]+-", t))) for t in text]
     draft = root.parent / "novela.docx"
     draft.write_bytes(docgen.docx(paras, seed=5))
@@ -64,11 +66,11 @@ def comments_on_wrong_paragraph(
 ) -> int:
     """Actions whose comment is missing or sits on a paragraph other than the one they name."""
     texts = {c["at"].split("#")[0]: c["text"] for c in _comments(out)}
-    draft = ingest.read_docx(out.read_bytes())
+    draft = ingest.read(DOCX, out.read_bytes())
     wrong = 0
     for action in actions:
         k = ix.anchors.index(str(action["where"]["anchor"]))  # type: ignore[index]
-        wrong += f"[{action['id']}]" not in texts.get(f"p{draft.paragraphs[k].src + 1}", "")
+        wrong += f"[{action['id']}]" not in texts.get(f"p{draft.paragraphs[k].ordinal + 1}", "")
     return wrong
 
 
@@ -83,7 +85,7 @@ def test_comments_land_on_target_paragraph(ws: Path) -> None:
     assert (ws / "manuscript" / "v001.docx").read_bytes() == original  # never touched
     assert comments_on_wrong_paragraph(out_path, ix, actions) == 0
     # The text is unchanged and nothing but the copy is left beside it.
-    assert [p.text for p in ingest.read_docx(out_path.read_bytes()).paragraphs] == ix.paragraphs
+    assert [p.text for p in ingest.read(DOCX, out_path.read_bytes()).paragraphs] == ix.paragraphs
     assert not (out_path.parent / ".doc-control").exists()
     comments = _comments(out_path)
     assert {c["author"] for c in comments} == {"literary-critic"}
@@ -93,11 +95,12 @@ def test_comments_land_on_target_paragraph(ws: Path) -> None:
 def test_add_comments_errors(tmp_path: Path) -> None:
     path = tmp_path / "d.docx"
     path.write_bytes(docgen.docx([("Uno dos tres.", False), ("", False), ("Tres cuatro.", False)]))
-    assert docx_out.add_comments(path, {0: ["a", "b"], 2: ["c"]}) == 2
+    first, second = (p.at for p in ingest.read(path).paragraphs)
+    assert docx_out.add_comments(path, {second: ["c"], first: ["a", "b"]}) == 2
     texts = [c["text"] for c in dc.run("comments.list", {"doc": str(path)})["comments"]]
     assert texts == ["a\nb", "c"]
-    with pytest.raises(docx_out.DocxError, match="not in the document"):
-        docx_out.add_comments(path, {9: ["x"]})
+    with pytest.raises(docx_out.DocxError):  # an address the document does not have
+        docx_out.add_comments(path, {"p9#00000000": ["x"]})
 
 
 def test_round_draft_and_statuses(ws: Path) -> None:

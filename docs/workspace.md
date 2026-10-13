@@ -10,8 +10,8 @@ place: a Google Drive folder (synced by Drive for desktop when working locally).
   guard-terms.txt       # names that must never reach the tool repo
   manuscript/           # writer's originals, one snapshot per draft (v001.docx, v002.docx…)
   text/                 # normalised text per draft (v001.txt), one paragraph per line,
-                        # + v001.meta.json: per-paragraph heading level, centred, page,
-                        #   page break before, blank lines before, style name
+                        # + v001.meta.json: per-paragraph doc-control address (`at`), heading level,
+                        #   centred, page, page break before, blank lines before, style name
   index/                # anchors, structure, alignment (per draft)
   metrics/              # script-measured metrics per draft
   analysis/             # novel profile (adapted checklist) and findings
