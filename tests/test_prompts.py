@@ -251,3 +251,13 @@ def test_mention_rule_matches_packet_instructions() -> None:
         assert "a scene happens there" in text
         assert "2 or more places" in text
         assert "passing mention is a" in text
+
+
+def test_tool_talk_waits_for_the_tool_channel() -> None:
+    """A writer hears about the novel: the tool is discussed only when asked with [[...]]."""
+    guide = " ".join((repo_root() / "prompts" / "00-guide.md").read_text(encoding="utf-8").split())
+    assert "Unasked, never describe the tool's faults" in guide
+    for path in _documents():
+        for sentence in re.split(r"(?<=[.:;])\s+", " ".join(path.read_text("utf-8").split())):
+            if re.search(r"\bpropose\b", sentence) and "[[" in sentence:
+                assert re.search(r"only (then|when asked)", sentence, re.I), (path.name, sentence)

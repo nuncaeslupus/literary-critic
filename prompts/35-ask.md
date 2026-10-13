@@ -27,8 +27,8 @@ exact, cheap, and can be repeated on the next draft.
    views first with `lc codex sql --schema --workspace <slug>`, then run it:
    `lc codex sql "<query>" --workspace <slug>`. Use `norm(text)` to compare
    names without case or accents. If the same kind of question comes up
-   again, propose it as a new named question (`[[...]]`, with no trace of the
-   novel).
+   again, note it in `log/` as a candidate named question; propose it only
+   when asked with `[[...]]`, with no trace of the novel.
 5. If the Codex cannot answer (the items are not recorded yet), say so, read
    the text with `lc find` or `lc show`, answer, and record what you learned
    (`20-codex-items.md`).

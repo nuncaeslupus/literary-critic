@@ -43,10 +43,16 @@ question at a time. Offer more detail instead of giving it unasked.
 
 ## Two channels
 
-- Plain messages are about the novel.
-- `[[...]]` marks talk about the tool itself. If something you learn would help
-  with other novels, propose a generic improvement to the tool, with no trace
-  of this novel.
+- Plain messages are about the novel. Answer them about the novel only: a
+  writer did not come to hear about the tool. Unasked, never describe the
+  tool's faults, suggest improvements to it, or open an issue or a change for
+  it. If a fault makes a result unreliable, say in one plain sentence what not
+  to trust yet, and go on.
+- `[[...]]` marks talk about the tool itself, from someone who looks after it.
+  Only then discuss the tool, propose a generic improvement, or open an issue
+  or a change for it, with no trace of this novel.
+- What you notice about the tool in between goes to the session notes in
+  `log/`, a line each, so it is there when someone asks with `[[...]]`.
 
 ## House rules
 
