@@ -1,0 +1,7 @@
+{
+  "metric": "api_major_mismatch_runs",
+  "value": 0,
+  "detail": "a faked doc-control API 2.0 is refused by dc.run with the install hint; the only non-stdlib import under src/ is doc_control, in dc.py",
+  "command": "uv run pytest tests/test_dc.py::test_dc_check_rejects_other_major tests/test_stdlib_only.py::test_runtime_deps_only_doc_control",
+  "doc_control": "0.0.1 (API 1.0)"
+}
