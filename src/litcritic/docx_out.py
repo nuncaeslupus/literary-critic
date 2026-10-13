@@ -18,7 +18,7 @@ from typing import Any
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 
-from litcritic import docx_edit, ingest, query, rounds
+from litcritic import ingest, query, rounds
 from litcritic.codex import Codex
 
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
@@ -26,21 +26,62 @@ COMMENTS_PART = "word/comments.xml"
 COMMENTS_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml"
 COMMENTS_REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
 AUTHOR = "literary-critic"
-W_PREFIX = docx_edit.W_PREFIX
+W_PREFIX = re.compile(
+    r'xmlns:(\w+)="http://schemas\.openxmlformats\.org/wordprocessingml/2006/main"'
+)
 
 
 class DocxError(Exception):
     """The comments copy cannot be made."""
 
 
+def _w_prefix(xml: str) -> str:
+    """The prefix bound to the WordprocessingML namespace in this part."""
+    m = W_PREFIX.search(xml)
+    if not m:
+        raise DocxError("document.xml has no prefixed WordprocessingML namespace")
+    return m.group(1)
+
+
+def _spans(xml: str, w: str) -> list[tuple[int, int]]:
+    """(content start, content end) of every w:p, in ingest's order (pre-order)."""
+    tag = re.compile(rf"<{w}:p(?=[\s>/])[^>]*?(/?)>|</{w}:p>")
+    spans: list[tuple[int, int]] = []
+    stack: list[int] = []
+    for t in tag.finditer(xml):
+        if t.group(0).startswith("</"):
+            if not stack:
+                raise DocxError("unbalanced paragraphs in document.xml")
+            k = stack.pop()
+            spans[k] = (spans[k][0], t.start())
+        elif t.group(1) == "/":
+            spans.append((t.end(), t.end()))
+        else:
+            spans.append((t.end(), -1))
+            stack.append(len(spans) - 1)
+    if stack:
+        raise DocxError("unbalanced paragraphs in document.xml")
+    return spans
+
+
+def _repack(data: bytes, parts: dict[str, bytes]) -> bytes:
+    """The package with ``parts`` replaced (or added); every other part copied as is."""
+    src = zipfile.ZipFile(io.BytesIO(data))
+    names = set(src.namelist())
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            dst.writestr(info, parts.get(info.filename, src.read(info.filename)))
+        for name, payload in parts.items():
+            if name not in names:
+                dst.writestr(name, payload)
+    return out.getvalue()
+
+
 def _paragraph_spans(xml: str) -> tuple[str, list[tuple[int, int, bool]]]:
     """The main-namespace prefix, and (content start, content end, empty) per w:p in order."""
-    try:
-        w = docx_edit.w_prefix(xml)
-        spans = docx_edit.paragraph_spans(xml, w)
-    except docx_edit.EditError as exc:
-        raise DocxError(str(exc)) from exc
-    return w, [(a, b, a == b) for a, b in spans]
+    w = _w_prefix(xml)
+    return w, [(a, b, a == b) for a, b in _spans(xml, w)]
 
 
 def _comment_xml(cid: int, text_lines: list[str], date: str, w: str = "w") -> str:
@@ -120,7 +161,7 @@ def add_comments(data: bytes, targets: dict[int, list[str]]) -> bytes:
         old_ct = src.read(ct).decode("utf-8") if ct in names else ""
         parts[rels] = _with_relationship(old_rels).encode("utf-8")
         parts[ct] = _with_content_type(old_ct).encode("utf-8")
-    return docx_edit.repack(data, parts)
+    return _repack(data, parts)
 
 
 def _with_content_type(xml: str) -> str:

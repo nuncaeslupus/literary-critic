@@ -1,0 +1,7 @@
+{
+  "metric": "unintended_docx_changes",
+  "value": 0,
+  "detail": "6 generated corpus documents x 6 edits applied through `lc docx edits` (one doc-control batch each): no paragraph text other than the edited ones changed, no other package part changed, and only the edited paragraphs' XML differs; edits are tracked revisions by literary-critic that reject back to the original; a Word lock file refuses edits, rename and undo with the file byte-identical; `lc docx undo` restores the pre-edit bytes",
+  "command": "uv run pytest tests/test_docx_cli.py::test_edits_change_only_target_text tests/test_docx_cli.py::test_edits_are_tracked_revisions tests/test_docx_cli.py::test_edit_refused_when_ambiguous_missing_or_overlapping tests/test_docx_cli.py::test_edit_refused_when_word_has_file_open tests/test_docx_cli.py::test_undo_restores_previous_bytes",
+  "doc_control": "0.0.1 (API 1.0)"
+}

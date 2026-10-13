@@ -29,7 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import ingest, metrics, rounds, safe_edit, settings, structure, workspace
+from litcritic import dc, ingest, metrics, rounds, settings, structure, workspace
 
 WORKSPACE_DIR = "literary-critic"
 SHINGLE = 5
@@ -201,12 +201,20 @@ def _title(path: Path) -> str:
     return " ".join(re.sub(r"[_]+", " ", stem).split()) or path.stem
 
 
+def _word_lock(manuscript: Path) -> bool:
+    """Word has the manuscript open (doc-control reads its lock file; .docx only)."""
+    try:
+        return bool(dc.run("info", {"doc": str(manuscript)}).get("word_lock"))
+    except dc.DocError:
+        return False
+
+
 def environment(folder: Path, manuscript: Path) -> dict[str, Any]:
     return {
         "python": platform.python_version(),
         "os": sys.platform,
         "folder_writable": os.access(folder, os.W_OK),
-        "word_lock": bool(safe_edit.lock_files(manuscript)),
+        "word_lock": _word_lock(manuscript),
     }
 
 
