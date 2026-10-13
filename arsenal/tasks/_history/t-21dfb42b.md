@@ -5,6 +5,7 @@ label: "index re-index changed"
 priority: 10
 deps: [t-68b65ef7]
 workspace: index
+status: merged
 ---
 
 # T6: index re-index changed
