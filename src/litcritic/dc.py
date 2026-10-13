@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 5, 0)  # reads .odt itself; locate structure=false; find query_word
-INSTALL_HINT = "install doc-control 0.5 (API 1.x): pip install 'doc-control>=0.5.0,<0.6'"
+MIN_VERSION = (0, 5, 1)  # reads .odt with pages and centring; locate structure=false
+INSTALL_HINT = "install doc-control 0.5 (API 1.x): pip install 'doc-control>=0.5.1,<0.6'"
 
 
 class DocError(Exception):

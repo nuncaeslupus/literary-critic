@@ -38,9 +38,10 @@ works grouped by any of them. `lc init <slug> --title … --language … [--auth
 `lc ingest <file> --workspace <slug|folder>` accepts `.txt`, `.md`, `.docx` and
 `.odt`. It copies the file to `manuscript/vNNN.<ext>` and writes `text/vNNN.txt`
 plus its meta file. doc-control reads every one of them itself. From an `.odt`
-it reads the body paragraphs, headings (as Heading 1-9) and paragraph style
-names; notes, comments, drawings and tracked deletions are left out, and its
-pages are unknown. A hard-wrapped `.txt` is read
+it reads the body paragraphs, headings (as Heading 1-9), paragraph style
+names, centring, page breaks and the pages LibreOffice last laid out (its soft
+page breaks); notes, comments, drawings and tracked deletions are left out. A
+hard-wrapped `.txt` is read
 as blocks (lines joined, one empty line separates, each extra one counts as a
 blank line); otherwise every line is a paragraph and every empty line a blank
 line (doc-control's `auto` text mode; a kind may set its own: poems read
