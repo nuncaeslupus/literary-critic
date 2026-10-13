@@ -276,8 +276,65 @@ def _previous_hashes(ws_root: Path, version: str) -> set[str] | None:
     if not path.is_file():
         return None
     prev = json.loads(path.read_text(encoding="utf-8"))
-    base = prev.get("base_hashes") if prev.get("draft") == version else prev.get("scene_hashes")
-    return set(base.values()) if isinstance(base, dict) else None
+    same = prev.get("draft") == version
+    base = prev.get("base_hashes") if same else prev.get("scene_hashes")
+    if not isinstance(base, dict):
+        return None
+    out = dict(base)
+    if not same:  # scenes a packet of that plan never imported were not indexed
+        for p in prev.get("packets", []):
+            if p["kind"] == "scenes" and p["status"] != "done":
+                for u in p["inputs"]["units"]:
+                    out.pop(u["scene"], None)
+    return set(out.values())
+
+
+def relink_scenes(cx: Codex, draft: Draft, base: set[str]) -> int:
+    """Point scene items at the scenes whose text they describe when the scene moved
+    or changed id (an inserted or moved scene): the item's span carries the signature of
+    the text it was made from. Only scenes whose text hash is in ``base`` are matched;
+    the item's label takes the scene's new id and a stale ``needs_reread`` is cleared.
+    Returns how many items were updated."""
+    sig: dict[str, Item] = {}
+    for it in cx.live("scene"):
+        if len(it.spans) == 1:
+            sig.setdefault(it.spans[0].sha1 or it.spans[0].exact, it)
+    text = draft.text()
+    hashes = scene_hashes(draft)
+    taken: set[str] = set()
+    updates: list[Item] = []
+    for sc in draft.scenes:
+        if hashes[sc["id"]] not in base:
+            continue
+        lo, hi = sc["start"], min(sc["end"], len(draft.paragraphs) - 1)
+        if hi < lo:
+            continue
+        span = spanlib.make(
+            text, draft.version, draft.anchors[lo], 0, draft.anchors[hi], len(draft.paragraphs[hi])
+        )
+        found = sig.get(span.sha1 or span.exact)
+        if found is None or found.id in taken:
+            continue
+        it = found
+        taken.add(it.id)
+        cur = it.spans[0]
+        label = it.text.split(": ", 1)
+        new_text = f"{sc['id']}: {label[1]}" if len(label) == 2 else it.text
+        same_place = (cur.start.para, cur.end.para, cur.state) == (
+            span.start.para,
+            span.end.para,
+            "ok",
+        )
+        if same_place and new_text == it.text:
+            continue
+        copy = Item.from_json(it.as_json())
+        copy.spans, copy.text = [span], new_text
+        if copy.status == "needs_reread":
+            copy.status = "active"
+        updates.append(copy)
+    if updates:
+        cx.replace_all(updates, op="relink", by="script")
+    return len(updates)
 
 
 def changed_scenes(
@@ -296,8 +353,8 @@ def changed_scenes(
         out.update(sid for sid, h in scene_hashes(draft).items() if h not in base)
     have = cx.scenes_by_unit(draft.anchors)
     out.update(sc["id"] for sc in draft.scenes if sc["id"] not in have)
-    if not queue.is_file():
-        return out
+    if base is not None or not queue.is_file():
+        return out  # the text hashes decide; the sync queue only matters without them
     rows = [json.loads(line) for line in queue.read_text("utf-8").splitlines() if line]
     pos = {a: i for i, a in enumerate(draft.anchors)}
     scene_of: dict[int, str] = {}
@@ -316,6 +373,70 @@ def changed_scenes(
                 continue
             out.update(scene_of[i] for i in range(i0, i1 + 1) if i in scene_of)
     return out
+
+
+REJECT_GROWTH = 3  # a rejected name comes back when it is this many times as frequent...
+REJECT_MORE = 5  # ...and has at least this many more occurrences than when rejected
+
+
+def _norm(name: str) -> str:
+    return " ".join(name.casefold().split())
+
+
+def rejects_path(ws_root: Path) -> Path:
+    return work_dir(ws_root) / "rejects.json"
+
+
+def load_rejects(ws_root: Path) -> dict[str, dict[str, Any]]:
+    """Names an entity answer rejected: normalised name -> ``{draft, count}``."""
+    path = rejects_path(ws_root)
+    if not path.is_file():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return dict(data) if isinstance(data, dict) else {}
+
+
+def _record_rejects(ws_root: Path, ans: dict[str, Any], draft: Draft, cx: Codex) -> int:
+    """Remember the rejected names that are candidates, with how often they occur."""
+    by_form: dict[str, dict[str, Any]] = {}
+    for c in draft.pre["candidates"]:
+        for f in [c["name"], *c.get("forms", [])]:
+            by_form.setdefault(_norm(f), c)
+    known = {_norm(f) for f in _forms(cx)}
+    rejects = load_rejects(ws_root)
+    n = 0
+    for name in ans.get("rejects", []):
+        key = _norm(name)
+        c = by_form.get(key)
+        if c is None or key in known:
+            continue
+        rejects[key] = {"draft": draft.version, "count": c["count"]}
+        n += 1
+    if n:
+        path = rejects_path(ws_root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _write_atomic(
+            path, json.dumps(rejects, ensure_ascii=False, indent=1, sort_keys=True) + "\n"
+        )
+    return n
+
+
+def _without_rejected(pre: dict[str, Any], rejects: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """The pre-pass minus rejected candidates, unless one grew sharply since."""
+    if not rejects:
+        return pre
+    keep = []
+    for c in pre["candidates"]:
+        was = rejects.get(_norm(c["name"]))
+        if was is not None:
+            old = int(was.get("count", 0))
+            if not (c["count"] >= REJECT_GROWTH * old and c["count"] - old >= REJECT_MORE):
+                continue
+        keep.append(c)
+    if len(keep) == len(pre["candidates"]):
+        return pre
+    budget = int(pre.get("stats", {}).get("text_tokens", 0) * prepass.DEFAULT_SHARE)
+    return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
 
 def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str]) -> dict[str, Any]:
@@ -350,9 +471,16 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
             "run `lc codex sync` first"
         )
     packets: list[dict[str, Any]] = []
+    rejected = _without_rejected(draft.pre, load_rejects(ws_root))
+    if rejected is not draft.pre:
+        draft.pre = rejected
+        prepass.write(ws_root, draft.pre)
     only: set[str] | None = None
     if changed:
-        only = changed_scenes(ws_root, draft, cx, _previous_hashes(ws_root, draft.version))
+        base = _previous_hashes(ws_root, draft.version)
+        if base is not None:
+            relink_scenes(cx, draft, base)
+        only = changed_scenes(ws_root, draft, cx, base)
         draft.pre = _uncovered(draft.pre, cx, only)
         prepass.write(ws_root, draft.pre)
     for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
@@ -984,6 +1112,8 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
         p["status"], p["error"] = "failed", str(exc)
         _save_plan(ws_root, doc)
         return f"error {packet_id}: {exc}"
+    if p["kind"] == "entities":
+        _record_rejects(ws_root, ans, draft, Codex(ws_root))
     p["status"], p["items"] = "done", len(items)
     if p["kind"] == "scenes":
         p["out_tokens"] = tokens(_compact(ans))

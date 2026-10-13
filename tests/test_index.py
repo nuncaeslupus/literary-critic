@@ -378,11 +378,18 @@ def _scenes_of_book(count: int, paras_each: int = 6) -> list[list[str]]:
     ]
 
 
-def _write_book(root: Path, scenes: list[list[str]], tmp: Path, tail: str = "") -> None:
+def _write_book(
+    root: Path,
+    scenes: list[list[str]],
+    tmp: Path,
+    tail: str = "",
+    starts: list[int] | None = None,
+) -> None:
+    starts = starts if starts is not None else list(range(0, len(scenes), 5))
     out: list[str] = []
     for k, sc in enumerate(scenes):
-        if k % 5 == 0:
-            out.append(f"CHAPTER {k // 5 + 1}")
+        if k in starts:
+            out.append(f"CHAPTER {starts.index(k) + 1}")
         elif k:
             out.append("* * *")
         out += sc
@@ -406,7 +413,7 @@ def _index_all(root: Path) -> dict[str, Any]:
 
 
 def _reindexed(
-    tmp_path: Path, edit: Any, count: int = 20, tail: str = ""
+    tmp_path: Path, edit: Any, count: int = 20, tail: str = "", starts: list[int] | None = None
 ) -> tuple[Path, dict[str, Any], dict[str, Any], list[list[str]]]:
     root = tmp_path / "ws"
     root.mkdir()
@@ -415,7 +422,7 @@ def _reindexed(
     _write_book(root, scenes, tmp_path)
     first = _index_all(root)
     new = edit([list(sc) for sc in scenes])
-    _write_book(root, new, tmp_path, tail)
+    _write_book(root, new, tmp_path, tail, starts)
     sync.sync(root)
     return root, first, packets.plan(root, changed=True), new
 
@@ -842,3 +849,89 @@ def test_output_tokens_per_scene_recorded(ws: Path) -> None:
         packets.tokens(compact) / len(answer["scenes"]), 1
     )
     assert any("out tokens/scene" in x for x in packets.status_lines(packets.load_plan(ws)))
+
+
+def test_reindex_inserted_scene_mid_book_packs_only_it(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        return [*sc[:7], _scenes_of_book(30)[25], *sc[7:]]
+
+    starts = [0, 5, 11, 16]  # the chapters keep their numbers; later scenes get new ids
+    root, _first, doc, _ = _reindexed(tmp_path, edit, starts=starts)
+    draft = _draft(root)
+    assert len(draft.scenes) == 21
+    assert _packed(doc) == [draft.scenes[7]["id"]]
+    for p in [x for x in doc["packets"] if x["kind"] == "scenes"]:
+        assert _import(root, p["id"], _scene_answer(root, p["id"])).startswith("ok ")
+    assert len(codex.Codex(root).live("scene")) == 21
+
+
+def test_reindex_moved_scene_is_not_read_again(tmp_path: Path) -> None:
+    def edit(sc: list[list[str]]) -> list[list[str]]:
+        moved = sc.pop(7)
+        sc.insert(13, moved)
+        return sc
+
+    root, _, doc, _ = _reindexed(tmp_path, edit, starts=[0, 5, 9, 15])  # headings stay put
+    assert _packed(doc) == []
+    cx = codex.Codex(root)
+    draft = _draft(root)
+    assert len(cx.live("scene")) == 20
+    assert set(cx.scenes_by_unit(draft.anchors)) == {s["id"] for s in draft.scenes}
+
+
+def _names(ws: Path) -> list[str]:
+    return [c["name"] for c in packets.load_draft(ws).pre["candidates"]]
+
+
+def test_rejected_names_are_not_offered_again(ws: Path) -> None:
+    pre = _draft(ws).pre["candidates"]
+    reject = next(c for c in pre if c["count"] >= 2 and c["name"] != "Utterson")
+    ents = [{"name": "Utterson", "kind": "character"}]
+    assert _import(ws, "e1", {"entities": ents, "rejects": [reject["name"]]}).startswith("ok ")
+    key = reject["name"].casefold()
+    assert packets.load_rejects(ws)[key] == {"draft": "v001", "count": reject["count"]}
+    packets.plan(ws)
+    assert reject["name"] not in _names(ws)
+    # A name that grew 3x and by 5 occurrences since it was rejected is offered again.
+    path = packets.rejects_path(ws)
+    rejects = json.loads(path.read_text("utf-8"))
+    rejects[key]["count"] = max(1, (reject["count"] - 5) // 3)
+    path.write_text(json.dumps(rejects), "utf-8")
+    packets.plan(ws)
+    grown = reject["count"] >= 3 * rejects[key]["count"] and (
+        reject["count"] - rejects[key]["count"] >= 5
+    )
+    assert (reject["name"] in _names(ws)) == grown
+
+
+def test_rejects_apply_to_changed_plans_and_return_on_growth(tmp_path: Path) -> None:
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "work.toml").write_text('slug = "re"\nlanguage = "en"\n', "utf-8")
+    _write_book(root, _scenes_of_book(20), tmp_path)
+    _index_all(root)
+
+    def book(extra: int) -> list[list[str]]:
+        sc = _scenes_of_book(20)
+        sc[4] = [*sc[4], "Then Zephaniah Quillfeather came, and Zephaniah Quillfeather left."]
+        sc[4] += ["Zephaniah Quillfeather spoke once more."] * extra
+        return sc
+
+    _write_book(root, book(0), tmp_path)
+    sync.sync(root)
+    packets.plan(root, changed=True)
+    assert _names(root) == ["Zephaniah Quillfeather"]
+    answer = {"entities": [], "rejects": ["Zephaniah  Quillfeather"]}
+    assert _import(root, "e1", answer) == "ok e1: 0 items"
+    assert packets.load_rejects(root)["zephaniah quillfeather"]["count"] == 2
+    doc = packets.plan(root, changed=True)
+    assert doc["stats"]["entity_packets"] == 0 and _names(root) == []
+    # Seen 3x as often and 5 more times than when rejected: offered again.
+    _write_book(root, book(6), tmp_path)
+    sync.sync(root)
+    doc = packets.plan(root, changed=True)
+    assert _names(root) == ["Zephaniah Quillfeather"] and doc["stats"]["entity_packets"] == 1
+    # The full plan drops a rejected name as well.
+    assert _import(root, "e1", answer).startswith("ok ")
+    packets.plan(root)
+    assert "Zephaniah Quillfeather" not in _names(root)
