@@ -178,11 +178,14 @@ severity × confidence × profile weight ÷ effort. `lc round letter` writes
 records the writer's decision as a `decision` item; `lc round status` says
 whether the round can close.
 
-Every action carries a writer locator from `lc locate <anchor>`: chapter,
-scene, page (exact when the source recorded pages, else ≈ at 300 words per
-page) and the paragraph's first and last words — the shortest runs that occur
-only once in the draft. A very short paragraph that cannot be unique is placed
-after its neighbour.
+Every action carries a writer locator from `lc locate <anchor>`: chapter and
+scene (the tool's labels), and from doc-control's `locate` and `page.estimate`
+on the draft's snapshot: the page (exact where Word's own page marks fix it,
+else ≈ from doc-control's page model), the paragraph's first and last words —
+doc-control's shortest start-and-end pair no other paragraph shares, shown
+with at least four words a side — and `find`, the phrase Word's Find meets
+once. A paragraph that repeats another word for word is placed after its
+neighbour.
 
 ## Comments in Word
 

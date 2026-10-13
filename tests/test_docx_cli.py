@@ -371,7 +371,8 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     # locate, by anchor and by quote
     loc_keys = {"chapter", "page", "first_words", "last_words"}
     code, out = _lc(capsys, "docx", "locate", "c01.s1.p1", *w)
-    ck(code == 0 and out["unique"] and len(out["find"]) <= 255)
+    # a title word found elsewhere too: the Find phrase of a paragraph above it
+    ck(code == 0 and len(out["find"]) <= 255 and (out["unique"] or out["paragraphs_after"] >= 1))
     ck(out["locator"] is not None and loc_keys <= out["locator"].keys())
     quote = _quote(doc)
     code, out = _lc(capsys, "docx", "locate", quote, *w)
@@ -426,45 +427,21 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     assert docx_cli_contract_ok == 1, f"failed checks at lines {failed}"
 
 
-def _unescape(find: str) -> str:
-    out = find.replace("^^", "\0")
-    for code, char in (("^p", "\n"), ("^t", "\t"), ("^l", "\x0b"), ("^~", "\x1e"), ("^s", "\xa0")):
-        out = out.replace(code, char)
-    return out.replace("\0", "^")
+def test_find_string_from_doc_control(tmp_path: Path) -> None:
+    ws, doc = _workspace(
+        tmp_path, _plain("***", "Uno ^ dos.", "***", "Fin.", "Rose said.", "rose said it.")
+    )
+    places = docx_cli._Places(ws, doc, doc.read_bytes())
+    ats = list(places.rows)
+    # A passage Word meets once is its own Find string, escaped for the Find box.
+    assert places.find(ats[1] + ":4-5", "^") == {"find": "^^", "unique": True}
+    # Otherwise the paragraph's Find phrase from doc-control's locate.
+    assert places.find(ats[3], "") == {"find": "Fin.", "unique": True}
+    found = places.find(ats[5], "said")  # Word's Find ignores case
+    assert found["unique"] and found["find"].lower() not in ("said", "rose said")
+    # A paragraph that repeats another points to the nearest one before it.
+    assert places.find(ats[2], "") == {"find": "Uno", "unique": False, "paragraphs_after": 1}
 
 
-def test_locate_find_string_is_unique() -> None:
-    texts = _texts(_corpus_docx())
-    whole = "\n".join(texts).lower()
-    checked = unique = 0
-    for k, t in enumerate(texts):
-        if not t.strip():
-            continue
-        find, ok = docx_cli.find_string(texts, k)
-        needle = _unescape(find).lower()
-        first = whole.find(needle)
-        once = first >= 0 and whole.find(needle, first + 1) < 0
-        checked += 1
-        unique += ok and once and len(find) <= 255
-    assert checked > 1000
-    assert unique / checked == 1.0
-
-
-def test_find_string_escapes_and_spans_paragraphs() -> None:
-    texts = ["***", "Uno ^ dos.", "***", "Fin."]
-    find, ok = docx_cli.find_string(texts, 2)
-    assert ok and find == "***^pFin."
-    find, ok = docx_cli.find_string(texts, 1)
-    assert ok and find == "Uno"
-    assert docx_cli.find_string(texts, 1, 4, 5) == ("^^", True)
-    find, ok = docx_cli.find_string(["Fin.", "Fin."], 1)
-    assert ok and find == "Fin.^pFin."
-    # Word's Find ignores case; tabs, line breaks and hard spaces have codes.
-    assert docx_cli.find_string(["Rose said.", "rose said it."], 1) == ("rose said it.", True)
-    assert docx_cli.find_string(["Uno\tdos", "uno dos"], 0) == ("Uno^tdos", True)
-    assert docx_cli.find_string(["a\xa0b", "a"], 0) == ("a^sb", True)
-    assert docx_cli.find_string(["a\x0bc", "a"], 0) == ("a^lc", True)
-    # Never more than 255 characters, and never a broken escape.
-    long = ["^" * 300, "^" * 300]
-    find, ok = docx_cli.find_string(long, 0)
-    assert not ok and len(find) <= 255 and find == "^^" * 127
+def test_find_box_escapes() -> None:
+    assert docx_cli._escape("a\tb\xa0c^d\x0be") == "a^tb^sc^^d^le"
