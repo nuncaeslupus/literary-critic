@@ -1,4 +1,5 @@
 import ast
+import re
 import subprocess
 import sys
 import zipfile
@@ -32,6 +33,65 @@ def third_party_imports() -> list[str]:
 
 def test_runtime_deps_only_doc_control() -> None:
     assert third_party_imports() == []
+
+
+# Spec §5: doc-control is the document layer. Only convert.py builds a .docx (for
+# .txt/.md/.odt manuscripts); no module reads Word parts itself.
+DOCX_PART = re.compile(r"(?:^|[\"'/])word/|wordprocessingml|\[Content_Types\]\.xml")
+WRITER = "convert.py"
+
+
+def _docx_part_literals(tree: ast.AST) -> tuple[list[str], list[str]]:
+    """Word-part string literals in ``tree``: (all of them, those passed to a read call)."""
+    docstrings = {
+        id(node.body[0].value)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+        and node.body
+        and isinstance(node.body[0], ast.Expr)
+        and isinstance(node.body[0].value, ast.Constant)
+    }
+    found, read = [], []
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in docstrings
+            and DOCX_PART.search(node.value)
+        ):
+            found.append(node.value)
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in ("read", "open", "getinfo")
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and isinstance(node.args[0].value, str)
+            and DOCX_PART.search(node.args[0].value)
+        ):
+            read.append(node.args[0].value)
+    return found, read
+
+
+def docx_xml_modules() -> list[str]:
+    offenders = []
+    for path in sorted((repo_root() / "src" / "litcritic").rglob("*.py")):
+        found, read = _docx_part_literals(ast.parse(path.read_text(encoding="utf-8")))
+        if read or (found and path.name != WRITER):
+            offenders.append(f"{path.name}: {sorted(set(read or found))}")
+    return offenders
+
+
+def test_no_module_reads_docx_parts() -> None:
+    assert docx_xml_modules() == []
+
+
+def test_docx_part_guard_catches_reads_and_writes() -> None:
+    reader = ast.parse('zf.read("word/document.xml")')
+    writer = ast.parse('zf.writestr("word/styles.xml", x)')
+    assert _docx_part_literals(reader) == (["word/document.xml"], ["word/document.xml"])
+    assert _docx_part_literals(writer) == (["word/styles.xml"], [])
+    assert _docx_part_literals(ast.parse('"""Writes ``word/`` parts."""')) == ([], [])
 
 
 def test_kit_runs_on_its_own(tmp_path: Path) -> None:

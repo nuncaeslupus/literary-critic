@@ -113,6 +113,7 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 | T9 | `fuzzy_relocations == 0` | 0 (753 corpus resolves and 147 in the 11 T7 sync scenarios, none fuzzy; 11 of 11 reports and every span as before) | `uv run pytest tests/test_spans.py::test_relocate_exact_only` | branch claude/focused-hopper-0nq71a-t9 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.3.0) | 2026-10-13 |
 | T10 | `codex_spans_lost_on_upgrade == 0` | 0 (jekyll-hyde 66 of 66 resolved spans kept, marianela 196 of 196, jekyll-hyde with old/new text drift 66 of 66; unmatched override listed, not dropped); `lc upgrade` wall 0.8 s (26k words, 2 txt drafts) and 2.5 s (50k words, 2 docx drafts) | `uv run pytest tests/test_upgrade.py::test_upgrade_keeps_every_resolved_span tests/test_upgrade.py::test_upgrade_lists_unmatched_overrides` | branch claude/focused-hopper-0nq71a-t10 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.3.0) | 2026-10-13 |
 | T12 | `docs_naming_word_control_interface == 0` | 0 (interface doc deleted; no prompt, skill, doc, kit, code or test file names it or its extension hook; prompts_reference_valid_commands 1.0) | `uv run pytest tests/test_prompts.py::test_prompts_name_only_lc_commands` | branch claude/focused-hopper-0nq71a-t12 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.3.0) | 2026-10-13 |
+| T13 | `docx_xml_modules_in_litcritic == 0` | 0 (was 1: kit.py's self-test docx, now built by convert; convert.py writes parts, reads none) | `uv run pytest tests/test_stdlib_only.py::test_no_module_reads_docx_parts` | branch claude/focused-hopper-0nq71a-t13 (unmerged) | local (Linux, CPython 3.13 via uv, doc-control 0.3.0) | 2026-10-13 |
 
 ### Dependency graph
 
@@ -160,6 +161,6 @@ and the kit. Non-`.docx` manuscripts pass through `litcritic.convert` (D-6) and 
 ## Sign-off
 
 - [ ] Design reviewed by the owner
-- [ ] Contracts agreed with doc-control (bulk read API)
+- [x] Contracts agreed with doc-control (bulk read API) — T5 (#110) reads through it
 - [ ] Migration strategy validated on a copy of the working-novel workspace
-- [ ] Ready for execution
+- [x] Ready for execution — T1–T13 executed, every gate recorded above
