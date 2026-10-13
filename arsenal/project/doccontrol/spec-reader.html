@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="fb270e9aefc6d963e30bd2bb562ea0e944c06c174452a7bc19900a33a94d867a">
+<meta name="arsenal-source-sha256" content="6b96c10cf4ef5c85d7da2f618885228a5fb26c79c802b1e1b21754a32d6f66e6">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -130,7 +130,7 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 14 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -160,6 +160,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <li><a href="#s-spec-option-c-no-adapter-the-llm-call">Option C: No adapter; the LLM calls doc-control directly</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-api-contracts">API contracts</a></li>
+<li><a href="#s-spec-inter-service-contracts">Inter-service contracts</a></li>
+<li><a href="#s-spec-database-migrations">Database migrations</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -169,10 +174,11 @@ h4.sec-h{font-size:16.5px;color:var(--fg)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-13
 <strong>Ticket / PR</strong>: workspace <code>doccontrol</code>
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 1
-<strong>Status</strong>: draft
+<strong>Revision</strong>: 2
+<strong>Status</strong>: approved (2026-10-13, revision 2) — without annotations
 <strong>Revision log</strong>:
-- r1 — first draft, from the owner's decisions in conversation (2026-10-12/13, D-1…D-5) and doc-control's own decisions D-18/D-19 and its research note <code>docs/research/03-literary-critic-indexer.md</code></p>
+- r1 — first draft, from the owner's decisions in conversation (2026-10-12/13, D-1…D-5) and doc-control's own decisions D-18/D-19 and its research note <code>docs/research/03-literary-critic-indexer.md</code>
+- r2 — owner's answers in conversation (no notes export): open questions 1 and 2 decided (D-6, D-7); Option B approved</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied
@@ -395,7 +401,7 @@ would be thrown away.</p>
 <div class="sec-body"><p><strong>Recommended option</strong>: Option B. It is the only option that satisfies the owner's "align literary-critic with doc-control" and doc-control's D-19, and doc-control has already shipped and gated every primitive it needs (its T31–T36). Option A leaves a second <code>.docx</code> reader that would need its own fixes forever; Option C breaks rule 7.</p>
 <p><strong>Immediate next action</strong>: on approval, <code>design</code> splits Option B into tasks along the migration order, the first being the adapter plus edits, rename and comments.</p>
 <p><strong>Gates check</strong>: objective, scope, systems, compatibility, risk and validation are stated above; release readiness is the workspace upgrade (criterion 4) and the kit self-test (criterion 6).</p>
-<p><strong>Open questions</strong>:
+<p><strong>Open questions</strong> (decided in r2, kept for the record):
 1. Non-<code>.docx</code> manuscripts (<code>.txt</code>, <code>.md</code>, <code>.odt</code>). Asked to the doc-control session on 2026-10-13: will doc-control accept a plain list of paragraphs with layout facts for <code>segment</code>/<code>diff</code>/<code>locate</code>, or read <code>.odt</code> soon? Default if not: literary-critic converts these formats to a minimal <code>.docx</code> at ingest (format conversion of the writer's input is a literary-critic concern) and runs doc-control on that copy; the original stays untouched.
 2. Fingerprints in existing <code>structure-overrides.json</code> are 12-hex SHA-1 over folded text; doc-control uses 8-hex. Default: translate by matching paragraph text at upgrade, and list any override that cannot be matched for the writer to re-confirm.</p>
 <p><strong>Decisions log</strong></p>
@@ -439,9 +445,182 @@ would be thrown away.</p>
 <td>agreed</td>
 <td>2026-10-12</td>
 </tr>
+<tr>
+<td>D-6</td>
+<td>Non-<code>.docx</code> manuscripts are converted to a minimal <code>.docx</code> at ingest as a stopgap; more document types will come soon, so the conversion is one isolated module that a native doc-control reader replaces format by format</td>
+<td>agreed</td>
+<td>2026-10-13</td>
+</tr>
+<tr>
+<td>D-7</td>
+<td>doc-control's fingerprints, ids and overrides are the only scheme; no compatibility layer for the old 12-hex fingerprints — existing overrides are migrated once by text match, unmatched ones listed for re-confirmation; where doc-control's way looks wrong, tell the doc-control session instead of keeping the old version</td>
+<td>agreed</td>
+<td>2026-10-13</td>
+</tr>
+<tr>
+<td>D-8</td>
+<td>Option B approved</td>
+<td>agreed</td>
+<td>2026-10-13</td>
+</tr>
 </tbody>
 </table></div>
 <div class="note" data-for="s-spec-4"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></div><textarea class="note-ta" data-key="s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="note" data-for="s-spec-5"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></div><textarea class="note-ta" data-key="s-spec-5" data-label="§5 Contracts" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-api-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">API contracts</span></h4>
+<div class="sec-body"><h4>Adapter <code>litcritic.dc</code> (the only module that imports <code>doc_control</code>)</h4>
+<ul>
+<li><code>dc.run(op: str, request: dict) -&gt; dict</code> — runs one doc-control operation in-process and returns its <code>result</code>; raises <code>dc.DocError(code, message, hint)</code> on an error envelope. Warnings are returned under <code>result["_warnings"]</code> when present.</li>
+<li><code>dc.check() -&gt; None</code> — called once per <code>lc</code> process; raises <code>LcError("doc-control API x.y is not supported; install doc-control &lt;2")</code> when <code>capabilities.api</code> major ≠ <code>dc.API_MAJOR</code> (1).</li>
+<li>Bulk reads (<code>dc.paragraphs(path)</code>) wait for doc-control's in-process API without response caps (requested 2026-10-13); until then the adapter does not page capped responses for indexing.</li>
+<li><strong>Backwards compatible</strong>: <code>lc</code> commands keep names, flags and exit codes; JSON fields that carried paragraph positions (<code>src</code>) now carry doc-control addresses (<code>at</code>, e.g. <code>p142#a7b2a7b2</code>).</li>
+</ul>
+<h4>Conversion <code>litcritic.convert</code> (D-6)</h4>
+<ul>
+<li><code>convert.to_docx(path) -&gt; bytes</code> for <code>.txt</code>, <code>.md</code>, <code>.odt</code>: one Word paragraph per source paragraph, carrying heading level (built-in <code>Heading N</code> styles), centring, page break before and blank lines as empty paragraphs. The writer's file is never changed; the converted copy is what doc-control reads. One function per format, removed when doc-control reads that format natively.</li>
+</ul>
+<h4>Workspace data</h4>
+<p><code>text/vNNN.meta.json</code> — <code>schema_version: 2</code>; each paragraph gains <code>at</code> (doc-control address) and loses <code>src</code>:</p>
+<pre><code class="language-json">{&quot;schema_version&quot;: 2, &quot;format&quot;: &quot;docx&quot;, &quot;source_sha256&quot;: &quot;…&quot;, &quot;paragraphs&quot;: [{&quot;at&quot;: &quot;p6#7d3684d2&quot;, &quot;style&quot;: &quot;Chap&quot;, &quot;heading&quot;: 1, &quot;centered&quot;: true, &quot;page&quot;: 1}]}
+</code></pre>
+<p><code>analysis/structure-overrides.json</code> — doc-control's override shape, passed through to <code>segment</code>/<code>locate</code> unchanged (D-7):</p>
+<pre><code class="language-json">{&quot;schema_version&quot;: 2, &quot;overrides&quot;: [{&quot;fp&quot;: &quot;7d3684d2&quot;, &quot;kind&quot;: &quot;chapter&quot;, &quot;action&quot;: &quot;force&quot;, &quot;nth&quot;: 1}]}
+</code></pre>
+<p><code>index/vNNN/structure.json</code> keeps the <code>cNN.sN.pN</code> labels; each unit also records doc-control's <code>id</code> (<code>ch-…</code>, <code>sc-…</code>) and <code>signals</code>.</p></div>
+<div class="note" data-for="s-spec-api-contracts"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › API contracts</span></div><textarea class="note-ta" data-key="s-spec-api-contracts" data-label="API contracts" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-inter-service-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Inter-service contracts</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Callee</th>
+<th>Protocol</th>
+<th>Contract</th>
+<th>Failure handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>litcritic.dc</code></td>
+<td><code>doc_control</code> registry</td>
+<td>In-process call</td>
+<td>doc-control operation schemas, API major 1</td>
+<td><code>DocError</code> → <code>LcError</code> with doc-control's hint; <code>STALE_ADDRESS</code>/<code>ANCHOR_*</code> → re-read and report to the writer, never retry blindly</td>
+</tr>
+<tr>
+<td><code>lc kit --skill</code></td>
+<td>doc-control package files</td>
+<td>Copied into the zip</td>
+<td>Same version as installed</td>
+<td>Self-test fails the build</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-inter-service-contracts"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Inter-service contracts</span></div><textarea class="note-ta" data-key="s-spec-inter-service-contracts" data-label="Inter-service contracts" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-database-migrations">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Database migrations</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Database</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Workspace</td>
+<td><code>text/*.meta.json</code>, <code>index/*/structure.json</code></td>
+<td>Re-built from <code>manuscript/vNNN.*</code> by <code>lc upgrade</code> (backup first)</td>
+<td>yes (backup folder)</td>
+<td>no — old <code>lc</code> refuses <code>schema_version: 2</code></td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td><code>analysis/structure-overrides.json</code></td>
+<td>12-hex fingerprints → doc-control fingerprints by paragraph-text match; unmatched listed in <code>analysis/upgrade-report.md</code></td>
+<td>yes (backup)</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Workspace</td>
+<td>Codex spans</td>
+<td>Re-anchored on the re-built text; exact-only</td>
+<td>yes (backup)</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-database-migrations"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Database migrations</span></div><textarea class="note-ta" data-key="s-spec-database-migrations" data-label="Database migrations" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
+</article>
+<article class="sec" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>doc-control's capped, re-parsing API makes ingest slow (measured 19 s for 65k words vs 0.06 s)</td>
+<td>High</td>
+<td>High</td>
+<td>Ingest tasks depend on doc-control's uncapped in-process API; no paging workaround here</td>
+<td>perf: <code>ingest_100k_words_s &lt;= 3</code></td>
+</tr>
+<tr>
+<td>doc-control API changes under us (0.0.x)</td>
+<td>Med</td>
+<td>Med</td>
+<td>Pin <code>&lt;0.1</code>, major check at start, adapter is the only importer</td>
+<td>unit: <code>test_dc_check_rejects_other_major</code></td>
+</tr>
+<tr>
+<td>Chapter detection differs from the old detector on real novels</td>
+<td>Med</td>
+<td>Med</td>
+<td>Gate on corpus F1; differences listed in evidence; disagreements go to the doc-control session (D-7)</td>
+<td>integration on both corpus texts</td>
+</tr>
+<tr>
+<td>Upgrade loses Codex spans or overrides on the owner's working novel</td>
+<td>Low</td>
+<td>High</td>
+<td>Backup first, dry run report, exact-only re-anchoring, unmatched items listed</td>
+<td>integration: <code>codex_spans_lost_on_upgrade == 0</code></td>
+</tr>
+<tr>
+<td>Converted <code>.docx</code> differs from the source (headings, blanks lost)</td>
+<td>Med</td>
+<td>Med</td>
+<td>Round-trip test: reader facts == doc-control facts on the converted copy</td>
+<td>unit</td>
+</tr>
+<tr>
+<td>Kit zip misses doc-control in a chat sandbox</td>
+<td>Low</td>
+<td>High</td>
+<td>Vendor and self-test offline on 3.11</td>
+<td>CI job</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><div class="note-head"><span class="note-ico">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></div><textarea class="note-ta" data-key="s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Tap to add a note for this point…"></textarea></div>
 </article>
 </section>
 </div>
@@ -563,7 +742,7 @@ would be thrown away.</p>
   document.getElementById('btn-export').addEventListener('click',function(){
     var r=buildExport();
     if(r.n===0){toast('No notes yet — add some first.');return;}
-    var name='literary-critic-spec-notes-'+today()+'-r1.md';
+    var name='literary-critic-spec-notes-'+today()+'-r2.md';
     var saved=download(name,r.text);openModal(r.text);
     try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(r.text).then(function(){},function(){});}}catch(e){}
     if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
@@ -585,7 +764,7 @@ would be thrown away.</p>
     if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
     else{report(false);}
   });
-  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r1.md',modalTa.value);toast('Download started');});
+  document.getElementById('modal-dl').addEventListener('click',function(){download('literary-critic-spec-notes-'+today()+'-r2.md',modalTa.value);toast('Download started');});
   document.getElementById('modal-close').addEventListener('click',closeModal);
   modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
 

@@ -11,10 +11,11 @@
 **Date**: 2026-10-13
 **Ticket / PR**: workspace `doccontrol`
 **Author**: Claude (with the owner)
-**Revision**: 1
-**Status**: draft
+**Revision**: 2
+**Status**: approved (2026-10-13, revision 2) — without annotations
 **Revision log**:
 - r1 — first draft, from the owner's decisions in conversation (2026-10-12/13, D-1…D-5) and doc-control's own decisions D-18/D-19 and its research note `docs/research/03-literary-critic-indexer.md`
+- r2 — owner's answers in conversation (no notes export): open questions 1 and 2 decided (D-6, D-7); Option B approved
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied
@@ -155,7 +156,7 @@ would be thrown away.
 
 **Gates check**: objective, scope, systems, compatibility, risk and validation are stated above; release readiness is the workspace upgrade (criterion 4) and the kit self-test (criterion 6).
 
-**Open questions**:
+**Open questions** (decided in r2, kept for the record):
 1. Non-`.docx` manuscripts (`.txt`, `.md`, `.odt`). Asked to the doc-control session on 2026-10-13: will doc-control accept a plain list of paragraphs with layout facts for `segment`/`diff`/`locate`, or read `.odt` soon? Default if not: literary-critic converts these formats to a minimal `.docx` at ingest (format conversion of the writer's input is a literary-critic concern) and runs doc-control on that copy; the original stays untouched.
 2. Fingerprints in existing `structure-overrides.json` are 12-hex SHA-1 over folded text; doc-control uses 8-hex. Default: translate by matching paragraph text at upgrade, and list any override that cannot be matched for the writer to re-confirm.
 
@@ -168,9 +169,96 @@ would be thrown away.
 | D-3 | doc-control is built before literary-critic depends on new features; the live-Word engine will come from doc-control — literary-critic builds no live-Word or other doc-control-owned capability | agreed | 2026-10-12 |
 | D-4 | literary-critic work focuses on what doc-control will never own: labels, Codex, checks, rounds, reports, prompts, metrics, setup, kit | agreed | 2026-10-12 |
 | D-5 | Gaps found in doc-control are raised with the doc-control session or filed upstream, never patched here | agreed | 2026-10-12 |
+| D-6 | Non-`.docx` manuscripts are converted to a minimal `.docx` at ingest as a stopgap; more document types will come soon, so the conversion is one isolated module that a native doc-control reader replaces format by format | agreed | 2026-10-13 |
+| D-7 | doc-control's fingerprints, ids and overrides are the only scheme; no compatibility layer for the old 12-hex fingerprints — existing overrides are migrated once by text match, unmatched ones listed for re-confirmation; where doc-control's way looks wrong, tell the doc-control session instead of keeping the old version | agreed | 2026-10-13 |
+| D-8 | Option B approved | agreed | 2026-10-13 |
 
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §5`
+> _(your notes here — replace this line)_
+
+### API contracts
+
+#### Adapter `litcritic.dc` (the only module that imports `doc_control`)
+
+- `dc.run(op: str, request: dict) -> dict` — runs one doc-control operation in-process and returns its `result`; raises `dc.DocError(code, message, hint)` on an error envelope. Warnings are returned under `result["_warnings"]` when present.
+- `dc.check() -> None` — called once per `lc` process; raises `LcError("doc-control API x.y is not supported; install doc-control <2")` when `capabilities.api` major ≠ `dc.API_MAJOR` (1).
+- Bulk reads (`dc.paragraphs(path)`) wait for doc-control's in-process API without response caps (requested 2026-10-13); until then the adapter does not page capped responses for indexing.
+- **Backwards compatible**: `lc` commands keep names, flags and exit codes; JSON fields that carried paragraph positions (`src`) now carry doc-control addresses (`at`, e.g. `p142#a7b2a7b2`).
+
+#### Conversion `litcritic.convert` (D-6)
+
+- `convert.to_docx(path) -> bytes` for `.txt`, `.md`, `.odt`: one Word paragraph per source paragraph, carrying heading level (built-in `Heading N` styles), centring, page break before and blank lines as empty paragraphs. The writer's file is never changed; the converted copy is what doc-control reads. One function per format, removed when doc-control reads that format natively.
+
+#### Workspace data
+
+`text/vNNN.meta.json` — `schema_version: 2`; each paragraph gains `at` (doc-control address) and loses `src`:
+
+```json
+{"schema_version": 2, "format": "docx", "source_sha256": "…", "paragraphs": [{"at": "p6#7d3684d2", "style": "Chap", "heading": 1, "centered": true, "page": 1}]}
+```
+
+`analysis/structure-overrides.json` — doc-control's override shape, passed through to `segment`/`locate` unchanged (D-7):
+
+```json
+{"schema_version": 2, "overrides": [{"fp": "7d3684d2", "kind": "chapter", "action": "force", "nth": 1}]}
+```
+
+`index/vNNN/structure.json` keeps the `cNN.sN.pN` labels; each unit also records doc-control's `id` (`ch-…`, `sc-…`) and `signals`.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › API contracts`
+> _(your notes here — replace this line)_
+
+### Inter-service contracts
+
+| Caller | Callee | Protocol | Contract | Failure handling |
+|--------|--------|----------|----------|-----------------|
+| `litcritic.dc` | `doc_control` registry | In-process call | doc-control operation schemas, API major 1 | `DocError` → `LcError` with doc-control's hint; `STALE_ADDRESS`/`ANCHOR_*` → re-read and report to the writer, never retry blindly |
+| `lc kit --skill` | doc-control package files | Copied into the zip | Same version as installed | Self-test fails the build |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Inter-service contracts`
+> _(your notes here — replace this line)_
+
+### Database migrations
+
+| Service | Database | Change | Reversible | Forward-compatible |
+|---------|----------|--------|------------|-------------------|
+| Workspace | `text/*.meta.json`, `index/*/structure.json` | Re-built from `manuscript/vNNN.*` by `lc upgrade` (backup first) | yes (backup folder) | no — old `lc` refuses `schema_version: 2` |
+| Workspace | `analysis/structure-overrides.json` | 12-hex fingerprints → doc-control fingerprints by paragraph-text match; unmatched listed in `analysis/upgrade-report.md` | yes (backup) | no |
+| Workspace | Codex spans | Re-anchored on the re-built text; exact-only | yes (backup) | yes |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Database migrations`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| doc-control's capped, re-parsing API makes ingest slow (measured 19 s for 65k words vs 0.06 s) | High | High | Ingest tasks depend on doc-control's uncapped in-process API; no paging workaround here | perf: `ingest_100k_words_s <= 3` |
+| doc-control API changes under us (0.0.x) | Med | Med | Pin `<0.1`, major check at start, adapter is the only importer | unit: `test_dc_check_rejects_other_major` |
+| Chapter detection differs from the old detector on real novels | Med | Med | Gate on corpus F1; differences listed in evidence; disagreements go to the doc-control session (D-7) | integration on both corpus texts |
+| Upgrade loses Codex spans or overrides on the owner's working novel | Low | High | Backup first, dry run report, exact-only re-anchoring, unmatched items listed | integration: `codex_spans_lost_on_upgrade == 0` |
+| Converted `.docx` differs from the source (headings, blanks lost) | Med | Med | Round-trip test: reader facts == doc-control facts on the converted copy | unit |
+| Kit zip misses doc-control in a chat sandbox | Low | High | Vendor and self-test offline on 3.11 | CI job |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 
