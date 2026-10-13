@@ -1,28 +1,38 @@
 """Writer locators: how a person finds a paragraph without any tools.
 
-For an anchor it gives the chapter (number and title), the scene, an
-approximate page, and the paragraph's first and last words — each the shortest
-run of words (at least four, at most twelve) that occurs exactly once in the
-whole draft, so the writer can spot it by eye or with the editor's search box.
+For an anchor it gives the chapter (number and title) and the scene, from
+literary-critic's labels, and from doc-control's ``locate`` and
+``page.estimate``: an approximate page, the paragraph's first and last words
+(doc-control's shortest head … tail that no other paragraph shares, shown with
+at least four words a side so the writer can spot it by eye) and the phrase
+Word's Find meets exactly once. A paragraph that repeats another one word for
+word points to the paragraph just before it.
 """
 
 from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from litcritic import query
+from litcritic import dc, ingest, query
 
-MIN_WORDS = 4
-MAX_WORDS = 12
-WORDS_PER_PAGE = 300
+MIN_WORDS = 4  # words shown a side, at least (more never makes a unique phrase ambiguous)
+MAX_WORDS = 12  # words shown a side when no phrase is unique
 LABELS = {
     "es": {"front": "preliminares", "scene": "escena"},
     "en": {"front": "front matter", "scene": "scene"},
 }
+_WORD = re.compile(r"\S+")
+
+Rows = dict[str, dict[str, Any]]  # doc-control address -> its locate row (plus text, page_exact)
+
+
+class LocateError(ValueError):
+    """The draft cannot be located (not read through doc-control, or its file is gone)."""
 
 
 @dataclass
@@ -36,6 +46,7 @@ class Locator:
     last_words: str
     unique: bool
     after: str = ""  # opening words of the previous paragraph, when this one is not unique
+    find: str = ""  # what to type in Word's Find to land on this paragraph ("" when none)
 
     def as_where(self) -> dict[str, Any]:
         """The ``where`` object of an action (schema ``action``)."""
@@ -52,46 +63,108 @@ class Locator:
             out["page_exact"] = self.page_exact
         if self.after:
             out["after"] = self.after
+        if self.find:
+            out["find"] = self.find
         return out
 
 
-def _occurrences(haystack: str, needle: str) -> int:
-    return haystack.count(needle)
+def read_rows(doc: dc.Document) -> Rows:
+    """doc-control's ``locate`` row of every paragraph, with its text and whether
+    its page is Word's own (the file was laid out by Word and a mark or break
+    fixes the page) rather than the word-count model's."""
+    located = doc.run("locate", {})
+    pages = doc.run("page.estimate", {})
+    laid_out = str(located.get("basis", "model")) != "model"
+    exact = {str(r["at"]): laid_out and r.get("source") != "model" for r in pages["paragraphs"]}
+    text = {str(p["at"]): str(p.get("text", "")) for p in doc.paragraphs()}
+    return {
+        str(r["at"]): {**r, "text": text.get(str(r["at"]), ""), "page_exact": exact.get(r["at"])}
+        for r in located["paragraphs"]
+    }
 
 
-def _unique_run(words: list[str], text: str, from_end: bool) -> tuple[str, bool]:
-    """Shortest run of words from the start (or end) that occurs once in ``text``."""
-    n = len(words)
-    for k in range(min(MIN_WORDS, n), min(MAX_WORDS, n) + 1):
-        run = " ".join(words[n - k :] if from_end else words[:k])
-        if _occurrences(text, run) == 1:
-            return run, True
-    k = min(MAX_WORDS, n)
-    return " ".join(words[n - k :] if from_end else words[:k]), False
+def _ends(text: str, head: int, tail: int) -> tuple[str, str]:
+    """The first ``head`` and last ``tail`` words of ``text``."""
+    spans = [(m.start(), m.end()) for m in _WORD.finditer(text)]
+    if not spans:
+        return "", ""
+    n = len(spans)
+    head, tail = min(max(head, 1), n), min(max(tail, 1), n)
+    first, last = text[spans[0][0] : spans[head - 1][1]], text[spans[n - tail][0] : spans[-1][1]]
+    return ingest.clean(first), ingest.clean(last)  # as the writer sees them (no soft hyphens)
 
 
-class LocatorBuilder:
+def _phrase(row: dict[str, Any]) -> tuple[str, str, bool]:
+    """(first words, last words, unique) of a locate row."""
+    if row.get("phrase") is None:
+        side = MAX_WORDS if row.get("reason") == "not_unique_within_limit" else MIN_WORDS
+        first, last = _ends(row["text"], side, side)
+        return first, last, False
+    head = max(int(row.get("head_words") or 0), MIN_WORDS)
+    tail = max(int(row.get("tail_words") or 0), MIN_WORDS)
+    first, last = _ends(row["text"], head, tail)
+    return first, last, True
+
+
+class Locations:
+    """Writer locators for the paragraphs of an index.
+
+    ``ats`` are the doc-control addresses of ``ix.paragraphs`` (same order);
+    ``load`` returns doc-control's rows for the document they point into and is
+    called once, on the first locator asked for.
+    """
+
     def __init__(
-        self, ix: query.Index, meta: list[dict[str, Any]] | None = None, lang: str = "en"
+        self, ix: query.Index, ats: list[str], load: Callable[[], Rows], lang: str = "en"
     ) -> None:
         self.ix = ix
+        self.ats = ats
         self.lang = lang
-        self.text = "\n".join(ix.paragraphs)
-        self.meta = meta if meta and len(meta) == len(ix.paragraphs) else []
-        self.pages_known = any(m.get("page") for m in self.meta)
-        self.words_before: list[int] = []
-        total = 0
-        for p in ix.paragraphs:
-            self.words_before.append(total)
-            total += len(p.split())
+        self._load = load
+        self._rows: Rows | None = None
         self.chapter_by_key = {query.chapter_key(c["id"]): c for c in ix.chapters}
+
+    @classmethod
+    def of_workspace(
+        cls, ws_root: Path, version: str, ix: query.Index, lang: str = "en"
+    ) -> Locations:
+        """Locators for an ingested draft, from its snapshot ``manuscript/vNNN.*``."""
+        ats = [str(p.get("at", "")) for p in load_meta(ws_root, version)]
+        if len(ats) != len(ix.paragraphs) or not all(ats):
+            raise LocateError(f"{version} was not read through doc-control: run `lc ingest` again")
+        snapshots = [p for p in (ws_root / "manuscript").glob(f"{version}.*") if p.is_file()]
+        if not snapshots:
+            raise LocateError(f"the snapshot of {version} is missing from manuscript/")
+
+        def load() -> Rows:
+            with ingest.docx_of(snapshots[0]) as (docx, _), dc.open(docx) as doc:
+                return read_rows(doc)
+
+        return cls(ix, ats, load, lang)
+
+    @property
+    def rows(self) -> Rows:
+        if self._rows is None:
+            try:
+                self._rows = self._load()
+            except dc.DocError as exc:
+                raise LocateError(f"cannot locate paragraphs: {exc}") from exc
+        return self._rows
+
+    def row(self, i: int) -> dict[str, Any] | None:
+        """doc-control's locate row of paragraph ``i`` of the index."""
+        return self.rows.get(self.ats[i]) if 0 <= i < len(self.ats) else None
 
     def locate(self, anchor: str) -> Locator:
         i = query.paragraph_range(self.ix, anchor).start
         a = self.ix.anchors[i]
-        words = self.ix.paragraphs[i].split()
-        first, ok1 = _unique_run(words, self.text, from_end=False)
-        last, ok2 = _unique_run(words, self.text, from_end=True)
+        row = self.row(i)
+        if row is None:
+            raise KeyError(f"{a} is not in the document doc-control read")
+        first, last, unique = _phrase(row)
+        after = ""
+        if not unique and (before := self.row(i - 1)) is not None:
+            after = _phrase(before)[0]
         chapter = self.chapter_by_key.get(query.chapter_key(a), {})
         m = re.search(r"c(\d+)", a)
         number = int(m.group(1)) if m else 0
@@ -102,14 +175,19 @@ class LocatorBuilder:
         )
         scene = re.search(r"\.s(\d+)", a)
         section = f"{labels['scene']} {scene.group(1)}" if scene and scene.group(1) != "0" else ""
-        page = int(self.meta[i].get("page") or 0) if self.pages_known else 0
-        exact = page > 0
-        if not exact:
-            page = self.words_before[i] // WORDS_PER_PAGE + 1
-        after = ""
-        if not (ok1 and ok2) and i > 0:
-            after, _ = _unique_run(self.ix.paragraphs[i - 1].split(), self.text, from_end=False)
-        return Locator(a, chapter_label, section, page, exact, first, last, ok1 and ok2, after)
+        page = int(row.get("page_label") or row.get("page") or 0)
+        return Locator(
+            a,
+            chapter_label,
+            section,
+            page,
+            bool(row.get("page_exact")),
+            first,
+            last,
+            unique,
+            after,
+            str(row.get("find_phrase") or ""),
+        )
 
 
 def load_meta(ws_root: Path, version: str) -> list[dict[str, Any]]:
@@ -117,8 +195,7 @@ def load_meta(ws_root: Path, version: str) -> list[dict[str, Any]]:
     if not f.is_file():
         return []
     data = json.loads(f.read_text(encoding="utf-8"))
-    paragraphs = data.get("paragraphs", [])
-    return paragraphs if data.get("pages_known") else []
+    return list(data.get("paragraphs", []))
 
 
 def describe(loc: Locator, lang: str = "en") -> str:
@@ -151,6 +228,7 @@ def from_where(where: dict[str, Any]) -> Locator:
         last_words=where["last_words"],
         unique=True,
         after=where.get("after", ""),
+        find=where.get("find", ""),
     )
 
 

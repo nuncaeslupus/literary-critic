@@ -13,7 +13,8 @@ writer never searches for anything, and never loses a word of their work.
    file, because passages contain quotes and apostrophes), then
    `lc word locate --payload locate.json`. Follow its `steps` with computer use: bring Word to the front, open the
    search (Ctrl+F, or Cmd+F on a Mac), type `find` exactly, press Enter. Word
-   selects the passage.
+   selects the passage. When `unique` is false, `find` is on a paragraph
+   above it: move down `paragraphs_after` paragraphs from there.
 3. If computer use is off, or the passage is not found, give the writer the
    `writer` line instead: chapter, page, and the quoted first and last words.
 
