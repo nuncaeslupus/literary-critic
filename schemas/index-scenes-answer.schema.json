@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Answer to a scene packet (lc index import)",
+  "type": "object",
+  "required": ["scenes"],
+  "additionalProperties": false,
+  "properties": {
+    "scenes": {"type": "array", "minItems": 1, "maxItems": 60, "items": {"$ref": "#/$defs/scene"}}
+  },
+  "$defs": {
+    "name": {"type": "string", "minLength": 1, "maxLength": 60},
+    "short": {"type": "string", "minLength": 1, "maxLength": 80},
+    "quote": {"type": "string", "minLength": 1, "maxLength": 200, "x-maxWords": 30},
+    "scene": {
+      "type": "object",
+      "required": ["scene", "summary"],
+      "additionalProperties": false,
+      "properties": {
+        "scene": {"type": "string", "pattern": "^(p\\d+\\.)?c\\d+\\.s\\d+$"},
+        "summary": {"type": "string", "minLength": 1, "maxLength": 600, "x-maxWords": 80},
+        "pov": {"$ref": "#/$defs/name"},
+        "location": {"$ref": "#/$defs/short"},
+        "time": {"$ref": "#/$defs/short"},
+        "setups": {"type": "array", "maxItems": 6, "items": {"$ref": "#/$defs/setup"}},
+        "entities": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/entity"}}
+      }
+    },
+    "setup": {
+      "type": "object",
+      "required": ["label", "side", "quote"],
+      "additionalProperties": false,
+      "properties": {
+        "label": {"$ref": "#/$defs/name"},
+        "side": {"enum": ["setup", "payoff"]},
+        "quote": {"$ref": "#/$defs/quote"},
+        "pays_off": {"$ref": "#/$defs/name"}
+      }
+    },
+    "entity": {
+      "type": "object",
+      "required": ["name", "kind", "quote"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "kind": {"enum": ["character", "place", "object", "group", "rule", "motif"]},
+        "quote": {"$ref": "#/$defs/quote"}
+      }
+    }
+  }
+}
