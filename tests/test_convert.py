@@ -13,21 +13,19 @@ EVIDENCE = Path(__file__).resolve().parent.parent / "status" / "evidence" / "doc
 
 def _read_back(path: Path) -> list[dict[str, Any]]:
     """Every non-empty paragraph as doc-control reads it: text plus its layout facts."""
-    dc.check()
     entries: list[dict[str, Any]] = []
     cursor = None
     while True:
         req: dict[str, Any] = {"doc": str(path), "limit": 1000}
         if cursor:
             req["cursor"] = cursor
-        # dc.run drops the envelope's `next`, which paging needs: use the envelope.
-        env = dc._execute("text.normalized", req)
-        for part in env["result"]["paragraphs"]:  # a long paragraph comes as several parts
+        result = dc.run("text.normalized", req)
+        for part in result["paragraphs"]:  # a long paragraph comes as several parts
             if entries and entries[-1]["at"] == part["at"]:
                 entries[-1]["text"] += part["text"]
             else:
                 entries.append({"at": part["at"], "text": part["text"]})
-        cursor = env.get("next")
+        cursor = result.get("_next")
         if not cursor:
             return [e for e in entries if e["text"]]
 
