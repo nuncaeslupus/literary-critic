@@ -72,8 +72,9 @@ question at a time. Offer more detail instead of giving it unasked.
 8. **Ask the Codex before reading.** What is known about the novel lives in
    its Codex: ask it first (`35-ask.md`), then read with `lc show`, `lc find`
    and `lc context` with `--budget`, only where an answer needs the text.
-   Record what you learn as Codex items (`20-codex-items.md`), so the next
-   session does not re-read it.
+   The index (scenes, entities, setups) is built in packets
+   (`20-codex-items.md`); record what else you learn as Codex items, so the
+   next session does not re-read it.
 
 ## Where things live
 

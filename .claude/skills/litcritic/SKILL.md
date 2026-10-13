@@ -41,12 +41,20 @@ What is known about a novel lives in its Codex (`<ws>/codex/`, read and
 written only through `lc codex`; reference in `docs/codex/README.md`). Ask
 it before reading text, and record what reading teaches.
 
+The index is built in bounded packets, never by reading the whole novel:
+`lc index plan`, then entity packets (strong tier), plan again, scene packets
+(standard tier; in Claude Code or Cowork one subagent per packet in parallel,
+answers imported one at a time by the main session), plan again for the `n1`
+new-names packet (strong tier). Print a packet with `lc index packet`, import
+an answer with `lc index import`; `lc index status` shows what is left.
+Details in `prompts/20-codex-items.md`.
+
 | The user wants to… | Read |
 |--------------------|------|
 | start using the tool on a novel ("I want to use literary-critic for my novel"), set it up | `prompts/05-setup.md` |
 | start, or where things stand is unclear | `prompts/00-guide.md`, then the workspace `log/` |
 | bring in a draft, fix chapters/scenes | `prompts/10-ingest-and-structure.md` |
-| index the novel for analysis | `prompts/20-codex-items.md` |
+| index the novel for analysis (`lc index` packets), fix one Codex item | `prompts/20-codex-items.md` |
 | a first reading, brief, profile | `prompts/30-orientation.md` |
 | a question about the novel ("how often…", "where is…", "what changed…") | `prompts/35-ask.md` |
 | analysis, feedback, "what's wrong with it" | `prompts/40-checks.md` |

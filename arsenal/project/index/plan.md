@@ -91,6 +91,7 @@ that one command validates and imports.
 
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
+| T7 | `prompts_reference_valid_commands == 1.0` | 1.0 (119 references) | `uv run pytest tests/test_prompts.py::test_prompts_name_only_lc_commands` | aebcc04+ | Python 3.13.16, Linux | 2026-10-13 |
 
 ### Dependency graph
 
