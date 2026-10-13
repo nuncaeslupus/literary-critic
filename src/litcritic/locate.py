@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -68,10 +68,18 @@ class Locator:
         return out
 
 
-def read_rows(doc: dc.Document) -> Rows:
+def read_rows(doc: dc.Document, ats: Iterable[str] | None = None) -> Rows:
     """doc-control's ``locate`` row of every paragraph, with its text and whether
     its page is Word's own (the file was laid out by Word and a mark or break
-    fixes the page) rather than the word-count model's."""
+    fixes the page) rather than the word-count model's.
+
+    With ``ats``, the rows of those paragraphs alone: doc-control answers a
+    paragraph asked by address without building its whole-document phrase index,
+    so a single locator costs a fraction of the whole document's. Like the
+    whole-document rows, an empty paragraph has none.
+    """
+    if ats is not None:
+        return dict(row for at in dict.fromkeys(ats) if (row := _read_row(doc, at)))
     located = doc.run("locate", {})
     pages = doc.run("page.estimate", {})
     laid_out = str(located.get("basis", "model")) != "model"
@@ -81,6 +89,19 @@ def read_rows(doc: dc.Document) -> Rows:
         str(r["at"]): {**r, "text": text.get(str(r["at"]), ""), "page_exact": exact.get(r["at"])}
         for r in located["paragraphs"]
     }
+
+
+def _read_row(doc: dc.Document, at: str) -> tuple[str, dict[str, Any]] | None:
+    """(address, row) of one paragraph, as :func:`read_rows` gives it; None when empty."""
+    text = str(doc.run("para.get", {"at": at}).get("text", ""))
+    if not text.strip():
+        return None  # whole-document ``locate`` leaves empty paragraphs out
+    located = doc.run("locate", {"at": at})
+    page = doc.run("page.estimate", {"at": at})
+    laid_out = str(located.get("basis", "model")) != "model"
+    row = located["paragraphs"][0]
+    exact = laid_out and page.get("source") != "model"
+    return str(row["at"]), {**row, "text": text, "page_exact": exact}
 
 
 def _ends(text: str, head: int, tail: int) -> tuple[str, str]:
@@ -111,24 +132,38 @@ class Locations:
 
     ``ats`` are the doc-control addresses of ``ix.paragraphs`` (same order);
     ``load`` returns doc-control's rows for the document they point into and is
-    called once, on the first locator asked for.
+    called once, on the first locator asked for. With ``load_some`` (the rows of
+    the addresses it is given), each locator asks for its own paragraphs only:
+    the choice for a command that locates one anchor, where the whole document's
+    rows would cost seconds on a long novel.
     """
 
     def __init__(
-        self, ix: query.Index, ats: list[str], load: Callable[[], Rows], lang: str = "en"
+        self,
+        ix: query.Index,
+        ats: list[str],
+        load: Callable[[], Rows],
+        lang: str = "en",
+        load_some: Callable[[list[str]], Rows] | None = None,
     ) -> None:
         self.ix = ix
         self.ats = ats
         self.lang = lang
         self._load = load
+        self._load_some = load_some
         self._rows: Rows | None = None
+        self._some: dict[str, dict[str, Any] | None] = {}  # rows asked one by one
         self.chapter_by_key = {query.chapter_key(c["id"]): c for c in ix.chapters}
 
     @classmethod
     def of_workspace(
-        cls, ws_root: Path, version: str, ix: query.Index, lang: str = "en"
+        cls, ws_root: Path, version: str, ix: query.Index, lang: str = "en", *, few: bool = False
     ) -> Locations:
-        """Locators for an ingested draft, from its snapshot ``manuscript/vNNN.*``."""
+        """Locators for an ingested draft, from its snapshot ``manuscript/vNNN.*``.
+
+        ``few``: only a few locators will be asked for (one anchor), so each asks
+        doc-control for its own paragraphs rather than for the whole document.
+        """
         ats = [str(p.get("at", "")) for p in load_meta(ws_root, version)]
         if len(ats) != len(ix.paragraphs) or not all(ats):
             raise LocateError(f"{version} was not read through doc-control: run `lc ingest` again")
@@ -145,7 +180,11 @@ class Locations:
             with ingest.readable(snapshots[0]) as file, dc.open(file, text_mode=mode) as doc:
                 return read_rows(doc)
 
-        return cls(ix, ats, load, lang)
+        def load_some(wanted: list[str]) -> Rows:
+            with ingest.readable(snapshots[0]) as file, dc.open(file, text_mode=mode) as doc:
+                return read_rows(doc, wanted)
+
+        return cls(ix, ats, load, lang, load_some if few else None)
 
     @property
     def rows(self) -> Rows:
@@ -158,11 +197,31 @@ class Locations:
 
     def row(self, i: int) -> dict[str, Any] | None:
         """doc-control's locate row of paragraph ``i`` of the index."""
-        return self.rows.get(self.ats[i]) if 0 <= i < len(self.ats) else None
+        if not 0 <= i < len(self.ats):
+            return None
+        if self._rows is not None or self._load_some is None:
+            return self.rows.get(self.ats[i])
+        self._fetch([i])
+        return self._some[self.ats[i]]
+
+    def _fetch(self, indexes: list[int]) -> None:
+        """Ask doc-control for the rows of these paragraphs (``load_some``), in one go."""
+        assert self._load_some is not None
+        wanted = [self.ats[i] for i in indexes if 0 <= i < len(self.ats)]
+        wanted = [at for at in wanted if at not in self._some]
+        if not wanted:
+            return
+        try:
+            got = self._load_some(wanted)
+        except dc.DocError as exc:
+            raise LocateError(f"cannot locate paragraphs: {exc}") from exc
+        self._some.update({at: got.get(at) for at in wanted})
 
     def locate(self, anchor: str) -> Locator:
         i = query.paragraph_range(self.ix, anchor).start
         a = self.ix.anchors[i]
+        if self._rows is None and self._load_some is not None:
+            self._fetch([i, i - 1])  # the one before names a paragraph that is not unique
         row = self.row(i)
         if row is None:
             raise KeyError(f"{a} is not in the document doc-control read")

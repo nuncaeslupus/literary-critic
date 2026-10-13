@@ -50,7 +50,9 @@ LANGUAGES = ("es", "en")  # doc-control's sentence and numeral rules; others are
 def fingerprint(text: str) -> str:
     """12-hex SHA-1 of case-folded, accent-stripped, whitespace-collapsed text."""
     folded = unicodedata.normalize("NFKD", text.casefold())
-    folded = "".join(c for c in folded if not unicodedata.combining(c))
+    if not folded.isascii():  # drop the combining marks (each distinct character checked once)
+        for mark in [c for c in set(folded) if unicodedata.combining(c)]:
+            folded = folded.replace(mark, "")
     return hashlib.sha1(" ".join(folded.split()).encode()).hexdigest()[:12]
 
 

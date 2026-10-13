@@ -447,3 +447,19 @@ def test_quotes_typed_as_they_are() -> None:
     plain = docx_cli.TYPED_AS_IS.fullmatch
     assert plain("Rose said it.") and not plain("a^b") and not plain("a\tb")
     assert not plain("a\xa0b") and not plain("a  b") and not plain(" a")
+
+
+def test_places_one_by_one_match_whole_document(novel: tuple[Path, Path]) -> None:
+    """`lc docx locate` asks for one paragraph and skips reading the document again
+    (its bytes are the ingested ones): the same Find string and locator."""
+    ws, doc = novel
+    data = doc.read_bytes()
+    batch = docx_cli._Places(ws, doc, data, "es")
+    alone = docx_cli._Places(ws, doc, data, "es", few=True)
+    assert alone.ix is not None and batch.ix is not None
+    assert alone.locations.ats == batch.locations.ats and alone.by_ordinal == batch.by_ordinal
+    for i in range(0, len(alone.ix.anchors), 7):
+        at = alone.locations.ats[i]
+        assert alone.find(at) == batch.find(at), at
+        assert alone.locator(alone.ordinal_of[i]) == batch.locator(batch.ordinal_of[i]), at
+    assert alone._rows is None
