@@ -5,6 +5,7 @@ label: "workspace upgrade"
 priority: 5
 deps: [t-36595e44, t-570f081a, t-77abd70f]
 workspace: doccontrol
+status: merged
 ---
 
 # T10: workspace upgrade

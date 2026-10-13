@@ -1,5 +1,10 @@
 # Bring a draft in and check its structure
 
+When `lc` says a draft "was ingested by an older release", run
+`lc upgrade --workspace <slug>` once, then tell the writer, plainly, what
+`<ws>/analysis/upgrade-report.md` asks of them (corrections to confirm,
+passages to re-read).
+
 1. Create the workspace once: `lc init <slug> --title "<title>" --language <es|en>`.
    Then fill `guard-terms.txt` with the title, character and place names.
 2. Ingest the file the writer gives you (`.docx`, `.odt`, `.md` or `.txt`;

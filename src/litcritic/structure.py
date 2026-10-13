@@ -449,7 +449,7 @@ def build(ws_root: Path, version: str | None = None) -> tuple[Path, Structure, l
     rows = meta.get("paragraphs") or []
     ats = [str(r.get("at", "")) for r in rows]
     if len(rows) != len(paragraphs) or not all(ats):
-        raise ValueError(f"{version} was ingested by an older release; run `lc ingest` again")
+        raise ValueError(f"{version} was ingested by an older release; run `lc upgrade`")
     source = next(
         (p for p in (ws_root / "manuscript").glob(f"{version}.*") if p.suffix in ingest.FORMATS),
         None,
