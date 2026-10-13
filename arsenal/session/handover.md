@@ -1,6 +1,14 @@
 # Handover
 
-**Last session (2026-10-13, Windows 11 Pro with Word 16.0.17932 in Spanish):** first run on Windows; hand tests against real Word.
+**Last session (2026-10-13, evening):** the owner ran the tool as a writer in Cowork (paid plan) on the corpus novel; record in `status/evidence/W9-walkthrough.md`, "Owner's run in Cowork".
+
+- **Merged:** #136 (the full experience needs a paid plan), #137 (say when a step takes a while), #142 (no tool talk to a writer unless asked with `[[...]]`), #143 (doc-control 0.6: live engine with a Word adapter, `live` extra).
+- **Next step, waiting on the owner:** add doc-control's MCP server to the Claude desktop app (Settings → Developer → Edit Config; `mcpServers` → `doc-control`: `uvx --from "doc-control[live]" doc-control mcp`), restart the app, and in Cowork ask for `live_select` on a document open in Word. The assistant may not edit that config itself (refused). The question is whether a Cowork conversation can call a host MCP server; Cowork's own commands run in a sandbox and cannot reach Word.
+- **Then:** tell the doc-control session the result (it waits for it before building the one-click writer install); make "take me there" use `live_select` first with the computer-use steps as fallback (`prompts/80-live-word.md`, `src/litcritic/word_live.py`, `SKILL.md`). Measured on the host: `doc-control live.select --json '{...}'` selects the paragraph in an open Word in about 2.5 s; locate by computer use took 30 s and about 15 steps.
+- **Open from the Cowork run:** replies run well over 120 words; no check that an uploaded Skill is out of date; whether a Cowork project keeps the novel's folder across conversations (if so, say it in `prompts/05-setup.md`); issues #138–#141 (opened from that run, generic, not triaged; #138 comes from this project's own test `.docx` having one paragraph per line); the desktop app leaves its window always on top after computer use (the app's fault, not fixable from a prompt).
+- **doc-control CLI:** requests go as `doc-control <op> --json '<request>'`.
+
+**Earlier the same day (Windows 11 Pro with Word 16.0.17932 in Spanish):** first run on Windows; hand tests against real Word.
 
 - **Windows — done:** the suite passes on Windows and CI has a `windows` job (#129: LF on every checkout, Codex change log written once per batch, `lc` reads and prints UTF-8, portable tests). `lc word` uses keys that mean the same in every Word for Windows (#131): in a Spanish Word Ctrl+F indents, Ctrl+S underlines and Ctrl+W resets the paragraph; save is Shift+F12, close is Ctrl+F4, Find is named by language (Ctrl+B in Spanish).
 - **Hand tests run** (`status/evidence/W9-walkthrough.md`): tracked change by `literary-critic` seen by Word and undone by Reject All; edit refused while Word has the file open, nothing lost; Word's Find lands on the right paragraph for 100 of 100 `lc docx locate` Find strings. Word was driven through its automation interface (COM), on the corpus novel saved by Word as `.docx`.
