@@ -140,13 +140,15 @@ def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
 
-def tools() -> list[Tool]:
-    """The extension's tools; each task of the desktop plan adds its own."""
+def tools(grant: Any) -> list[Tool]:
+    """The tools over the granted folders; each task of the desktop plan adds its own."""
     return []
 
 
 def _cmd(args: Any) -> int:
-    Server(tools(), log=sys.stderr).serve(sys.stdin, sys.stdout)
+    from litcritic.folders import Grant  # folders imports ToolError from here
+
+    Server(tools(Grant(args.folders)), log=sys.stderr).serve(sys.stdin, sys.stdout)
     return 0
 
 
