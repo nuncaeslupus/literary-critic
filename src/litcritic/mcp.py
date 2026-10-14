@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import json
 import sys
+import time
 import traceback
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, TextIO
 
-from litcritic import __version__
+from litcritic import __version__, rounds, settings, structure
+from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
 SERVER_NAME = "literary-critic"
@@ -140,9 +143,160 @@ def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
 
 
+GUIDE = "01-chat-guide.md"
+LAST_USED = Path(".cache") / "last_used"
+ADD_FOLDER_HINT = (
+    "If the novel is in another folder, offer to add it: add_folder opens the folder "
+    "picker on the writer's screen."
+)
+NEXT_STEPS = {
+    "setup": "Bring the manuscript in: find the novel's file and set it up (05-setup.md).",
+    "index": "Finish indexing the novel, so questions are answered from the Codex "
+    "(20-codex-items.md).",
+    "round": "Continue the open revision round with the next pending action (60-rounds.md).",
+    "overview": "Offer an overview: what works and the three biggest problems "
+    "(30-orientation.md, 40-checks.md).",
+    "next_round": "Ask whether there is a new draft (50-new-draft.md) or start the next "
+    "round (60-rounds.md).",
+}
+
+
+def guide() -> str:
+    return (repo_root() / "prompts" / GUIDE).read_text(encoding="utf-8")
+
+
+def _last_used(ws: Workspace) -> float:
+    for f in (ws.root / LAST_USED, ws.root / "work.toml"):
+        try:
+            return f.stat().st_mtime
+        except OSError:
+            continue
+    return 0.0
+
+
+def _touch(ws: Workspace) -> None:
+    f = ws.root / LAST_USED
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(time.strftime("%Y-%m-%dT%H:%M:%S") + "\n", encoding="utf-8")
+    except OSError:
+        pass  # ordering only: a read-only folder still resumes
+
+
+def _entry(ws: Workspace) -> dict[str, Any]:
+    try:
+        meta = ws.manifest
+    except (OSError, ValueError):
+        meta = {}
+    novel = ws.root.parent if ws.root.name == "literary-critic" else ws.root
+    return {
+        "title": meta.get("title") or novel.name,
+        "id": meta.get("id", ""),
+        "folder": str(novel),
+        "last_used": time.strftime("%Y-%m-%d %H:%M", time.localtime(_last_used(ws))),
+    }
+
+
+def works_list(grant: Any) -> list[dict[str, Any]]:
+    """The works in the granted folders, most recently used first."""
+    found = sorted(grant.works(), key=_last_used, reverse=True)
+    return [_entry(ws) for ws in found]
+
+
+def _index_state(root: Path) -> dict[str, Any] | None:
+    try:
+        doc = json.loads((root / "index" / "work" / "plan.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    packets = doc.get("packets") or []
+    todo = sum(1 for p in packets if p.get("status") != "done")
+    return {"packets": len(packets), "todo": todo}
+
+
+def state(ws: Workspace) -> dict[str, Any]:
+    """Where the work stands, and the next step to propose."""
+    out: dict[str, Any] = _entry(ws)
+    try:
+        out["language"] = ws.manifest.get("language", "")
+    except (OSError, ValueError):
+        out["language"] = ""
+    try:
+        out["draft"] = structure.latest_version(ws.root)
+    except FileNotFoundError:
+        out["draft"] = None
+    try:
+        now = settings.load(ws.root)
+        out["prose_suggestions"] = now["prose_suggestions"]
+        out["edit_in_place"] = now["edit_in_place"]
+    except (OSError, ValueError, settings.SettingsError):
+        out["prose_suggestions"], out["edit_in_place"] = False, None
+    out["index"] = _index_state(ws.root)
+    try:
+        out["round"] = rounds.status(ws.root)
+    except (OSError, ValueError, rounds.RoundError):
+        out["round"] = None
+    notes = sorted((ws.root / "log").glob("*.md")) if (ws.root / "log").is_dir() else []
+    out["last_notes"] = notes[-1].name if notes else None
+    if out["draft"] is None:
+        step = "setup"
+    elif out["index"] is None or out["index"]["todo"]:
+        step = "index"
+    elif out["round"] and out["round"]["by_status"].get("pending"):
+        step = "round"
+    elif out["round"] is None:
+        step = "overview"
+    else:
+        step = "next_round"
+    out["next_step"] = {"step": step, "say": NEXT_STEPS[step]}
+    return out
+
+
+def resume(grant: Any, work: str = "") -> dict[str, Any]:
+    """The named work's state and the guide; with no name, the only work there."""
+    if work.strip():
+        hits = grant.lookup(work)
+    else:
+        hits = grant.works()
+        if len(hits) > 1:
+            return {"choose": works_list(grant), "say": "Ask which novel to work on."}
+    if not hits:
+        return {
+            "not_found": work,
+            "works": works_list(grant),
+            "hint": ADD_FOLDER_HINT,
+        }
+    if len(hits) > 1:
+        return {"ambiguous": work, "works": [_entry(ws) for ws in hits]}
+    ws = hits[0]
+    _touch(ws)
+    return {"work": state(ws), "guide": guide()}
+
+
+WORK_HINT = (
+    "Use when the writer talks about their novel or manuscript, or wants to continue, "
+    "resume or work on it."
+)
+
+
 def tools(grant: Any) -> list[Tool]:
-    """The tools over the granted folders; each task of the desktop plan adds its own."""
-    return []
+    """The tools over the granted folders (``folders.Grant``); each task of the desktop plan
+    adds its own."""
+    return [
+        Tool(
+            "works",
+            "List the writer's novels, most recently used first. " + WORK_HINT,
+            lambda a: {"works": works_list(grant), "hint": ADD_FOLDER_HINT},
+        ),
+        Tool(
+            "resume",
+            "Open a novel: where it stands, the next step, and the guide for this chat. "
+            + WORK_HINT
+            + " Call it first in a chat, and again with the new name when the writer "
+            "switches novels.",
+            lambda a: resume(grant, str(a.get("work") or "")),
+            {"work": {"type": "string", "description": "the novel's title or folder name"}},
+        ),
+    ]
 
 
 def _cmd(args: Any) -> int:
