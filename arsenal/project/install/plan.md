@@ -135,6 +135,7 @@ tests that decide the one-click path:
 | T# | Gate | Measured | Command | SHA | Env | Date |
 |----|------|----------|---------|-----|-----|------|
 | T1 | `version_source_cases_correct == 4` | 4 (kit, skill, checkout, package) | `uv run pytest -q tests/test_kit.py -k doctor_json` | this PR | local | 2026-10-14 |
+| T5 | `hand_tests_recorded == 2` | 2 (Q-1 yes, via a PC session; Q-3 no) | `uv run pytest -q tests/test_status.py -k install_evidence` | this PR | owner, Windows | 2026-10-14 |
 
 ---
 

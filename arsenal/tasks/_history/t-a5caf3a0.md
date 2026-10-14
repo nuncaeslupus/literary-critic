@@ -4,6 +4,7 @@ title: "T5: Owner hand tests Q-1 and Q-3"
 label: "T5: Owner hand tests Q-1"
 priority: 10
 workspace: install
+status: merged
 ---
 
 ## Acceptance gate
