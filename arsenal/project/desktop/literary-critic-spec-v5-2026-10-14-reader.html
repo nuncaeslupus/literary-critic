@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="72328db8bce1abdfcfee1fc18c01465f1d7eb6da3693bbe649e827d32ff5ae02">
+<meta name="arsenal-source-sha256" content="3bee2c7277008e6caafe39de07be2e1ba37681a78ffa2ecfef2e02449d443f94">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -200,7 +200,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-14
 <strong>Ticket / PR</strong>: workspace <code>desktop</code>
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 4
+<strong>Revision</strong>: 5
 <strong>Status</strong>: draft
 <strong>Revision log</strong>:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
@@ -228,7 +228,13 @@ h4 .chip{font-size:11px;color:var(--muted)}
     - Double-click does not open <code>.mcpb</code> on a packaged (MSIX) install of the
     app.
     - The install shows several warnings for an unsigned extension.</p>
-<p>New D-11 and D-12; D-5, D-7 and D-8 revised; Q-7 and Q-8 opened.</p>
+<p>New D-11 and D-12; D-5, D-7 and D-8 revised; Q-7 and Q-8 opened.
+- r5 — documentation check of Q-3, Q-7 and Q-8 (2026-10-14, no notes
+  export):
+    - Q-7 is answered: there is no install link, and dragging the file onto
+    the app's window is the documented one-step way.
+    - The directory takes no new extensions, so Q-8 narrows to signing.
+    - Q-3 stays open with what the documentation says. D-13 is added.</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied
@@ -455,6 +461,21 @@ user Python installation required";</li>
 </li>
 <li>An extension installed from a file does not update itself. The writer
   installs the newer <code>.mcpb</code>.</li>
+<li>Only Node.js is documented as shipped with the app, and Node is the
+  documentation's recommended language. For the <code>uv</code> type, the bundle
+  README says the host "manages Python and dependencies automatically" and
+  works "without user Python installation". It does not say who provides uv
+  itself. A 2025 report of the app refusing a uv-run Python extension with
+  no system Python was closed in 2026 as addressed by the <code>uv</code> type
+  (modelcontextprotocol/mcpb#84), without confirmation from the reporter.</li>
+<li>There is no install link: the three documented ways are double-click,
+  dragging the file onto the app's window, and Settings → Extensions →
+  Advanced settings → Install Extension…. The directory no longer accepts
+  extensions; a local server in the directory must come inside a plugin,
+  and a plugin's local server does not run in Chat (below).</li>
+<li><code>mcpb sign</code> appends a signature (self-signed or CA-issued). Neither the
+  bundle docs nor the app's help say what signing changes in the install
+  dialog.</li>
 <li>A plugin's skills work in Chat. A plugin's bundled local server ("runs in
   each session") works in Cowork and Claude Code, <strong>not in Chat</strong>. So a plugin
   alone cannot bring the server to a plain chat.</li>
@@ -694,10 +715,14 @@ questions. It uses the format the desktop app provides for exactly this.</p>
 <p><strong>Immediate next action</strong>: the first probe ran (§2, measured facts).
 Before the plan:</p>
 <ol>
-<li>Rerun the probe on a Windows user account without uv or Python (Q-3).</li>
-<li>Find how far signing reduces the warnings (Q-8).</li>
-<li>Find whether a link can open the app's install dialog (Q-7).</li>
+<li>Rerun the probe where neither uv nor Python is installed (Q-3): Windows
+   Sandbox or a spare Windows account, both set up by the owner, with
+   the app signed in there.</li>
+<li>Install a self-signed copy of the probe and compare the warnings (Q-8).</li>
 </ol>
+<p>Both can also be the plan's first task, gating the rest. Their answers
+change only the runtime type and the walkthrough's wording, not the
+design.</p>
 <p>skill-workshop is run from a checkout of the claude-arsenal repository,
 without installing the plugin (the owner's choice).</p>
 <p><strong>Open questions</strong>:
@@ -715,8 +740,11 @@ without installing the plugin (the owner's choice).</p>
       no uv already on the machine? Does it install doc-control's live extra
       (pywin32)? Yes means one step. No means <code>binary</code> (a frozen
       executable, larger) or <code>python</code> (the writer installs Python first,
-      which costs one action). The probe ran on a PC that has uv. A clean
-      account is still to be tried.
+      which costs one action). The probe ran on a PC that has uv, and the
+      documentation does not say whether the app supplies uv (§2). A clean
+      machine is still to be tried. The fallback order is <code>binary</code> (a
+      frozen executable), then a Node.js launcher that fetches uv. Node
+      ships with the app, but the launcher adds a download on first start.
 - [ ] Q-4: How does a writer get the <code>.mcpb</code>: a release on GitHub, a link
       on a project page, or a file sent by the person who recommends the
       tool? The owner decides; publishing needs the <code>repo-housekeeping</code>
@@ -729,14 +757,17 @@ without installing the plugin (the owner's choice).</p>
       until the writer disabled and re-enabled the extension. Too fragile
       for a writer, so a chat-side folder picker adds folders instead
       (D-11).
-- [ ] Q-7: Can the writer get to the install dialog in one step on a
-      packaged install of the app, where double-click does not work? To
-      check: a link that opens the app's extension install, or the app's
-      extension directory. If neither works, the walkthrough says "drag
-      the file onto Settings → Extensions".
+- [x] Q-7: Can the writer get to the install dialog in one step on a
+      packaged install of the app, where double-click does not work?
+      Answered from the documentation. There is no install link, and the
+      directory takes no new extensions. Dragging the file onto the app's
+      window is one step and works on every install, so the walkthrough
+      gives it first and mentions double-click as an alternative (D-13).
 - [ ] Q-8: Which install warnings remain for a signed extension
-      (<code>mcpb sign</code>), and for one listed in the app's directory? This
-      decides how the walkthrough prepares the writer for them.</p>
+      (<code>mcpb sign</code>)? The documentation does not say, and the directory is
+      closed to extensions. To check with a self-signed probe. Whatever the
+      answer, the walkthrough names each warning in plain words before the
+      writer sees it.</p>
 <p><strong>Decisions log</strong>:</p>
 <table>
 <thead>
@@ -850,6 +881,12 @@ without installing the plugin (the owner's choice).</p>
 <td>proposed</td>
 <td>2026-10-14</td>
 </tr>
+<tr>
+<td>D-13</td>
+<td>The walkthrough installs by dragging the <code>.mcpb</code> onto the app's window (works on every install); double-click is mentioned as an alternative</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
 </tbody>
 </table>
 <blockquote>
@@ -936,7 +973,7 @@ without installing the plugin (the owner's choice).</p>
   function pad(n){return n<10?'0'+n:''+n;}
   function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
-  function exportName(){return 'literary-critic-spec-v4-'+today()+'-notes.md';}
+  function exportName(){return 'literary-critic-spec-v5-'+today()+'-notes.md';}
 
   function buildExport(){
     var byPart={},order=[],data={},n=0;

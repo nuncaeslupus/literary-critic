@@ -3,7 +3,7 @@
 **Date**: 2026-10-14
 **Ticket / PR**: workspace `desktop`
 **Author**: Claude (with the owner)
-**Revision**: 4
+**Revision**: 5
 **Status**: draft
 **Revision log**:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
@@ -33,6 +33,12 @@
   - The install shows several warnings for an unsigned extension.
 
   New D-11 and D-12; D-5, D-7 and D-8 revised; Q-7 and Q-8 opened.
+- r5 — documentation check of Q-3, Q-7 and Q-8 (2026-10-14, no notes
+  export):
+  - Q-7 is answered: there is no install link, and dragging the file onto
+    the app's window is the documented one-step way.
+  - The directory takes no new extensions, so Q-8 narrows to signing.
+  - Q-3 stays open with what the documentation says. D-13 is added.
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied
@@ -178,6 +184,21 @@ documentation):
   - `binary`: self-contained.
 - An extension installed from a file does not update itself. The writer
   installs the newer `.mcpb`.
+- Only Node.js is documented as shipped with the app, and Node is the
+  documentation's recommended language. For the `uv` type, the bundle
+  README says the host "manages Python and dependencies automatically" and
+  works "without user Python installation". It does not say who provides uv
+  itself. A 2025 report of the app refusing a uv-run Python extension with
+  no system Python was closed in 2026 as addressed by the `uv` type
+  (modelcontextprotocol/mcpb#84), without confirmation from the reporter.
+- There is no install link: the three documented ways are double-click,
+  dragging the file onto the app's window, and Settings → Extensions →
+  Advanced settings → Install Extension…. The directory no longer accepts
+  extensions; a local server in the directory must come inside a plugin,
+  and a plugin's local server does not run in Chat (below).
+- `mcpb sign` appends a signature (self-signed or CA-issued). Neither the
+  bundle docs nor the app's help say what signing changes in the install
+  dialog.
 - A plugin's skills work in Chat. A plugin's bundled local server ("runs in
   each session") works in Cowork and Claude Code, **not in Chat**. So a plugin
   alone cannot bring the server to a plain chat.
@@ -363,9 +384,14 @@ questions. It uses the format the desktop app provides for exactly this.
 **Immediate next action**: the first probe ran (§2, measured facts).
 Before the plan:
 
-1. Rerun the probe on a Windows user account without uv or Python (Q-3).
-2. Find how far signing reduces the warnings (Q-8).
-3. Find whether a link can open the app's install dialog (Q-7).
+1. Rerun the probe where neither uv nor Python is installed (Q-3): Windows
+   Sandbox or a spare Windows account, both set up by the owner, with
+   the app signed in there.
+2. Install a self-signed copy of the probe and compare the warnings (Q-8).
+
+Both can also be the plan's first task, gating the rest. Their answers
+change only the runtime type and the walkthrough's wording, not the
+design.
 
 skill-workshop is run from a checkout of the claude-arsenal repository,
 without installing the plugin (the owner's choice).
@@ -385,8 +411,11 @@ without installing the plugin (the owner's choice).
       no uv already on the machine? Does it install doc-control's live extra
       (pywin32)? Yes means one step. No means `binary` (a frozen
       executable, larger) or `python` (the writer installs Python first,
-      which costs one action). The probe ran on a PC that has uv. A clean
-      account is still to be tried.
+      which costs one action). The probe ran on a PC that has uv, and the
+      documentation does not say whether the app supplies uv (§2). A clean
+      machine is still to be tried. The fallback order is `binary` (a
+      frozen executable), then a Node.js launcher that fetches uv. Node
+      ships with the app, but the launcher adds a download on first start.
 - [ ] Q-4: How does a writer get the `.mcpb`: a release on GitHub, a link
       on a project page, or a file sent by the person who recommends the
       tool? The owner decides; publishing needs the `repo-housekeeping`
@@ -399,14 +428,17 @@ without installing the plugin (the owner's choice).
       until the writer disabled and re-enabled the extension. Too fragile
       for a writer, so a chat-side folder picker adds folders instead
       (D-11).
-- [ ] Q-7: Can the writer get to the install dialog in one step on a
-      packaged install of the app, where double-click does not work? To
-      check: a link that opens the app's extension install, or the app's
-      extension directory. If neither works, the walkthrough says "drag
-      the file onto Settings → Extensions".
+- [x] Q-7: Can the writer get to the install dialog in one step on a
+      packaged install of the app, where double-click does not work?
+      Answered from the documentation. There is no install link, and the
+      directory takes no new extensions. Dragging the file onto the app's
+      window is one step and works on every install, so the walkthrough
+      gives it first and mentions double-click as an alternative (D-13).
 - [ ] Q-8: Which install warnings remain for a signed extension
-      (`mcpb sign`), and for one listed in the app's directory? This
-      decides how the walkthrough prepares the writer for them.
+      (`mcpb sign`)? The documentation does not say, and the directory is
+      closed to extensions. To check with a self-signed probe. Whatever the
+      answer, the walkthrough names each warning in plain words before the
+      writer sees it.
 
 **Decisions log**:
 
@@ -429,6 +461,7 @@ without installing the plugin (the owner's choice).
 | D-10 | The install grants the folders that hold the novels, not one novel; each chat names its work and can switch, with no setup | proposed | 2026-10-14 |
 | D-11 | A novel outside the granted folders is added from the chat: `add_folder` opens the Windows folder picker, and the writer's choice is the grant | proposed | 2026-10-14 |
 | D-12 | Chat ignores server instructions, so the short guide is returned by `resume` with the novel's state | proposed | 2026-10-14 |
+| D-13 | The walkthrough installs by dragging the `.mcpb` onto the app's window (works on every install); double-click is mentioned as an alternative | proposed | 2026-10-14 |
 
 ---
 
