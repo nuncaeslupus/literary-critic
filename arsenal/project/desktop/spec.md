@@ -3,11 +3,17 @@
 **Date**: 2026-10-14
 **Ticket / PR**: workspace `desktop`
 **Author**: Claude (with the owner)
-**Revision**: 1
+**Revision**: 2
 **Status**: draft
 **Revision log**:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
   test novel, 2026-10-14): "my problem keeps being which chat type I need to use"
+- r2 — the owner's decisions in conversation (no notes export): Option B is
+  chosen. Install must be one step, close to invisible for the writer, then a
+  few permissions. The chat must understand "work on my novel" and similar.
+  Any skill is built under skill-workshop. Research on the desktop app's
+  extension and plugin formats turned the setup step into a one-click desktop
+  extension (D-5…D-9; D-2 and D-3 superseded).
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied
@@ -20,61 +26,86 @@
 
 ## 1. Problem statement
 
-The `install` workspace made "take me there" fast: `lc docx locate 7 --go`
-puts Word on the chapter in about 2 s of tool time, and `lc docx places` turns
-a list of places into doc-control `live_places` buttons. A click on one of
-those buttons moves Word in about 1 s, with no model turn. All of it, though,
-needs `lc` to run **on the writer's PC**, where the working folder and Word
-are. In the Claude desktop app that means a Cowork project relaying to a
-Remote Control thread, or a Code-tab session.
+The `install` workspace made "take me there" fast. `lc docx locate 7 --go`
+puts Word on the chapter in about 2 s of tool time. `lc docx places` turns a
+list of places into doc-control `live_places` buttons, and a click on one moves
+Word in about 1 s with no model turn. All of it needs `lc` to run **on the
+writer's PC**, where the working folder and Word are. In the Claude desktop
+app today that means a Cowork project relaying to a Remote Control thread, or
+a Code-tab session.
 
 On the owner's test this was confusing. The project chat opened a thread,
 the thread opened another chat, and the owner could not find the way back.
-A plain Chat runs code only in a cloud sandbox. That sandbox cannot see the
-PC's working folder, so a plain chat cannot resume the novel. The writer
-wants to open any ordinary chat, write "Let's continue with `<novel>`" and get
-the novel's state, the next step and the jumps into Word, with no projects,
-threads or uploads.
+A plain Chat runs code only in a cloud sandbox, which cannot see the PC's
+working folder, so a plain chat cannot resume the novel.
 
-The desktop app's Chat tab already starts the local MCP servers listed in
-`claude_desktop_config.json`. doc-control runs there today, and its
-`live_places` buttons render in that tab. What is missing is a local
-literary-critic server beside it. That server would find the novel's
-working folder, read its state, give the chat the guide and expose the `lc`
-commands the session needs.
+The writer wants to:
+
+- install once, in one step, with nothing technical to understand;
+- answer a few permission prompts;
+- then open any ordinary chat, write "let's work on my novel" or "let's
+  continue with `<novel>`", and get the novel's state, the next step and the
+  jumps into Word.
+
+None of that should involve projects, threads, uploads or config files.
+
+The desktop app has a format made for this. A **desktop extension**
+(`.mcpb`) is a zip with a local MCP server and a `manifest.json`. The app
+installs it with one double-click and shows an install dialog where the
+user reviews permissions and fills in settings; a setting can be a folder
+picker. The extension's tools are then available in ordinary conversations.
+doc-control already runs as a local server in the Chat tab, and its
+`live_places` buttons render there.
+
+What is missing is a literary-critic extension. It would find the novel's
+working folder, read its state, carry the guide to the chat and drive Word.
 
 This is a planned improvement. It decides whether a writer can use the tool
 without learning the app's session types.
 
 **Success criteria (measurable)**
 
-- [ ] `resume_without_questions == 1.0`: in a new Chat, "Let's continue with
+- [ ] `writer_setup_actions <= 3` for a writer who already has the desktop app,
+      Word and the novel. The three actions are: open the downloaded
+      `literary-critic.mcpb`; in the install dialog, pick the folder that holds
+      the novels and press Install; allow the tools the first time a chat uses
+      them. Nothing else is required: no terminal, no config file, no separate
+      doc-control install, and no Python install unless Q-3 shows the app
+      cannot provide it. Counted on a scripted walkthrough on a Windows user
+      account that has never run the tool.
+- [ ] `resume_without_questions == 1.0`. In a new Chat, "let's continue with
       `<title>`" (title, slug or folder name, any capitalisation or accents)
-      resolves the right workspace and answers with where the writer left off
-      and the next step. The chat asks no setup question. Checked over a fixture
-      registry with 3 works, one title with accents and one not registered: for
-      that one, the answer lists the known works.
-- [ ] `resume_tool_calls <= 2` from "Let's continue with `<title>`" to the
-      first answer. Counted on a recorded transcript.
-- [ ] `chapter_jump_wall_s <= 8` (median of 5) from "take me to chapter 7"
-      to Word at the chapter, in a plain Chat. This is one model turn with one
-      tool call that drives Word itself.
-- [ ] `places_render_as_buttons == 1.0`: a reply that lists places shows
-      doc-control's `live_places` buttons in the Chat tab, and a click moves
-      Word with no new chat message.
-- [ ] `writer_setup_actions <= 3` to turn it on, for a writer who already has
-      the desktop app, Word and the novel: run one setup step, restart the app,
-      allow the tools on first use. Counted on a scripted walkthrough.
-- [ ] `config_entries_clobbered == 0`: the setup step adds or updates only the
-      literary-critic entry in `claude_desktop_config.json`. Every other key is
-      left byte-for-byte the same, a backup is kept, and the result is valid
-      JSON. Tested on fixture configs, including one with doc-control and
-      unknown keys.
+      finds the right work. It answers with where the writer left off and the
+      next step, and asks no setup question. Checked over a fixture novels
+      folder with 3 works, one title with accents, and one title that is not
+      there (the answer lists the works it found).
+- [ ] `generic_request_resolves == 1.0`. "Let's work on my novel", "sigamos con
+      la novela" and similar phrasings with no title:
+      - with exactly one work in the folder, behave as the line above;
+      - with several, ask one question that lists them, most recent first.
+      Judged over a fixed set of 10 phrasings in English and Spanish, on a
+      recorded transcript.
+- [ ] `resume_tool_calls <= 2` from the writer's first message to the first
+      answer, counted on a recorded transcript.
+- [ ] `chapter_jump_wall_s <= 8` (median of 5) from "take me to chapter 7" to
+      Word at the chapter, in a plain Chat. That is one model turn with one tool
+      call, which drives Word itself.
+- [ ] `places_render_as_buttons == 1.0`. A reply that lists places shows one
+      button per place in the Chat tab, and a click moves Word with no new chat
+      message.
+- [ ] `paths_outside_novels_folder_refused == 1.0`. No tool reads or writes
+      outside the folder the writer picked at install, plus the tool's own
+      cache. Tested with `..`, absolute paths, symlinks and junctions.
+- [ ] `mcpb_validation_errors == 0`. The manifest passes the MCPB CLI's
+      validation, and `mcpb pack` builds the bundle in CI.
+- [ ] `skill_workshop_errors == 0` for every skill this work adds or changes.
+      The skill is built and checked with skill-workshop: its validator and
+      rubric pass.
 - [ ] `server_runtime_deps == {stdlib, doc-control}` (rule 9), checked by the
       existing import test.
-- [ ] No session type to choose. The walkthrough for the writer never names
-      threads, projects, Cowork or the Code tab. This is judged by reading the
-      setup prompt and the walkthrough.
+- [ ] No session type to choose. The setup prompt and the walkthrough for
+      the writer never name threads, projects, Cowork, the Code tab or config
+      files. Judged by reading them.
 - [ ] The writer channel's rules still hold: novel content stays out of the
       repo, the writer approves every manuscript change, and the writer writes.
       Judged by the existing guard and prompt tests, which pass unchanged.
@@ -83,16 +114,38 @@ without learning the app's session types.
 
 | System | Type | Role | Needs changes? | Impact | Severity |
 |--------|------|------|----------------|--------|----------|
-| `src/litcritic/` new `mcp` module | Primary | stdio MCP server: `lc mcp` | Yes | New entry point; tools wrap existing commands | Med |
-| `src/litcritic/workspace.py` registry | Primary | Finds a novel's working folder from a title | Yes | Lookup by title, slug or folder name; folders registered at setup and on every `lc init` | Med |
-| `lc` CLI (`cli.py`, `docx_cli.py`, `word_live.py`) | Dependent | The commands the tools call | Small | Unchanged behaviour; maybe a `resume` summary command | Low |
-| Setup step (new `lc desktop` or `lc doctor --fix`) | Primary | Writes the config entry | Yes | Edits a file of the desktop app, outside the repo and workspace | High |
-| `prompts/` (00-guide, 05-setup, 80-live-word), `.claude/skills/litcritic/SKILL.md` | Dependent | The guide the chat follows | Yes | Delivered as server instructions/resources; one path for "plain Chat" | Med |
-| doc-control (≥ 0.6.3) | Dependent | Live Word engine, `live_places` buttons; `doc_control.api.run` as stable Python entry | No | lc writes its own server (D-4); doc-control's `mcp.py` is the reference | Low |
-| `claude_desktop_config.json` | Infrastructure | Lists local MCP servers for the Chat tab | Yes (by setup) | A broken file stops all the writer's local servers | High |
-| Packaging (PyPI `literary-critic`, `uvx`) | Infrastructure | How the server reaches the writer's PC | Yes | 0.1.0 is not published; the entry needs a stable command | Med |
-| Writer's working folder (`<novel>/literary-critic/`, chat D-10) | Data | All state | No | Read and written exactly as today | Low |
-| Cowork / Code-tab threads, Skill zip | UI | Today's paths | No | Remain as alternatives; no longer the main path on Windows desktop | Low |
+| `src/litcritic/` new `mcp` module | Primary | stdio MCP server, `lc mcp`; the extension runs it | Yes | New entry point; tools wrap existing commands | Med |
+| Extension bundle (`manifest.json`, icon, packing script) | Primary | The one-click install; folder picker; tool list | Yes | New build output from the repo; `mcpb` CLI in CI (dev tool, not runtime) | Med |
+| `src/litcritic/workspace.py` | Primary | Finds works under the novels folder by title, slug or folder name | Yes | Lookup and "most recent" ordering; the registry stays for paths outside that folder | Med |
+| `lc` CLI (`cli.py`, `docx_cli.py`, `word_live.py`) | Dependent | The commands the tools call | Small | Unchanged behaviour; a `resume` summary may be added | Low |
+| doc-control (≥ 0.6.3) | Dependent | Live Word engine; `doc_control.api.run` as its stable Python entry; reference code for the server and the places page | No | Bundled as a library inside the extension; Word moves go through `doc_control.api.run` | Med |
+| `prompts/`, `.claude/skills/litcritic/SKILL.md` | Dependent | The guide the chat follows | Yes | Server instructions and tool descriptions carry the short guide; the skill is reworked under skill-workshop | Med |
+| skill-workshop (claude-arsenal marketplace plugin) | Dev tool | Authoring gate for every skill | Install only | Must be installed in the dev session before skill work | Low |
+| Writer's novels folder (`<novel>/literary-critic/`, chat D-10) | Data | All state | No | Read and written exactly as today, now confined to the picked folder | Low |
+| `claude_desktop_config.json` | Infrastructure | Hand-added local servers (today's doc-control entry) | No | The extension does not touch it; a writer's manual doc-control entry may stay | Low |
+| Cowork / Code-tab threads, Skill zip | UI | Today's paths | No | Remain as alternatives; no longer the main path on the desktop app | Low |
+
+**Facts this rests on** (checked 2026-10-14, from the desktop app's
+documentation):
+
+- A desktop extension installs by double-click, by drag-and-drop or from
+  Settings → Extensions. Its install dialog shows the extension's
+  permissions and settings. `user_config` can declare a `directory` picker,
+  with defaults such as `${DOCUMENTS}`.
+- An extension's server type is one of:
+  - `node`: the app bundles Node.js;
+  - `python`: the dependencies are bundled, and the app does not say it
+    supplies Python;
+  - `uv`: the host installs the dependencies with uv, and the spec lists "no
+    user Python installation required";
+  - `binary`: self-contained.
+- An extension installed from a file does not update itself. The writer
+  installs the newer `.mcpb`.
+- A plugin's skills work in Chat. A plugin's bundled local server ("runs in
+  each session") works in Cowork and Claude Code, **not in Chat**. So a plugin
+  alone cannot bring the server to a plain chat.
+- An MCP App's buttons can call only tools of the server that served the
+  page (doc-control, Q-1 answer).
 
 **Risk of inaction**: every session starts with "which chat do I use?". A
 plain Chat cannot see the novel. Writers who are not developers stop at
@@ -100,9 +153,12 @@ setup, which is the very audience the chat workspace targets.
 
 ## 3. Options
 
-Every option keeps chat D-10 (state in `<novel>/literary-critic/`), install
-D-1 (live engine first, then computer use, then the plain locator) and install
-D-3 (doc-control owns the live engine's packaging).
+Every option keeps:
+
+- chat D-10: state lives in `<novel>/literary-critic/`;
+- install D-1: the live engine is tried first, then computer use, then the
+  plain locator;
+- install D-4: a returning writer resumes without setup questions.
 
 ### Option A: doc-control only, with a remembered folder (Conservative)
 
@@ -113,60 +169,79 @@ D-3 (doc-control owns the live engine's packaging).
   rounds come from a workspace zip that the writer uploads.
 - **Scope**: `prompts/05-setup.md` and `80-live-word.md` text only.
 - **Effort**: Small
-- **Tradeoffs**: Nothing to install. But the sandbox still cannot read the PC
-  folder, so there is no resume without an upload, and that breaks the "Let's
-  continue" criterion. The paragraph anchors that `lc` computes
-  (`c07.s2.p4`) are unavailable, so jumps fall back to Word's search text.
+- **Tradeoffs**: Nothing to build. But the sandbox still cannot read the PC
+  folder, so there is no resume without an upload. The writer still edits a
+  config file to add doc-control. The paragraph anchors that `lc` computes
+  (`c07.s2.p4`) are unavailable.
 - **Compatibility**: Fully compatible.
 
-### Option B: literary-critic as a local MCP server beside doc-control (Recommended)
+### Option B: a literary-critic desktop extension (Recommended; chosen by the owner)
 
-- **Description**: `lc mcp` serves a small set of tools on stdio (MCP over
-  newline-delimited JSON-RPC, standard library only). It runs from the Chat
-  tab's config, as doc-control does, on the writer's PC:
-  - `works` lists the registered works (title, folder, last activity).
-  - `resume(work)` returns the work's state: the current draft, the open
-    round and the next step.
-  - `locate(work, target, go)` and `places(work, targets)` cover the
-    existing `lc docx locate --go` and `lc docx places`.
-  - `show`, `find` and codex `ask` let the chat read the novel.
-  - `run(work, command)` runs any other `lc` subcommand in that work's
-    folder, from an allow-list.
+- **Description**: One `literary-critic.mcpb` that the writer double-clicks.
+  - **Install.** The dialog asks one thing: the folder that holds the
+    novels (default: Documents). The extension's tools then work in any
+    plain chat. The first use of a tool asks the writer's permission, as the
+    app always does.
+  - **Server.** `lc mcp`: MCP over newline-delimited JSON-RPC on stdio, with
+    its own small standard-library module (D-4). It offers a small set of
+    tools:
+    - `works` lists the novels in the folder, most recent first.
+    - `resume(work?)` returns the state, the open round and the next step.
+      With no work named, it picks the only work there, or returns the list
+      for one question.
+    - `locate(work, target, go)` covers `lc docx locate --go`.
+    - `places(work, targets)` returns the buttons.
+    - `show`, `find` and codex `ask` let the chat read the novel.
+    - `run(work, command)` runs any other `lc` subcommand from an
+      allow-list.
 
-  The server's `instructions` carry the short guide: the two channels, the
-  hard rules for writers, "Let's continue with X" means `resume`, and a
-  jump is one `locate` call and then "Done." The prompts are served as
-  resources, so the chat reads a part only when it needs it.
+    Every path is confined to the picked folder.
+  - **Word.** doc-control is bundled as a library, not as a second server
+    for the writer to install. Word moves go through `doc_control.api.run`,
+    doc-control's stable entry point. The places page is served by the
+    extension itself, adapted from doc-control's 0.6.3 page, which doc-control
+    offered to share. Its buttons call the extension's own `select` tool.
+    Only the server that served a page can answer its buttons, so this is
+    what makes one install enough (D-6).
+  - **Understanding "work on my novel".** The tool descriptions say when to
+    use them ("when the writer talks about their novel, wants to continue,
+    resume or work on it"). The server's `instructions` carry the short guide:
+    - the two channels;
+    - the writer rules;
+    - a jump is one call, then "Done.".
 
-  A setup step (`lc desktop install`) adds the entry to
-  `claude_desktop_config.json`. It keeps a backup, validates the result and
-  merges, so it never overwrites. It also registers the novel's folder. The
-  chat calls doc-control's `live_places` itself with the arguments that
-  `places` returns, because the buttons belong to doc-control's server.
+    The prompts are served as resources, read only when needed. If Q-2 shows
+    the Chat tab ignores `instructions`, the same guide ships as a skill,
+    built under skill-workshop. That skill is delivered by a plugin from the
+    repo's marketplace, which is a second, optional install.
+  - **Runtime.** The extension's server type is `uv`: dependencies are
+    declared in `pyproject.toml` and installed by the host. Q-3 checks this
+    on the owner's PC. `binary` (a frozen executable) is the fallback.
+  - **Updates.** The update check (install D-2) tells the writer, in one
+    sentence, when a newer `.mcpb` exists and where to get it.
 - **Scope**:
-  - New `src/litcritic/mcp.py` and a `mcp` subcommand.
-  - Registry lookup by title in `workspace.py`.
-  - The setup command.
-  - Prompts and SKILL.md: plain Chat becomes the main path on Windows desktop.
-  - Packaging: publish to PyPI so the entry is `uvx literary-critic mcp`, or
-    point it at an installed `lc`.
-  - Tests: a JSON-RPC transcript test, the config-merge fixtures and the
-    registry lookup.
-- **Effort**: Medium
+  - New `src/litcritic/mcp.py` and the `mcp` subcommand.
+  - The extension's `manifest.json`, icon and pack script, with a CI job.
+  - Folder lookup in `workspace.py`.
+  - The places page and the `select` proxy.
+  - Prompts, plus the skill reworked under skill-workshop.
+  - Tests:
+    - a JSON-RPC transcript test;
+    - the path-confinement cases;
+    - the lookup fixtures;
+    - manifest validation.
+- **Effort**: Medium–Large
 - **Tradeoffs**:
-  - One plain chat does everything, and resume is local and instant.
-  - Jumps keep their speed: one tool call drives Word through the same
-    `word_live` path that reached 2 s.
-  - The writer adds a second local server: one setup step and one
-    permission prompt on first use.
-  - Tools run with the writer's permissions on their own files. Keeping
-    the tool set small and allow-listed keeps the risk bounded.
-  - It depends on the desktop app passing server `instructions` to the
-    model. If the app ignores them, a one-line custom instruction ("for
-    novels, use literary-critic's tools") is the fallback. That is open
-    question Q-2.
-- **Compatibility**: Additive. Every CLI command, the Skill zip and the thread
-  paths still work.
+  - One install, one plain chat, and a local resume.
+  - Jumps keep the speed of `word_live`.
+  - It removes the config-file step that the writer, and the assistant
+    (refused earlier), could not do safely.
+  - There is a copy of the places page to keep in step with doc-control's.
+  - Private extensions do not auto-update.
+  - The `uv` server type is the newest of the four and must be proven on
+    Windows (Q-3).
+- **Compatibility**: Additive. Every CLI command, the Skill zip, the thread
+  paths and a manual doc-control entry still work.
 
 ### Option C: package the PC thread as the only path (Code tab / Remote Control)
 
@@ -179,52 +254,56 @@ D-3 (doc-control owns the live engine's packaging).
 - **Tradeoffs**:
   - Full `lc` with no new code.
   - But the writer must still learn a session type that is not the plain
-    chat, which is the very confusion reported.
+    chat, which is the confusion reported.
   - Threads relaying through a project measured about 2 minutes per turn.
-  - `live_places` buttons in threads are still unconfirmed.
 - **Compatibility**: Fully compatible.
 
 ### Comparison
 
 | | Option A | Option B | Option C |
 |---|---|---|---|
-| Effort | Small | Medium | Small |
-| Risk | Low (no code) | Medium (edits the app's config; new server) | Low |
-| Completeness | Low: no local resume, no anchors | High: every criterion | Partial: fails "no session type to choose" |
+| Effort | Small | Medium–Large | Small |
+| Risk | Low (no code) | Medium (new server; `uv` type to prove) | Low |
+| Completeness | Low: no local resume, config edit remains | High: every criterion | Partial: fails "no session type to choose" |
 | Compatibility | Full | Additive | Full |
-| Maintenance | None | One server module plus its tests; follows MCP revisions | Follows the app's UI changes |
+| Maintenance | None | Server, manifest, places page; manual updates | Follows the app's UI changes |
 
 ## 4. Recommendation
 
-**Recommended option**: Option B. It is the only option that meets "one
-plain chat" and "resume without questions". It reuses every fast path that
-already exists (`locate --go`, `places`, the registry). It also follows the
-same shape the writer already runs successfully: doc-control as a local server
-in the Chat tab.
+**Recommended option**: Option B, chosen by the owner on 2026-10-14. It is
+the only option that meets one install, one plain chat and resume without
+questions. It uses the format the desktop app provides for exactly this.
 
-**Immediate next action**: answer Q-2 with a probe server on the owner's PC,
-then write the plan, with
-the JSON-RPC transcript test and the config-merge fixtures as the first
-gates.
+**Immediate next action**: two probes on the owner's PC before the plan.
+
+1. Build a minimal `uv`-type extension with one tool and a server
+   `instructions` line, and install it by double-click. This answers Q-2
+   and Q-3.
+2. Install skill-workshop in the dev session, so the skill tasks can be
+   gated on it.
 
 **Open questions**:
 - [x] Q-1: Should lc reuse doc-control's `mcp` module? Answered by doc-control:
       no. Its `handle`/`serve` and the registry hooks are internal and may change
       in any release, so lc writes its own small stdlib server (D-4), using
-      doc-control 0.6.3's `mcp.py` as a reference. If lc ever serves its own
-      app page, that page's buttons can call only lc's tools. lc would then
-      proxy Word moves through `doc_control.api.run("live.select", …)`, which
-      is doc-control's stable Python entry point.
-- [ ] Q-2: Does the desktop app's Chat tab give the model a server's
-      `instructions`? To be checked on the owner's PC with a probe server
-      before the guide relies on it.
-- [ ] Q-3: How does the entry start the server: publish `literary-critic` to
-      PyPI and use `uvx`, the same way as doc-control, or install it once
-      and point at that? The owner decides. Publishing also needs the
-      `repo-housekeeping` metadata.
-- [ ] Q-4: Should the setup step be a new `lc desktop install`, or part of
-      `lc doctor --fix`? The proposal is a separate command, because it edits a
-      file outside the workspace and should be explicit.
+      doc-control 0.6.3's `mcp.py` as a reference. Word moves go through
+      `doc_control.api.run("live.select", …)`, its stable Python entry point.
+- [ ] Q-2: Does the Chat tab give the model an extension's `instructions`,
+      and do the tool descriptions alone make "work on my novel" call
+      `resume`? This decides whether the skill is needed (D-8). To be answered
+      by the probe extension.
+- [ ] Q-3: Does a `uv`-type extension install on Windows with no Python and
+      no uv already on the machine? Does it install doc-control's live extra
+      (pywin32)? Yes means one step. No means `binary` (a frozen
+      executable, larger) or `python` (the writer installs Python first,
+      which costs one action). To be answered by the probe extension.
+- [ ] Q-4: How does a writer get the `.mcpb`: a release on GitHub, a link
+      on a project page, or a file sent by the person who recommends the
+      tool? The owner decides; publishing needs the `repo-housekeeping`
+      metadata.
+- [ ] Q-5: Should doc-control publish its places page as a reusable file in
+      its package, so the extension can serve it rather than keep a copy?
+      To be asked of doc-control. Until then, a copy is kept.
 
 **Decisions log**:
 
@@ -232,12 +311,18 @@ gates.
 |----|----------|--------|------|
 | chat D-10 | Working files in `<novel>/literary-critic/` | agreed (kept) | 2026-10-11 |
 | install D-1 | "Take me there" tries the live engine first, then computer use, then the plain locator | agreed (kept) | 2026-10-14 |
-| install D-3 | Packaging the live engine for writers belongs to doc-control | agreed (kept) | 2026-10-14 |
+| install D-2 | The update check is a script, silent when offline; the writer sees one plain sentence | agreed (kept; it now points to the newer `.mcpb`) | 2026-10-14 |
+| install D-3 | Packaging the live engine for writers belongs to doc-control | agreed (kept: the extension uses doc-control's published package as is) | 2026-10-14 |
 | install D-4 | A returning writer resumes from the existing working folder, without setup questions | agreed (kept; this spec makes it work in a plain Chat) | 2026-10-14 |
-| D-1 | The main path on a Windows PC with the desktop app is a plain Chat with two local servers (doc-control, literary-critic); threads and projects become alternatives | proposed | 2026-10-14 |
-| D-2 | `live_places` buttons stay doc-control's; literary-critic returns the call's arguments and the chat makes the call | proposed | 2026-10-14 |
-| D-3 | The setup step merges into the desktop config (backup, validate, never overwrite other entries) | proposed | 2026-10-14 |
+| D-1 | The main path on the desktop app is a plain Chat; threads and projects become alternatives | agreed | 2026-10-14 |
+| D-2 | `live_places` buttons stay doc-control's; the chat calls doc-control's tool | superseded by D-6 | 2026-10-14 |
+| D-3 | A setup step merges an entry into `claude_desktop_config.json` | superseded by D-5 | 2026-10-14 |
 | D-4 | lc has its own stdlib MCP server and does not import doc-control's `mcp` module, which is internal (doc-control's answer to Q-1) | agreed | 2026-10-14 |
+| D-5 | The writer installs one desktop extension (`.mcpb`) by double-click; nobody edits a config file | agreed | 2026-10-14 |
+| D-6 | The extension bundles doc-control as a library and serves its own places page, so the writer installs nothing else | proposed | 2026-10-14 |
+| D-7 | The writer picks the novels folder in the install dialog; every tool is confined to it | proposed | 2026-10-14 |
+| D-8 | "Work on my novel" is understood through tool descriptions and server instructions; a skill (under skill-workshop, via plugin) is added only if Q-2 shows it is needed | proposed | 2026-10-14 |
+| D-9 | Every skill this project ships is authored and validated with skill-workshop | agreed | 2026-10-14 |
 
 ---
 
