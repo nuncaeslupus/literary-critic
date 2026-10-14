@@ -205,3 +205,53 @@ def test_show_find_ask_read_the_work(jekyll: mcp.Server) -> None:
     assert not asked["isError"]
     missing = json.loads(_call_raw(jekyll, "show", {"work": "nope"})["content"][0]["text"])
     assert missing["not_found"] == "nope"
+
+
+def test_places_result_carries_ui_resource(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from test_docx_cli import _corpus_docx, _workspace
+
+    from litcritic import dc
+
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    _ws, doc = _workspace(tmp_path, _corpus_docx(120), anchor=True)
+    server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path)])))
+
+    listed = _replay(server, [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}])[0]
+    tool = next(t for t in listed["result"]["tools"] if t["name"] == "places")
+    assert tool["_meta"]["ui"]["resourceUri"] == mcp.PLACES_URI == "ui://literary-critic/places"
+
+    res = _call_raw(server, "places", {"work": "mynovel", "targets": ["c01", "c02", "c03"]})
+    assert not res["isError"], res
+    assert res["_meta"]["ui"]["resourceUri"] == mcp.PLACES_URI
+    shown = res["structuredContent"]
+    assert shown["doc"] == doc.name and len(shown["places"]) == 3
+    assert all(p["label"] and (p.get("at") or p.get("find_phrase")) for p in shown["places"])
+
+    page = _replay(
+        server,
+        [
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "resources/read",
+                "params": {"uri": mcp.PLACES_URI},
+            }
+        ],
+    )[0]["result"]["contents"][0]
+    assert page["mimeType"] == mcp.UI_MIME
+    assert 'name: "select"' in page["text"]  # each button calls this server's select
+    assert "doc-control 0.6.3" in page["text"]  # the version the page was adapted from
+
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    def fake_run(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        calls.append((op, request))
+        return {"at": request.get("at"), "selected": True}
+
+    monkeypatch.setattr(dc, "run", fake_run)
+    place = shown["places"][0]
+    args = {"doc": shown["doc"], "mode": "cursor", "front": True, "at": place.get("at", "")}
+    picked = json.loads(_call_raw(server, "select", args)["content"][0]["text"])
+    assert picked["ok"] and calls == [("live.select", args)]
+    refused = _call_raw(server, "select", {"doc": str(doc)})
+    assert refused["isError"]
