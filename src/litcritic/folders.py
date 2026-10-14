@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -20,6 +22,23 @@ from litcritic.setup import WORKSPACE_DIR
 from litcritic.workspace import MANIFEST, Workspace
 
 FOLDERS_ENV = "LITCRITIC_FOLDERS"
+PICK_TIMEOUT = 600  # seconds the folder picker waits for the writer
+# The Windows folder dialog on a topmost form, so it opens above the app. The path is
+# written as UTF-8 without a BOM: the console's code page garbles accented names.
+PICKER = r"""
+Add-Type -AssemblyName System.Windows.Forms
+$owner = New-Object System.Windows.Forms.Form -Property @{TopMost = $true}
+$dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+$dialog.Description = 'Choose the folder that holds your novel'
+$dialog.ShowNewFolderButton = $false
+if ($dialog.ShowDialog($owner) -eq [System.Windows.Forms.DialogResult]::OK) {
+  $out = [Console]::OpenStandardOutput()
+  $bytes = (New-Object System.Text.UTF8Encoding $false).GetBytes($dialog.SelectedPath)
+  $out.Write($bytes, 0, $bytes.Length)
+}
+"""
+
+Runner = Callable[..., "subprocess.CompletedProcess[bytes]"]
 
 
 def state_file() -> Path:
@@ -139,3 +158,35 @@ class Grant:
             if any(isinstance(n, str) and _fold(n) == want for n in names):
                 hits.append(ws)
         return hits
+
+
+def pick_folder(run: Runner = subprocess.run) -> str:
+    """The folder the writer chose in the Windows picker, or "" when cancelled."""
+    if os.name != "nt" and run is subprocess.run:
+        raise ToolError("picker_unavailable", detail="the folder picker needs Windows")
+    try:
+        done = run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-STA", "-Command", PICKER],
+            capture_output=True,
+            timeout=PICK_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        return ""
+    except OSError as exc:
+        raise ToolError("picker_unavailable", detail=str(exc)) from exc
+    return bytes(done.stdout).decode("utf-8", errors="replace").lstrip("\ufeff").strip()
+
+
+def add_folder(grant: Grant, run: Runner = subprocess.run) -> dict[str, object]:
+    """Ask the writer for a folder with the picker and grant it."""
+    chosen = pick_folder(run)
+    if not chosen:
+        return {"cancelled": True}
+    folder = grant.add(chosen)
+    titles = []
+    for ws in grant.works():
+        try:
+            titles.append(str(ws.manifest.get("title") or ws.root.name))
+        except (OSError, ValueError):
+            titles.append(ws.root.name)
+    return {"added": str(folder), "works": titles}

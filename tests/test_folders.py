@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -96,3 +97,31 @@ def test_works_one_level_deep_and_lookup(tmp_path: Path) -> None:
     assert [ws.root for ws in grant.lookup("second")] == [Path(os.path.realpath(b))]
     assert [ws.root for ws in grant.lookup("single")] == [Path(os.path.realpath(c))]
     assert grant.lookup("Too Deep") == []
+
+
+def test_add_folder_decodes_utf8_accents(tmp_path: Path, _state: Path) -> None:
+    picked = tmp_path / "Señora Ñúñez"
+    _work(picked / "literary-critic", "Señora", "senora")
+    calls: list[list[str]] = []
+
+    def fake(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[bytes]:
+        calls.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, stdout=str(picked).encode("utf-8"))
+
+    grant = folders.Grant([])
+    out = folders.add_folder(grant, fake)
+    assert out["added"] == os.path.realpath(picked)
+    assert json.loads(_state.read_text(encoding="utf-8"))["folders"] == [os.path.realpath(picked)]
+    assert out["works"] == ["Señora"]
+    assert "-STA" in calls[0]
+
+    def cancel(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.CompletedProcess(cmd, 1, stdout=b"")
+
+    assert folders.add_folder(grant, cancel) == {"cancelled": True}
+
+
+def test_add_folder_tool_listed(tmp_path: Path) -> None:
+    from litcritic import mcp
+
+    assert "add_folder" in [t.name for t in mcp.tools(folders.Grant([str(tmp_path)]))]
