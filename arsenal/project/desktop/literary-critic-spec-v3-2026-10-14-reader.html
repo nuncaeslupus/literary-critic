@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="2a85fb2956b6ec0629970e664011289b31432f77e691ea3f5a4d70df551cf322">
+<meta name="arsenal-source-sha256" content="d27de2fe6c4180f98c22ecb2651e94d75d2c11cd964a4fc86f38071b669ad76e">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -200,7 +200,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-14
 <strong>Ticket / PR</strong>: workspace <code>desktop</code>
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 2
+<strong>Revision</strong>: 3
 <strong>Status</strong>: draft
 <strong>Revision log</strong>:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
@@ -210,7 +210,12 @@ h4 .chip{font-size:11px;color:var(--muted)}
   few permissions. The chat must understand "work on my novel" and similar.
   Any skill is built under skill-workshop. Research on the desktop app's
   extension and plugin formats turned the setup step into a one-click desktop
-  extension (D-5…D-9; D-2 and D-3 superseded).</p>
+  extension (D-5…D-9; D-2 and D-3 superseded).
+- r3 — owner's question in conversation (no notes export): "what if the
+  writer wants to start a chat with another novel?" The picked folder holds
+  every novel; a chat switches by naming one. The picker takes several
+  folders. A novel outside them gets one plain sentence. New criterion
+  <code>switch_novel_without_setup</code>, D-10 and Q-6.</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied
@@ -278,30 +283,44 @@ without learning the app's session types.</p>
   recorded transcript.</li>
 </ul>
 </li>
-<li>[ ] <code>resume_tool_calls &lt;= 2</code> from the writer's first message to the first
-      answer, counted on a recorded transcript.</li>
-<li>[ ] <code>chapter_jump_wall_s &lt;= 8</code> (median of 5) from "take me to chapter 7" to
-      Word at the chapter, in a plain Chat. That is one model turn with one tool
-      call, which drives Word itself.</li>
-<li>[ ] <code>places_render_as_buttons == 1.0</code>. A reply that lists places shows one
-      button per place in the Chat tab, and a click moves Word with no new chat
-      message.</li>
-<li>[ ] <code>paths_outside_novels_folder_refused == 1.0</code>. No tool reads or writes
-      outside the folder the writer picked at install, plus the tool's own
-      cache. Tested with <code>..</code>, absolute paths, symlinks and junctions.</li>
-<li>[ ] <code>mcpb_validation_errors == 0</code>. The manifest passes the MCPB CLI's
-      validation, and <code>mcpb pack</code> builds the bundle in CI.</li>
-<li>[ ] <code>skill_workshop_errors == 0</code> for every skill this work adds or changes.
-      The skill is built and checked with skill-workshop: its validator and
-      rubric pass.</li>
-<li>[ ] <code>server_runtime_deps == {stdlib, doc-control}</code> (rule 9), checked by the
-      existing import test.</li>
-<li>[ ] No session type to choose. The setup prompt and the walkthrough for
-      the writer never name threads, projects, Cowork, the Code tab or config
-      files. Judged by reading them.</li>
-<li>[ ] The writer channel's rules still hold: novel content stays out of the
-      repo, the writer approves every manuscript change, and the writer writes.
-      Judged by the existing guard and prompt tests, which pass unchanged.</li>
+<li>
+<p>[ ] <code>switch_novel_without_setup == 1.0</code>. Over the same fixture:</p>
+<ul>
+<li>a new chat about another work resumes that work;</li>
+<li>in a chat already on one work, "now let's look at <code>&lt;other title&gt;</code>"
+    moves to the other work, and later tool calls use it;</li>
+<li>a work added to a picked folder after install is found with no
+    reinstall, and its first-time setup runs in the chat as today;</li>
+<li>a work outside every picked folder gets one plain sentence saying
+    where it is not allowed and the one way to add it (Q-6).</li>
+</ul>
+<p>None of these asks a setup question beyond the new work's own
+  first-time setup. Judged on a recorded transcript.
+- [ ] <code>resume_tool_calls &lt;= 2</code> from the writer's first message to the first
+  answer, counted on a recorded transcript.
+- [ ] <code>chapter_jump_wall_s &lt;= 8</code> (median of 5) from "take me to chapter 7" to
+  Word at the chapter, in a plain Chat. That is one model turn with one tool
+  call, which drives Word itself.
+- [ ] <code>places_render_as_buttons == 1.0</code>. A reply that lists places shows one
+  button per place in the Chat tab, and a click moves Word with no new chat
+  message.
+- [ ] <code>paths_outside_novels_folder_refused == 1.0</code>. No tool reads or writes
+  outside the folder the writer picked at install, plus the tool's own
+  cache. Tested with <code>..</code>, absolute paths, symlinks and junctions.
+- [ ] <code>mcpb_validation_errors == 0</code>. The manifest passes the MCPB CLI's
+  validation, and <code>mcpb pack</code> builds the bundle in CI.
+- [ ] <code>skill_workshop_errors == 0</code> for every skill this work adds or changes.
+  The skill is built and checked with skill-workshop: its validator and
+  rubric pass.
+- [ ] <code>server_runtime_deps == {stdlib, doc-control}</code> (rule 9), checked by the
+  existing import test.
+- [ ] No session type to choose. The setup prompt and the walkthrough for
+  the writer never name threads, projects, Cowork, the Code tab or config
+  files. Judged by reading them.
+- [ ] The writer channel's rules still hold: novel content stays out of the
+  repo, the writer approves every manuscript change, and the writer writes.
+  Judged by the existing guard and prompt tests, which pass unchanged.</p>
+</li>
 </ul></div>
 <div class="note" data-for="s-spec-1"><label class="note-head" for="n-s-spec-1"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></label><textarea class="note-ta" data-key="s-spec-1" id="n-s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
 </article>
@@ -466,7 +485,12 @@ setup, which is the very audience the chat workspace targets.</p></div>
 <p><strong>Description</strong>: One <code>literary-critic.mcpb</code> that the writer double-clicks.</p>
 <ul>
 <li><strong>Install.</strong> The dialog asks one thing: the folder that holds the
-novels (default: Documents). The extension's tools then work in any
+novels (default: Documents). It is the parent of every novel, not one
+novel, and the picker takes several folders (<code>multiple: true</code>) for
+novels kept in different places (D-10). Each chat names its work. A new
+chat can be on any novel. A chat can switch at any time ("now let's
+look at …"), and every tool takes the work by name. A novel added to
+those folders later is found with no reinstall. The extension's tools then work in any
 plain chat. The first use of a tool asks the writer's permission, as the
 app always does.</li>
 <li><strong>Server.</strong> <code>lc mcp</code>: MCP over newline-delimited JSON-RPC on stdio, with
@@ -632,7 +656,13 @@ questions. It uses the format the desktop app provides for exactly this.</p>
       metadata.
 - [ ] Q-5: Should doc-control publish its places page as a reusable file in
       its package, so the extension can serve it rather than keep a copy?
-      To be asked of doc-control. Until then, a copy is kept.</p>
+      To be asked of doc-control. Until then, a copy is kept.
+- [ ] Q-6: Can the writer change the extension's folders after install?
+      The extension format declares the setting but does not say whether
+      the app lets the writer edit it later. Yes means a novel outside the
+      folders gets "add its folder in Settings → Extensions → literary-critic".
+      No means "move the novel's folder into <code>&lt;novels folder&gt;</code>", or
+      reinstall the extension. To be answered by the probe extension.</p>
 <p><strong>Decisions log</strong>:</p>
 <table>
 <thead>
@@ -728,6 +758,12 @@ questions. It uses the format the desktop app provides for exactly this.</p>
 <td>agreed</td>
 <td>2026-10-14</td>
 </tr>
+<tr>
+<td>D-10</td>
+<td>The install grants the folders that hold the novels, not one novel; each chat names its work and can switch, with no setup</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
 </tbody>
 </table>
 <blockquote>
@@ -814,7 +850,7 @@ questions. It uses the format the desktop app provides for exactly this.</p>
   function pad(n){return n<10?'0'+n:''+n;}
   function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
-  function exportName(){return 'literary-critic-spec-v2-'+today()+'-notes.md';}
+  function exportName(){return 'literary-critic-spec-v3-'+today()+'-notes.md';}
 
   function buildExport(){
     var byPart={},order=[],data={},n=0;

@@ -11,7 +11,7 @@
 **Date**: 2026-10-14
 **Ticket / PR**: workspace `desktop`
 **Author**: Claude (with the owner)
-**Revision**: 2
+**Revision**: 3
 **Status**: draft
 **Revision log**:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
@@ -22,6 +22,11 @@
   Any skill is built under skill-workshop. Research on the desktop app's
   extension and plugin formats turned the setup step into a one-click desktop
   extension (D-5…D-9; D-2 and D-3 superseded).
+- r3 — owner's question in conversation (no notes export): "what if the
+  writer wants to start a chat with another novel?" The picked folder holds
+  every novel; a chat switches by naming one. The picker takes several
+  folders. A novel outside them gets one plain sentence. New criterion
+  `switch_novel_without_setup`, D-10 and Q-6.
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied
@@ -96,6 +101,17 @@ without learning the app's session types.
       - with several, ask one question that lists them, most recent first.
       Judged over a fixed set of 10 phrasings in English and Spanish, on a
       recorded transcript.
+- [ ] `switch_novel_without_setup == 1.0`. Over the same fixture:
+      - a new chat about another work resumes that work;
+      - in a chat already on one work, "now let's look at `<other title>`"
+        moves to the other work, and later tool calls use it;
+      - a work added to a picked folder after install is found with no
+        reinstall, and its first-time setup runs in the chat as today;
+      - a work outside every picked folder gets one plain sentence saying
+        where it is not allowed and the one way to add it (Q-6).
+
+      None of these asks a setup question beyond the new work's own
+      first-time setup. Judged on a recorded transcript.
 - [ ] `resume_tool_calls <= 2` from the writer's first message to the first
       answer, counted on a recorded transcript.
 - [ ] `chapter_jump_wall_s <= 8` (median of 5) from "take me to chapter 7" to
@@ -210,7 +226,12 @@ Every option keeps:
 
 - **Description**: One `literary-critic.mcpb` that the writer double-clicks.
   - **Install.** The dialog asks one thing: the folder that holds the
-    novels (default: Documents). The extension's tools then work in any
+    novels (default: Documents). It is the parent of every novel, not one
+    novel, and the picker takes several folders (`multiple: true`) for
+    novels kept in different places (D-10). Each chat names its work. A new
+    chat can be on any novel. A chat can switch at any time ("now let's
+    look at …"), and every tool takes the work by name. A novel added to
+    those folders later is found with no reinstall. The extension's tools then work in any
     plain chat. The first use of a tool asks the writer's permission, as the
     app always does.
   - **Server.** `lc mcp`: MCP over newline-delimited JSON-RPC on stdio, with
@@ -350,6 +371,12 @@ questions. It uses the format the desktop app provides for exactly this.
 - [ ] Q-5: Should doc-control publish its places page as a reusable file in
       its package, so the extension can serve it rather than keep a copy?
       To be asked of doc-control. Until then, a copy is kept.
+- [ ] Q-6: Can the writer change the extension's folders after install?
+      The extension format declares the setting but does not say whether
+      the app lets the writer edit it later. Yes means a novel outside the
+      folders gets "add its folder in Settings → Extensions → literary-critic".
+      No means "move the novel's folder into `<novels folder>`", or
+      reinstall the extension. To be answered by the probe extension.
 
 **Decisions log**:
 
@@ -369,6 +396,7 @@ questions. It uses the format the desktop app provides for exactly this.
 | D-7 | The writer picks the novels folder in the install dialog; every tool is confined to it | proposed | 2026-10-14 |
 | D-8 | "Work on my novel" is understood through tool descriptions and server instructions; a skill (under skill-workshop, via plugin) is added only if Q-2 shows it is needed | proposed | 2026-10-14 |
 | D-9 | Every skill this project ships is authored and validated with skill-workshop | agreed | 2026-10-14 |
+| D-10 | The install grants the folders that hold the novels, not one novel; each chat names its work and can switch, with no setup | proposed | 2026-10-14 |
 
 
 > Sections 5–6 (contracts, risks) are appended by `design`.
