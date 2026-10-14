@@ -184,6 +184,14 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         print(f"unchanged: same file as {result.version}")
     else:
         print(f"{result.version}: {result.paragraphs} paragraphs -> {result.text_path}")
+    for note in result.notes:
+        print(f"note: {note}")
+    if any(n.startswith("hard-wrapped:") for n in result.notes):
+        print(
+            "warning: every line of this file is its own paragraph, so paragraphs,"
+            " dialogue, locations and comments will be wrong; see"
+            " prompts/10-ingest-and-structure.md (hard-wrapped files)"
+        )
     return 0
 
 

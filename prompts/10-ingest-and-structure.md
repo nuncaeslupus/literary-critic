@@ -38,3 +38,14 @@ When the structure is right, index the novel: `20-codex-items.md`.
 
 Tell the writer, in plain words, how many chapters and scenes you found and
 anything that looked like a leftover note in the manuscript.
+
+## Hard-wrapped files
+
+When `lc ingest` warns `hard-wrapped`, the file has one paragraph per line
+(usually text pasted from a plain-text source). Stop before anchoring:
+paragraph metrics, dialogue, locations and comments would all be wrong.
+Tell the writer in plain words that each line of the file counts as a
+separate paragraph, and ask for a copy whose paragraphs are whole (for
+example, the original plain-text file, which `lc ingest` reads by its blank
+lines). Never change the writer's file to fix it unless they ask for that
+specific change.

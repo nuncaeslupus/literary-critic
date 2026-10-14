@@ -288,3 +288,25 @@ def test_meta_paragraphs_carry_addresses(tmp_path: Path) -> None:
     for m, line in zip(meta["paragraphs"], lines, strict=True):
         got = dc.run("para.get", {"doc": str(src), "at": m["at"]})
         assert got["at"] == m["at"] and ingest.clean(got["text"]) == line
+
+
+def test_hard_wrapped_docx_is_flagged(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    import textwrap
+
+    raw = corpus.get("jekyll-hyde").path.read_text(encoding="utf-8")
+    blocks = [" ".join(b.split()) for b in raw.split("\n\n") if len(b.split()) > 30][:40]
+    lines = [ln for b in blocks for ln in textwrap.wrap(b, 72)]
+    assert ingest.hard_wrapped(lines) in range(60, 73)
+    assert ingest.hard_wrapped(blocks) == 0  # real paragraphs
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    (ws / "work.toml").write_text('slug = "hw"\nlanguage = "en"\n', encoding="utf-8")
+    src = tmp_path / "wrapped.docx"
+    src.write_bytes(docgen.docx([(ln, False) for ln in lines]))
+    assert main(["ingest", str(src), "--workspace", str(ws)]) == 0
+    out = capsys.readouterr().out
+    assert "note: hard-wrapped: one paragraph per line" in out and "warning:" in out
+    plain = tmp_path / "plain.docx"
+    plain.write_bytes(docgen.docx([(b, False) for b in blocks]))
+    assert main(["ingest", str(plain), "--workspace", str(ws)]) == 0
+    assert "hard-wrapped" not in capsys.readouterr().out
