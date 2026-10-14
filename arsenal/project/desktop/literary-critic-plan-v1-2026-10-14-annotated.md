@@ -12,7 +12,7 @@
 **Specification**: `arsenal/project/desktop/spec.md` (approved, revision 5)
 **Author**: Claude (with the owner)
 **Revision**: 1
-**Status**: draft
+**Status**: approved (2026-10-14, revision 1) — without annotations
 **Revision log**:
 - r1 — first draft, from the approved spec (Option B); T1 runs the Q-3 and Q-8 probes first
 
