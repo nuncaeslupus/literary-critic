@@ -401,7 +401,9 @@ def _cmd_kit(args: argparse.Namespace) -> int:
 def _cmd_doctor(args: argparse.Namespace) -> int:
     problems = kit.doctor(args.home or workspace.home())
     if args.json:
-        print(json.dumps({"problems": problems, **kit.version_info()}, ensure_ascii=False))
+        info = kit.version_info()
+        info.update(kit.update_check(info, network=not args.no_network))
+        print(json.dumps({"problems": problems, **info}, ensure_ascii=False))
         return 1 if problems else 0
     for p in problems:
         print(f"problem: {p}", file=sys.stderr)
@@ -572,7 +574,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_doc.add_argument(
         "--home", type=Path, default=None, help="where workspaces will live (checked, not written)"
     )
-    p_doc.add_argument("--json", action="store_true", help="one JSON object: problems, version")
+    p_doc.add_argument(
+        "--json", action="store_true", help="one JSON object: problems, version, update"
+    )
+    p_doc.add_argument(
+        "--no-network", action="store_true", help="skip the check for a newer release"
+    )
     p_doc.set_defaults(func=_cmd_doctor)
 
     p_val = sub.add_parser("validate", help="check an LLM-written artefact against its schema")
