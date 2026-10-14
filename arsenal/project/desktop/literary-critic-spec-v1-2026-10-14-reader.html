@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="67ddefc9730c3a40b84da4447e0c571751082ee1bb9c8b539ea18edbacdcdece">
+<meta name="arsenal-source-sha256" content="18f1de370398a9d2d3f180f96a074f2d3c9871f570d23e2b19edc9b635e2ef7b">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -228,7 +228,7 @@ Remote Control thread, or a Code-tab session.</p>
 the thread opened another chat, and the owner could not find the way back.
 A plain Chat runs code only in a cloud sandbox. That sandbox cannot see the
 PC's working folder, so a plain chat cannot resume the novel. The writer
-wants to open any ordinary chat, write "Let's continue with <novel>" and get
+wants to open any ordinary chat, write "Let's continue with <code>&lt;novel&gt;</code>" and get
 the novel's state, the next step and the jumps into Word, with no projects,
 threads or uploads.</p>
 <p>The desktop app's Chat tab already starts the local MCP servers listed in
@@ -242,12 +242,12 @@ without learning the app's session types.</p>
 <p><strong>Success criteria (measurable)</strong></p>
 <ul>
 <li>[ ] <code>resume_without_questions == 1.0</code>: in a new Chat, "Let's continue with
-      <title>" (title, slug or folder name, any capitalisation or accents)
+      <code>&lt;title&gt;</code>" (title, slug or folder name, any capitalisation or accents)
       resolves the right workspace and answers with where the writer left off
       and the next step. The chat asks no setup question. Checked over a fixture
       registry with 3 works, one title with accents and one not registered: for
       that one, the answer lists the known works.</li>
-<li>[ ] <code>resume_tool_calls &lt;= 2</code> from "Let's continue with <title>" to the
+<li>[ ] <code>resume_tool_calls &lt;= 2</code> from "Let's continue with <code>&lt;title&gt;</code>" to the
       first answer. Counted on a recorded transcript.</li>
 <li>[ ] <code>chapter_jump_wall_s &lt;= 8</code> (median of 5) from "take me to chapter 7"
       to Word at the chapter, in a plain Chat. This is one model turn with one

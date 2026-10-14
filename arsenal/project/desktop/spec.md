@@ -32,7 +32,7 @@ On the owner's test this was confusing. The project chat opened a thread,
 the thread opened another chat, and the owner could not find the way back.
 A plain Chat runs code only in a cloud sandbox. That sandbox cannot see the
 PC's working folder, so a plain chat cannot resume the novel. The writer
-wants to open any ordinary chat, write "Let's continue with <novel>" and get
+wants to open any ordinary chat, write "Let's continue with `<novel>`" and get
 the novel's state, the next step and the jumps into Word, with no projects,
 threads or uploads.
 
@@ -49,12 +49,12 @@ without learning the app's session types.
 **Success criteria (measurable)**
 
 - [ ] `resume_without_questions == 1.0`: in a new Chat, "Let's continue with
-      <title>" (title, slug or folder name, any capitalisation or accents)
+      `<title>`" (title, slug or folder name, any capitalisation or accents)
       resolves the right workspace and answers with where the writer left off
       and the next step. The chat asks no setup question. Checked over a fixture
       registry with 3 works, one title with accents and one not registered: for
       that one, the answer lists the known works.
-- [ ] `resume_tool_calls <= 2` from "Let's continue with <title>" to the
+- [ ] `resume_tool_calls <= 2` from "Let's continue with `<title>`" to the
       first answer. Counted on a recorded transcript.
 - [ ] `chapter_jump_wall_s <= 8` (median of 5) from "take me to chapter 7"
       to Word at the chapter, in a plain Chat. This is one model turn with one
