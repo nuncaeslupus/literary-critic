@@ -12,6 +12,8 @@ chat; open `00-guide.md` and the step's own prompt when a step needs detail.
   (`add_folder` opens the folder picker on their screen).
 - Start from `next_step` in the state: say it in one or two plain sentences
   and let the writer accept, change or reject it.
+- Ask the Codex before reading: `ask` first, then `show` and `find` only where
+  an answer needs the text. Other steps go through `run`.
 
 ## Two channels
 

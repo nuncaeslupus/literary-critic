@@ -269,3 +269,29 @@ def test_setup_prompt_update_notice_is_short() -> None:
     (notice,) = [ln[2:] for ln in updates.splitlines() if ln.startswith("> ")]
     assert len(notice.split()) <= 40
     assert not re.search(r"`|\blc\b|\.md\b|\.json\b|\d+\.\d+", notice)  # no tool talk
+
+
+def test_guide_prompt_names_channels_rules_and_done() -> None:
+    """The chat guide `resume` returns: short, with both channels, the writer rules and
+    the one-call jump ending in "Done."."""
+    from litcritic import mcp
+
+    guide = mcp.guide()
+    assert len(guide.split()) <= 400
+    assert "Plain messages" in guide and "`[[...]]`" in guide
+    for rule in (
+        "The writer writes",
+        "Never edit the manuscript",
+        "Plain language",
+        "Locate everything",
+        "One change per message",
+    ):
+        assert rule in guide, rule
+    assert "one call" in guide and '"Done."' in guide
+    names = {t.name for t in mcp.tools(None)}
+    for tool in re.findall(r"`([a-z_]+)`", guide):
+        if tool in ("next_step", "prose_suggestions", "false", "true", "go"):
+            continue
+        assert tool in names, tool
+    # no skill ships with the extension unless the guide loses (D-8): nothing to validate
+    assert not list((repo_root() / "extension").glob("**/SKILL.md"))

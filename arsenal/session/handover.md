@@ -1,5 +1,12 @@
 # Handover
 
+**Last session (2026-10-14, night, cloud):** desktop extension server, every task that needs no Windows. Merged: T2 server core (#183), T3 folders and confinement (#184), T4 `works`/`resume` + `prompts/01-chat-guide.md` (#185), T5 `add_folder` picker (#186), T7 `show`/`find`/`ask`/`run` (#187), T6 `locate`/`places`/`select` + `src/litcritic/ui/places.html` served as `ui://literary-critic/places` (#188); T9 guide test in the PR that carries this note.
+
+- **Waiting on the owner (Windows):** T1 probes Q-3/Q-8 (#177), then T8 manifest/pack/CI (#179, needs T1), then T10 walkthrough (#181). The picker (T5) and `select` (T6) are only tested with fakes; T10 is their first real run.
+- **T9 not done:** the with/without-skill comparison on five generic requests needs the desktop app; no skill is written (D-8), so nothing to validate yet.
+- **For T8:** the `.mcpb` must ship `prompts/` (the guide `resume` returns, read from `repo_root()/prompts`) and `src/litcritic/ui/`.
+- `run` allow-list: show, find, context, locate, round, codex, index, metrics, diff, report; `docx` only through `locate`/`places`.
+
 **Last session (2026-10-14, evening):** live Word through doc-control, workspace paths, the "who writes?" choice. Merged: #147 (`lc word` tries doc-control's `live.*` first; locate selects by `at`, else by the Find phrase; a failure, `LIVE_TIMEOUT` = 10 s or an unselected result leaves the computer-use steps; conflict with #160 resolved keeping both), #148 (manuscript paths relative to the novel's folder), #150 ("take me to chapter 7", lists of places with one click each, "Done." for direct requests), #161 (the AI-text notice shown with "who writes?"; `prose_suggestions` is `false` / `"minor"` / `true`).
 
 - **doc-control 0.6.1 adopted:** `live.status` lists open documents; a bare file name works as `doc` (so Cowork's sandbox paths no longer matter); `DOC_AMBIGUOUS` gives full paths in `details.candidates`. The owner's desktop app runs doc-control's MCP server and refreshes it on every start (`uvx --refresh-package`); the config change needs a full Quit of the app to apply.
