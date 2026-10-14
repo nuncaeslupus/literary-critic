@@ -237,7 +237,7 @@ def _recorded_choice(root: Path, found: Discovery) -> Path | None:
     """The file the writer chose before, unless a draft was saved after that choice."""
     try:
         data = json.loads((root / CHOICE).read_text(encoding="utf-8"))
-        path, at = Path(data["manuscript"]), float(data["chosen_at"])
+        path, at = ingest.recorded_path(root, data["manuscript"]), float(data["chosen_at"])
     except (OSError, ValueError, KeyError, TypeError):
         return None
     if not path.is_file() or found.manuscript.modified > at:
@@ -286,7 +286,7 @@ def setup(
         )
     if manuscript is not None:
         (ws.root / CHOICE).parent.mkdir(parents=True, exist_ok=True)
-        choice = {"manuscript": str(doc.resolve()), "chosen_at": time.time()}
+        choice = {"manuscript": ingest.stored_path(ws.root, doc), "chosen_at": time.time()}
         (ws.root / CHOICE).write_text(json.dumps(choice) + "\n", encoding="utf-8")
     result = ingest.ingest(doc, ws.root)
     structure_file = ws.root / "index" / result.version / "structure.json"
