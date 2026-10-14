@@ -181,3 +181,35 @@ from the conversation.
   a document made the same way.
 - Not seen yet: whether a new conversation needs the folder picked again (a
   Cowork project should keep it).
+
+## `lc word` through doc-control's live engine (2026-10-14)
+
+Same machine; doc-control 0.6.0 with its `live` extra (pywin32 312), Word
+reachable; the corpus novel's `.docx` set up in a scratch folder with
+`lc setup`, `lc ingest`, `lc anchor`. `lc` ran on the host (`uv run lc`).
+
+- `lc docx locate c05.s1.p3` now prints `path` and `at`; `lc word locate` with
+  that answer selected the paragraph in Word by its address: `"status": "done"`,
+  `selected` equal to the paragraph's text, in **1.8 s** wall clock (computer
+  use: about 30 s and 15 steps, above).
+- `lc word reopen` opened the document in Word (4.0 s, with Word already
+  running), `lc word selection` read back the same paragraph and address,
+  `lc word close` (no save, nothing changed) closed it.
+- With the document closed, `lc word locate` answered `manual` with the
+  computer-use steps and `live: {tool: live_select, arguments, error}`.
+- doc-control's MCP server (`doc-control mcp`, stdio) answered `initialize`
+  and `tools/list` with the `live_*` tools.
+- **From Cowork (same day):** with the server added to the desktop app's
+  config (`mcpServers`, `uvx --from "doc-control[live]" doc-control mcp`) and
+  the app restarted, a Cowork conversation called `live_status` (Word
+  reachable, document open, no unsaved changes) and `live_select` with the
+  document's path on the writer's computer and a `find_phrase`: Word selected
+  the right paragraph. A Cowork conversation can reach Word without computer
+  use. It needed the full host path (Cowork only knows its sandbox's); bare
+  file names are queued in doc-control. Seen: the paragraph lands at the
+  bottom edge of the window, and it is left selected, so a key typed without
+  noticing would replace it. Centring it and a show-without-selecting mode are
+  asked of doc-control.
+- Found on the way: a workspace made in Cowork records the manuscript by the
+  sandbox's absolute path (`state/manuscript.json`, `state/documents.json`), so
+  it cannot be used from the host.

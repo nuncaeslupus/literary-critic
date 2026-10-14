@@ -50,7 +50,7 @@ is `convert.py`, which writes a minimal `.docx` for paragraphs held in memory
 | `docx_out.py` (`lc docx-out`) | `batch` (`comment.add`) | Feedback comments from round actions, on a copy |
 | `setup.py` | `info` (Word lock) | Writer onboarding |
 | `kit.py` (`lc doctor`) | `capabilities` | Platform self-test |
-| `word_live.py` (`lc word`) | — (fed by `locate`) | Computer-use steps for an open Word until doc-control's live engine ships |
+| `word_live.py` (`lc word`) | `live.select`, `live.save`, `live.close`, `live.open`, `live.selection` (fed by `locate`) | The same operation as computer-use steps and a writer line when the live engine cannot reach Word, with the doc-control MCP call that would |
 
 Everything else — `checklist`, `codex`, `metrics`, `query`, `rounds`, `report`,
 `pack`, `guard`, `workspace` — works on the workspace's own files and never touches

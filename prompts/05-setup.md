@@ -11,6 +11,7 @@ messages (a few lines), and do every technical step yourself.
 | You can run code | Run `lc doctor --json` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
 | A folder on the writer's computer is connected | You can list it (Cowork: the folder the writer picked) | Ask the writer to connect the folder that holds the novel (one click in Cowork: "Choose folder") |
 | You can see and use the screen (computer use) | Try to take a screenshot | Fine: give the writer plain locations instead of taking them there |
+| Word on the writer's computer can be reached (Cowork) | You have doc-control's tools (`live_status`) and it lists Word as reachable | Fine: computer use takes the writer there, more slowly; the writer can add doc-control's server to Claude's desktop app later |
 
 Then say in two or three lines what will work, and ask the writer to turn on
 only what is missing and needed. Facts to give when asked:

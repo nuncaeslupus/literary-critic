@@ -3,35 +3,80 @@
 Use this when the writer works with the manuscript open in Word. The goal: the
 writer never searches for anything, and never loses a word of their work.
 
-Everything goes through `lc`. `lc word` gives the steps for the open Word, which
-you do with computer use, and the plain line for the writer when you cannot.
+Everything goes through `lc`. `lc word` asks doc-control's live engine first:
+when it answers `"status": "done"`, Word has already done it. Otherwise it
+answers `"status": "manual"` with the `steps` for the open Word, which you do
+with computer use, and the plain line for the writer when you cannot.
+
+## Where doc-control can reach Word
+
+- **lc runs on the writer's computer** (Claude Code, or any terminal there,
+  with `pip install "literary-critic[live]"`): `lc word` does it by itself.
+- **Cowork**: `lc` runs in a sandbox that cannot reach Word. If you have
+  doc-control's tools (`live_select`, `live_open`, …: the writer added
+  doc-control's server to Claude's desktop app), call the tool named in the
+  answer's `live` with its `arguments` as they are: `doc` is the file name
+  alone, and doc-control finds the open document of that name on the writer's
+  computer. It answers in a few seconds. If it answers `DOC_AMBIGUOUS` (two
+  open documents share the name), call it again with `doc` set to the right
+  one of the full paths in `details.candidates`; `live_status` without `doc`
+  lists the open documents. Without those tools, or if the tool fails, follow
+  the `steps`.
+- **A chat without either**: the `writer` line.
 
 ## Take the writer to a passage
 
 1. `lc docx locate "<first words of the passage>" --workspace <ws>` (or an
-   anchor such as `c07.s2.p4`). It prints `find` (Word's search text), `unique`,
-   `paragraphs_after` and the plain `locator` (chapter, page, first and last words).
+   anchor such as `c07.s2.p4`; a chapter `c07` or a scene `c07.s2` lands on its
+   first paragraph). For "take me to chapter 7", find the chapter's id in
+   `lc show --workspace <ws>` first: the novel's numbering and titles need not
+   match the ids. It prints `path` and `at` (the file and the
+   paragraph's address, for the live engine), `find` (Word's search text),
+   `unique`, `paragraphs_after` and the plain `locator` (chapter, page, first
+   and last words).
 2. Save that answer, exactly as printed, to a file, `locate.json` (a file,
    because passages contain quotes and apostrophes); add `"language": "es"` for
    a writer line in Spanish. Then `lc word locate --payload locate.json`.
-   If the answer says `"how": "live"`, the passage is already selected in the
-   open Word: tell the writer its `writer` line and stop here. Otherwise follow
-   its `steps` with computer use: bring Word to the front, open the
-   search with the key the steps name, type `find` exactly, press Enter. Word
-   selects the passage. When Find lands on a paragraph above it, the steps say
-   how many paragraphs to move down. On Windows, Word's shortcuts change with
-   the language of its menus (in a Spanish Word, Ctrl+F indents the paragraph
-   and Ctrl+S underlines): press only the keys the steps give.
-3. If computer use is off, or the passage is not found, give the writer the
+   - `"status": "done"`: Word is there. Answer a direct request ("take me to
+     chapter 7", a click on a place) with one word: "Done." ("Hecho." in
+     Spanish). The writer is looking at Word, not at a description of it.
+   - `live.error` says the document is not open: open it
+     (`lc word reopen --payload '{"document": "<path>"}'`, or `live_open` in
+     Cowork) and repeat this step.
+   - Otherwise, try `live` as above (Cowork), else follow the `steps` with
+     computer use: bring Word to the front, open the search with the key the
+     steps name, type `find` exactly, press Enter. Word selects the passage.
+     When Find lands on a paragraph above it, the steps say how many
+     paragraphs to move down. On Windows, Word's shortcuts change with the
+     language of its menus (in a Spanish Word, Ctrl+F indents the paragraph
+     and Ctrl+S underlines): press only the keys the steps give.
+3. If none of this works, or the passage is not found, give the writer the
    `writer` line instead: chapter, page, and the quoted first and last words.
 4. Every time the writer asks to be taken somewhere, run these steps again,
    even for a passage you showed before: they may have moved since.
 
+## Lists of places: one click each
+
+When a reply names passages for the writer to look at (places to work on,
+findings, the repetitions of a word), and Word can be reached (any of the
+ways above), make each place a way there:
+
+- If you can show an interactive widget whose buttons send a chat message,
+  show the places as a short list, each with a button ("Take me there" in the
+  writer's language) that sends "Take me to <anchor>: “<first words>…”".
+  The click comes back to you as that request: locate the anchor, select it,
+  answer "Done.".
+- Otherwise number the places and end with one line: "Tell me a number and I
+  will take you there."
+
+Each place still shows its quoted first words, so the list reads on its own.
+
 ## Change the document (only what the writer approved)
 
 1. `lc docx status --workspace <ws>`. If `locked` is true, Word has the file
-   open: follow `lc word close --payload '{"document": "<document>", "save": true}'`,
-   or ask the writer to save and close it. Never close Word with unsaved
+   open: ask the writer whether to save it, then
+   `lc word close --payload '{"document": "<path>", "save": true}'` (done by
+   itself, or its `live` tool or `steps`), or ask the writer to save and close it. Never close Word with unsaved
    changes without the writer's answer.
 2. If `changed_on_disk` is true, the writer saved since the tool last read the
    file: run `lc ingest` on it first, then check the edit still applies.
@@ -39,7 +84,7 @@ you do with computer use, and the plain line for the writer when you cannot.
    step 5: `id`, `quote`, `prefix`, `suffix`, `replace`, `reason`) and run
    `lc docx edits --workspace <ws> --edits edits.json --dry-run`, then without
    `--dry-run`. For a name changed everywhere: `lc docx rename OLD NEW --workspace <ws> --dry-run`, then without it.
-4. Reopen the document (`lc word reopen --payload '{"document": "<document>"}'`)
+4. Reopen the document (`lc word reopen --payload '{"document": "<path>"}'`)
    and take the writer to the change (above). Tell them, in one short message:
    what changed, where, and that it shows as a tracked change they can accept
    or reject.

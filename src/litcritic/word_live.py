@@ -1,20 +1,26 @@
-"""Steps for the writer's open Word, done by the agent with computer use.
+"""The writer's open Word: done by doc-control's live engine, or by the agent's computer use.
 
-The live engine that drives an open Word belongs to doc-control (one core, two
-engines, one API; its ``capabilities`` lists the engines it has). ``locate`` asks
-it first: when Word is reachable, ``live.select`` selects the passage and the
-answer is ``{"status": "done", "how": "live", "writer": "..."}``; any failure falls
-back to the steps below. Every other operation (and ``locate`` without the live
-engine) answers with ``{"status": "manual", "how":
-"computer-use", "steps": [...], "writer": "..."}``: the steps the agent performs
-with computer use, and the plain instruction for the writer when computer use is
-not available. literary-critic builds no live-Word code of its own.
+doc-control owns the live engine that drives an open Word (``live.*`` operations, its
+``live`` extra). ``lc word`` first asks it: when ``lc`` runs on the writer's computer, with
+Word open on the document, the operation is done and the answer is ``{"status": "done",
+"how": "live", ...}``. Otherwise (Cowork's sandbox, no Word, the document not open in it)
+the answer is ``{"status": "manual", "how": "computer-use", "steps": [...], "writer":
+"..."}``: the steps the agent performs with computer use, and the plain instruction for
+the writer when computer use is not available. It also carries ``live``: the doc-control
+MCP tool and arguments that would do it, for an agent that has doc-control's MCP server
+on the writer's computer, and why the engine could not. Its ``doc`` is the file name
+alone: the sandbox's path means nothing on the writer's computer, and doc-control (0.6.1+)
+resolves a bare name to the one open document of that name. literary-critic builds no
+live-Word code of its own.
 
 ``locate`` is fed by ``lc docx locate``: its whole answer is a valid request
-(``document``, ``find``, ``unique``, ``paragraphs_after``, ``locator``; ``find``
-may also come from the locator alone). Edits never go through Word: ``lc docx
-edits`` / ``rename`` change the file while Word has it closed, and these steps
-only save, close, reopen and bring Word to the passage.
+(``document``, ``path``, ``at``, ``find``, ``unique``, ``paragraphs_after``, ``locator``;
+``find`` may also come from the locator alone). The live engine selects the paragraph by
+its address ``at``, which it checks against the open document, or, without one, by the
+``find`` phrase. A live call that fails, or takes longer than ``LIVE_TIMEOUT``, leaves the
+steps to do it. Edits never go through
+Word: ``lc docx edits`` / ``rename`` change the file while Word has it closed, and these
+operations only save, close, reopen and bring Word to the passage.
 """
 
 from __future__ import annotations
@@ -23,7 +29,7 @@ import concurrent.futures
 import json
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any
 
 from litcritic import dc, locate
@@ -40,7 +46,15 @@ OPERATIONS: dict[str, tuple[str, ...]] = {
 }
 MANUAL_KEYS = ("status", "how", "steps", "writer")
 # request keys that may be absent
-OPTIONAL = {"locate": ("locator", "language", "unique", "paragraphs_after")}
+OPTIONAL = {"locate": ("locator", "language", "unique", "paragraphs_after", "path", "at")}
+# operation -> doc-control live operation that does it
+LIVE = {
+    "locate": "live.select",
+    "save": "live.save",
+    "close": "live.close",
+    "reopen": "live.open",
+    "selection": "live.selection",
+}
 
 
 class WordLiveError(Exception):
@@ -207,7 +221,7 @@ def _unfindable(payload: dict[str, Any]) -> dict[str, Any] | None:
     return {"status": "manual", "how": "computer-use", "steps": steps, "writer": writer}
 
 
-LIVE_TIMEOUT = 10.0  # seconds a live select may take before the steps take over
+LIVE_TIMEOUT = 10.0  # seconds a live call may take before the steps take over
 FIND_CODES = {"^p": "\r", "^t": "\t", "^^": "^"}  # Word's Find-box codes with a plain form
 
 
@@ -228,67 +242,102 @@ def _phrase(find: str) -> str | None:
     return "".join(out)
 
 
-def _word_reachable() -> bool:
-    try:
-        caps = dc.run("capabilities", {})
-    except Exception:  # no doc-control, or one without the live engine
-        return False
-    apps = (caps.get("live") or {}).get("apps") or []
-    return "live" in caps.get("engines", []) and any(
-        a.get("app") == "word" and a.get("available") and a.get("reachable") for a in apps
-    )
-
-
-def _live_locate(payload: dict[str, Any]) -> dict[str, Any] | None:
-    """Select the passage in the open Word through doc-control; None when that is not
-    possible (no reachable Word, an untypable phrase, an error, a timeout)."""
-    phrase = _phrase(str(payload.get("find") or ""))
-    if not phrase or not payload.get("document") or not _word_reachable():
+def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
+    """The doc-control live request for ``op``; None when it has none (no full path, or a
+    passage with neither its address nor a phrase Word's search could type)."""
+    if op not in LIVE:
         return None
-    req: dict[str, Any] = {"doc": str(payload["document"]), "find_phrase": phrase}
-    if payload.get("paragraphs_after"):
-        req["paragraphs_after"] = int(payload["paragraphs_after"])
+    doc = str(payload.get("path") or payload.get("document") or "")
+    if not Path(doc).is_absolute():
+        return None
+    request: dict[str, Any] = {"doc": doc}
+    if op == "locate":
+        if payload.get("at"):
+            request["at"] = str(payload["at"])
+        elif phrase := _phrase(str(payload.get("find") or "")):
+            request["find_phrase"] = phrase
+            if payload.get("paragraphs_after"):
+                request["paragraphs_after"] = int(payload["paragraphs_after"])
+        else:
+            return None
+    elif op == "close":
+        request["save"] = bool(payload.get("save"))
+    elif op == "reopen":
+        request["app"] = "word"
+    return request
+
+
+def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
+    """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
+    Word takes longer than ``LIVE_TIMEOUT`` or a passage comes back unselected)."""
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        got = pool.submit(dc.run, "live.select", req).result(timeout=LIVE_TIMEOUT)
-    except Exception:  # DocError, timeout: the steps take over
-        return None
+        result = pool.submit(dc.run, LIVE[op], request).result(timeout=LIVE_TIMEOUT)
+    except TimeoutError as exc:
+        raise dc.DocError("LIVE_TIMEOUT", f"Word did not answer in {LIVE_TIMEOUT:g}s") from exc
     finally:
         pool.shutdown(wait=False)
-    if not got.get("at") or got.get("selected") is False:
-        return None
-    lang = str(payload.get("language") or "en")
-    name = _name(payload)
-    writer = (
-        f"En {name}: el pasaje está seleccionado en Word."
-        if lang == "es"
-        else f"In {name}: the passage is selected in Word."
-    )
-    return {"status": "done", "how": "live", "writer": writer}
+    if op == "locate" and (not result.get("at") or result.get("selected") is False):
+        raise dc.DocError("NOT_SELECTED", "Word did not select the passage")
+    return result
+
+
+def _done(op: str, payload: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = {"status": "done", "how": "live"}
+    if op == "locate":
+        out["selected"] = result.get("text", "")
+        lang = str(payload.get("language") or "en")
+        where = _where(payload.get("locator"), lang) or (
+            "el pasaje está seleccionado en Word"
+            if lang == "es"
+            else "the passage is selected in Word"
+        )
+        out["writer"] = f"{'En' if lang == 'es' else 'In'} {_name(payload)}: {where}."
+    elif op == "selection":
+        out["selected"] = result.get("text", "")
+        out["paragraph"] = result.get("paragraph")
+    else:
+        out["result"] = {k: v for k, v in result.items() if not k.startswith("_")}
+    return out
 
 
 def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
-    """One operation's answer: done live (``locate`` with a reachable Word), else the
-    computer-use steps and writer line."""
+    """One operation done in the open Word, or its computer-use steps and writer line."""
     if op not in OPERATIONS:
         raise WordLiveError(f"unknown operation {op!r}; one of {', '.join(OPERATIONS)}")
     if op == "locate":
         payload = _with_find(payload)
-        if plain := _unfindable(payload):
-            return plain
-        if live := _live_locate(payload):
-            return live
+    request = _request(op, payload)
+    if request is not None:
+        try:
+            return _done(op, payload, _live(op, request))
+        except dc.DocError as exc:
+            why = {"code": exc.code, "message": exc.message}
+    if op == "locate" and (plain := _unfindable(payload)):
+        return _with_live(plain, op, request, why if request else None)
     missing = [k for k in OPERATIONS[op] if k not in payload or payload[k] in ("", None)]
     if missing:
         raise WordLiveError(f"{op} needs {', '.join(missing)}")
-    return manual(op, payload, platform)
+    return _with_live(manual(op, payload, platform), op, request, why if request else None)
+
+
+def _with_live(
+    out: dict[str, Any], op: str, request: dict[str, Any] | None, why: dict[str, str] | None
+) -> dict[str, Any]:
+    """A manual answer, with the doc-control MCP call that would do it and why it was not."""
+    if request is None:
+        return out
+    tool = LIVE[op].replace(".", "_")  # doc-control's MCP tool names
+    # the bare file name: doc-control resolves it to the open document of that name
+    arguments = {**request, "doc": PurePath(request["doc"]).name}
+    return {**out, "live": {"tool": tool, "arguments": arguments, "error": why}}
 
 
 def _cmd(args: Any) -> int:
     try:
         raw = args.payload
         inline = raw.lstrip().startswith(("{", "["))
-        payload = json.loads(raw if inline else Path(raw).read_text(encoding="utf-8"))
+        payload = json.loads(raw if inline else Path(raw).read_text(encoding="utf-8-sig"))
         if not isinstance(payload, dict):
             raise ValueError("the payload must be a JSON object")
         out = call(args.op, payload)
