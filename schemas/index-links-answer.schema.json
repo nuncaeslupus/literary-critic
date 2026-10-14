@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Answer to a links packet (lc index import)",
+  "type": "object",
+  "required": ["links"],
+  "additionalProperties": false,
+  "properties": {
+    "links": {"type": "array", "maxItems": 400, "items": {"$ref": "#/$defs/link"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 40},
+    "link": {
+      "type": "object",
+      "required": ["payoff", "setup"],
+      "additionalProperties": false,
+      "properties": {"payoff": {"$ref": "#/$defs/id"}, "setup": {"$ref": "#/$defs/id"}}
+    }
+  }
+}

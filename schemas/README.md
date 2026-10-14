@@ -12,6 +12,7 @@ type's schema (`src/litcritic/codex_types/`) by `lc codex check`.
 | `profile` | `profile.schema.json` | LLM + writer, `analysis/profile.toml` |
 | `index-entities-answer` | `index-entities-answer.schema.json` | LLM, answer to an entity packet (`lc index import`) |
 | `index-scenes-answer` | `index-scenes-answer.schema.json` | LLM, answer to a scene packet (`lc index import`) |
+| `index-links-answer` | `index-links-answer.schema.json` | LLM, answer to a links packet (`lc index import`) |
 
 Supported keywords: `type`, `const`, `enum`, `required`, `properties`,
 `additionalProperties`, `items`, `minItems`, `maxItems`, `minLength`, `maxLength`, `minimum`,

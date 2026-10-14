@@ -19,7 +19,13 @@ from typing import Any
 from litcritic import checklist
 from litcritic.workspace import repo_root
 
-KINDS = ("profile", "report", "index-entities-answer", "index-scenes-answer")
+KINDS = (
+    "profile",
+    "report",
+    "index-entities-answer",
+    "index-scenes-answer",
+    "index-links-answer",
+)
 TYPES: dict[str, tuple[type, ...]] = {
     "object": (dict,),
     "array": (list,),

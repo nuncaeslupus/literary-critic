@@ -49,13 +49,20 @@ PACKET_MAX = 12000  # no rendered packet exceeds this
 KNOWN_CAP = 300  # tokens for the names an entity packet shares with the others
 KNOWN_LINES_CAP = 1500  # tokens for the known entities listed under the scenes of a packet
 SETUP_LINES_CAP = 300  # tokens for the open setups listed in a scene packet
+LINK_LINES_CAP = 6000  # tokens for the setups and payoffs listed in the links packet
+LINK_QUOTE = 160  # characters of each setup's or payoff's own words shown there
 SCENES_PER_PACKET = 40  # the answer schema allows 60
 FACT_NAMES = 12  # names and speakers listed per scene
 NAMES_PACKET = "n1"  # the packet resolving names queued by scene answers
+LINKS_PACKET = "l1"  # the packet linking payoffs that scene packets left unlinked
 STATUSES = ("todo", "done", "failed")
 # what a re-plan keeps of an unchanged packet: its state and its cost record
 KEPT = ("status", "items", "error", "out_tokens", "prints", "imports", "started", "finished")
-KIND_SCHEMA = {"entities": "index-entities-answer", "scenes": "index-scenes-answer"}
+KIND_SCHEMA = {
+    "entities": "index-entities-answer",
+    "scenes": "index-scenes-answer",
+    "links": "index-links-answer",
+}
 # Model tier per packet kind, named, never a model id (spec, open question 1): cheap
 # (Haiku-class), standard (Sonnet-class), strong (the session's best). Entity resolution
 # needs the strong tier: a cheap model agreed only 0.73 recall / 0.69 precision with a
@@ -64,7 +71,7 @@ KIND_SCHEMA = {"entities": "index-entities-answer", "scenes": "index-scenes-answ
 # scenes (5/18 right) and missed half the setups; the standard tier agreed on >= 17/18
 # scenes per field once told to always give pov.
 TIERS = ("cheap", "standard", "strong")
-TIER = {"entities": "strong", "scenes": "standard"}
+TIER = {"entities": "strong", "scenes": "standard", "links": "strong"}
 
 INSTRUCTIONS = {
     "entities": (
@@ -97,6 +104,12 @@ INSTRUCTIONS = {
         "that known lacks, as written; never roles, relations, titles or common nouns "
         "(the doctor, her mother, the mayor, the house). Every quote: exact words copied "
         "from that scene, enough to occur only once in it."
+    ),
+    "links": (
+        "Task: scenes were read apart, so these payoffs found no setup. For each payoff "
+        "below, give the id of the open setup it resolves, if one is listed; a setup is "
+        "always earlier in the book than its payoff. Leave out a payoff that resolves "
+        "none of them; never guess."
     ),
 }
 
@@ -453,26 +466,19 @@ def _without_rejected(pre: dict[str, Any], rejects: dict[str, dict[str, Any]]) -
     return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
 
-def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str] | None) -> dict[str, Any]:
-    """The pre-pass reduced to the candidates (in ``scenes``, or anywhere when None)
-    that no Codex entity (name, alias or title) covers yet, with the render budget
-    recomputed. Unchanged (the same object) when nothing is dropped."""
+def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str]) -> dict[str, Any]:
+    """The pre-pass reduced to the candidates in ``scenes`` that no Codex entity
+    (name, alias or title) covers yet, with the render budget recomputed."""
     known = set(_forms(cx))
     for e in cx.live("entity"):
         known.update(t.casefold() for t in e.fields.get("titles", []))
-    names = (
-        None
-        if scenes is None
-        else {n for sid in scenes for n in pre["scenes"].get(sid, {}).get("names", [])}
-    )
+    names = {n for sid in scenes for n in pre["scenes"].get(sid, {}).get("names", [])}
     keep = [
         c
         for c in pre["candidates"]
-        if (names is None or c["name"] in names)
+        if c["name"] in names
         and not any(f.casefold() in known for f in [c["name"], *c.get("forms", [])])
     ]
-    if len(keep) == len(pre["candidates"]):
-        return pre
     budget = int(pre.get("stats", {}).get("text_tokens", 0) * prepass.DEFAULT_SHARE)
     return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
@@ -504,11 +510,6 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         only = changed_scenes(ws_root, draft, cx, base)
         draft.pre = _uncovered(draft.pre, cx, only)
         prepass.write(ws_root, draft.pre)
-    else:
-        uncovered = _uncovered(draft.pre, cx, None)
-        if uncovered is not draft.pre:
-            draft.pre = uncovered
-            prepass.write(ws_root, draft.pre)
     for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
         packets.append(
             {
@@ -533,6 +534,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         )
     old: dict[str, dict[str, Any]] = {}
     queue: list[dict[str, Any]] = []
+    asked: list[str] = []
     base_hashes: dict[str, str] | None = None
     path = plan_path(ws_root)
     if path.is_file():
@@ -542,6 +544,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
                 old = {p["id"]: p for p in prev.get("packets", [])}
             base_hashes = prev.get("base_hashes")
             queue = prev.get("new_names", [])
+            asked = prev.get("links_asked", [])
         else:
             base_hashes = prev.get("scene_hashes")
     covered = _forms(cx)
@@ -566,6 +569,7 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         "scene_hashes": scene_hashes(draft),
         "packets": packets,
         "new_names": queue,
+        "links_asked": asked,
     }
     if base_hashes is not None:
         doc["base_hashes"] = base_hashes
@@ -575,7 +579,8 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         if was.get("kind") == "entities" and was.get("status") == "done"
         for n in was.get("names", [])
     }
-    for p in packets:
+
+    def settle(p: dict[str, Any]) -> None:
         p["status"] = "todo"
         was = old.get(p["id"])
         same = was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]
@@ -590,6 +595,23 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         elif shrunk:
             p["status"] = "done"  # regrouped: its answers are counted where they were given
         p["tokens"] = tokens(render(ws_root, doc, p["id"], draft, cx))
+
+    for p in packets:
+        settle(p)
+    # Scene packets read in parallel cannot link a payoff to a setup another packet
+    # planted: once every scene is read, one packet links what is left.
+    scenes_read = all(p["status"] == "done" for p in packets if p["kind"] == "scenes")
+    payoffs = link_payoffs(cx, draft, set(asked)) if scenes_read else []
+    if payoffs:
+        packets.append(
+            {
+                "id": LINKS_PACKET,
+                "kind": "links",
+                "tier": TIER["links"],
+                "inputs": {"payoffs": payoffs},
+            }
+        )
+        settle(packets[-1])
     doc["stats"] = plan_stats(doc, len(draft.scenes) if not changed else len(only or ()))
     path.parent.mkdir(parents=True, exist_ok=True)
     _write_atomic(path, json.dumps(doc, ensure_ascii=False, indent=1) + "\n")
@@ -678,6 +700,7 @@ def plan_stats(doc: dict[str, Any], scenes: int) -> dict[str, Any]:
         "scenes": scenes,
         "entity_packets": sum(p["kind"] == "entities" for p in ps),
         "scene_packets": sum(p["kind"] == "scenes" for p in ps),
+        "link_packets": sum(p["kind"] == "links" for p in ps),
         "max_packet_tokens": max((p["tokens"] for p in ps), default=0),
         "total_packet_tokens": sum(p["tokens"] for p in ps),
         "tool_calls": calls,
@@ -763,6 +786,8 @@ def render(
         return _render_names(p, draft, cx)
     if p["kind"] == "entities":
         return _render_entities(doc, p, draft, cx)
+    if p["kind"] == "links":
+        return _render_links(p, draft, cx)
     return _render_scenes(p, draft, cx)
 
 
@@ -884,6 +909,80 @@ def _open_setups(units: list[dict[str, Any]], draft: Draft, cx: Codex | None) ->
             found.append((at, f"{it.fields.get('label', '')} [{it.id}]"))
     found.sort(reverse=True)
     return _cap_join([x for _, x in found], SETUP_LINES_CAP)
+
+
+def _setup_state(
+    cx: Codex, draft: Draft
+) -> tuple[list[tuple[tuple[int, int], Item]], list[tuple[tuple[int, int], Item]]]:
+    """(open setups, unlinked payoffs), each with its place in the draft, in book
+    order. Open = a setup no payoff links to yet."""
+    pos = {a: i for i, a in enumerate(draft.anchors)}
+    paid = {
+        x["to"]
+        for it in cx.live("setup")
+        for x in it.links
+        if x["rel"] == "pays_off" and it.fields.get("side") == "payoff"
+    }
+    opened, unlinked = [], []
+    for it in cx.live("setup"):
+        at = pos.get(it.spans[0].start.para) if it.spans else None
+        if at is None:
+            continue
+        where = (at, it.spans[0].start.off)
+        if it.fields.get("side") == "setup" and it.id not in paid:
+            opened.append((where, it))
+        elif it.fields.get("side") == "payoff" and not any(
+            x["rel"] == "pays_off" for x in it.links
+        ):
+            unlinked.append((where, it))
+    return sorted(opened, key=lambda x: x[0]), sorted(unlinked, key=lambda x: x[0])
+
+
+def link_payoffs(cx: Codex, draft: Draft, asked: set[str]) -> list[str]:
+    """Unlinked payoffs not offered to a links packet yet that have an open setup
+    earlier in the book, in book order."""
+    opened, unlinked = _setup_state(cx, draft)
+    if not opened:
+        return []
+    first = opened[0][0]
+    return [it.id for at, it in unlinked if it.id not in asked and at > first]
+
+
+def _own_words(it: Item, draft: Draft) -> str:
+    sp = it.spans[0]
+    i = draft.anchors.index(sp.start.para)
+    par = draft.paragraphs[i]
+    end = sp.end.off if sp.end.para == sp.start.para else len(par)
+    words = " ".join(par[sp.start.off : end].split())
+    return words if len(words) <= LINK_QUOTE else words[: LINK_QUOTE - 1] + "…"
+
+
+def _render_links(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
+    head = _frame(
+        f"packet {p['id']} · links · tier {TIER['links']} · draft {draft.version}", "links"
+    )
+    if cx is None:
+        return head
+    opened, _ = _setup_state(cx, draft)
+    want = set(p["inputs"]["payoffs"])
+    pays = [cx.get(i) for i in p["inputs"]["payoffs"] if i in cx.items]
+    last = max((draft.anchors.index(x.spans[0].start.para) for x in pays), default=-1)
+
+    def line(it: Item) -> str:
+        scene = it.spans[0].start.para.rsplit(".p", 1)[0]
+        return f'{it.id} · {scene} · {it.fields.get("label", "")}: "{_own_words(it, draft)}"'
+
+    setups = [line(it) for at, it in opened if at[0] <= last]
+    half = LINK_LINES_CAP * 2
+    out, used = [], 0
+    for x in setups:
+        used += len(x) + 1
+        if used > half:
+            break
+        out.append(x)
+    body = head + "Open setups (id · scene · label: their words):\n" + "\n".join(out)
+    body += "\nPayoffs to link:\n" + "\n".join(line(it) for it in pays if it.id in want)
+    return body + "\n"
 
 
 def _render_scenes(p: dict[str, Any], draft: Draft, cx: Codex | None) -> str:
@@ -1203,6 +1302,32 @@ def _scene_items(
     return SceneImport(items, unlinked, same_scene, names)
 
 
+def _link_items(ans: dict[str, Any], p: dict[str, Any], cx: Codex, draft: Draft) -> list[Item]:
+    """Each linked payoff, changed to point at its setup (pays_off)."""
+    opened, _ = _setup_state(cx, draft)
+    where = {it.id: at for at, it in opened}
+    want = set(p["inputs"]["payoffs"])
+    seen: set[str] = set()
+    out = []
+    for i, link in enumerate(ans["links"]):
+        path = f"$.links[{i}]"
+        pid, sid = link["payoff"], link["setup"]
+        if pid not in want or pid not in cx.items:
+            raise Refused(f"{path}.payoff", f"{pid!r} is not a payoff of this packet")
+        if pid in seen:
+            raise Refused(f"{path}.payoff", f"{pid!r} linked twice")
+        seen.add(pid)
+        if sid not in where:
+            raise Refused(f"{path}.setup", f"{sid!r} is not an open setup")
+        item = Item.from_json(cx.get(pid).as_json())
+        sp = item.spans[0]
+        if where[sid] >= (draft.anchors.index(sp.start.para), sp.start.off):
+            raise Refused(f"{path}.setup", f"{sid!r} is not earlier than the payoff")
+        item.links.append({"rel": "pays_off", "to": sid})
+        out.append(item)
+    return out
+
+
 def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     """Validate and import one answer; returns the one-line result.
 
@@ -1245,12 +1370,18 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
                 notes.append(f"{got.fallbacks} quote fallback{'s' * (got.fallbacks > 1)}")
             if got.unlinked:
                 notes.append(f"{got.unlinked} same_as left unlinked: no entity with that name yet")
+        elif p["kind"] == "links":
+            items = _link_items(ans, p, cx, draft)
+            left = len(p["inputs"]["payoffs"]) - len(items)
+            if left:
+                notes.append(f"{left} payoff(s) resolve none of the open setups")
         else:
             got_s = _scene_items(ans, p, cx, draft, text)
             items = got_s.items
             if got_s.unlinked:
                 notes.append(
-                    f"{got_s.unlinked} payoff(s) left unlinked: no setup with that label yet"
+                    f"{got_s.unlinked} payoff(s) left unlinked: no setup with that label yet;"
+                    " `lc index plan` offers a links packet once every scene is read"
                 )
             if got_s.same_scene:
                 notes.append(f"{got_s.same_scene} payoff(s) in the scene of their setup")
@@ -1271,6 +1402,8 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
     added = queue_names(doc, queued)
     if added:
         notes.append(f"{added} new names queued for `lc index plan`")
+    if p["kind"] == "links":  # asked once: never offered again for this draft
+        doc["links_asked"] = [*doc.get("links_asked", []), *p["inputs"]["payoffs"]]
     if "names" in p["inputs"]:  # resolved: these names leave the queue
         gone = {n.casefold() for n in p["inputs"]["names"]}
         doc["new_names"] = [q for q in doc.get("new_names", []) if q["name"].casefold() not in gone]
@@ -1317,6 +1450,8 @@ def status_lines(doc: dict[str, Any]) -> list[str]:
     for p in doc["packets"]:
         if "names" in p["inputs"]:
             what = f"{len(p['inputs']['names'])} new names"
+        elif p["kind"] == "links":
+            what = f"{len(p['inputs']['payoffs'])} payoffs"
         elif p["kind"] == "entities":
             a, b = p["inputs"]["candidates"]
             what = f"candidates {a + 1}-{b}"
