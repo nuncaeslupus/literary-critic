@@ -31,6 +31,8 @@ from litcritic import dc, ingest, locate, query, structure, workspace
 FIND_LIMIT = 255  # Word's Find box takes at most 255 characters
 HITS_SHOWN = 20
 ANCHOR = re.compile(r"(p\d+\.)?(c\d+|front)(\.\w+)*")
+# a chapter by its heading's number; roman in capitals only ("mil" or "vi" is a quote)
+NUMBER = re.compile(r"\d{1,3}|[IVXLCDM]+")
 AUTHOR = "literary-critic"
 ADDRESS = re.compile(r"p(\d+)#(\w+):(\d+)-(\d+)")  # a doc-control range
 REASONS = {  # doc-control error code -> the stable reason `lc docx` reports
@@ -491,6 +493,14 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
     places = _Places(root, doc, doc.read_bytes(), args.lang, few=True)
     target = args.target.strip()
+    if not args.quote and NUMBER.fullmatch(target):
+        if places.ix is None:
+            why = "the novel has no index yet; run `lc ingest` and `lc anchor` first"
+            return _out({"status": "refused", "reason": "changed", "message": why}, 1)
+        try:
+            target = query.numbered_chapter(places.ix, target)
+        except KeyError as exc:
+            return _out({"status": "refused", "reason": "chapter", "message": exc.args[0]}, 1)
     i = None
     if not args.quote and ANCHOR.fullmatch(target) and places.ix is not None:
         try:
@@ -618,7 +628,7 @@ def register(sub: Any) -> None:
     p_lo.add_argument(
         "target",
         help="a paragraph anchor (c03.s1.p4), a chapter or scene (c03, c03.s1), "
-        "or a quote from the text",
+        "the number in a chapter's heading (15 or XV), or a quote from the text",
     )
     p_lo.add_argument("--quote", action="store_true", help="search the target as text only")
     p_lo.add_argument(

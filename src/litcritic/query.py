@@ -134,6 +134,34 @@ def paragraph_range(ix: Index, unit: str) -> range:
     return range(hits[0], hits[-1] + 1)
 
 
+ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+
+
+def heading_number(title: str) -> int | None:
+    """The number in a chapter heading: '-IV- Title' -> 4, 'Chapter 12' -> 12."""
+    m = re.search(r"\b(\d{1,3})\b", title)
+    if m:
+        return int(m.group(1))
+    m = re.search(r"(?<![^\W\d_])([IVXLCDM]+)(?![^\W\d_])", title)
+    if not m:
+        return None
+    total, prev = 0, 0
+    for ch in reversed(m.group(1)):
+        v = ROMAN[ch]
+        total, prev = (total - v, prev) if v < prev else (total + v, v)
+    return total
+
+
+def numbered_chapter(ix: Index, number: str) -> str:
+    """The id of the chapter whose heading carries this number ('15' or 'XV')."""
+    n = int(number) if number.isdigit() else heading_number(number.upper())
+    hits = [c["id"] for c in ix.chapters if c.get("title") and heading_number(c["title"]) == n]
+    if len(hits) != 1:
+        why = "no chapter heading" if not hits else f"{len(hits)} chapter headings"
+        raise KeyError(f"{why} with the number {number}; find the chapter in `lc show`")
+    return str(hits[0])
+
+
 def toc(ix: Index, budget: int = DEFAULT_BUDGET) -> str:
     out = Out(budget)
     out.add("chapter | words | scenes | title")

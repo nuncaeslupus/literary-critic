@@ -21,7 +21,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from litcritic import codex
+from litcritic import codex, query
 from litcritic import textstats as ts
 
 Result = dict[str, Any]
@@ -253,21 +253,6 @@ def scene_break_markers(ctx: Context) -> Result:
 
 @metric("heading_sequence")
 def heading_sequence(ctx: Context) -> Result:
-    roman = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
-
-    def number(title: str) -> int | None:
-        m = re.search(r"\b(\d{1,3})\b", title)
-        if m:
-            return int(m.group(1))
-        m = re.search(r"(?<![^\W\d_])([IVXLCDM]+)(?![^\W\d_])", title)
-        if not m:
-            return None
-        total, prev = 0, 0
-        for ch in reversed(m.group(1)):
-            v = roman[ch]
-            total, prev = (total - v, prev) if v < prev else (total + v, v)
-        return total
-
     def shape(title: str) -> str:
         """Heading format up to its number: '-IV- Title' -> '-N-', 'Capítulo 3: X' -> 'w N:'."""
         t = re.sub(r"(?<![^\W\d_])[IVXLCDM]+(?![^\W\d_])|\d+", "N", title)
@@ -277,7 +262,7 @@ def heading_sequence(ctx: Context) -> Result:
         return re.sub(r"[^\W\d_]{2,}", "w", t[: cut + 2]).strip()
 
     titled = [c for c in ctx.chapters if c.get("title") and not c["id"].endswith("c00")]
-    nums = [(c["id"], number(c["title"])) for c in titled]
+    nums = [(c["id"], query.heading_number(c["title"])) for c in titled]
     items = []
     seen: dict[int, str] = {}
     expected = None
