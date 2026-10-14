@@ -487,20 +487,23 @@ def _rename(args: argparse.Namespace, root: Path) -> int:
     )
 
 
-def _locate(args: argparse.Namespace, root: Path) -> int:
-    doc = _document(root, args.document)
-    if not doc.is_file():
-        return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
-    places = _Places(root, doc, doc.read_bytes(), args.lang, few=True)
-    target = args.target.strip()
+def _found(
+    args: argparse.Namespace, root: Path, doc: Path, places: _Places, raw: str
+) -> dict[str, Any]:
+    """Where one target is (``status: ok``), or why it cannot be found (``refused``)."""
+
+    def refused(reason: str, message: str) -> dict[str, Any]:
+        return {"status": "refused", "reason": reason, "message": message}
+
+    target = raw.strip()
     if not args.quote and NUMBER.fullmatch(target):
         if places.ix is None:
             why = "the novel has no index yet; run `lc ingest` and `lc anchor` first"
-            return _out({"status": "refused", "reason": "changed", "message": why}, 1)
+            return refused("changed", why)
         try:
             target = query.numbered_chapter(places.ix, target)
         except KeyError as exc:
-            return _out({"status": "refused", "reason": "chapter", "message": exc.args[0]}, 1)
+            return refused("chapter", exc.args[0])
     i = None
     if not args.quote and ANCHOR.fullmatch(target) and places.ix is not None:
         try:
@@ -511,19 +514,18 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
         k, at, text = places.ordinal_of[i], places.locations.ats[i], ""
     else:
         try:
-            at = _resolve(doc, args.target)
+            at = _resolve(doc, raw)
         except NotOnce as exc:
             if not exc.count and not args.quote and ANCHOR.fullmatch(target) and places.ix is None:
                 why = (
                     "the document no longer matches the last ingested draft; "
                     "run `lc ingest` and `lc anchor` on it first"
                 )
-                return _out({"status": "refused", "reason": "changed", "message": why}, 1)
-            why = str(exc) + ("; quote more words" if exc.count else "")
-            return _out({"status": "refused", "reason": "quote", "message": why}, 1)
+                return refused("changed", why)
+            return refused("quote", str(exc) + ("; quote more words" if exc.count else ""))
         m = ADDRESS.fullmatch(at)
-        k, text = (int(m.group(1)) - 1 if m else -1), args.target
-    found = {
+        k, text = (int(m.group(1)) - 1 if m else -1), raw
+    return {
         "status": "ok",
         "document": _shown(root, doc),
         # for `lc word locate`: the file where lc runs, and the paragraph's address
@@ -532,12 +534,50 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
         **places.find(at, text),
         "locator": places.locator(k),
     }
+
+
+def _locate(args: argparse.Namespace, root: Path) -> int:
+    doc = _document(root, args.document)
+    if not doc.is_file():
+        return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
+    places = _Places(root, doc, doc.read_bytes(), args.lang, few=True)
+    found = _found(args, root, doc, places, args.target)
+    if found["status"] != "ok":
+        return _out(found, 1)
     if args.go:
         # one step for "take me there": `lc word locate` on this answer, in the same process
         from litcritic import word_live
 
         return _out(word_live.call("locate", {**found, "language": args.lang}))
     return _out(found)
+
+
+def _places(args: argparse.Namespace, root: Path) -> int:
+    """A list of places as doc-control's ``live_places`` call: one button each in Word."""
+    from litcritic import word_live
+
+    doc = _document(root, args.document)
+    if not doc.is_file():
+        return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
+    places = _Places(root, doc, doc.read_bytes(), args.lang, few=len(args.targets) <= 3)
+    shown, missing, lines = [], [], []
+    for target in args.targets:
+        found = _found(args, root, doc, places, target)
+        if found["status"] != "ok":
+            missing.append({"target": target, **{k: found[k] for k in ("reason", "message")}})
+            continue
+        place = word_live.place(found, args.lang)
+        shown.append(place)
+        lines.append(f"{len(shown)}. {place['label']}")
+    if not shown:
+        return _out({"status": "refused", "reason": "none", "missing": missing}, 1)
+    arguments = {"doc": doc.name, "places": shown, "mode": "cursor"}
+    live = {"tool": "live_places", "arguments": arguments}
+    out: dict[str, Any] = {"status": "ok", "document": _shown(root, doc), "live": live}
+    out["writer"] = "\n".join(lines)
+    if missing:
+        out["missing"] = missing
+    return _out(out)
 
 
 def _status(args: argparse.Namespace, root: Path) -> int:
@@ -583,6 +623,7 @@ COMMANDS = {
     "edits": _edits,
     "rename": _rename,
     "locate": _locate,
+    "places": _places,
     "status": _status,
     "undo": _undo,
 }
@@ -637,6 +678,12 @@ def register(sub: Any) -> None:
         help="also take the open Word there: print what `lc word locate` would",
     )
     common(p_lo)
+    p_pl = dsub.add_parser(
+        "places", help="a list of places as doc-control's live_places buttons (one per place)"
+    )
+    p_pl.add_argument("targets", nargs="+", help="each as `lc docx locate` takes it")
+    p_pl.add_argument("--quote", action="store_true", help="search every target as text only")
+    common(p_pl)
     p_st = dsub.add_parser("status", help="is the document open, changed, backed up")
     common(p_st)
     p_un = dsub.add_parser("undo", help="take back the tool's last edit or rename")

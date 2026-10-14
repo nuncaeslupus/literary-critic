@@ -242,6 +242,30 @@ def _phrase(find: str) -> str | None:
     return "".join(out)
 
 
+def place(found: dict[str, Any], lang: str) -> dict[str, Any]:
+    """One ``live_places`` entry for what ``lc docx locate`` found: its button's label, the
+    paragraph's address, and Word's search phrase as the fallback when the address fails
+    (only a phrase found once: elsewhere it would land on the wrong paragraph)."""
+    found = _with_find(found)
+    loc = found.get("locator")
+    if isinstance(loc, dict) and _where(loc, lang):
+        approx = "" if loc.get("page_exact") else "≈"
+        first = loc["first_words"]
+        label = (
+            f"Capítulo {loc['chapter']}, pág. {approx}{loc['page']}"
+            if lang == "es"
+            else f"Chapter {loc['chapter']}, p. {approx}{loc['page']}"
+        )
+        if first not in loc["chapter"]:  # the heading itself needs no quote
+            label += f": «{first}…»" if lang == "es" else f": “{first}…”"
+    else:
+        label = f"“{found.get('find') or found.get('at')}”"
+    out: dict[str, Any] = {"label": label, "at": str(found["at"])}
+    if found.get("unique") and (phrase := _phrase(str(found.get("find") or ""))):
+        out["find_phrase"] = phrase
+    return out
+
+
 def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     """The doc-control live request for ``op``; None when it has none (no full path, or a
     passage with neither its address nor a phrase Word's search could type)."""
