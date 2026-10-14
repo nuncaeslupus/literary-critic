@@ -1,8 +1,11 @@
 """Steps for the writer's open Word, done by the agent with computer use.
 
 The live engine that drives an open Word belongs to doc-control (one core, two
-engines, one API; its ``capabilities`` lists the engines it has). Until it ships,
-``lc word`` answers every operation with ``{"status": "manual", "how":
+engines, one API; its ``capabilities`` lists the engines it has). ``locate`` asks
+it first: when Word is reachable, ``live.select`` selects the passage and the
+answer is ``{"status": "done", "how": "live", "writer": "..."}``; any failure falls
+back to the steps below. Every other operation (and ``locate`` without the live
+engine) answers with ``{"status": "manual", "how":
 "computer-use", "steps": [...], "writer": "..."}``: the steps the agent performs
 with computer use, and the plain instruction for the writer when computer use is
 not available. literary-critic builds no live-Word code of its own.
@@ -16,13 +19,14 @@ only save, close, reopen and bring Word to the passage.
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from litcritic import locate
+from litcritic import dc, locate
 
 # operation -> request keys it needs
 OPERATIONS: dict[str, tuple[str, ...]] = {
@@ -203,14 +207,77 @@ def _unfindable(payload: dict[str, Any]) -> dict[str, Any] | None:
     return {"status": "manual", "how": "computer-use", "steps": steps, "writer": writer}
 
 
+LIVE_TIMEOUT = 10.0  # seconds a live select may take before the steps take over
+FIND_CODES = {"^p": "\r", "^t": "\t", "^^": "^"}  # Word's Find-box codes with a plain form
+
+
+def _phrase(find: str) -> str | None:
+    """A Find-box string as the plain phrase ``live.select`` takes, or None when it
+    holds a code with no plain form (``^u173``, ``^-``, ``^~``…)."""
+    out, k = [], 0
+    while k < len(find):
+        code = find[k : k + 2]
+        if find[k] == "^":
+            if code not in FIND_CODES:
+                return None
+            out.append(FIND_CODES[code])
+            k += 2
+        else:
+            out.append(find[k])
+            k += 1
+    return "".join(out)
+
+
+def _word_reachable() -> bool:
+    try:
+        caps = dc.run("capabilities", {})
+    except Exception:  # no doc-control, or one without the live engine
+        return False
+    apps = (caps.get("live") or {}).get("apps") or []
+    return "live" in caps.get("engines", []) and any(
+        a.get("app") == "word" and a.get("available") and a.get("reachable") for a in apps
+    )
+
+
+def _live_locate(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """Select the passage in the open Word through doc-control; None when that is not
+    possible (no reachable Word, an untypable phrase, an error, a timeout)."""
+    phrase = _phrase(str(payload.get("find") or ""))
+    if not phrase or not payload.get("document") or not _word_reachable():
+        return None
+    req: dict[str, Any] = {"doc": str(payload["document"]), "find_phrase": phrase}
+    if payload.get("paragraphs_after"):
+        req["paragraphs_after"] = int(payload["paragraphs_after"])
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        got = pool.submit(dc.run, "live.select", req).result(timeout=LIVE_TIMEOUT)
+    except Exception:  # DocError, timeout: the steps take over
+        return None
+    finally:
+        pool.shutdown(wait=False)
+    if not got.get("at") or got.get("selected") is False:
+        return None
+    lang = str(payload.get("language") or "en")
+    name = _name(payload)
+    writer = (
+        f"En {name}: el pasaje está seleccionado en Word."
+        if lang == "es"
+        else f"In {name}: the passage is selected in Word."
+    )
+    return {"status": "done", "how": "live", "writer": writer}
+
+
 def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict[str, Any]:
-    """One operation's computer-use steps and writer line."""
+    """One operation's answer: done live (``locate`` with a reachable Word), else the
+    computer-use steps and writer line."""
     if op not in OPERATIONS:
         raise WordLiveError(f"unknown operation {op!r}; one of {', '.join(OPERATIONS)}")
     if op == "locate":
         payload = _with_find(payload)
         if plain := _unfindable(payload):
             return plain
+        if live := _live_locate(payload):
+            return live
     missing = [k for k in OPERATIONS[op] if k not in payload or payload[k] in ("", None)]
     if missing:
         raise WordLiveError(f"{op} needs {', '.join(missing)}")

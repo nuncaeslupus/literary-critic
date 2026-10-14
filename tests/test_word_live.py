@@ -1,11 +1,12 @@
 import json
+import time
 from pathlib import Path
 from typing import Any
 
 import pytest
 from test_docx_cli import _corpus_docx, _workspace
 
-from litcritic import word_live
+from litcritic import dc, word_live
 from litcritic.cli import main
 
 LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
@@ -123,3 +124,59 @@ def test_lc_word_reads_inline_and_file_payloads(
     request.write_text(json.dumps({**PAYLOADS["locate"], "find": 'I don\'t "know"'}))
     assert main(["word", "locate", "--payload", str(request)]) == 0
     assert "I don't" in " ".join(json.loads(capsys.readouterr().out)["steps"])
+
+
+def _live(monkeypatch: pytest.MonkeyPatch, select: Any, reachable: bool = True) -> list[Any]:
+    """doc-control stand-in: Word listed as reachable (or not); ``select`` answers
+    ``live.select`` (a result, an exception to raise, or a delay in seconds)."""
+    calls: list[Any] = []
+
+    def run(op: str, req: dict[str, Any]) -> dict[str, Any]:
+        calls.append((op, req))
+        if op == "capabilities":
+            app = {"app": "word", "available": reachable, "reachable": reachable}
+            return {"engines": ["file", "live"], "live": {"apps": [app]}}
+        if isinstance(select, BaseException):
+            raise select
+        if isinstance(select, float):
+            time.sleep(select)
+            return {"at": "p3#ab", "selected": True}
+        return dict(select)
+
+    monkeypatch.setattr(dc, "run", run)
+    return calls
+
+
+def test_locate_live_selects_when_word_is_reachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _live(monkeypatch, {"at": "p3#ab", "text": "Ya voy"})
+    out = word_live.call("locate", {**PAYLOADS["locate"], "paragraphs_after": 2})
+    assert out["status"] == "done" and out["how"] == "live" and out["writer"]
+    assert calls[-1] == (
+        "live.select",
+        {"doc": "N/N.docx", "find_phrase": "Ya voy\rdijo", "paragraphs_after": 2},
+    )
+
+
+@pytest.mark.parametrize(
+    "select",
+    [dc.DocError("ENGINE_UNAVAILABLE", "no Word"), 0.5, {"selected": False}, {}],
+    ids=["error", "timeout", "not-selected", "empty"],
+)
+def test_locate_live_failure_falls_back_to_steps(
+    monkeypatch: pytest.MonkeyPatch, select: Any
+) -> None:
+    monkeypatch.setattr(word_live, "LIVE_TIMEOUT", 0.1)
+    _live(monkeypatch, select)
+    out = word_live.call("locate", PAYLOADS["locate"])
+    assert out["status"] == "manual" and out["how"] == "computer-use" and out["steps"]
+
+
+def test_locate_live_skipped_when_word_unreachable_or_find_untypable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = _live(monkeypatch, {"at": "p3#ab"}, reachable=False)
+    assert word_live.call("locate", PAYLOADS["locate"])["how"] == "computer-use"
+    calls = _live(monkeypatch, {"at": "p3#ab"})
+    soft = {**PAYLOADS["locate"], "find": "por^u173que"}  # a Find-box code with no plain form
+    assert word_live.call("locate", soft)["how"] == "computer-use"
+    assert all(op != "live.select" for op, _ in calls)
