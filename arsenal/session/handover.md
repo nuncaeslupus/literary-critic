@@ -1,5 +1,12 @@
 # Handover
 
+**Last session (2026-10-14, day):** install workspace — spec and plan approved; T1 version stamp (#158), T5 owner hand tests (#159, `status/evidence/install-Q1-Q3.md`), T3 live-first locate (#160), T2 update check (#162), T4 prompts (#163) merged.
+
+- **Blocked:** T6 one-click offer (#156) waits on doc-control's one-click bundle (Q-2); its claim ref `arsenal/claims/t-a65ebe58` is stale (released on the issue). T7 walkthrough (#157) needs T6 and the owner on Windows and a Mac.
+- **Tell doc-control (owner relays; no peer session reachable):** `live.select` should bring the app window to the front; a find phrase starting with `--` should match the writer's text; one-click bundle (Q-2).
+- **Not done:** `SKILL.md` "Running the tool" does not mention the update check or `l1` yet (skill edits need skill-creator loaded).
+- Cloud surface: force-push is refused; restart this branch from main with `git merge -s ours origin/<branch>`. `open_task_pr.sh` needs `ARSENAL_ALLOW_SHARED_ADD=1` here and runs the full suite (~3 min, run it in the background).
+
 **Last session (2026-10-14, overnight, unattended):** PR #145 (open, watched) fixes #138–#141 from the Cowork run: `speech` table for dialogue-share (#139), no redundant entity packet on re-plan (#140), links packet `l1` for payoffs parallel scene packets left unlinked (#141), hard-wrapped file warning at ingest (#138). Also a draft spec `arsenal/project/install/spec.md` (writer install, live Word, updates; open Q-1..Q-5) and feature ideas H1–H16 in `status/ideas.md`.
 
 - **Not done:** `.claude/skills/litcritic/SKILL.md` does not mention `l1` yet (editing a skill needs skill-workshop/skill-creator loaded); `prompts/20-codex-items.md` covers it.
