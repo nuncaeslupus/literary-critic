@@ -8,7 +8,7 @@ messages (a few lines), and do every technical step yourself.
 
 | Check | How | If missing |
 |---|---|---|
-| You can run code | Run `lc doctor` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
+| You can run code | Run `lc doctor --json` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
 | A folder on the writer's computer is connected | You can list it (Cowork: the folder the writer picked) | Ask the writer to connect the folder that holds the novel (one click in Cowork: "Choose folder") |
 | You can see and use the screen (computer use) | Try to take a screenshot | Fine: give the writer plain locations instead of taking them there |
 
@@ -22,7 +22,26 @@ only what is missing and needed. Facts to give when asked:
   uploads the manuscript, you analyse it and hand back a commented copy to
   download; they make the changes themselves.
 
+### Updates
+
+`lc doctor --json` says `update_available`. Only when it is `"yes"`, and only at
+the start of a conversation (never while a change is being applied), tell the
+writer once, in their language, in these words or close to them:
+
+> There is a newer version of the tool with fixes. Shall I update it? It takes a minute.
+
+If they agree and you fetched the tool yourself, fetch it again. If they
+uploaded it as a Skill, give the steps to replace it one at a time. `"no"` or
+`"unknown"`: say nothing.
+
 ## 2. Find the novel
+
+**Coming back.** If the connected folder already holds a `literary-critic`
+working folder, the writer has been here before: run `lc setup --folder <dir>`
+as below, skip the questions of step 3, and continue where the log says they
+stopped. In Cowork a new conversation may not see the folder even inside the
+same project: if you cannot list it, ask the writer, in one line, to choose it
+again.
 
 Run `lc setup --folder <the connected folder>`. It finds the manuscript (the
 newest full draft), its other versions and unrelated documents, and creates

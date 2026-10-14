@@ -14,7 +14,9 @@ you do with computer use, and the plain line for the writer when you cannot.
 2. Save that answer, exactly as printed, to a file, `locate.json` (a file,
    because passages contain quotes and apostrophes); add `"language": "es"` for
    a writer line in Spanish. Then `lc word locate --payload locate.json`.
-   Follow its `steps` with computer use: bring Word to the front, open the
+   If the answer says `"how": "live"`, the passage is already selected in the
+   open Word: tell the writer its `writer` line and stop here. Otherwise follow
+   its `steps` with computer use: bring Word to the front, open the
    search with the key the steps name, type `find` exactly, press Enter. Word
    selects the passage. When Find lands on a paragraph above it, the steps say
    how many paragraphs to move down. On Windows, Word's shortcuts change with
@@ -22,6 +24,8 @@ you do with computer use, and the plain line for the writer when you cannot.
    and Ctrl+S underlines): press only the keys the steps give.
 3. If computer use is off, or the passage is not found, give the writer the
    `writer` line instead: chapter, page, and the quoted first and last words.
+4. Every time the writer asks to be taken somewhere, run these steps again,
+   even for a passage you showed before: they may have moved since.
 
 ## Change the document (only what the writer approved)
 
