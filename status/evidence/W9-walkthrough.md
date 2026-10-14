@@ -198,8 +198,18 @@ reachable; the corpus novel's `.docx` set up in a scratch folder with
 - With the document closed, `lc word locate` answered `manual` with the
   computer-use steps and `live: {tool: live_select, arguments, error}`.
 - doc-control's MCP server (`doc-control mcp`, stdio) answered `initialize`
-  and `tools/list` with the `live_*` tools. Not yet run: a Cowork conversation
-  calling those tools (the server is not in the desktop app's config yet).
+  and `tools/list` with the `live_*` tools.
+- **From Cowork (same day):** with the server added to the desktop app's
+  config (`mcpServers`, `uvx --from "doc-control[live]" doc-control mcp`) and
+  the app restarted, a Cowork conversation called `live_status` (Word
+  reachable, document open, no unsaved changes) and `live_select` with the
+  document's path on the writer's computer and a `find_phrase`: Word selected
+  the right paragraph. A Cowork conversation can reach Word without computer
+  use. It needed the full host path (Cowork only knows its sandbox's); bare
+  file names are queued in doc-control. Seen: the paragraph lands at the
+  bottom edge of the window, and it is left selected, so a key typed without
+  noticing would replace it. Centring it and a show-without-selecting mode are
+  asked of doc-control.
 - Found on the way: a workspace made in Cowork records the manuscript by the
   sandbox's absolute path (`state/manuscript.json`, `state/documents.json`), so
   it cannot be used from the host.
