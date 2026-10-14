@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="183e76c3fadd79c36027c135a034201376dd96128777448bffd8f29fd70a2e1c">
+<meta name="arsenal-source-sha256" content="72328db8bce1abdfcfee1fc18c01465f1d7eb6da3693bbe649e827d32ff5ae02">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -200,7 +200,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <div class="sec-body"><p><strong>Date</strong>: 2026-10-14
 <strong>Ticket / PR</strong>: workspace <code>desktop</code>
 <strong>Author</strong>: Claude (with the owner)
-<strong>Revision</strong>: 3
+<strong>Revision</strong>: 4
 <strong>Status</strong>: draft
 <strong>Revision log</strong>:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
@@ -215,7 +215,20 @@ h4 .chip{font-size:11px;color:var(--muted)}
   writer wants to start a chat with another novel?" The picked folder holds
   every novel; a chat switches by naming one. The picker takes several
   folders. A novel outside them gets one plain sentence. New criterion
-  <code>switch_novel_without_setup</code>, D-10 and Q-6.</p>
+  <code>switch_novel_without_setup</code>, D-10 and Q-6.
+- r4 — probe extension installed on the owner's PC (2026-10-14, no notes
+  export). The owner's case: one folder per novel, only one granted at
+  install, another novel wanted days later. Results:
+    - Chat ignores server <code>instructions</code> (Q-2), but the tool descriptions alone
+    trigger on "let's work on my novel".
+    - The <code>uv</code> runtime works (Q-3, partly).
+    - The folder setting is editable after install, but saving it dropped the
+    server (Q-6).
+    - A chat-side folder-picker tool added the second novel's folder.
+    - Double-click does not open <code>.mcpb</code> on a packaged (MSIX) install of the
+    app.
+    - The install shows several warnings for an unsigned extension.</p>
+<p>New D-11 and D-12; D-5, D-7 and D-8 revised; Q-7 and Q-8 opened.</p>
 <blockquote>
 <p>Review record. Each round of reviewer notes makes a new revision: bump
 <strong>Revision</strong>, add a log line naming the export it applied
@@ -250,9 +263,10 @@ working folder, so a plain chat cannot resume the novel.</p>
 <p>None of that should involve projects, threads, uploads or config files.</p>
 <p>The desktop app has a format made for this. A <strong>desktop extension</strong>
 (<code>.mcpb</code>) is a zip with a local MCP server and a <code>manifest.json</code>. The app
-installs it with one double-click and shows an install dialog where the
-user reviews permissions and fills in settings; a setting can be a folder
-picker. The extension's tools are then available in ordinary conversations.
+installs it from Settings → Extensions (or by double-click where the app
+registered the file type, which a packaged install on the owner's PC did not).
+It shows an install dialog where the user reviews warnings and fills in
+settings; a setting can be a folder picker. The extension's tools are then available in ordinary conversations.
 doc-control already runs as a local server in the Chat tab, and its
 <code>live_places</code> buttons render there.</p>
 <p>What is missing is a literary-critic extension. It would find the novel's
@@ -261,39 +275,42 @@ working folder, read its state, carry the guide to the chat and drive Word.</p>
 without learning the app's session types.</p>
 <p><strong>Success criteria (measurable)</strong></p>
 <ul>
-<li>[ ] <code>writer_setup_actions &lt;= 3</code> for a writer who already has the desktop app,
-      Word and the novel. The three actions are: open the downloaded
-      <code>literary-critic.mcpb</code>; in the install dialog, pick the folder that holds
-      the novels and press Install; allow the tools the first time a chat uses
-      them. Nothing else is required: no terminal, no config file, no separate
-      doc-control install, and no Python install unless Q-3 shows the app
-      cannot provide it. Counted on a scripted walkthrough on a Windows user
-      account that has never run the tool.</li>
-<li>[ ] <code>resume_without_questions == 1.0</code>. In a new Chat, "let's continue with
-      <code>&lt;title&gt;</code>" (title, slug or folder name, any capitalisation or accents)
-      finds the right work. It answers with where the writer left off and the
-      next step, and asks no setup question. Checked over a fixture novels
-      folder with 3 works, one title with accents, and one title that is not
-      there (the answer lists the works it found).</li>
-<li>[ ] <code>generic_request_resolves == 1.0</code>. "Let's work on my novel", "sigamos con
-      la novela" and similar phrasings with no title:<ul>
-<li>with exactly one work in the folder, behave as the line above;</li>
-<li>with several, ask one question that lists them, most recent first.
-  Judged over a fixed set of 10 phrasings in English and Spanish, on a
-  recorded transcript.</li>
-</ul>
-</li>
 <li>
-<p>[ ] <code>switch_novel_without_setup == 1.0</code>. Over the same fixture:</p>
+<p>[ ] <code>writer_setup_actions &lt;= 3</code> for a writer who already has the desktop app,
+      Word and the novel. The three actions are:</p>
 <ul>
-<li>a new chat about another work resumes that work;</li>
-<li>in a chat already on one work, "now let's look at another title"
-    moves to the other work, and later tool calls use it;</li>
-<li>a work added to a picked folder after install is found with no
-    reinstall, and its first-time setup runs in the chat as today;</li>
-<li>a work outside every picked folder gets one plain sentence saying
-    where it is not allowed and the one way to add it (Q-6).</li>
+<li>bring the downloaded <code>literary-critic.mcpb</code> to the app (double-click,
+    or drag it onto Settings → Extensions; Q-7);</li>
+<li>in the install dialog, pick the novel's folder and press Install;</li>
+<li>allow the tools the first time a chat uses them.</li>
 </ul>
+<p>Install warnings the writer must accept count as one action each beyond
+  the first (Q-8). Nothing else is required: no terminal, no config file, no separate
+  doc-control install, and no Python install unless Q-3 shows the app
+  cannot provide it. Counted on a scripted walkthrough on a Windows user
+  account that has never run the tool.
+- [ ] <code>resume_without_questions == 1.0</code>. In a new Chat, "let's continue with
+  <code>&lt;title&gt;</code>" (title, slug or folder name, any capitalisation or accents)
+  finds the right work. It answers with where the writer left off and the
+  next step, and asks no setup question. Checked over a fixture novels
+  folder with 3 works, one title with accents, and one title that is not
+  there (the answer lists the works it found).
+- [ ] <code>generic_request_resolves == 1.0</code>. "Let's work on my novel", "sigamos con
+  la novela" and similar phrasings with no title:
+  - with exactly one work in the folder, behave as the line above;
+  - with several, ask one question that lists them, most recent first.
+  Judged over a fixed set of 10 phrasings in English and Spanish, on a
+  recorded transcript.
+- [ ] <code>switch_novel_without_setup == 1.0</code>. Over the same fixture:
+  - a new chat about another work resumes that work;
+  - in a chat already on one work, "now let's look at another title"
+    moves to the other work, and later tool calls use it;
+  - a work added to a picked folder after install is found with no
+    reinstall, and its first-time setup runs in the chat as today;
+  - a work outside every granted folder is added from the chat: the
+    chat offers the folder picker, the writer chooses the folder, and the
+    work resumes in the same chat (D-11). Folder names with accents
+    survive the round trip.</p>
 <p>None of these asks a setup question beyond the new work's own
   first-time setup. Judged on a recorded transcript.
 - [ ] <code>resume_tool_calls &lt;= 2</code> from the writer's first message to the first
@@ -444,6 +461,32 @@ user Python installation required";</li>
 <li>An MCP App's buttons can call only tools of the server that served the
   page (doc-control, Q-1 answer).</li>
 </ul>
+<p><strong>Measured with a probe extension on the owner's PC</strong> (2026-10-14; Windows
+11, the app installed as an MSIX package):</p>
+<ul>
+<li>Double-clicking the <code>.mcpb</code> opened Windows' "choose an app" dialog: the
+  packaged app registers no <code>.mcpb</code> file type. Installing from Settings →
+  Extensions worked.</li>
+<li>The install showed several warnings for an unsigned extension, including
+  one that it can read the whole PC.</li>
+<li>The <code>uv</code> server type worked. The app built the extension's own
+  environment and started the server, passing the picked folder in <code>args</code>.
+  uv was already installed on that PC.</li>
+<li>The app starts one server process for Chat and another for Cowork. Both
+  receive the server <code>instructions</code>, and both declare MCP Apps support.
+  Only Cowork declares <code>roots</code>.</li>
+<li>Chat did not use the <code>instructions</code>: asked for a word that only they
+  contained, it did not know it. "Let's work on my novel" did call <code>works</code>
+  from its description alone.</li>
+<li>The folder setting can be edited in Settings after install. Saving it
+  left the extension unreachable ("Unable to connect to extension server…
+  disable and re-enable").</li>
+<li>A tool that opens a native folder picker on the writer's screen worked
+  from a plain chat after the tool permission prompt. The chosen folder was
+  saved in the extension's own state. tkinter in the app's Python returned
+  an accented folder name garbled (<code>Ã±</code> for <code>ñ</code>), so the picker must
+  use the Windows dialog with UTF-8 output.</li>
+</ul>
 <p><strong>Risk of inaction</strong>: every session starts with "which chat do I use?". A
 plain Chat cannot see the novel. Writers who are not developers stop at
 setup, which is the very audience the chat workspace targets.</p></div>
@@ -482,7 +525,8 @@ setup, which is the very audience the chat workspace targets.</p></div>
 <h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: a literary-critic desktop extension (Recommended; chosen by the owner)</span></h4>
 <div class="sec-body"><ul>
 <li>
-<p><strong>Description</strong>: One <code>literary-critic.mcpb</code> that the writer double-clicks.</p>
+<p><strong>Description</strong>: One <code>literary-critic.mcpb</code> that the writer installs from
+  the app.</p>
 <ul>
 <li><strong>Install.</strong> The dialog asks one thing: the folder that holds the
 novels (default: Documents). It is the parent of every novel, not one
@@ -493,6 +537,15 @@ look at …"), and every tool takes the work by name. A novel added to
 those folders later is found with no reinstall. The extension's tools then work in any
 plain chat. The first use of a tool asks the writer's permission, as the
 app always does.</li>
+<li><strong>A novel the tool cannot see</strong> (D-11). Writers often keep one folder
+per novel, so the next novel is usually outside what was granted. When
+a named work is not found, the tool answers with the works it can see
+and tells the chat to offer <code>add_folder</code>. That tool opens the Windows
+folder picker on the writer's screen, which is the writer's explicit
+grant. It stores the folder in the extension's own state and resumes
+the work. The writer never opens Settings. Editing the install setting
+stays possible, but it drops the server until the extension is
+re-enabled.</li>
 <li><strong>Server.</strong> <code>lc mcp</code>: MCP over newline-delimited JSON-RPC on stdio, with
 its own small standard-library module (D-4). It offers a small set of
 tools:</li>
@@ -503,10 +556,16 @@ tools:</li>
 <li><code>locate(work, target, go)</code> covers <code>lc docx locate --go</code>.</li>
 <li><code>places(work, targets)</code> returns the buttons.</li>
 <li><code>show</code>, <code>find</code> and codex <code>ask</code> let the chat read the novel.</li>
-<li><code>run(work, command)</code> runs any other <code>lc</code> subcommand from an
-  allow-list.</li>
+<li>
+<p><code>run(work, command)</code> runs any other <code>lc</code> subcommand from an
+  allow-list.</p>
+</li>
+<li>
+<p><code>add_folder</code> opens the folder picker (above).</p>
+</li>
 </ul>
-<p>Every path is confined to the picked folder.
+<p>Every path is confined to the granted folders: the install setting
+plus the folders added with <code>add_folder</code>.
 - <strong>Word.</strong> doc-control is bundled as a library, not as a second server
 for the writer to install. Word moves go through <code>doc_control.api.run</code>,
 doc-control's stable entry point. The places page is served by the
@@ -514,16 +573,19 @@ extension itself, adapted from doc-control's 0.6.3 page, which doc-control
 offered to share. Its buttons call the extension's own <code>select</code> tool.
 Only the server that served a page can answer its buttons, so this is
 what makes one install enough (D-6).
-- <strong>Understanding "work on my novel".</strong> The tool descriptions say when to
-use them ("when the writer talks about their novel, wants to continue,
-resume or work on it"). The server's <code>instructions</code> carry the short guide:
+- <strong>Understanding "work on my novel"</strong> (D-8, D-12). The tool descriptions
+say when to use them ("when the writer talks about their novel, wants to
+continue, resume or work on it"); the probe showed that is enough to
+trigger. Chat ignores server <code>instructions</code>, so the short guide travels
+in the first tool result instead. <code>resume</code> returns it with the novel's
+state:
 - the two channels;
 - the writer rules;
 - a jump is one call, then "Done.".</p>
-<p>The prompts are served as resources, read only when needed. If Q-2 shows
-the Chat tab ignores <code>instructions</code>, the same guide ships as a skill,
-built under skill-workshop. That skill is delivered by a plugin from the
-repo's marketplace, which is a second, optional install.
+<p>The prompts are served on demand. A skill, built under skill-workshop
+and delivered by a plugin from the repo's marketplace (a second,
+optional install), is added only if the guide in tool results proves
+weaker than a skill.
 - <strong>Runtime.</strong> The extension's server type is <code>uv</code>: dependencies are
 declared in <code>pyproject.toml</code> and installed by the host. Q-3 checks this
 on the owner's PC. <code>binary</code> (a frozen executable) is the fallback.
@@ -548,8 +610,10 @@ sentence, when a newer <code>.mcpb</code> exists and where to get it.
 (refused earlier), could not do safely.
 - There is a copy of the places page to keep in step with doc-control's.
 - Private extensions do not auto-update.
-- The <code>uv</code> server type is the newest of the four and must be proven on
-Windows (Q-3).
+- The <code>uv</code> server type is the newest of the four. It worked on the
+owner's PC, but a machine without uv is still to be proven (Q-3).
+- The install warnings for an unsigned extension are alarming for a
+writer (Q-8).
 - <strong>Compatibility</strong>: Additive. Every CLI command, the Skill zip, the thread
   paths and a manual doc-control entry still work.</p>
 </li>
@@ -627,29 +691,32 @@ chat, which is the confusion reported.</li>
 <div class="sec-body"><p><strong>Recommended option</strong>: Option B, chosen by the owner on 2026-10-14. It is
 the only option that meets one install, one plain chat and resume without
 questions. It uses the format the desktop app provides for exactly this.</p>
-<p><strong>Immediate next action</strong>: two probes on the owner's PC before the plan.</p>
+<p><strong>Immediate next action</strong>: the first probe ran (§2, measured facts).
+Before the plan:</p>
 <ol>
-<li>Build a minimal <code>uv</code>-type extension with one tool and a server
-   <code>instructions</code> line, and install it by double-click. This answers Q-2
-   and Q-3.</li>
-<li>Install skill-workshop in the dev session, so the skill tasks can be
-   gated on it.</li>
+<li>Rerun the probe on a Windows user account without uv or Python (Q-3).</li>
+<li>Find how far signing reduces the warnings (Q-8).</li>
+<li>Find whether a link can open the app's install dialog (Q-7).</li>
 </ol>
+<p>skill-workshop is run from a checkout of the claude-arsenal repository,
+without installing the plugin (the owner's choice).</p>
 <p><strong>Open questions</strong>:
 - [x] Q-1: Should lc reuse doc-control's <code>mcp</code> module? Answered by doc-control:
       no. Its <code>handle</code>/<code>serve</code> and the registry hooks are internal and may change
       in any release, so lc writes its own small stdlib server (D-4), using
       doc-control 0.6.3's <code>mcp.py</code> as a reference. Word moves go through
       <code>doc_control.api.run("live.select", …)</code>, its stable Python entry point.
-- [ ] Q-2: Does the Chat tab give the model an extension's <code>instructions</code>,
+- [x] Q-2: Does the Chat tab give the model an extension's <code>instructions</code>,
       and do the tool descriptions alone make "work on my novel" call
-      <code>resume</code>? This decides whether the skill is needed (D-8). To be answered
-      by the probe extension.
+      <code>resume</code>? Answered by the probe. The instructions are sent but not
+      used. The descriptions alone trigger. The guide moves into tool
+      results (D-12).
 - [ ] Q-3: Does a <code>uv</code>-type extension install on Windows with no Python and
       no uv already on the machine? Does it install doc-control's live extra
       (pywin32)? Yes means one step. No means <code>binary</code> (a frozen
       executable, larger) or <code>python</code> (the writer installs Python first,
-      which costs one action). To be answered by the probe extension.
+      which costs one action). The probe ran on a PC that has uv. A clean
+      account is still to be tried.
 - [ ] Q-4: How does a writer get the <code>.mcpb</code>: a release on GitHub, a link
       on a project page, or a file sent by the person who recommends the
       tool? The owner decides; publishing needs the <code>repo-housekeeping</code>
@@ -657,12 +724,19 @@ questions. It uses the format the desktop app provides for exactly this.</p>
 - [ ] Q-5: Should doc-control publish its places page as a reusable file in
       its package, so the extension can serve it rather than keep a copy?
       To be asked of doc-control. Until then, a copy is kept.
-- [ ] Q-6: Can the writer change the extension's folders after install?
-      The extension format declares the setting but does not say whether
-      the app lets the writer edit it later. Yes means a novel outside the
-      folders gets "add its folder in Settings → Extensions → literary-critic".
-      No means "move the novel's folder into the picked folder", or
-      reinstall the extension. To be answered by the probe extension.</p>
+- [x] Q-6: Can the writer change the extension's folders after install?
+      Answered by the probe. Yes, but saving left the server unreachable
+      until the writer disabled and re-enabled the extension. Too fragile
+      for a writer, so a chat-side folder picker adds folders instead
+      (D-11).
+- [ ] Q-7: Can the writer get to the install dialog in one step on a
+      packaged install of the app, where double-click does not work? To
+      check: a link that opens the app's extension install, or the app's
+      extension directory. If neither works, the walkthrough says "drag
+      the file onto Settings → Extensions".
+- [ ] Q-8: Which install warnings remain for a signed extension
+      (<code>mcpb sign</code>), and for one listed in the app's directory? This
+      decides how the walkthrough prepares the writer for them.</p>
 <p><strong>Decisions log</strong>:</p>
 <table>
 <thead>
@@ -730,8 +804,8 @@ questions. It uses the format the desktop app provides for exactly this.</p>
 </tr>
 <tr>
 <td>D-5</td>
-<td>The writer installs one desktop extension (<code>.mcpb</code>) by double-click; nobody edits a config file</td>
-<td>agreed</td>
+<td>The writer installs one desktop extension (<code>.mcpb</code>) from the app (double-click where it works); nobody edits a config file</td>
+<td>agreed (revised r4)</td>
 <td>2026-10-14</td>
 </tr>
 <tr>
@@ -742,14 +816,14 @@ questions. It uses the format the desktop app provides for exactly this.</p>
 </tr>
 <tr>
 <td>D-7</td>
-<td>The writer picks the novels folder in the install dialog; every tool is confined to it</td>
-<td>proposed</td>
+<td>The writer picks the first folder in the install dialog; every tool is confined to the granted folders (that one plus those added with <code>add_folder</code>)</td>
+<td>proposed (revised r4)</td>
 <td>2026-10-14</td>
 </tr>
 <tr>
 <td>D-8</td>
-<td>"Work on my novel" is understood through tool descriptions and server instructions; a skill (under skill-workshop, via plugin) is added only if Q-2 shows it is needed</td>
-<td>proposed</td>
+<td>"Work on my novel" is understood through tool descriptions; a skill (under skill-workshop, via plugin) is added only if the guide in tool results proves weaker</td>
+<td>proposed (revised r4)</td>
 <td>2026-10-14</td>
 </tr>
 <tr>
@@ -761,6 +835,18 @@ questions. It uses the format the desktop app provides for exactly this.</p>
 <tr>
 <td>D-10</td>
 <td>The install grants the folders that hold the novels, not one novel; each chat names its work and can switch, with no setup</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-11</td>
+<td>A novel outside the granted folders is added from the chat: <code>add_folder</code> opens the Windows folder picker, and the writer's choice is the grant</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-12</td>
+<td>Chat ignores server instructions, so the short guide is returned by <code>resume</code> with the novel's state</td>
 <td>proposed</td>
 <td>2026-10-14</td>
 </tr>
@@ -850,7 +936,7 @@ questions. It uses the format the desktop app provides for exactly this.</p>
   function pad(n){return n<10?'0'+n:''+n;}
   function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
   // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
-  function exportName(){return 'literary-critic-spec-v3-'+today()+'-notes.md';}
+  function exportName(){return 'literary-critic-spec-v4-'+today()+'-notes.md';}
 
   function buildExport(){
     var byPart={},order=[],data={},n=0;

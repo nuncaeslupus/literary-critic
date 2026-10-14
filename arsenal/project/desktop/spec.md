@@ -3,7 +3,7 @@
 **Date**: 2026-10-14
 **Ticket / PR**: workspace `desktop`
 **Author**: Claude (with the owner)
-**Revision**: 3
+**Revision**: 4
 **Status**: draft
 **Revision log**:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
@@ -19,6 +19,20 @@
   every novel; a chat switches by naming one. The picker takes several
   folders. A novel outside them gets one plain sentence. New criterion
   `switch_novel_without_setup`, D-10 and Q-6.
+- r4 — probe extension installed on the owner's PC (2026-10-14, no notes
+  export). The owner's case: one folder per novel, only one granted at
+  install, another novel wanted days later. Results:
+  - Chat ignores server `instructions` (Q-2), but the tool descriptions alone
+    trigger on "let's work on my novel".
+  - The `uv` runtime works (Q-3, partly).
+  - The folder setting is editable after install, but saving it dropped the
+    server (Q-6).
+  - A chat-side folder-picker tool added the second novel's folder.
+  - Double-click does not open `.mcpb` on a packaged (MSIX) install of the
+    app.
+  - The install shows several warnings for an unsigned extension.
+
+  New D-11 and D-12; D-5, D-7 and D-8 revised; Q-7 and Q-8 opened.
 
 > Review record. Each round of reviewer notes makes a new revision: bump
 > **Revision**, add a log line naming the export it applied
@@ -56,9 +70,10 @@ None of that should involve projects, threads, uploads or config files.
 
 The desktop app has a format made for this. A **desktop extension**
 (`.mcpb`) is a zip with a local MCP server and a `manifest.json`. The app
-installs it with one double-click and shows an install dialog where the
-user reviews permissions and fills in settings; a setting can be a folder
-picker. The extension's tools are then available in ordinary conversations.
+installs it from Settings → Extensions (or by double-click where the app
+registered the file type, which a packaged install on the owner's PC did not).
+It shows an install dialog where the user reviews warnings and fills in
+settings; a setting can be a folder picker. The extension's tools are then available in ordinary conversations.
 doc-control already runs as a local server in the Chat tab, and its
 `live_places` buttons render there.
 
@@ -71,10 +86,14 @@ without learning the app's session types.
 **Success criteria (measurable)**
 
 - [ ] `writer_setup_actions <= 3` for a writer who already has the desktop app,
-      Word and the novel. The three actions are: open the downloaded
-      `literary-critic.mcpb`; in the install dialog, pick the folder that holds
-      the novels and press Install; allow the tools the first time a chat uses
-      them. Nothing else is required: no terminal, no config file, no separate
+      Word and the novel. The three actions are:
+      - bring the downloaded `literary-critic.mcpb` to the app (double-click,
+        or drag it onto Settings → Extensions; Q-7);
+      - in the install dialog, pick the novel's folder and press Install;
+      - allow the tools the first time a chat uses them.
+
+      Install warnings the writer must accept count as one action each beyond
+      the first (Q-8). Nothing else is required: no terminal, no config file, no separate
       doc-control install, and no Python install unless Q-3 shows the app
       cannot provide it. Counted on a scripted walkthrough on a Windows user
       account that has never run the tool.
@@ -96,8 +115,10 @@ without learning the app's session types.
         moves to the other work, and later tool calls use it;
       - a work added to a picked folder after install is found with no
         reinstall, and its first-time setup runs in the chat as today;
-      - a work outside every picked folder gets one plain sentence saying
-        where it is not allowed and the one way to add it (Q-6).
+      - a work outside every granted folder is added from the chat: the
+        chat offers the folder picker, the writer chooses the folder, and the
+        work resumes in the same chat (D-11). Folder names with accents
+        survive the round trip.
 
       None of these asks a setup question beyond the new work's own
       first-time setup. Judged on a recorded transcript.
@@ -163,6 +184,32 @@ documentation):
 - An MCP App's buttons can call only tools of the server that served the
   page (doc-control, Q-1 answer).
 
+**Measured with a probe extension on the owner's PC** (2026-10-14; Windows
+11, the app installed as an MSIX package):
+
+- Double-clicking the `.mcpb` opened Windows' "choose an app" dialog: the
+  packaged app registers no `.mcpb` file type. Installing from Settings →
+  Extensions worked.
+- The install showed several warnings for an unsigned extension, including
+  one that it can read the whole PC.
+- The `uv` server type worked. The app built the extension's own
+  environment and started the server, passing the picked folder in `args`.
+  uv was already installed on that PC.
+- The app starts one server process for Chat and another for Cowork. Both
+  receive the server `instructions`, and both declare MCP Apps support.
+  Only Cowork declares `roots`.
+- Chat did not use the `instructions`: asked for a word that only they
+  contained, it did not know it. "Let's work on my novel" did call `works`
+  from its description alone.
+- The folder setting can be edited in Settings after install. Saving it
+  left the extension unreachable ("Unable to connect to extension server…
+  disable and re-enable").
+- A tool that opens a native folder picker on the writer's screen worked
+  from a plain chat after the tool permission prompt. The chosen folder was
+  saved in the extension's own state. tkinter in the app's Python returned
+  an accented folder name garbled (`Ã±` for `ñ`), so the picker must
+  use the Windows dialog with UTF-8 output.
+
 **Risk of inaction**: every session starts with "which chat do I use?". A
 plain Chat cannot see the novel. Writers who are not developers stop at
 setup, which is the very audience the chat workspace targets.
@@ -193,7 +240,8 @@ Every option keeps:
 
 ### Option B: a literary-critic desktop extension (Recommended; chosen by the owner)
 
-- **Description**: One `literary-critic.mcpb` that the writer double-clicks.
+- **Description**: One `literary-critic.mcpb` that the writer installs from
+  the app.
   - **Install.** The dialog asks one thing: the folder that holds the
     novels (default: Documents). It is the parent of every novel, not one
     novel, and the picker takes several folders (`multiple: true`) for
@@ -203,6 +251,15 @@ Every option keeps:
     those folders later is found with no reinstall. The extension's tools then work in any
     plain chat. The first use of a tool asks the writer's permission, as the
     app always does.
+  - **A novel the tool cannot see** (D-11). Writers often keep one folder
+    per novel, so the next novel is usually outside what was granted. When
+    a named work is not found, the tool answers with the works it can see
+    and tells the chat to offer `add_folder`. That tool opens the Windows
+    folder picker on the writer's screen, which is the writer's explicit
+    grant. It stores the folder in the extension's own state and resumes
+    the work. The writer never opens Settings. Editing the install setting
+    stays possible, but it drops the server until the extension is
+    re-enabled.
   - **Server.** `lc mcp`: MCP over newline-delimited JSON-RPC on stdio, with
     its own small standard-library module (D-4). It offers a small set of
     tools:
@@ -216,7 +273,10 @@ Every option keeps:
     - `run(work, command)` runs any other `lc` subcommand from an
       allow-list.
 
-    Every path is confined to the picked folder.
+    - `add_folder` opens the folder picker (above).
+
+    Every path is confined to the granted folders: the install setting
+    plus the folders added with `add_folder`.
   - **Word.** doc-control is bundled as a library, not as a second server
     for the writer to install. Word moves go through `doc_control.api.run`,
     doc-control's stable entry point. The places page is served by the
@@ -224,17 +284,20 @@ Every option keeps:
     offered to share. Its buttons call the extension's own `select` tool.
     Only the server that served a page can answer its buttons, so this is
     what makes one install enough (D-6).
-  - **Understanding "work on my novel".** The tool descriptions say when to
-    use them ("when the writer talks about their novel, wants to continue,
-    resume or work on it"). The server's `instructions` carry the short guide:
+  - **Understanding "work on my novel"** (D-8, D-12). The tool descriptions
+    say when to use them ("when the writer talks about their novel, wants to
+    continue, resume or work on it"); the probe showed that is enough to
+    trigger. Chat ignores server `instructions`, so the short guide travels
+    in the first tool result instead. `resume` returns it with the novel's
+    state:
     - the two channels;
     - the writer rules;
     - a jump is one call, then "Done.".
 
-    The prompts are served as resources, read only when needed. If Q-2 shows
-    the Chat tab ignores `instructions`, the same guide ships as a skill,
-    built under skill-workshop. That skill is delivered by a plugin from the
-    repo's marketplace, which is a second, optional install.
+    The prompts are served on demand. A skill, built under skill-workshop
+    and delivered by a plugin from the repo's marketplace (a second,
+    optional install), is added only if the guide in tool results proves
+    weaker than a skill.
   - **Runtime.** The extension's server type is `uv`: dependencies are
     declared in `pyproject.toml` and installed by the host. Q-3 checks this
     on the owner's PC. `binary` (a frozen executable) is the fallback.
@@ -259,8 +322,10 @@ Every option keeps:
     (refused earlier), could not do safely.
   - There is a copy of the places page to keep in step with doc-control's.
   - Private extensions do not auto-update.
-  - The `uv` server type is the newest of the four and must be proven on
-    Windows (Q-3).
+  - The `uv` server type is the newest of the four. It worked on the
+    owner's PC, but a machine without uv is still to be proven (Q-3).
+  - The install warnings for an unsigned extension are alarming for a
+    writer (Q-8).
 - **Compatibility**: Additive. Every CLI command, the Skill zip, the thread
   paths and a manual doc-control entry still work.
 
@@ -295,13 +360,15 @@ Every option keeps:
 the only option that meets one install, one plain chat and resume without
 questions. It uses the format the desktop app provides for exactly this.
 
-**Immediate next action**: two probes on the owner's PC before the plan.
+**Immediate next action**: the first probe ran (§2, measured facts).
+Before the plan:
 
-1. Build a minimal `uv`-type extension with one tool and a server
-   `instructions` line, and install it by double-click. This answers Q-2
-   and Q-3.
-2. Install skill-workshop in the dev session, so the skill tasks can be
-   gated on it.
+1. Rerun the probe on a Windows user account without uv or Python (Q-3).
+2. Find how far signing reduces the warnings (Q-8).
+3. Find whether a link can open the app's install dialog (Q-7).
+
+skill-workshop is run from a checkout of the claude-arsenal repository,
+without installing the plugin (the owner's choice).
 
 **Open questions**:
 - [x] Q-1: Should lc reuse doc-control's `mcp` module? Answered by doc-control:
@@ -309,15 +376,17 @@ questions. It uses the format the desktop app provides for exactly this.
       in any release, so lc writes its own small stdlib server (D-4), using
       doc-control 0.6.3's `mcp.py` as a reference. Word moves go through
       `doc_control.api.run("live.select", …)`, its stable Python entry point.
-- [ ] Q-2: Does the Chat tab give the model an extension's `instructions`,
+- [x] Q-2: Does the Chat tab give the model an extension's `instructions`,
       and do the tool descriptions alone make "work on my novel" call
-      `resume`? This decides whether the skill is needed (D-8). To be answered
-      by the probe extension.
+      `resume`? Answered by the probe. The instructions are sent but not
+      used. The descriptions alone trigger. The guide moves into tool
+      results (D-12).
 - [ ] Q-3: Does a `uv`-type extension install on Windows with no Python and
       no uv already on the machine? Does it install doc-control's live extra
       (pywin32)? Yes means one step. No means `binary` (a frozen
       executable, larger) or `python` (the writer installs Python first,
-      which costs one action). To be answered by the probe extension.
+      which costs one action). The probe ran on a PC that has uv. A clean
+      account is still to be tried.
 - [ ] Q-4: How does a writer get the `.mcpb`: a release on GitHub, a link
       on a project page, or a file sent by the person who recommends the
       tool? The owner decides; publishing needs the `repo-housekeeping`
@@ -325,12 +394,19 @@ questions. It uses the format the desktop app provides for exactly this.
 - [ ] Q-5: Should doc-control publish its places page as a reusable file in
       its package, so the extension can serve it rather than keep a copy?
       To be asked of doc-control. Until then, a copy is kept.
-- [ ] Q-6: Can the writer change the extension's folders after install?
-      The extension format declares the setting but does not say whether
-      the app lets the writer edit it later. Yes means a novel outside the
-      folders gets "add its folder in Settings → Extensions → literary-critic".
-      No means "move the novel's folder into the picked folder", or
-      reinstall the extension. To be answered by the probe extension.
+- [x] Q-6: Can the writer change the extension's folders after install?
+      Answered by the probe. Yes, but saving left the server unreachable
+      until the writer disabled and re-enabled the extension. Too fragile
+      for a writer, so a chat-side folder picker adds folders instead
+      (D-11).
+- [ ] Q-7: Can the writer get to the install dialog in one step on a
+      packaged install of the app, where double-click does not work? To
+      check: a link that opens the app's extension install, or the app's
+      extension directory. If neither works, the walkthrough says "drag
+      the file onto Settings → Extensions".
+- [ ] Q-8: Which install warnings remain for a signed extension
+      (`mcpb sign`), and for one listed in the app's directory? This
+      decides how the walkthrough prepares the writer for them.
 
 **Decisions log**:
 
@@ -345,12 +421,14 @@ questions. It uses the format the desktop app provides for exactly this.
 | D-2 | `live_places` buttons stay doc-control's; the chat calls doc-control's tool | superseded by D-6 | 2026-10-14 |
 | D-3 | A setup step merges an entry into `claude_desktop_config.json` | superseded by D-5 | 2026-10-14 |
 | D-4 | lc has its own stdlib MCP server and does not import doc-control's `mcp` module, which is internal (doc-control's answer to Q-1) | agreed | 2026-10-14 |
-| D-5 | The writer installs one desktop extension (`.mcpb`) by double-click; nobody edits a config file | agreed | 2026-10-14 |
+| D-5 | The writer installs one desktop extension (`.mcpb`) from the app (double-click where it works); nobody edits a config file | agreed (revised r4) | 2026-10-14 |
 | D-6 | The extension bundles doc-control as a library and serves its own places page, so the writer installs nothing else | proposed | 2026-10-14 |
-| D-7 | The writer picks the novels folder in the install dialog; every tool is confined to it | proposed | 2026-10-14 |
-| D-8 | "Work on my novel" is understood through tool descriptions and server instructions; a skill (under skill-workshop, via plugin) is added only if Q-2 shows it is needed | proposed | 2026-10-14 |
+| D-7 | The writer picks the first folder in the install dialog; every tool is confined to the granted folders (that one plus those added with `add_folder`) | proposed (revised r4) | 2026-10-14 |
+| D-8 | "Work on my novel" is understood through tool descriptions; a skill (under skill-workshop, via plugin) is added only if the guide in tool results proves weaker | proposed (revised r4) | 2026-10-14 |
 | D-9 | Every skill this project ships is authored and validated with skill-workshop | agreed | 2026-10-14 |
 | D-10 | The install grants the folders that hold the novels, not one novel; each chat names its work and can switch, with no setup | proposed | 2026-10-14 |
+| D-11 | A novel outside the granted folders is added from the chat: `add_folder` opens the Windows folder picker, and the writer's choice is the grant | proposed | 2026-10-14 |
+| D-12 | Chat ignores server instructions, so the short guide is returned by `resume` with the novel's state | proposed | 2026-10-14 |
 
 ---
 
