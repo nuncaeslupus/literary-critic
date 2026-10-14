@@ -4,7 +4,7 @@
 **Specification**: `arsenal/project/install/spec.md` (approved, revision 1)
 **Author**: Claude (with the owner)
 **Revision**: 1
-**Status**: draft
+**Status**: approved (2026-10-14, revision 1) — without annotations
 **Revision log**:
 - r1 — first draft, from the approved spec (Option B; Q-4 and Q-5 take the proposed answers)
 
