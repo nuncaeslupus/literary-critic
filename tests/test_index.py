@@ -1059,10 +1059,10 @@ def test_links_packet_links_payoffs_scene_packets_left_unlinked(tmp_path: Path) 
             unit = next(
                 u
                 for u in packets._packet(packets.load_plan(root), pid)["inputs"]["units"]
-                if _unique_quote(draft, *u["paras"], skip=1)
+                if _unique_quote(draft, u["paras"][0], u["paras"][1], skip=1)
             )
             s = next(x for x in answer["scenes"] if x["scene"] == unit["scene"])
-            quote = _unique_quote(draft, *unit["paras"], skip=1)
+            quote = _unique_quote(draft, unit["paras"][0], unit["paras"][1], skip=1)
             s["setups"].append({"label": "the resolution", "side": "payoff", "quote": quote})
         line = _import(root, pid, answer)
         assert line.startswith("ok "), line
