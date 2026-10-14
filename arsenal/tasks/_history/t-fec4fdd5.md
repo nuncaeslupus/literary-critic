@@ -5,6 +5,7 @@ label: "T4: works and resume with"
 priority: 5
 deps: [t-2fe9d431]
 workspace: desktop
+status: merged
 ---
 
 ## Acceptance gate
