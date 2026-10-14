@@ -28,11 +28,18 @@ with computer use, and the plain line for the writer when you cannot.
 
 ## Take the writer to a passage
 
+The writer waits while you work, so a jump is one command and a one-word
+answer: "take me to chapter 7" is `lc docx locate 7 --go --workspace <ws>`,
+then "Done." Run nothing else first (no `lc show`, no reading this whole
+file again in the same session): the steps below are for when that answer
+is not `"status": "done"`.
+
 1. `lc docx locate "<first words of the passage>" --workspace <ws>` (or an
    anchor such as `c07.s2.p4`; a chapter `c07` or a scene `c07.s2` lands on its
-   first paragraph). For "take me to chapter 7", find the chapter's id in
-   `lc show --workspace <ws>` first: the novel's numbering and titles need not
-   match the ids. It prints `path` and `at` (the file and the
+   first paragraph). For "take me to chapter 7", give the number the chapter's
+   heading shows, `7` or `VII`: lc finds the heading that carries it, and when
+   none or several do it says so, then find the chapter's id in
+   `lc show --workspace <ws>`. It prints `path` and `at` (the file and the
    paragraph's address, for the live engine), `find` (Word's search text),
    `unique`, `paragraphs_after` and the plain `locator` (chapter, page, first
    and last words).

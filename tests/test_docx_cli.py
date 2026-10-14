@@ -384,6 +384,12 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     n = [int(x["at"][1:].split("#")[0]) for x in (chapter, scene, first)]
     ck(code == code2 == 0 and n[0] <= n[1] <= n[2])  # the chapter's heading comes first
     ck(chapter["locator"]["chapter"] == first["locator"]["chapter"])
+    # "take me to chapter 2": the number in its heading, arabic or roman, without `lc show`
+    for number in ("2", "II"):
+        code, out = _lc(capsys, "docx", "locate", number, *w)
+        ck(code == 0 and out["at"] == chapter["at"])
+    code, out = _lc(capsys, "docx", "locate", "999", *w)
+    ck(code == 1 and out["reason"] == "chapter" and "lc show" in out["message"])
     # edits: dry run, apply, then refused once the quote is gone
     edits = [{"id": "A1", "quote": quote, "replace": quote.upper(), "reason": "test"}]
     before = doc.read_bytes()
@@ -430,7 +436,7 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     (ws.parent / "broken.docx").write_bytes(b"not a zip")
     code, out = _lc(capsys, "docx", "locate", "--document", "broken.docx", "x", *w)
     ck(code == 1 and out["reason"] == "unreadable")
-    docx_cli_contract_ok = int(checks == 23 and not failed)
+    docx_cli_contract_ok = int(checks == 26 and not failed)
     assert docx_cli_contract_ok == 1, f"failed checks at lines {failed}"
 
 

@@ -15,9 +15,11 @@ Claude can do, finds the novel and agrees how to work, step by step.
 
 ## Running the tool
 
-- **This folder has `lc.py`** (the Skill uploaded to Claude): wherever the
-  procedures run lc with a command, run `python3 <this folder>/lc.py` with
-  that command instead. The procedures are in this folder's `prompts/`.
+- **This folder has `lc.py`** (the Skill uploaded to Claude, or unzipped
+  into `~/.claude/skills/`): wherever the procedures run lc with a command,
+  run `python3 <this folder>/lc.py` with that command instead (`python` when
+  there is no `python3`, as on Windows); there is no `lc` command to look
+  for. The procedures are in this folder's `prompts/`.
 - **In a source checkout of the tool** (this skill under `.claude/skills/`):
   `uv run lc`, never an installed copy, so the working tree is what runs.
 - **Otherwise** use the installed lc command. If it is missing and the
@@ -61,7 +63,7 @@ Details in `prompts/20-codex-items.md`.
 | look at a new draft | `prompts/50-new-draft.md` |
 | a revision round, the editorial letter, recording decisions | `prompts/60-rounds.md` |
 | an agency/editor assessment, a reader report | `prompts/70-reader-report.md` |
-| go to a passage in Word, apply an approved change to the Word file | `prompts/80-live-word.md` (only `lc docx` and `lc word`; `lc word` acts in Word through doc-control when it can reach it, else gives doc-control's tool call and computer-use steps) |
+| go to a passage in Word, apply an approved change to the Word file | `prompts/80-live-word.md` (only `lc docx` and `lc word`; `lc word` acts in Word through doc-control when it can reach it, else gives doc-control's tool call and computer-use steps). "Take me to chapter 7": `lc docx locate 7 --go --workspace <ws>` at once, then "Done." if it answers `"status": "done"`; read the file only otherwise |
 
 Workspaces live outside the tool's own files: in the novel's folder
 (`<folder>/literary-critic/`, made by `lc setup`) or under
