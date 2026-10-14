@@ -377,6 +377,13 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     quote = _quote(doc)
     code, out = _lc(capsys, "docx", "locate", quote, *w)
     ck(code == 0 and out["find"].startswith(quote) and out["locator"]["chapter"] != "")
+    # a chapter or scene ("take me to chapter 2") lands on its first paragraph
+    code, chapter = _lc(capsys, "docx", "locate", "c02", *w)
+    code2, scene = _lc(capsys, "docx", "locate", "c02.s1", *w)
+    _, first = _lc(capsys, "docx", "locate", "c02.s1.p1", *w)
+    n = [int(x["at"][1:].split("#")[0]) for x in (chapter, scene, first)]
+    ck(code == code2 == 0 and n[0] <= n[1] <= n[2])  # the chapter's heading comes first
+    ck(chapter["locator"]["chapter"] == first["locator"]["chapter"])
     # edits: dry run, apply, then refused once the quote is gone
     edits = [{"id": "A1", "quote": quote, "replace": quote.upper(), "reason": "test"}]
     before = doc.read_bytes()
@@ -423,7 +430,7 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     (ws.parent / "broken.docx").write_bytes(b"not a zip")
     code, out = _lc(capsys, "docx", "locate", "--document", "broken.docx", "x", *w)
     ck(code == 1 and out["reason"] == "unreadable")
-    docx_cli_contract_ok = int(checks == 21 and not failed)
+    docx_cli_contract_ok = int(checks == 23 and not failed)
     assert docx_cli_contract_ok == 1, f"failed checks at lines {failed}"
 
 
