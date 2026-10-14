@@ -1,6 +1,14 @@
 # Handover
 
-**Last session (2026-10-13, evening):** the owner ran the tool as a writer in Cowork (paid plan) on the corpus novel; record in `status/evidence/W9-walkthrough.md`, "Owner's run in Cowork".
+**Last session (2026-10-14):** `lc word` acts in the open Word through doc-control's live engine (PR #147, branch `feat/word-live-engine`). Record in `status/evidence/W9-walkthrough.md`, "`lc word` through doc-control's live engine".
+
+- **Done on the host:** `lc docx locate` prints `path` and `at`; `lc word` locate/save/close/reopen/selection try `live.*` first and answer `status: done` (locate selected the paragraph in 1.8 s). When Word is out of reach, the steps carry `live: {tool, arguments, error}`, which is the doc-control MCP call to make. Requires doc-control 0.6, plus the `live` extra on Windows.
+- **Still waiting on the owner:** add doc-control's MCP server to the desktop app (Settings → Developer → Edit Config; `mcpServers` → `doc-control`: `uvx --from "doc-control[live]" doc-control mcp`), restart, then in Cowork call `live_select` on a document open in Word.
+- **Cowork path problem:** the MCP server needs the path on the writer's computer, and Cowork's sandbox only knows `/tmp/claude-0/...`. The doc-control session was asked (2026-10-14) for `live.status` to list open documents, or for live ops to accept a bare file name when only one open document matches. Its answer is pending.
+- **Generic bug, task chip offered:** `state/manuscript.json` and `state/documents.json` store absolute paths, so a workspace made in Cowork does not work on the host. Those paths should be relative to the novel's folder.
+- **Later:** use doc-control's live `batch` (tracked edits in the open Word) instead of close → edit → reopen.
+
+**Previous session (2026-10-13, evening):** the owner ran the tool as a writer in Cowork (paid plan) on the corpus novel; record in `status/evidence/W9-walkthrough.md`, "Owner's run in Cowork".
 
 - **Merged:** #136 (the full experience needs a paid plan), #137 (say when a step takes a while), #142 (no tool talk to a writer unless asked with `[[...]]`), #143 (doc-control 0.6: live engine with a Word adapter, `live` extra).
 - **Next step, waiting on the owner:** add doc-control's MCP server to the Claude desktop app (Settings → Developer → Edit Config; `mcpServers` → `doc-control`: `uvx --from "doc-control[live]" doc-control mcp`), restart the app, and in Cowork ask for `live_select` on a document open in Word. The assistant may not edit that config itself (refused). The question is whether a Cowork conversation can call a host MCP server; Cowork's own commands run in a sandbox and cannot reach Word.
