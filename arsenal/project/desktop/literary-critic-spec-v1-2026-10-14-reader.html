@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="41b5fa9ff7e96b6df136ee9e3960d6181fd2a25ef7657b28895e481f536bd3a4">
+<meta name="arsenal-source-sha256" content="67ddefc9730c3a40b84da4447e0c571751082ee1bb9c8b539ea18edbacdcdece">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -331,10 +331,10 @@ without learning the app's session types.</p>
 <tr>
 <td>doc-control (≥ 0.6.3)</td>
 <td>Dependent</td>
-<td>Live Word engine, <code>live_places</code> buttons, MCP server code</td>
-<td>Maybe</td>
-<td>Reuse of its stdio server needs a public entry point (open question)</td>
-<td>Med</td>
+<td>Live Word engine, <code>live_places</code> buttons; <code>doc_control.api.run</code> as stable Python entry</td>
+<td>No</td>
+<td>lc writes its own server (D-4); doc-control's <code>mcp.py</code> is the reference</td>
+<td>Low</td>
 </tr>
 <tr>
 <td><code>claude_desktop_config.json</code></td>
@@ -526,17 +526,18 @@ plain chat" and "resume without questions". It reuses every fast path that
 already exists (<code>locate --go</code>, <code>places</code>, the registry). It also follows the
 same shape the writer already runs successfully: doc-control as a local server
 in the Chat tab.</p>
-<p><strong>Immediate next action</strong>: confirm with doc-control whether its stdio server
-code can be reused by another package (Q-1). Then write the plan, with
+<p><strong>Immediate next action</strong>: answer Q-2 with a probe server on the owner's PC,
+then write the plan, with
 the JSON-RPC transcript test and the config-merge fixtures as the first
 gates.</p>
 <p><strong>Open questions</strong>:
-- [ ] Q-1: Should lc reuse doc-control's <code>mcp</code> module? Today
-      <code>serverInfo</code> is hard-coded to <code>doc-control</code> and <code>tools/call</code> dispatches
-      only through doc-control's registry. A public <code>serve(tools, info,
-      instructions)</code> there would avoid a second copy. Otherwise lc keeps its
-      own module of about 150 lines. Asked of the doc-control session; no
-      answer yet.
+- [x] Q-1: Should lc reuse doc-control's <code>mcp</code> module? Answered by doc-control:
+      no. Its <code>handle</code>/<code>serve</code> and the registry hooks are internal and may change
+      in any release, so lc writes its own small stdlib server (D-4), using
+      doc-control 0.6.3's <code>mcp.py</code> as a reference. If lc ever serves its own
+      app page, that page's buttons can call only lc's tools. lc would then
+      proxy Word moves through <code>doc_control.api.run("live.select", …)</code>, which
+      is doc-control's stable Python entry point.
 - [ ] Q-2: Does the desktop app's Chat tab give the model a server's
       <code>instructions</code>? To be checked on the owner's PC with a probe server
       before the guide relies on it.
@@ -598,6 +599,12 @@ gates.</p>
 <td>D-3</td>
 <td>The setup step merges into the desktop config (backup, validate, never overwrite other entries)</td>
 <td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>lc has its own stdlib MCP server and does not import doc-control's <code>mcp</code> module, which is internal (doc-control's answer to Q-1)</td>
+<td>agreed</td>
 <td>2026-10-14</td>
 </tr>
 </tbody>

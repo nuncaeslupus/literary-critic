@@ -104,7 +104,7 @@ without learning the app's session types.
 | `lc` CLI (`cli.py`, `docx_cli.py`, `word_live.py`) | Dependent | The commands the tools call | Small | Unchanged behaviour; maybe a `resume` summary command | Low |
 | Setup step (new `lc desktop` or `lc doctor --fix`) | Primary | Writes the config entry | Yes | Edits a file of the desktop app, outside the repo and workspace | High |
 | `prompts/` (00-guide, 05-setup, 80-live-word), `.claude/skills/litcritic/SKILL.md` | Dependent | The guide the chat follows | Yes | Delivered as server instructions/resources; one path for "plain Chat" | Med |
-| doc-control (≥ 0.6.3) | Dependent | Live Word engine, `live_places` buttons, MCP server code | Maybe | Reuse of its stdio server needs a public entry point (open question) | Med |
+| doc-control (≥ 0.6.3) | Dependent | Live Word engine, `live_places` buttons; `doc_control.api.run` as stable Python entry | No | lc writes its own server (D-4); doc-control's `mcp.py` is the reference | Low |
 | `claude_desktop_config.json` | Infrastructure | Lists local MCP servers for the Chat tab | Yes (by setup) | A broken file stops all the writer's local servers | High |
 | Packaging (PyPI `literary-critic`, `uvx`) | Infrastructure | How the server reaches the writer's PC | Yes | 0.1.0 is not published; the entry needs a stable command | Med |
 | Writer's working folder (`<novel>/literary-critic/`, chat D-10) | Data | All state | No | Read and written exactly as today | Low |
@@ -248,18 +248,19 @@ already exists (`locate --go`, `places`, the registry). It also follows the
 same shape the writer already runs successfully: doc-control as a local server
 in the Chat tab.
 
-**Immediate next action**: confirm with doc-control whether its stdio server
-code can be reused by another package (Q-1). Then write the plan, with
+**Immediate next action**: answer Q-2 with a probe server on the owner's PC,
+then write the plan, with
 the JSON-RPC transcript test and the config-merge fixtures as the first
 gates.
 
 **Open questions**:
-- [ ] Q-1: Should lc reuse doc-control's `mcp` module? Today
-      `serverInfo` is hard-coded to `doc-control` and `tools/call` dispatches
-      only through doc-control's registry. A public `serve(tools, info,
-      instructions)` there would avoid a second copy. Otherwise lc keeps its
-      own module of about 150 lines. Asked of the doc-control session; no
-      answer yet.
+- [x] Q-1: Should lc reuse doc-control's `mcp` module? Answered by doc-control:
+      no. Its `handle`/`serve` and the registry hooks are internal and may change
+      in any release, so lc writes its own small stdlib server (D-4), using
+      doc-control 0.6.3's `mcp.py` as a reference. If lc ever serves its own
+      app page, that page's buttons can call only lc's tools. lc would then
+      proxy Word moves through `doc_control.api.run("live.select", …)`, which
+      is doc-control's stable Python entry point.
 - [ ] Q-2: Does the desktop app's Chat tab give the model a server's
       `instructions`? To be checked on the owner's PC with a probe server
       before the guide relies on it.
@@ -282,6 +283,7 @@ gates.
 | D-1 | The main path on a Windows PC with the desktop app is a plain Chat with two local servers (doc-control, literary-critic); threads and projects become alternatives | proposed | 2026-10-14 |
 | D-2 | `live_places` buttons stay doc-control's; literary-critic returns the call's arguments and the chat makes the call | proposed | 2026-10-14 |
 | D-3 | The setup step merges into the desktop config (backup, validate, never overwrite other entries) | proposed | 2026-10-14 |
+| D-4 | lc has its own stdlib MCP server and does not import doc-control's `mcp` module, which is internal (doc-control's answer to Q-1) | agreed | 2026-10-14 |
 
 
 > Sections 5–6 (contracts, risks) are appended by `design`.
