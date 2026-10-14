@@ -161,7 +161,7 @@ def test_the_live_engine_does_it_when_word_has_the_document_open(
         "writer": "In N.docx: Chapter 7, p. ≈112: the paragraph that starts “Ya voy…” "
         "and ends “…cansada.”.",
     }
-    assert calls[-1] == ("live.select", {"doc": doc, "at": "p7#0a1b2c3d"})
+    assert calls[-1] == ("live.select", {"doc": doc, "mode": "cursor", "at": "p7#0a1b2c3d"})
     assert word_live.call("save", {"document": doc})["result"] == {"saved": True}
     word_live.call("close", {"document": doc, "save": False})
     assert calls[-1] == ("live.close", {"doc": doc, "save": False})
@@ -185,7 +185,8 @@ def test_without_the_live_engine_the_steps_carry_the_mcp_call(tmp_path: Path) ->
     assert out["status"] == "manual" and out["steps"]
     assert out["live"] == {
         "tool": "live_select",
-        "arguments": {"doc": "N.docx", "at": "p7#0a1b2c3d"},  # the bare name: see the docstring
+        # the bare name: see the docstring
+        "arguments": {"doc": "N.docx", "mode": "cursor", "at": "p7#0a1b2c3d"},
         "error": {"code": "LIVE_UNAVAILABLE", "message": "no live app"},
     }
     close = word_live.call("close", {"document": doc, "save": True})
@@ -221,7 +222,7 @@ def test_without_an_address_locate_selects_by_the_find_phrase(
     assert out["status"] == "done" and out["how"] == "live" and out["writer"]
     assert calls[-1] == (
         "live.select",
-        {"doc": doc, "find_phrase": "Ya voy\rdijo", "paragraphs_after": 2},
+        {"doc": doc, "mode": "cursor", "find_phrase": "Ya voy\rdijo", "paragraphs_after": 2},
     )
 
 

@@ -37,7 +37,9 @@ with computer use, and the plain line for the writer when you cannot.
 2. Save that answer, exactly as printed, to a file, `locate.json` (a file,
    because passages contain quotes and apostrophes); add `"language": "es"` for
    a writer line in Spanish. Then `lc word locate --payload locate.json`.
-   - `"status": "done"`: Word is there. Answer a direct request ("take me to
+   - `"status": "done"`: Word is in front with the passage in the middle of
+     the window and the cursor at its start (nothing selected, so a key
+     pressed by accident cannot replace it). Answer a direct request ("take me to
      chapter 7", a click on a place) with one word: "Done." ("Hecho." in
      Spanish). The writer is looking at Word, not at a description of it.
    - `live.error` says the document is not open: open it
@@ -64,8 +66,8 @@ ways above), make each place a way there:
 - If you can show an interactive widget whose buttons send a chat message,
   show the places as a short list, each with a button ("Take me there" in the
   writer's language) that sends "Take me to <anchor>: “<first words>…”".
-  The click comes back to you as that request: locate the anchor, select it,
-  answer "Done.".
+  The click comes back to you as that request: locate the anchor, take the
+  writer there, answer "Done.".
 - Otherwise number the places and end with one line: "Tell me a number and I
   will take you there."
 
