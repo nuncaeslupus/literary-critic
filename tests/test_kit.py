@@ -1,15 +1,17 @@
+import json
 import os
 import re
 import stat
 import subprocess
 import sys
+import tomllib
 import zipfile
 from pathlib import Path
 
 import pytest
 from conftest import bare_env
 
-from litcritic import kit
+from litcritic import __version__, kit
 from litcritic.cli import main
 from litcritic.workspace import repo_root
 
@@ -144,3 +146,37 @@ def test_kit_selftest_offline(tmp_path: Path) -> None:
     where, api = ran.stdout.split()
     assert Path(where).resolve().is_relative_to(folder.resolve())
     assert api.startswith("1.")
+
+
+def test_doctor_json_in_kit_reports_source_kit(tmp_path: Path) -> None:
+    out, _ = kit.build(tmp_path / "kit.zip")
+    folder = tmp_path / "unpacked"
+    zipfile.ZipFile(out).extractall(folder)
+    doctor = subprocess.run(
+        [sys.executable, "-I", "-S", "lc.py", "doctor", "--json", "--home", "./home"],
+        cwd=folder, capture_output=True, text=True, env=bare_env(tmp_path), check=False,
+    )  # fmt: skip
+    assert doctor.returncode == 0, doctor.stderr
+    got = json.loads(doctor.stdout)
+    assert got["problems"] == [] and got["source"] == "kit"
+    assert got["version"] == __version__ and re.fullmatch(r"\d{4}-\d\d-\d\d", got["built"])
+
+
+def test_doctor_json_version_sources(tmp_path: Path) -> None:
+    out, _ = kit.build_skill(tmp_path / "skill.zip")
+    zipfile.ZipFile(out).extractall(tmp_path / "s")
+    assert kit.version_info(tmp_path / "s" / "litcritic")["source"] == "skill"
+    assert kit.version_info(repo_root())["source"] == "checkout"
+    bare = kit.version_info(tmp_path / "nothing")
+    assert bare == {"version": __version__, "built": None, "source": "package"}
+
+
+def test_doctor_json_cli_in_checkout(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["doctor", "--json"]) == 0
+    got = json.loads(capsys.readouterr().out)
+    assert got["source"] == "checkout" and got["version"] == __version__
+
+
+def test_version_matches_pyproject() -> None:
+    meta = tomllib.loads((repo_root() / "pyproject.toml").read_text(encoding="utf-8"))
+    assert meta["project"]["version"] == __version__

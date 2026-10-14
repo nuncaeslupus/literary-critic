@@ -9,12 +9,16 @@ platform by running a tiny pipeline in a temporary folder.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import json
 import os
 import sys
 import tempfile
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from litcritic import __version__
 from litcritic.workspace import repo_root
@@ -42,6 +46,27 @@ from litcritic.cli import main  # noqa: E402
 
 raise SystemExit(main())
 '''
+
+
+VERSION_FILE = "VERSION"  # in a kit or Skill zip: {"version", "built", "source"}
+
+
+def _stamp(source: str) -> str:
+    built = datetime.now(UTC).strftime("%Y-%m-%d")
+    return json.dumps({"version": __version__, "built": built, "source": source}) + "\n"
+
+
+def version_info(root: Path | None = None) -> dict[str, Any]:
+    """This copy's version, build date and where it came from: ``kit`` or ``skill``
+    (a zip's ``VERSION`` stamp), ``checkout`` (a git work tree) or ``package``."""
+    root = root or repo_root()
+    stamp = root / VERSION_FILE
+    if stamp.is_file():
+        with contextlib.suppress(ValueError, OSError):
+            d = json.loads(stamp.read_text(encoding="utf-8"))
+            return {"version": str(d["version"]), "built": d.get("built"), "source": d["source"]}
+    source = "checkout" if (root / ".git").exists() else "package"
+    return {"version": __version__, "built": None, "source": source}
 
 
 SKILL = Path(".claude") / "skills" / "litcritic" / "SKILL.md"
@@ -116,7 +141,7 @@ def build(out: Path | None = None) -> tuple[Path, int]:
     """Write ``literary-critic-kit-<version>.zip``; returns its path and file count."""
     root = _checkout()
     out = (out or root / "dist" / f"literary-critic-kit-{__version__}.zip").resolve()
-    return out, _build(out, _files(root), {"lc.py": LAUNCHER})
+    return out, _build(out, _files(root), {"lc.py": LAUNCHER, VERSION_FILE: _stamp("kit")})
 
 
 def build_skill(out: Path | None = None) -> tuple[Path, int]:
@@ -125,7 +150,8 @@ def build_skill(out: Path | None = None) -> tuple[Path, int]:
     root = _checkout(SKILL)
     out = (out or root / "dist" / f"litcritic-skill-{__version__}.zip").resolve()
     files = {"SKILL.md": root / SKILL, **_files(root)}
-    count = _build(out, files, {"lc.py": LAUNCHER}, f"{SKILL_NAME}/", SKILL_MAX_BYTES)
+    generated = {"lc.py": LAUNCHER, VERSION_FILE: _stamp("skill")}
+    count = _build(out, files, generated, f"{SKILL_NAME}/", SKILL_MAX_BYTES)
     return out, count
 
 
