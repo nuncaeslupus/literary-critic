@@ -152,3 +152,56 @@ def test_resume_without_name_opens_the_only_work(
     _novel(tmp_path, "Only", "Only")
     out = _call(mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Only")]))), "resume", {})
     assert out["work"]["title"] == "Only"
+
+
+@pytest.fixture
+def jekyll(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> mcp.Server:
+    """A granted folder with one real work: the start of the corpus novel, set up."""
+    from litcritic import setup
+
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    novel = tmp_path / "Novels" / "Jekyll"
+    novel.mkdir(parents=True)
+    text = (Path(__file__).parents[1] / "corpus" / "jekyll-hyde" / "text.txt").read_text("utf-8")
+    (novel / "jekyll.txt").write_text(text[:20000], encoding="utf-8")
+    setup.setup(novel)
+    return mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Novels")])))
+
+
+def _call_raw(server: mcp.Server, name: str, args: dict[str, Any]) -> dict[str, Any]:
+    send = {"jsonrpc": "2.0", "id": 1, "method": "tools/call"}
+    reply = _replay(server, [{**send, "params": {"name": name, "arguments": args}}])[0]
+    result: dict[str, Any] = reply["result"]
+    return result
+
+
+def test_run_refuses_commands_outside_allow_list(jekyll: mcp.Server, tmp_path: Path) -> None:
+    refused = [
+        ["guard", "--all"],
+        ["init", "x"],
+        ["kit"],
+        "round status; rm -rf ~",  # a shell string
+        ["show", "--workspace", str(tmp_path)],
+        ["find", "x", "--in", str(tmp_path.parent / "elsewhere.txt")],
+    ]
+    for command in refused:
+        res = _call_raw(jekyll, "run", {"work": "jekyll", "command": command})
+        assert res["isError"], command
+        error = json.loads(res["content"][0]["text"])["error"]
+        assert error in ("not_allowed", "outside_granted_folders"), command
+    ok = _call_raw(jekyll, "run", {"work": "jekyll", "command": ["round", "status"]})
+    assert not ok["isError"]
+    assert "exit" in json.loads(ok["content"][0]["text"])
+
+
+def test_show_find_ask_read_the_work(jekyll: mcp.Server) -> None:
+    toc = json.loads(_call_raw(jekyll, "show", {"work": "Jekyll"})["content"][0]["text"])
+    assert toc["exit"] == 0 and toc["output"].strip()
+    hit = json.loads(
+        _call_raw(jekyll, "find", {"work": "jekyll", "query": "Utterson"})["content"][0]["text"]
+    )
+    assert hit["exit"] == 0 and "Utterson" in hit["output"]
+    asked = _call_raw(jekyll, "ask", {"work": "jekyll", "question": "chapter-lengths"})
+    assert not asked["isError"]
+    missing = json.loads(_call_raw(jekyll, "show", {"work": "nope"})["content"][0]["text"])
+    assert missing["not_found"] == "nope"
