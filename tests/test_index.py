@@ -1018,3 +1018,23 @@ def test_done_entity_packet_stays_done_after_its_rejects_shrink_it(ws: Path) -> 
     doc = packets.plan(ws)
     e1 = next(p for p in doc["packets"] if p["id"] == "e1")
     assert e1["status"] == "done" and reject["name"] not in e1["names"]
+
+
+def test_replan_after_the_last_entity_packet_asks_nothing_again(
+    ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def halves(pre: dict[str, Any]) -> list[tuple[int, int]]:
+        n = len(pre["candidates"])
+        return [(0, n // 2), (n // 2, n)] if n > 1 else [(0, n)] if n else []
+
+    monkeypatch.setattr(packets, "entity_groups", halves)
+    doc = packets.plan(ws)
+    e1, e2 = (p["names"] for p in doc["packets"] if p["kind"] == "entities")
+    # e1: an entity whose alias is an e2 name, an omitted name, rejects; e2: rejects.
+    ents = [{"name": e1[0], "kind": "character", "aliases": [e2[0]]}]
+    assert _import(ws, "e1", {"entities": ents, "rejects": e1[2:]}).startswith("ok ")
+    assert _import(ws, "e2", {"entities": [], "rejects": e2[1:]}).startswith("ok ")
+    doc = packets.plan(ws)
+    left = [p for p in doc["packets"] if p["kind"] == "entities"]
+    assert all(p["status"] == "done" for p in left), left
+    assert {n for p in left for n in p["names"]} <= {e1[1]}

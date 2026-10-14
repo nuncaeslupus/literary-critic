@@ -453,19 +453,26 @@ def _without_rejected(pre: dict[str, Any], rejects: dict[str, dict[str, Any]]) -
     return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
 
-def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str]) -> dict[str, Any]:
-    """The pre-pass reduced to the candidates in ``scenes`` that no Codex entity
-    (name, alias or title) covers yet, with the render budget recomputed."""
+def _uncovered(pre: dict[str, Any], cx: Codex, scenes: set[str] | None) -> dict[str, Any]:
+    """The pre-pass reduced to the candidates (in ``scenes``, or anywhere when None)
+    that no Codex entity (name, alias or title) covers yet, with the render budget
+    recomputed. Unchanged (the same object) when nothing is dropped."""
     known = set(_forms(cx))
     for e in cx.live("entity"):
         known.update(t.casefold() for t in e.fields.get("titles", []))
-    names = {n for sid in scenes for n in pre["scenes"].get(sid, {}).get("names", [])}
+    names = (
+        None
+        if scenes is None
+        else {n for sid in scenes for n in pre["scenes"].get(sid, {}).get("names", [])}
+    )
     keep = [
         c
         for c in pre["candidates"]
-        if c["name"] in names
+        if (names is None or c["name"] in names)
         and not any(f.casefold() in known for f in [c["name"], *c.get("forms", [])])
     ]
+    if len(keep) == len(pre["candidates"]):
+        return pre
     budget = int(pre.get("stats", {}).get("text_tokens", 0) * prepass.DEFAULT_SHARE)
     return {**pre, "candidates": keep, "render": prepass.render(keep, budget)}
 
@@ -497,6 +504,11 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
         only = changed_scenes(ws_root, draft, cx, base)
         draft.pre = _uncovered(draft.pre, cx, only)
         prepass.write(ws_root, draft.pre)
+    else:
+        uncovered = _uncovered(draft.pre, cx, None)
+        if uncovered is not draft.pre:
+            draft.pre = uncovered
+            prepass.write(ws_root, draft.pre)
     for k, (a, b) in enumerate(entity_groups(draft.pre), 1):
         packets.append(
             {
@@ -557,24 +569,26 @@ def plan(ws_root: Path, changed: bool = False, version: str | None = None) -> di
     }
     if base_hashes is not None:
         doc["base_hashes"] = base_hashes
+    answered = {
+        n
+        for was in old.values()
+        if was.get("kind") == "entities" and was.get("status") == "done"
+        for n in was.get("names", [])
+    }
     for p in packets:
         p["status"] = "todo"
         was = old.get(p["id"])
         same = was and was.get("kind") == p["kind"] and was.get("inputs") == p["inputs"]
-        # a done entity packet stays done when a re-plan only removed names from it
-        # (rejects or newly covered names), so nobody is asked about them again
-        shrunk = (
-            was
-            and p["kind"] == "entities"
-            and was.get("kind") == "entities"
-            and was.get("status") == "done"
-            and "names" in p
-            and set(p["names"]) <= set(was.get("names", []))
-        )
-        if was is not None and (same or shrunk):
+        # an entity packet whose names were all in done entity packets stays done
+        # when a re-plan only removed or regrouped names (rejects, newly covered
+        # names), so nobody is asked about them again
+        shrunk = "names" in p and set(p["names"]) <= answered
+        if was is not None and (same or (shrunk and was.get("status") == "done")):
             for key in KEPT:
                 if key in was:
                     p[key] = was[key]
+        elif shrunk:
+            p["status"] = "done"  # regrouped: its answers are counted where they were given
         p["tokens"] = tokens(render(ws_root, doc, p["id"], draft, cx))
     doc["stats"] = plan_stats(doc, len(draft.scenes) if not changed else len(only or ()))
     path.parent.mkdir(parents=True, exist_ok=True)
