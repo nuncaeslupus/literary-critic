@@ -137,6 +137,7 @@ tests that decide the one-click path:
 | T1 | `version_source_cases_correct == 4` | 4 (kit, skill, checkout, package) | `uv run pytest -q tests/test_kit.py -k doctor_json` | this PR | local | 2026-10-14 |
 | T5 | `hand_tests_recorded == 2` | 2 (Q-1 yes, via a PC session; Q-3 no) | `uv run pytest -q tests/test_status.py -k install_evidence` | this PR | owner, Windows | 2026-10-14 |
 | T3 | `live_fallback_correct == 1.0` | 1.0 (4 of 4 injected failures fall back; unreachable and untypable skip live) | `uv run pytest -q tests/test_word_live.py -k locate_live` | this PR | local | 2026-10-14 |
+| T2 | `update_detected_rate == 1.0` | 1.0, 0 false alarms (older-online yes; current, dev-newer no; offline, checkout unknown) | `uv run pytest -q tests/test_kit.py -k update_check` | this PR | local | 2026-10-14 |
 
 ---
 
