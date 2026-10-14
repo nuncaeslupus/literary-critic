@@ -22,7 +22,7 @@ from itertools import combinations
 from pathlib import Path
 from typing import Any
 
-from litcritic import query, workspace
+from litcritic import query, textstats, workspace
 from litcritic import spans as spanlib
 from litcritic.codex import Codex
 from litcritic.textstats import WORD, strip_accents
@@ -79,6 +79,13 @@ COMPUTED: dict[str, tuple[tuple[str, ...], str, str]] = {
         ("a", "b", "scene", "chapter"),
         "a",
         "pairs of entities mentioned in the same scene (a < b)",
+    ),
+    "speech": (
+        ("para_idx", "words"),
+        "para_idx",
+        "words of speech found in each paragraph's text (dashes, '--', quotes or"
+        " guillemets; the same detection as lc metrics); no row for a paragraph without"
+        " speech",
     ),
     "changes": (
         (
@@ -381,6 +388,14 @@ class View:
                 w = m.group()
                 rows.append((i, pos, w, norm(w), 1 if WORD.fullmatch(w) else 0))
         self.conn.executemany("INSERT INTO tokens VALUES (?,?,?,?,?)", rows)
+
+    def _build_speech(self) -> None:
+        rows = []
+        for i, p in enumerate(self.text.paragraphs):
+            n = sum(len(textstats.words(sp)) for sp in textstats.dialogue_spans(p))
+            if n:
+                rows.append((i, n))
+        self.conn.executemany("INSERT INTO speech VALUES (?,?)", rows)
 
     def _build_ngrams(self) -> None:
         rows = []
