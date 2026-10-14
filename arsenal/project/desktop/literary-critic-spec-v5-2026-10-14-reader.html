@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="3bee2c7277008e6caafe39de07be2e1ba37681a78ffa2ecfef2e02449d443f94">
+<meta name="arsenal-source-sha256" content="15b87eb314c787bd1b6c6f6d9da20e82e7105e425f7af228b06b44457e67897a">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -161,7 +161,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 13 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -191,6 +191,11 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <li><a href="#s-spec-option-c-package-the-pc-thread-a">Option C: package the PC thread as the only path (Code tab / Remote Control)</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-api-contracts">API contracts</a></li>
+<li><a href="#s-spec-inter-service-contracts">Inter-service contracts</a></li>
+<li><a href="#s-spec-database-migrations">Database migrations</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -201,7 +206,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <strong>Ticket / PR</strong>: workspace <code>desktop</code>
 <strong>Author</strong>: Claude (with the owner)
 <strong>Revision</strong>: 5
-<strong>Status</strong>: draft
+<strong>Status</strong>: approved (2026-10-14, revision 5) — without annotations
 <strong>Revision log</strong>:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
   test novel, 2026-10-14): "my problem keeps being which chat type I need to use"
@@ -888,11 +893,261 @@ without installing the plugin (the owner's choice).</p>
 <td>2026-10-14</td>
 </tr>
 </tbody>
-</table>
-<blockquote>
-<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
-</blockquote></div>
+</table></div>
 <div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2 bare" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+</article>
+<article class="sec l3" id="s-spec-api-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">API contracts</span></h4>
+<div class="sec-body"><p>The extension's server speaks MCP over newline-delimited JSON-RPC 2.0 on
+stdio. Every tool result is one <code>text</code> content block holding a JSON object;
+<code>isError: true</code> only for a fault the writer cannot fix by answering a
+question (a refused path, a crash). "Not found" and "cancelled" are normal
+results, not errors.</p>
+<h4><code>initialize</code></h4>
+<ul>
+<li><strong>Auth</strong>: local process, started by the app</li>
+<li><strong>Response</strong>: <code>capabilities: {tools: {}}</code>, <code>serverInfo: {name: "literary-critic", version}</code>.
+  <code>instructions</code> repeats the guide in one paragraph for clients that read it;
+  Chat does not (Q-2), so nothing depends on it.</li>
+<li><strong>Backwards compatible</strong>: new</li>
+</ul>
+<h4>Tool <code>works</code></h4>
+<ul>
+<li><strong>Request</strong>: <code>{}</code></li>
+<li><strong>Response</strong>:
+  <code>json
+  {"works": [{"work": "Marianela", "folder": "C:\…\Marianela", "last_used": "2026-10-14", "has_workspace": true}],
+   "folders": ["C:\Users\…\Documents"],
+   "hint": "If the novel is not listed, offer add_folder."}</code>
+  A work is a folder holding a <code>.docx</code> or a <code>literary-critic/</code> working folder,
+  either a granted folder itself or one level below it. Most recent first.</li>
+<li><strong>Errors</strong>: none; an unreadable granted folder is listed in <code>folders</code> with <code>"error"</code>.</li>
+</ul>
+<h4>Tool <code>resume</code></h4>
+<ul>
+<li><strong>Request</strong>: <code>{"work": "Marianela"}</code> (optional)</li>
+<li><strong>Response (found)</strong>:
+  <code>json
+  {"work": "Marianela", "workspace": "C:\…\Marianela\literary-critic",
+   "state": {"draft": "…", "round": 2, "next_step": "…"},
+   "guide": "…≤ 400 words: the two channels, the writer rules, a jump is one call then Done…"}</code></li>
+<li><strong>Response (not found)</strong>: <code>{"status": "not_found", "asked": "…", "works": […], "hint": "offer add_folder"}</code></li>
+<li><strong>Response (no work named, several)</strong>: <code>{"status": "choose", "works": […]}</code></li>
+<li><strong>Errors</strong>: none</li>
+</ul>
+<h4>Tool <code>add_folder</code></h4>
+<ul>
+<li><strong>Request</strong>: <code>{}</code></li>
+<li><strong>Effect</strong>: opens the Windows folder picker in front of the other windows;
+  the chosen folder is appended to the state file (below). The picker output
+  is read as UTF-8, so accented names come back intact.</li>
+<li><strong>Response</strong>: <code>{"status": "added", "folder": "…", "works": […]}</code> or <code>{"status": "cancelled"}</code></li>
+<li><strong>Errors</strong>: <code>isError</code> only if no picker can be shown (no desktop session).</li>
+</ul>
+<h4>Tools <code>locate</code>, <code>places</code>, <code>select</code></h4>
+<ul>
+<li><code>locate</code> — <code>{"work", "target", "go": true}</code> → the <code>lc docx locate --go</code> result
+  (<code>status: done</code> with <code>how: live</code>, or the steps for the writer).</li>
+<li><code>places</code> — <code>{"work", "targets": ["c08", "15", …]}</code> → a result carrying the
+  places page (<code>_meta.ui.resourceUri: "ui://literary-critic/places"</code>), one
+  button per place.</li>
+<li><code>select</code> — <code>{"work", "anchor"}</code> → called by the page's buttons only;
+  <code>doc_control.api.run("live.select", …)</code>; <code>{"selected": true|false}</code>.</li>
+</ul>
+<h4>Tools <code>show</code>, <code>find</code>, <code>ask</code>, <code>run</code></h4>
+<ul>
+<li><code>show</code> / <code>find</code> / <code>ask</code> — <code>{"work", …}</code> with the same arguments as the CLI
+  subcommands; the CLI's JSON output.</li>
+<li><code>run</code> — <code>{"work", "command": ["round", "status"]}</code>. The first word must be
+  in the allow-list (<code>round</code>, <code>report</code>, <code>metrics</code>, <code>diff</code>, <code>ingest</code>, <code>anchor</code>,
+  <code>codex</code>, <code>doctor</code>, <code>validate</code>); anything else → <code>isError</code>, "not allowed".</li>
+</ul>
+<h4>Path confinement (every tool)</h4>
+<p>Every path argument and every resolved work folder must lie under a granted
+folder after <code>Path.resolve()</code> (symlinks and <code>..</code> followed). Otherwise:
+<code>isError: true</code>, <code>{"error": "outside_granted_folders", "path": "…"}</code>.</p></div>
+<div class="note" data-for="s-spec-api-contracts"><label class="note-head" for="n-s-spec-api-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › API contracts</span></label><textarea class="note-ta" data-key="s-spec-api-contracts" id="n-s-spec-api-contracts" data-label="API contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-inter-service-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Inter-service contracts</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Callee</th>
+<th>Protocol</th>
+<th>Contract</th>
+<th>Failure handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude app (Chat, Cowork)</td>
+<td><code>lc mcp</code></td>
+<td>MCP stdio JSON-RPC</td>
+<td>tools above; protocol version echoed from <code>initialize</code></td>
+<td>the app restarts the server; tools are stateless between calls</td>
+</tr>
+<tr>
+<td><code>lc mcp</code></td>
+<td>doc-control</td>
+<td>Python import via <code>dc.py</code></td>
+<td><code>doc_control.api.run(op, args)</code> only; no internal module</td>
+<td><code>live.select</code> failure falls back to the writer's steps (install D-1)</td>
+</tr>
+<tr>
+<td><code>lc mcp</code></td>
+<td>Windows shell</td>
+<td><code>powershell -STA</code> FolderBrowserDialog, UTF-8 stdout</td>
+<td>one path or empty</td>
+<td>empty → <code>cancelled</code>; timeout 10 min → <code>cancelled</code></td>
+</tr>
+<tr>
+<td>places page</td>
+<td><code>lc mcp</code></td>
+<td>MCP Apps <code>tools/call</code> from the page</td>
+<td><code>select</code> only</td>
+<td>button shows "could not move Word"</td>
+</tr>
+<tr>
+<td>manifest</td>
+<td>Claude app</td>
+<td><code>manifest_version</code> 0.4, <code>server.type: uv</code></td>
+<td><code>user_config.novel_folders</code>: <code>directory</code>, <code>multiple: true</code>, required, default Documents; args <code>${user_config.novel_folders}</code></td>
+<td>Q-3 decides the fallback type</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-inter-service-contracts"><label class="note-head" for="n-s-spec-inter-service-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Inter-service contracts</span></label><textarea class="note-ta" data-key="s-spec-inter-service-contracts" id="n-s-spec-inter-service-contracts" data-label="Inter-service contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-database-migrations">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Database migrations</span></h4>
+<div class="sec-body"><p>No database. Two small files, both owned by the extension:</p>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Store</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lc mcp</code></td>
+<td><code>%APPDATA%\literary-critic\folders.json</code></td>
+<td>CREATE: <code>{"version": 1, "folders": ["…"]}</code></td>
+<td>yes (delete the file)</td>
+<td>yes (unknown keys kept)</td>
+</tr>
+<tr>
+<td><code>lc mcp</code></td>
+<td><code>&lt;work&gt;/literary-critic/.cache/last_used</code></td>
+<td>CREATE/UPDATE: ISO date, for <code>works</code> ordering</td>
+<td>yes</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-database-migrations"><label class="note-head" for="n-s-spec-database-migrations"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Database migrations</span></label><textarea class="note-ta" data-key="s-spec-database-migrations" id="n-s-spec-database-migrations" data-label="Database migrations" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The <code>uv</code> type fails on a machine without uv or Python (Q-3)</td>
+<td>Medium</td>
+<td>High</td>
+<td>T1 decides before the server is built; fallback <code>binary</code>, then a Node launcher</td>
+<td>manual (clean Windows, T1)</td>
+</tr>
+<tr>
+<td>doc-control's live extra (pywin32) does not install under the <code>uv</code> type</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>T1 checks it; without it, jumps fall back to the writer's steps</td>
+<td>manual (T1) + <code>live_fallback_correct</code> test</td>
+</tr>
+<tr>
+<td>Install warnings scare the writer off (Q-8)</td>
+<td>High</td>
+<td>Medium</td>
+<td>the walkthrough names each warning first; signing if T1 shows it helps</td>
+<td>manual (T1), walkthrough</td>
+</tr>
+<tr>
+<td>A path escapes the granted folders (<code>..</code>, symlink, junction)</td>
+<td>Low</td>
+<td>High</td>
+<td>resolve then check every path; one confinement function; no shell strings</td>
+<td>unit (<code>paths_outside_novels_folder_refused == 1.0</code>)</td>
+</tr>
+<tr>
+<td><code>run</code> used to execute something else</td>
+<td>Low</td>
+<td>High</td>
+<td>allow-list on the first word; argv list, never a shell</td>
+<td>unit</td>
+</tr>
+<tr>
+<td>Folder picker returns a garbled accented path</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>Windows dialog with UTF-8 output (the probe's tkinter failed)</td>
+<td>unit on the decoding + manual with an accented folder</td>
+</tr>
+<tr>
+<td>The picker opens behind the app window</td>
+<td>Medium</td>
+<td>Low</td>
+<td>topmost owner form; the result says where to look</td>
+<td>manual</td>
+</tr>
+<tr>
+<td>Chat stops calling tools from descriptions alone</td>
+<td>Low</td>
+<td>High</td>
+<td>descriptions tested in the walkthrough; a skill via skill-workshop as the fallback (D-8)</td>
+<td>transcript evaluation (<code>generic_request_resolves == 1.0</code>)</td>
+</tr>
+<tr>
+<td>The places page copy drifts from doc-control's</td>
+<td>Medium</td>
+<td>Low</td>
+<td>Q-5 asks doc-control to publish it; until then a test pins the copy's version</td>
+<td>unit</td>
+</tr>
+<tr>
+<td>A protocol change in the app breaks the server</td>
+<td>Low</td>
+<td>High</td>
+<td>echo the client's protocol version; transcript test on each release</td>
+<td>integration (JSON-RPC transcript)</td>
+</tr>
+<tr>
+<td>Private extensions do not auto-update</td>
+<td>High</td>
+<td>Low</td>
+<td>update check (install D-2) names the newer <code>.mcpb</code></td>
+<td>unit</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><label class="note-head" for="n-s-spec-6"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></label><textarea class="note-ta" data-key="s-spec-6" id="n-s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
 </article>
 </section>
 </div>

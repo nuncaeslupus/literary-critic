@@ -12,7 +12,7 @@
 **Ticket / PR**: workspace `desktop`
 **Author**: Claude (with the owner)
 **Revision**: 5
-**Status**: draft
+**Status**: approved (2026-10-14, revision 5) — without annotations
 **Revision log**:
 - r1 — first draft, from the owner's test on their own PC (live Word with the
   test novel, 2026-10-14): "my problem keeps being which chat type I need to use"
@@ -509,11 +509,140 @@ without installing the plugin (the owner's choice).
 | D-12 | Chat ignores server instructions, so the short guide is returned by `resume` with the novel's state | proposed | 2026-10-14 |
 | D-13 | The walkthrough installs by dragging the `.mcpb` onto the app's window (works on every install); double-click is mentioned as an alternative | proposed | 2026-10-14 |
 
-
-> Sections 5–6 (contracts, risks) are appended by `design`.
-
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+### API contracts
+
+The extension's server speaks MCP over newline-delimited JSON-RPC 2.0 on
+stdio. Every tool result is one `text` content block holding a JSON object;
+`isError: true` only for a fault the writer cannot fix by answering a
+question (a refused path, a crash). "Not found" and "cancelled" are normal
+results, not errors.
+
+#### `initialize`
+
+- **Auth**: local process, started by the app
+- **Response**: `capabilities: {tools: {}}`, `serverInfo: {name: "literary-critic", version}`.
+  `instructions` repeats the guide in one paragraph for clients that read it;
+  Chat does not (Q-2), so nothing depends on it.
+- **Backwards compatible**: new
+
+#### Tool `works`
+
+- **Request**: `{}`
+- **Response**:
+  ```json
+  {"works": [{"work": "Marianela", "folder": "C:\…\Marianela", "last_used": "2026-10-14", "has_workspace": true}],
+   "folders": ["C:\Users\…\Documents"],
+   "hint": "If the novel is not listed, offer add_folder."}
+  ```
+  A work is a folder holding a `.docx` or a `literary-critic/` working folder,
+  either a granted folder itself or one level below it. Most recent first.
+- **Errors**: none; an unreadable granted folder is listed in `folders` with `"error"`.
+
+#### Tool `resume`
+
+- **Request**: `{"work": "Marianela"}` (optional)
+- **Response (found)**:
+  ```json
+  {"work": "Marianela", "workspace": "C:\…\Marianela\literary-critic",
+   "state": {"draft": "…", "round": 2, "next_step": "…"},
+   "guide": "…≤ 400 words: the two channels, the writer rules, a jump is one call then Done…"}
+  ```
+- **Response (not found)**: `{"status": "not_found", "asked": "…", "works": […], "hint": "offer add_folder"}`
+- **Response (no work named, several)**: `{"status": "choose", "works": […]}`
+- **Errors**: none
+
+#### Tool `add_folder`
+
+- **Request**: `{}`
+- **Effect**: opens the Windows folder picker in front of the other windows;
+  the chosen folder is appended to the state file (below). The picker output
+  is read as UTF-8, so accented names come back intact.
+- **Response**: `{"status": "added", "folder": "…", "works": […]}` or `{"status": "cancelled"}`
+- **Errors**: `isError` only if no picker can be shown (no desktop session).
+
+#### Tools `locate`, `places`, `select`
+
+- `locate` — `{"work", "target", "go": true}` → the `lc docx locate --go` result
+  (`status: done` with `how: live`, or the steps for the writer).
+- `places` — `{"work", "targets": ["c08", "15", …]}` → a result carrying the
+  places page (`_meta.ui.resourceUri: "ui://literary-critic/places"`), one
+  button per place.
+- `select` — `{"work", "anchor"}` → called by the page's buttons only;
+  `doc_control.api.run("live.select", …)`; `{"selected": true|false}`.
+
+#### Tools `show`, `find`, `ask`, `run`
+
+- `show` / `find` / `ask` — `{"work", …}` with the same arguments as the CLI
+  subcommands; the CLI's JSON output.
+- `run` — `{"work", "command": ["round", "status"]}`. The first word must be
+  in the allow-list (`round`, `report`, `metrics`, `diff`, `ingest`, `anchor`,
+  `codex`, `doctor`, `validate`); anything else → `isError`, "not allowed".
+
+#### Path confinement (every tool)
+
+Every path argument and every resolved work folder must lie under a granted
+folder after `Path.resolve()` (symlinks and `..` followed). Otherwise:
+`isError: true`, `{"error": "outside_granted_folders", "path": "…"}`.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › API contracts`
+> _(your notes here — replace this line)_
+
+### Inter-service contracts
+
+| Caller | Callee | Protocol | Contract | Failure handling |
+|--------|--------|----------|----------|-----------------|
+| Claude app (Chat, Cowork) | `lc mcp` | MCP stdio JSON-RPC | tools above; protocol version echoed from `initialize` | the app restarts the server; tools are stateless between calls |
+| `lc mcp` | doc-control | Python import via `dc.py` | `doc_control.api.run(op, args)` only; no internal module | `live.select` failure falls back to the writer's steps (install D-1) |
+| `lc mcp` | Windows shell | `powershell -STA` FolderBrowserDialog, UTF-8 stdout | one path or empty | empty → `cancelled`; timeout 10 min → `cancelled` |
+| places page | `lc mcp` | MCP Apps `tools/call` from the page | `select` only | button shows "could not move Word" |
+| manifest | Claude app | `manifest_version` 0.4, `server.type: uv` | `user_config.novel_folders`: `directory`, `multiple: true`, required, default Documents; args `${user_config.novel_folders}` | Q-3 decides the fallback type |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Inter-service contracts`
+> _(your notes here — replace this line)_
+
+### Database migrations
+
+No database. Two small files, both owned by the extension:
+
+| Service | Store | Change | Reversible | Forward-compatible |
+|---------|-------|--------|------------|-------------------|
+| `lc mcp` | `%APPDATA%\literary-critic\folders.json` | CREATE: `{"version": 1, "folders": ["…"]}` | yes (delete the file) | yes (unknown keys kept) |
+| `lc mcp` | `<work>/literary-critic/.cache/last_used` | CREATE/UPDATE: ISO date, for `works` ordering | yes | yes |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Database migrations`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| The `uv` type fails on a machine without uv or Python (Q-3) | Medium | High | T1 decides before the server is built; fallback `binary`, then a Node launcher | manual (clean Windows, T1) |
+| doc-control's live extra (pywin32) does not install under the `uv` type | Medium | Medium | T1 checks it; without it, jumps fall back to the writer's steps | manual (T1) + `live_fallback_correct` test |
+| Install warnings scare the writer off (Q-8) | High | Medium | the walkthrough names each warning first; signing if T1 shows it helps | manual (T1), walkthrough |
+| A path escapes the granted folders (`..`, symlink, junction) | Low | High | resolve then check every path; one confinement function; no shell strings | unit (`paths_outside_novels_folder_refused == 1.0`) |
+| `run` used to execute something else | Low | High | allow-list on the first word; argv list, never a shell | unit |
+| Folder picker returns a garbled accented path | Medium | Medium | Windows dialog with UTF-8 output (the probe's tkinter failed) | unit on the decoding + manual with an accented folder |
+| The picker opens behind the app window | Medium | Low | topmost owner form; the result says where to look | manual |
+| Chat stops calling tools from descriptions alone | Low | High | descriptions tested in the walkthrough; a skill via skill-workshop as the fallback (D-8) | transcript evaluation (`generic_request_resolves == 1.0`) |
+| The places page copy drifts from doc-control's | Medium | Low | Q-5 asks doc-control to publish it; until then a test pins the copy's version | unit |
+| A protocol change in the app breaks the server | Low | High | echo the client's protocol version; transcript test on each release | integration (JSON-RPC transcript) |
+| Private extensions do not auto-update | High | Low | update check (install D-2) names the newer `.mcpb` | unit |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 
