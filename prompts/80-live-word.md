@@ -10,12 +10,14 @@ with computer use, and the plain line for the writer when you cannot.
 
 ## Where doc-control can reach Word
 
-- **lc runs on the writer's computer** (Claude Code, or any terminal there,
-  with `pip install "literary-critic[live]"`): `lc word` does it by itself.
-- **Cowork**: `lc` runs in a sandbox that cannot reach Word. If you have
-  doc-control's tools (`live_select`, `live_open`, …: the writer added
-  doc-control's server to Claude's desktop app), call the tool named in the
-  answer's `live` with its `arguments` as they are: `doc` is the file name
+- **lc runs on the writer's computer with the live engine installed**
+  (`pip install "literary-critic[live]"`): `lc word` does it by itself.
+- **Everywhere else** (Cowork's sandbox, or the writer's computer without the
+  live engine: `live.error` is `ENGINE_UNAVAILABLE`): if you have doc-control's
+  tools (`live_select`, `live_open`, …: the writer added doc-control's server
+  to Claude's desktop app), call the tool named in the answer's `live` with its
+  `arguments` exactly as they are, adding and dropping nothing (they carry the
+  `mode` that leaves the cursor without selecting): `doc` is the file name
   alone, and doc-control finds the open document of that name on the writer's
   computer. It answers in a few seconds. If it answers `DOC_AMBIGUOUS` (two
   open documents share the name), call it again with `doc` set to the right
@@ -45,7 +47,11 @@ with computer use, and the plain line for the writer when you cannot.
    - `live.error` says the document is not open: open it
      (`lc word reopen --payload '{"document": "<path>"}'`, or `live_open` in
      Cowork) and repeat this step.
-   - Otherwise, try `live` as above (Cowork), else follow the `steps` with
+   - Word has another file of the same novel open (an older copy, the
+     original of a cleaned file): do not go there in that file, whose
+     paragraphs differ. Tell the writer, in one line, which file the tool
+     works on, and open it as for a document that is not open if they agree.
+   - Otherwise, call `live` as above, else follow the `steps` with
      computer use: bring Word to the front, open the search with the key the
      steps name, type `find` exactly, press Enter. Word selects the passage.
      When Find lands on a paragraph above it, the steps say how many
