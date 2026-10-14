@@ -63,6 +63,74 @@ Efficiency: scripts first, the LLM only reads what changed.
   subscription; the chat kit stays as fallback for other chatbots.
 - Later: editor add-ins, other chatbots, other forms.
 
+### H. What other users and tools would ask for (2026-10-14, for the owner)
+Candidates only; none is committed. Size: S (days, mostly scripts), M (a
+workspace), L (a project). "Builds on" names what exists already.
+
+**Top picks** (most value for the cost): H1, H2, H5, H9, H12.
+
+Writers
+- **H1 Style sheet (S).** The copy-editor's sheet publishers expect: spelling of
+  every name, chosen variants (OK/okay, gray/grey), numbers, capitals, hyphens,
+  italics; then flag every place the draft departs from it. Builds on: Codex
+  entities, `tokens`/`ngrams`, metrics. Script-first; the writer settles each choice.
+- **H2 Timeline and continuity (M).** Dates, ages, weekdays, seasons, travel
+  times, who knows what when; contradictions become findings with both places
+  located. Builds on: scene `time`, setups, Codex spans. LLM resolves relative
+  times; a script checks the arithmetic.
+- **H3 Genre packs (M).** Checklist modules per genre: mystery clue fairness
+  (every clue planted before the reveal; builds on setups/payoffs), romance
+  beats, thriller pacing, fantasy world rules. Builds on: `checklist/`, kinds.
+- **H4 Voice and viewpoint (M).** Are characters' voices distinct (speech
+  features per speaker)? Head-hopping inside a scene. Builds on: `speech`
+  table, dialogue records, scene `pov`.
+- **H5 Beta-reader feedback (M).** Import comments from beta readers (Word
+  comments, a form, an email), place each on its span, group them ("3 of 5 lost
+  the thread in chapter 7"), compare with the tool's own findings. Builds on:
+  doc-control comment reading, spans, findings.
+- **H6 Submission package (S-M).** Check a synopsis and a query letter against
+  the Codex (missing arc, wrong order, names that changed), and the agency's
+  usual asks (length, first pages). The writer writes them (rule 5).
+- **H7 Series and collections (L).** One Codex across books: shared entities,
+  cross-book continuity, a series bible. Builds on: decision 14 (works side by
+  side), Codex links.
+- **H8 More forms and languages (M each).** Short-story collections, scripts,
+  memoir/non-fiction (flags for real people named: legal care), more languages
+  (fr, de, it, pt: syllables, stopwords, dialogue conventions). Builds on:
+  `kinds/`, lexicons.
+
+Editors, agents, translators, publishers
+- **H9 Agency triage (M).** Many manuscripts at once: a short reader report
+  from the first pages plus synopsis, ranked, comparable titles. Builds on:
+  reader report, `lc library`. Needs: privacy and batch cost limits.
+- **H10 Editor and writer together (M).** An editor's letter and margin notes
+  the writer answers point by point; rounds keep both sides. Builds on: rounds,
+  decisions log, Word comments.
+- **H11 Translation check (M).** Align a translation with its source by
+  paragraph: omissions, additions, names and terms kept consistent, a glossary.
+  Builds on: `lc diff` alignment, Codex names.
+- **H12 Production hand-off (S-M).** Content notes (opt-in list of sensitive
+  topics, for readers who ask), audiobook prep (pronunciation list from the
+  Codex, lines per speaker for a multi-voice reading), metadata (keywords,
+  categories, word count), front and back matter checklist.
+
+Other tools
+- **H13 litcritic as an MCP server (M).** `lc` commands as tools for any MCP
+  client (Claude desktop, IDEs, other agents), with `--json` output everywhere.
+  Fits the install spec (`arsenal/project/install/spec.md`).
+- **H14 Exports (S each).** Codex as a read-only wiki (Markdown/Obsidian pages
+  per character and place), Scrivener project import, Google Docs comments.
+- **H15 Privacy and local models (M).** A stated data policy (what is sent to
+  the model, what is kept, how to delete a workspace), a log of what each packet
+  sent, and a local-model mode. Note D-4: the cheap tier failed entities, so a
+  local model needs its own measured gate.
+- **H16 Cost before big jobs (S).** Tell the writer in plain words how long and
+  how much of their plan a full index or analysis will use before starting.
+  Builds on: `lc index` cost meter.
+
+Questions for the owner: which of the top picks first? Is agency use (H9) a
+goal, or only writers? Is any of H12 out of scope for "the writer writes"?
+
 ## Decision log
 | # | Date | Decision |
 |---|------|----------|

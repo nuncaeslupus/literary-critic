@@ -64,6 +64,7 @@ Computed tables are built only when a query names them.
 | `ngrams` | n, norm, para_idx, pos (computed) |
 | `mentions` | entity_id, para_idx, off, form, scene, via (name, alias or title) (computed: whole words, longest match first; a title counts only in a scene that also names the entity) |
 | `copresence` | a, b, scene, chapter (computed) |
+| `speech` | para_idx, words — speech found in the text, as `lc metrics` finds it (computed) |
 | `changes` | at, draft, item, type, op (add, update, sync; a retirement is an update), by, status, text, fields_json, before_status, before_text, before_fields_json (computed, from the change log) |
 
 SQL functions: `norm(x)` (lower case, no accents) and `phrase(x)` (words of x

@@ -139,6 +139,38 @@ def _read_doc(path: Path, fmt: str, text_mode: str | None = None) -> Draft:
     )
 
 
+WRAP_MIN_PARAS = 50  # too few paragraphs to tell a wrapped text from short prose
+WRAP_WIDTHS = (40, 110)  # line widths (characters) a hard-wrapped text is cut at
+WRAP_OPEN = 0.3  # share of paragraphs ending mid-sentence that means wrapped lines
+WRAP_END = ".!?…:;»”\"')]—-"
+
+
+def hard_wrapped(paras: list[str]) -> int:
+    """The line width (characters) when the text holds one paragraph per line of a
+    hard-wrapped text, else 0.
+
+    Real paragraphs end a sentence and vary widely in length; wrapped lines are cut
+    near one width and most end mid-sentence.
+    """
+    if len(paras) < WRAP_MIN_PARAS:
+        return 0
+    lengths = sorted(len(t) for t in paras)
+    width = lengths[int(0.9 * (len(lengths) - 1))]
+    if not WRAP_WIDTHS[0] <= width <= WRAP_WIDTHS[1]:
+        return 0
+    open_ = sum(not t.rstrip().endswith(tuple(WRAP_END)) for t in paras)
+    return width if open_ >= WRAP_OPEN * len(paras) else 0
+
+
+def _wrap_notes(draft: Draft) -> list[str]:
+    if "hard-wrapped blocks" in draft.notes:
+        return []
+    width = hard_wrapped([p.text for p in draft.paragraphs if not p.heading])
+    if not width:
+        return []
+    return [f"hard-wrapped: one paragraph per line of about {width} characters"]
+
+
 def _source_notes(source: dict[str, Any]) -> list[str]:
     notes = ["hard-wrapped blocks"] if source.get("mode") == "blocks" else []
     encoding = str(source.get("encoding") or "")
@@ -265,6 +297,7 @@ class Result:
     unchanged: bool
     paragraphs: int
     text_path: Path
+    notes: tuple[str, ...] = ()
 
 
 def _versions(ws_root: Path) -> list[Path]:
@@ -277,9 +310,12 @@ def ingest(path: Path, ws_root: Path) -> Result:
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     existing = _versions(ws_root)
-    draft = read(path, data, text_mode=text_mode(ws_root))
+    mode = text_mode(ws_root)
+    draft = read(path, data, text_mode=mode)
     if not draft.paragraphs:
         raise IngestError("no text found")
+    if mode != "lines":  # verse is one line per paragraph by design
+        draft.notes = [*draft.notes, *_wrap_notes(draft)]
     if path.suffix.lower() == ".docx" and not is_last_read(ws_root, path.resolve(), digest):
         # What the tool has seen: `lc docx` refuses to edit a file saved since.
         record_read(ws_root, path.resolve(), data)
@@ -292,7 +328,7 @@ def ingest(path: Path, ws_root: Path) -> Result:
         version = existing[-1].stem
         text = ws_root / "text" / f"{version}.txt"
         if text.is_file() and (ws_root / "text" / f"{version}.meta.json").is_file():
-            return Result(version, True, len(draft.paragraphs), text)
+            return Result(version, True, len(draft.paragraphs), text, tuple(draft.notes))
         # A previous run stopped after the snapshot: finish writing text and meta.
     (ws_root / "manuscript").mkdir(parents=True, exist_ok=True)
     (ws_root / "manuscript" / f"{version}{path.suffix.lower()}").write_bytes(data)
@@ -336,4 +372,4 @@ def _write_text(ws_root: Path, version: str, source_name: str, digest: str, draf
     (ws_root / "text" / f"{version}.meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=0) + "\n", encoding="utf-8"
     )
-    return Result(version, False, len(draft.paragraphs), text_path)
+    return Result(version, False, len(draft.paragraphs), text_path, tuple(draft.notes))

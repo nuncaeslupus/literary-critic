@@ -756,7 +756,7 @@ def test_first_person_pov_is_accepted(ws: Path) -> None:
 
 def test_tiers_are_three_valued(base: Path) -> None:
     assert packets.TIERS == ("cheap", "standard", "strong")
-    assert packets.TIER == {"entities": "strong", "scenes": "standard"}
+    assert packets.TIER == {"entities": "strong", "scenes": "standard", "links": "strong"}
     assert set(packets.TIER.values()) <= set(packets.TIERS)
     for p in packets.load_plan(base)["packets"]:
         assert p["tier"] in packets.TIERS
@@ -1018,3 +1018,74 @@ def test_done_entity_packet_stays_done_after_its_rejects_shrink_it(ws: Path) -> 
     doc = packets.plan(ws)
     e1 = next(p for p in doc["packets"] if p["id"] == "e1")
     assert e1["status"] == "done" and reject["name"] not in e1["names"]
+
+
+def test_replan_after_the_last_entity_packet_asks_nothing_again(
+    ws: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def halves(pre: dict[str, Any]) -> list[tuple[int, int]]:
+        n = len(pre["candidates"])
+        return [(0, n // 2), (n // 2, n)] if n > 1 else [(0, n)] if n else []
+
+    monkeypatch.setattr(packets, "entity_groups", halves)
+    doc = packets.plan(ws)
+    e1, e2 = (p["names"] for p in doc["packets"] if p["kind"] == "entities")
+    # e1: an entity whose alias is an e2 name, an omitted name, rejects; e2: rejects.
+    ents = [{"name": e1[0], "kind": "character", "aliases": [e2[0]]}]
+    assert _import(ws, "e1", {"entities": ents, "rejects": e1[2:]}).startswith("ok ")
+    assert _import(ws, "e2", {"entities": [], "rejects": e2[1:]}).startswith("ok ")
+    doc = packets.plan(ws)
+    left = [p for p in doc["packets"] if p["kind"] == "entities"]
+    assert left and all(p["status"] == "done" for p in left), left
+
+
+def test_links_packet_links_payoffs_scene_packets_left_unlinked(tmp_path: Path) -> None:
+    root = tmp_path / "ws"
+    root.mkdir()
+    (root / "work.toml").write_text('slug = "ln"\nlanguage = "en"\n', "utf-8")
+    _write_book(root, _scenes_of_book(20), tmp_path)
+    doc = packets.plan(root)
+    cands = _draft(root).pre["candidates"]
+    scene_ids = [p["id"] for p in doc["packets"] if p["kind"] == "scenes"]
+    for p in doc["packets"]:
+        if p["kind"] == "entities":
+            a, b = p["inputs"]["candidates"]
+            ents = [{"name": c["name"], "kind": "character"} for c in cands[a:b]]
+            assert _import(root, p["id"], {"entities": ents, "rejects": []}).startswith("ok ")
+    draft = _draft(root)
+    for pid in scene_ids:
+        answer = _scene_answer(root, pid)
+        if pid == scene_ids[-1]:  # a payoff whose label matches no setup
+            unit = next(
+                u
+                for u in packets._packet(packets.load_plan(root), pid)["inputs"]["units"]
+                if _unique_quote(draft, u["paras"][0], u["paras"][1], skip=1)
+            )
+            s = next(x for x in answer["scenes"] if x["scene"] == unit["scene"])
+            quote = _unique_quote(draft, unit["paras"][0], unit["paras"][1], skip=1)
+            s["setups"].append({"label": "the resolution", "side": "payoff", "quote": quote})
+        line = _import(root, pid, answer)
+        assert line.startswith("ok "), line
+        assert pid != scene_ids[-1] or "links packet" in line
+        assert "l1" not in {p["id"] for p in packets.plan(root)["packets"]} or pid == scene_ids[-1]
+    doc = packets.plan(root)
+    l1 = packets._packet(doc, packets.LINKS_PACKET)
+    assert l1["kind"] == "links" and l1["status"] == "todo" and doc["stats"]["link_packets"] == 1
+    (payoff,) = l1["inputs"]["payoffs"]
+    cx = codex.Codex(root)
+    setups = sorted(
+        (i for i in cx.live("setup") if i.fields["side"] == "setup"),
+        key=lambda i: draft.anchors.index(i.spans[0].start.para),
+    )
+    text = packets.render(root, doc, "l1")
+    assert setups[0].id in text and payoff in text and "the resolution" in text
+    late = {"links": [{"payoff": payoff, "setup": setups[-1].id}]}
+    if draft.anchors.index(setups[-1].spans[0].start.para) > draft.anchors.index(
+        cx.get(payoff).spans[0].start.para
+    ):
+        assert "is not earlier than the payoff" in _import(root, "l1", late)
+    ok = {"links": [{"payoff": payoff, "setup": setups[0].id}]}
+    assert _import(root, "l1", ok) == "ok l1: 1 items"
+    assert codex.Codex(root).get(payoff).links == [{"rel": "pays_off", "to": setups[0].id}]
+    doc = packets.plan(root)
+    assert all(p["kind"] != "links" for p in doc["packets"]) and doc["links_asked"] == [payoff]

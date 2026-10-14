@@ -73,6 +73,25 @@ def test_view_tables_and_typed_views(work: Path) -> None:
     assert "mentions(entity_id, para_idx, off, form, scene, via)" in v.schema()
 
 
+def test_speech_is_measured_from_the_text(work: Path) -> None:
+    # No dialogue records: dialogue-share still measures speech, as lc metrics does.
+    from litcritic import questions, textstats
+
+    paras = _text(work).paragraphs
+    want = sum(len(textstats.words(s)) for p in paras for s in textstats.dialogue_spans(p))
+    v = view.View(work)
+    assert v.run("SELECT SUM(words) FROM speech")[1][0][0] == want > 0
+    _, rows = questions.ask(v, questions.load()["dialogue-share"], {})
+    assert sum(r[2] for r in rows) == want
+
+
+def test_ask_says_when_the_records_it_reads_are_missing(
+    work: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["codex", "ask", "speech-share", "--workspace", str(work)]) == 0
+    assert "no dialogue records in the Codex yet" in capsys.readouterr().out
+
+
 def test_view_stops_runaway_queries(work: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(view, "TIMEOUT", 0.2)
     v = view.View(work)
