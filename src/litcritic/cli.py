@@ -24,6 +24,7 @@ from litcritic import (
     kinds,
     kit,
     locate,
+    mcp,
     metrics,
     pack,
     query,
@@ -595,6 +596,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup.register(sub)
     upgrade.register(sub)
     word_live.register(sub)
+    mcp.register(sub)
     return parser
 
 
