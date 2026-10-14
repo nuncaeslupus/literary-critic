@@ -252,6 +252,9 @@ def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         return None
     request: dict[str, Any] = {"doc": doc}
     if op == "locate":
+        # the cursor at the passage's start, centred and in front: nothing selected, so a
+        # key pressed by the writer cannot replace the passage
+        request["mode"] = "cursor"
         if payload.get("at"):
             request["at"] = str(payload["at"])
         elif phrase := _phrase(str(payload.get("find") or "")):
@@ -269,7 +272,7 @@ def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
 
 def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
     """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
-    Word takes longer than ``LIVE_TIMEOUT`` or a passage comes back unselected)."""
+    Word takes longer than ``LIVE_TIMEOUT`` or a passage is not found)."""
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
         result = pool.submit(dc.run, LIVE[op], request).result(timeout=LIVE_TIMEOUT)
@@ -278,7 +281,7 @@ def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
     finally:
         pool.shutdown(wait=False)
     if op == "locate" and (not result.get("at") or result.get("selected") is False):
-        raise dc.DocError("NOT_SELECTED", "Word did not select the passage")
+        raise dc.DocError("NOT_SELECTED", "Word did not go to the passage")
     return result
 
 
@@ -288,9 +291,9 @@ def _done(op: str, payload: dict[str, Any], result: dict[str, Any]) -> dict[str,
         out["selected"] = result.get("text", "")
         lang = str(payload.get("language") or "en")
         where = _where(payload.get("locator"), lang) or (
-            "el pasaje está seleccionado en Word"
+            "el cursor está al principio del pasaje en Word"
             if lang == "es"
-            else "the passage is selected in Word"
+            else "the cursor is at the start of the passage in Word"
         )
         out["writer"] = f"{'En' if lang == 'es' else 'In'} {_name(payload)}: {where}."
     elif op == "selection":
