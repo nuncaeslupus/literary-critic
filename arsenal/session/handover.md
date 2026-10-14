@@ -1,5 +1,10 @@
 # Handover
 
+**Last session (2026-10-14, overnight, unattended):** PR #145 (open, watched) fixes #138–#141 from the Cowork run: `speech` table for dialogue-share (#139), no redundant entity packet on re-plan (#140), links packet `l1` for payoffs parallel scene packets left unlinked (#141), hard-wrapped file warning at ingest (#138). Also a draft spec `arsenal/project/install/spec.md` (writer install, live Word, updates; open Q-1..Q-5) and feature ideas H1–H16 in `status/ideas.md`.
+
+- **Not done:** `.claude/skills/litcritic/SKILL.md` does not mention `l1` yet (editing a skill needs skill-workshop/skill-creator loaded); `prompts/20-codex-items.md` covers it.
+- **Owner to decide:** the install spec's open questions; which H-ideas first.
+
 **Last session (2026-10-13, evening):** the owner ran the tool as a writer in Cowork (paid plan) on the corpus novel; record in `status/evidence/W9-walkthrough.md`, "Owner's run in Cowork".
 
 - **Merged:** #136 (the full experience needs a paid plan), #137 (say when a step takes a while), #142 (no tool talk to a writer unless asked with `[[...]]`), #143 (doc-control 0.6: live engine with a Word adapter, `live` extra).
