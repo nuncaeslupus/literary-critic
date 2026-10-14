@@ -1,6 +1,7 @@
 import io
 import json
 from pathlib import Path
+from typing import Any
 
 from litcritic import mcp
 from litcritic.cli import build_parser
@@ -8,11 +9,11 @@ from litcritic.cli import build_parser
 FIXTURES = Path(__file__).parent / "fixtures" / "mcp"
 
 
-def _crash(args: dict) -> dict:
+def _crash(args: dict[str, Any]) -> dict[str, Any]:
     raise RuntimeError("boom")
 
 
-def _refuse(args: dict) -> dict:
+def _refuse(args: dict[str, Any]) -> dict[str, Any]:
     raise mcp.ToolError("outside_granted_folders", path="x")
 
 
@@ -34,7 +35,7 @@ def _server() -> mcp.Server:
     )
 
 
-def _replay(server: mcp.Server, sends: list) -> list:
+def _replay(server: mcp.Server, sends: list[Any]) -> list[Any]:
     stdin = io.StringIO("".join(json.dumps(s, ensure_ascii=False) + "\n" for s in sends))
     stdout = io.StringIO()
     server.serve(stdin, stdout)
