@@ -13,6 +13,8 @@ exception is also returned as ``isError``, so a bug never kills the server.
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 import time
@@ -278,10 +280,92 @@ def _add_folder(grant: Any) -> Handler:
     return lambda a: add_folder(grant)
 
 
+# `lc` subcommands the chat may run on a work; everything else (guard, init, kit, setup,
+# upgrade, pack, mcp…) stays with the person who looks after the tool.
+RUN_ALLOWED = (
+    "show",
+    "find",
+    "context",
+    "locate",
+    "round",
+    "codex",
+    "index",
+    "metrics",
+    "diff",
+    "report",
+)
+RUN_OUTPUT_CAP = 20000  # characters of output returned to the chat
+
+
+def _work(grant: Any, work: str) -> Workspace | dict[str, Any]:
+    """The one work named ``work``, or the result to return instead."""
+    hits = grant.lookup(work) if work.strip() else []
+    if len(hits) == 1:
+        found: Workspace = hits[0]
+        return found
+    if hits:
+        return {"ambiguous": work, "works": [_entry(ws) for ws in hits]}
+    return {"not_found": work, "works": works_list(grant), "hint": ADD_FOLDER_HINT}
+
+
+def _parse(argv: list[str]) -> Any:
+    from litcritic.cli import build_parser  # cli imports this module
+
+    err = io.StringIO()
+    try:
+        with contextlib.redirect_stderr(err):
+            return build_parser().parse_args(argv)
+    except SystemExit:
+        raise ToolError("bad_command", detail=err.getvalue().strip()) from None
+
+
+def run_lc(grant: Any, work: str, argv: Any) -> dict[str, Any]:
+    """Run one allow-listed ``lc`` subcommand on a work; argv is a list, never a shell string."""
+    if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv):
+        raise ToolError("not_allowed", detail="command must be a list of arguments")
+    if argv[0] not in RUN_ALLOWED:
+        raise ToolError("not_allowed", command=argv[0], allowed=list(RUN_ALLOWED))
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    for a in argv[1:]:
+        if a.split("=")[0] in ("--workspace", "--home"):
+            raise ToolError("not_allowed", detail=f"{a} is set by the tool")
+        if "/" in a or "\\" in a or a.startswith(".."):
+            grant.confine(a, base=ws.root)
+    try:
+        args = _parse([*argv, "--workspace", str(ws.root)])
+    except ToolError:
+        args = _parse(argv)  # a subcommand without --workspace (`codex questions`)
+    out, err = io.StringIO(), io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = args.func(args)
+    except SystemExit as exc:
+        code = exc.code if isinstance(exc.code, int) else 1
+    text = out.getvalue()
+    result: dict[str, Any] = {"exit": code or 0, "output": text[:RUN_OUTPUT_CAP]}
+    if len(text) > RUN_OUTPUT_CAP:
+        result["truncated"] = len(text)
+    if err.getvalue().strip():
+        result["errors"] = err.getvalue().strip()[:RUN_OUTPUT_CAP]
+    return result
+
+
 WORK_HINT = (
     "Use when the writer talks about their novel or manuscript, or wants to continue, "
     "resume or work on it."
 )
+
+
+WORK_ARG = {"type": "string", "description": "the novel's title or folder name"}
+
+
+def _opt(a: dict[str, Any], key: str, flag: str = "") -> list[str]:
+    value = a.get(key)
+    if not value:
+        return []
+    return [flag, str(value)] if flag else [str(value)]
 
 
 def tools(grant: Any) -> list[Tool]:
@@ -301,6 +385,54 @@ def tools(grant: Any) -> list[Tool]:
             "switches novels.",
             lambda a: resume(grant, str(a.get("work") or "")),
             {"work": {"type": "string", "description": "the novel's title or folder name"}},
+        ),
+        Tool(
+            "show",
+            "Read the novel: the table of contents, or the text of a chapter, scene or "
+            "paragraph (c03, c03.s2, c03.s2.p4).",
+            lambda a: run_lc(grant, str(a.get("work") or ""), ["show", *_opt(a, "unit")]),
+            {"work": WORK_ARG, "unit": {"type": "string"}},
+            ("work",),
+        ),
+        Tool(
+            "find",
+            "Find the paragraphs of the novel that contain all the words, or a quoted phrase.",
+            lambda a: run_lc(
+                grant,
+                str(a.get("work") or ""),
+                ["find", str(a.get("query") or ""), *_opt(a, "within", "--in")],
+            ),
+            {"work": WORK_ARG, "query": {"type": "string"}, "within": {"type": "string"}},
+            ("work", "query"),
+        ),
+        Tool(
+            "ask",
+            "Answer a question about the novel from its Codex with a named question "
+            "(run `codex questions` to list them); params are NAME=VALUE.",
+            lambda a: run_lc(
+                grant,
+                str(a.get("work") or ""),
+                [
+                    "codex",
+                    "ask",
+                    str(a.get("question") or ""),
+                    *[x for p in a.get("params") or [] for x in ("--param", str(p))],
+                ],
+            ),
+            {
+                "work": WORK_ARG,
+                "question": {"type": "string"},
+                "params": {"type": "array", "items": {"type": "string"}},
+            },
+            ("work", "question"),
+        ),
+        Tool(
+            "run",
+            "Run another literary-critic command on the novel (round, codex, index, "
+            "context, locate, metrics, diff, report), as a list of arguments.",
+            lambda a: run_lc(grant, str(a.get("work") or ""), a.get("command")),
+            {"work": WORK_ARG, "command": {"type": "array", "items": {"type": "string"}}},
+            ("work", "command"),
         ),
         Tool(
             "add_folder",
