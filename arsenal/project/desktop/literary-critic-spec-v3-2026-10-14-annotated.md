@@ -103,7 +103,7 @@ without learning the app's session types.
       recorded transcript.
 - [ ] `switch_novel_without_setup == 1.0`. Over the same fixture:
       - a new chat about another work resumes that work;
-      - in a chat already on one work, "now let's look at `<other title>`"
+      - in a chat already on one work, "now let's look at another title"
         moves to the other work, and later tool calls use it;
       - a work added to a picked folder after install is found with no
         reinstall, and its first-time setup runs in the chat as today;
@@ -375,7 +375,7 @@ questions. It uses the format the desktop app provides for exactly this.
       The extension format declares the setting but does not say whether
       the app lets the writer edit it later. Yes means a novel outside the
       folders gets "add its folder in Settings → Extensions → literary-critic".
-      No means "move the novel's folder into `<novels folder>`", or
+      No means "move the novel's folder into the picked folder", or
       reinstall the extension. To be answered by the probe extension.
 
 **Decisions log**:

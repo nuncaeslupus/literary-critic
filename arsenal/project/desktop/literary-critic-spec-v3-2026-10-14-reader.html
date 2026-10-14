@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="d27de2fe6c4180f98c22ecb2651e94d75d2c11cd964a4fc86f38071b669ad76e">
+<meta name="arsenal-source-sha256" content="183e76c3fadd79c36027c135a034201376dd96128777448bffd8f29fd70a2e1c">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -287,7 +287,7 @@ without learning the app's session types.</p>
 <p>[ ] <code>switch_novel_without_setup == 1.0</code>. Over the same fixture:</p>
 <ul>
 <li>a new chat about another work resumes that work;</li>
-<li>in a chat already on one work, "now let's look at <code>&lt;other title&gt;</code>"
+<li>in a chat already on one work, "now let's look at another title"
     moves to the other work, and later tool calls use it;</li>
 <li>a work added to a picked folder after install is found with no
     reinstall, and its first-time setup runs in the chat as today;</li>
@@ -661,7 +661,7 @@ questions. It uses the format the desktop app provides for exactly this.</p>
       The extension format declares the setting but does not say whether
       the app lets the writer edit it later. Yes means a novel outside the
       folders gets "add its folder in Settings → Extensions → literary-critic".
-      No means "move the novel's folder into <code>&lt;novels folder&gt;</code>", or
+      No means "move the novel's folder into the picked folder", or
       reinstall the extension. To be answered by the probe extension.</p>
 <p><strong>Decisions log</strong>:</p>
 <table>
