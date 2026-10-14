@@ -1,4 +1,4 @@
-.PHONY: install lint format typecheck test guard ci
+.PHONY: install lint format typecheck test guard ci hero
 
 install:
 	uv sync
@@ -23,3 +23,6 @@ guard:
 ci: lint typecheck test
 	uv run lc checklist validate
 	uv run lc guard --all
+
+hero:  ## redraw the README banner, docs/hero.svg and docs/hero.png (needs Chromium + Pillow)
+	uv run --with pillow python tools/hero.py

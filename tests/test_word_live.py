@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 from typing import Any
 
@@ -9,6 +10,7 @@ from litcritic import dc, word_live
 from litcritic.cli import main
 
 LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
+LIVE = word_live._live  # the real call, for the tests that stand in for doc-control
 PAYLOADS: dict[str, dict[str, Any]] = {
     "locate": {"document": "N/N.docx", "find": "Ya voy^pdijo", "locator": LOC},
     "apply_edits": {"document": "N/N.docx", "edits": []},
@@ -165,11 +167,11 @@ def test_the_live_engine_does_it_when_word_has_the_document_open(
     assert calls[-1] == ("live.close", {"doc": doc, "save": False})
     word_live.call("reopen", {"document": doc})
     assert calls[-1] == ("live.open", {"doc": doc, "app": "word"})
-    # file edits never go through Word; a relative path or a passage without its address
-    # has no live request
+    # file edits never go through Word; a relative path, or a passage with neither its
+    # address nor a phrase Word's search could type, has no live request
     calls.clear()
     word_live.call("apply_edits", {"document": doc, "edits": []})
-    word_live.call("locate", {**PAYLOADS["locate"], "path": doc})
+    word_live.call("locate", {**PAYLOADS["locate"], "path": doc, "find": "por^u173que"})
     word_live.call("save", {"document": "N/N.docx"})
     assert calls == []
 
@@ -189,3 +191,50 @@ def test_without_the_live_engine_the_steps_carry_the_mcp_call(tmp_path: Path) ->
     close = word_live.call("close", {"document": doc, "save": True})
     assert close["live"]["tool"] == "live_close" and close["live"]["arguments"]["save"] is True
     assert "live" not in word_live.call("locate", PAYLOADS["locate"])
+
+
+def _dc(monkeypatch: pytest.MonkeyPatch, select: Any) -> list[Any]:
+    """doc-control stand-in behind the real live call: ``select`` answers ``live.select``
+    (a result, an exception to raise, or a delay in seconds)."""
+    calls: list[Any] = []
+
+    def run(op: str, req: dict[str, Any]) -> dict[str, Any]:
+        calls.append((op, req))
+        if isinstance(select, BaseException):
+            raise select
+        if isinstance(select, float):
+            time.sleep(select)
+            return {"at": "p3#ab", "selected": True}
+        return dict(select)
+
+    monkeypatch.setattr(word_live, "_live", LIVE)
+    monkeypatch.setattr(dc, "run", run)
+    return calls
+
+
+def test_without_an_address_locate_selects_by_the_find_phrase(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = str(tmp_path / "N.docx")
+    calls = _dc(monkeypatch, {"at": "p3#ab", "text": "Ya voy"})
+    out = word_live.call("locate", {**PAYLOADS["locate"], "path": doc, "paragraphs_after": 2})
+    assert out["status"] == "done" and out["how"] == "live" and out["writer"]
+    assert calls[-1] == (
+        "live.select",
+        {"doc": doc, "find_phrase": "Ya voy\rdijo", "paragraphs_after": 2},
+    )
+
+
+@pytest.mark.parametrize(
+    "select",
+    [dc.DocError("ENGINE_UNAVAILABLE", "no Word"), 0.5, {"selected": False}, {}],
+    ids=["error", "timeout", "not-selected", "empty"],
+)
+def test_a_live_failure_falls_back_to_the_steps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, select: Any
+) -> None:
+    monkeypatch.setattr(word_live, "LIVE_TIMEOUT", 0.1)
+    _dc(monkeypatch, select)
+    out = word_live.call("locate", {**PAYLOADS["locate"], "path": str(tmp_path / "N.docx")})
+    assert out["status"] == "manual" and out["how"] == "computer-use" and out["steps"]
+    assert out["live"]["error"]["code"]

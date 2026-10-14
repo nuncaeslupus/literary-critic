@@ -1,15 +1,18 @@
+import json
 import os
 import re
 import stat
 import subprocess
 import sys
+import tomllib
+import urllib.request
 import zipfile
 from pathlib import Path
 
 import pytest
 from conftest import bare_env
 
-from litcritic import kit
+from litcritic import __version__, kit
 from litcritic.cli import main
 from litcritic.workspace import repo_root
 
@@ -144,3 +147,96 @@ def test_kit_selftest_offline(tmp_path: Path) -> None:
     where, api = ran.stdout.split()
     assert Path(where).resolve().is_relative_to(folder.resolve())
     assert api.startswith("1.")
+
+
+def test_doctor_json_in_kit_reports_source_kit(tmp_path: Path) -> None:
+    out, _ = kit.build(tmp_path / "kit.zip")
+    folder = tmp_path / "unpacked"
+    zipfile.ZipFile(out).extractall(folder)
+    doctor = subprocess.run(
+        [sys.executable, "-I", "-S", "lc.py", "doctor", "--json", "--no-network",
+         "--home", "./home"],
+        cwd=folder, capture_output=True, text=True, env=bare_env(tmp_path), check=False,
+    )  # fmt: skip
+    assert doctor.returncode == 0, doctor.stderr
+    got = json.loads(doctor.stdout)
+    assert got["problems"] == [] and got["source"] == "kit"
+    assert got["version"] == __version__ and re.fullmatch(r"\d{4}-\d\d-\d\d", got["built"])
+
+
+def test_doctor_json_version_sources(tmp_path: Path) -> None:
+    out, _ = kit.build_skill(tmp_path / "skill.zip")
+    zipfile.ZipFile(out).extractall(tmp_path / "s")
+    assert kit.version_info(tmp_path / "s" / "litcritic")["source"] == "skill"
+    assert kit.version_info(repo_root())["source"] == "checkout"
+    bare = kit.version_info(tmp_path / "nothing")
+    assert bare == {"version": __version__, "built": None, "source": "package"}
+
+
+def test_doctor_json_cli_in_checkout(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["doctor", "--json"]) == 0
+    got = json.loads(capsys.readouterr().out)
+    assert got["source"] == "checkout" and got["version"] == __version__
+
+
+def test_version_matches_pyproject() -> None:
+    meta = tomllib.loads((repo_root() / "pyproject.toml").read_text(encoding="utf-8"))
+    assert meta["project"]["version"] == __version__
+
+
+@pytest.mark.parametrize(
+    ("version", "source", "tags", "want"),
+    [
+        ("0.1.0", "kit", ["v0.2.0", "v0.1.0"], "yes"),  # older, online
+        ("0.2.0", "skill", ["v0.2.0", "v0.1.0", "nightly"], "no"),  # current
+        ("0.3.0", "kit", ["v0.2.0"], "no"),  # a development build is never out of date
+        ("0.1.0", "kit", None, "unknown"),  # offline or timed out
+        ("0.1.0", "checkout", ["v0.2.0"], "unknown"),  # a source checkout
+    ],
+    ids=["older-online", "current", "dev-newer", "offline", "checkout"],
+)
+def test_update_check_cases(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    version: str,
+    source: str,
+    tags: list[str] | None,
+    want: str,
+) -> None:
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "latest.json")
+    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: tags)
+    got = kit.update_check({"version": version, "built": None, "source": source})
+    assert got["update_available"] == want
+    assert got["latest"] == (None if tags is None or source == "checkout" else "0.2.0")
+
+
+def test_update_check_older_online_says_yes(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "latest.json")
+    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: ["v9.9.9"])
+    monkeypatch.setattr(
+        kit, "version_info", lambda root=None: {"version": "0.1.0", "built": None, "source": "kit"}
+    )
+    assert main(["doctor", "--json"]) == 0
+    got = json.loads(capsys.readouterr().out)
+    assert got["latest"] == "9.9.9" and got["update_available"] == "yes"
+    # cached for the day: no second network read
+    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: pytest.fail("fetched twice"))
+    assert kit.update_check({"version": "0.1.0", "source": "kit"})["latest"] == "9.9.9"
+
+
+def test_update_check_no_network_and_failures_stay_silent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    fetch = kit._fetch_tags
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "latest.json")
+    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: pytest.fail("network used"))
+    assert main(["doctor", "--json", "--no-network"]) == 0
+    assert json.loads(capsys.readouterr().out)["update_available"] == "unknown"
+
+    def boom(url: str, timeout: float) -> None:
+        raise OSError("offline")
+
+    monkeypatch.setattr(urllib.request, "urlopen", boom)
+    assert fetch(0.1) is None

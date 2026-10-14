@@ -184,6 +184,14 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
         print(f"unchanged: same file as {result.version}")
     else:
         print(f"{result.version}: {result.paragraphs} paragraphs -> {result.text_path}")
+    for note in result.notes:
+        print(f"note: {note}")
+    if any(n.startswith("hard-wrapped:") for n in result.notes):
+        print(
+            "warning: every line of this file is its own paragraph, so paragraphs,"
+            " dialogue, locations and comments will be wrong; see"
+            " prompts/10-ingest-and-structure.md (hard-wrapped files)"
+        )
     return 0
 
 
@@ -392,6 +400,11 @@ def _cmd_kit(args: argparse.Namespace) -> int:
 
 def _cmd_doctor(args: argparse.Namespace) -> int:
     problems = kit.doctor(args.home or workspace.home())
+    if args.json:
+        info = kit.version_info()
+        info.update(kit.update_check(info, network=not args.no_network))
+        print(json.dumps({"problems": problems, **info}, ensure_ascii=False))
+        return 1 if problems else 0
     for p in problems:
         print(f"problem: {p}", file=sys.stderr)
     print("ok" if not problems else f"{len(problems)} problem(s)")
@@ -560,6 +573,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_doc = sub.add_parser("doctor", help="check that this platform can run the tool")
     p_doc.add_argument(
         "--home", type=Path, default=None, help="where workspaces will live (checked, not written)"
+    )
+    p_doc.add_argument(
+        "--json", action="store_true", help="one JSON object: problems, version, update"
+    )
+    p_doc.add_argument(
+        "--no-network", action="store_true", help="skip the check for a newer release"
     )
     p_doc.set_defaults(func=_cmd_doctor)
 

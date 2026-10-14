@@ -21,7 +21,7 @@ import unicodedata
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from litcritic import dc
@@ -139,6 +139,38 @@ def _read_doc(path: Path, fmt: str, text_mode: str | None = None) -> Draft:
     )
 
 
+WRAP_MIN_PARAS = 50  # too few paragraphs to tell a wrapped text from short prose
+WRAP_WIDTHS = (40, 110)  # line widths (characters) a hard-wrapped text is cut at
+WRAP_OPEN = 0.3  # share of paragraphs ending mid-sentence that means wrapped lines
+WRAP_END = ".!?…:;»”\"')]—-"
+
+
+def hard_wrapped(paras: list[str]) -> int:
+    """The line width (characters) when the text holds one paragraph per line of a
+    hard-wrapped text, else 0.
+
+    Real paragraphs end a sentence and vary widely in length; wrapped lines are cut
+    near one width and most end mid-sentence.
+    """
+    if len(paras) < WRAP_MIN_PARAS:
+        return 0
+    lengths = sorted(len(t) for t in paras)
+    width = lengths[int(0.9 * (len(lengths) - 1))]
+    if not WRAP_WIDTHS[0] <= width <= WRAP_WIDTHS[1]:
+        return 0
+    open_ = sum(not t.rstrip().endswith(tuple(WRAP_END)) for t in paras)
+    return width if open_ >= WRAP_OPEN * len(paras) else 0
+
+
+def _wrap_notes(draft: Draft) -> list[str]:
+    if "hard-wrapped blocks" in draft.notes:
+        return []
+    width = hard_wrapped([p.text for p in draft.paragraphs if not p.heading])
+    if not width:
+        return []
+    return [f"hard-wrapped: one paragraph per line of about {width} characters"]
+
+
 def _source_notes(source: dict[str, Any]) -> list[str]:
     notes = ["hard-wrapped blocks"] if source.get("mode") == "blocks" else []
     encoding = str(source.get("encoding") or "")
@@ -205,7 +237,42 @@ def _read_state(ws_root: Path) -> Path:
     return ws_root / "state" / "documents.json"
 
 
+def stored_path(ws_root: Path, doc: Path) -> str:
+    """How the workspace records ``doc``: relative to the novel's folder (the
+    workspace's parent) when it lies inside it, so the workspace still works when that
+    folder is reached by another path (Cowork's sandbox, the writer's computer, a later
+    conversation); absolute otherwise."""
+    doc = doc.resolve()
+    try:
+        return doc.relative_to(ws_root.resolve().parent).as_posix()
+    except ValueError:
+        return str(doc)
+
+
+def recorded_path(ws_root: Path, stored: str) -> Path:
+    """The document a workspace recorded as ``stored``. An absolute path that is gone
+    (recorded where the novel's folder had another path) is found again under the
+    novel's folder by its longest tail that exists there."""
+    base = ws_root.resolve().parent
+    path = Path(stored)
+    # recorded on another system: a sandbox's /tmp/... is not absolute to Windows
+    other = next(
+        (p for p in (PurePosixPath(stored), PureWindowsPath(stored)) if p.is_absolute()), None
+    )
+    if other is None:
+        return (base / path).resolve()
+    if path.is_absolute() and path.exists():
+        return path.resolve()
+    parts = other.parts[1:]
+    for i in range(len(parts)):
+        candidate = base.joinpath(*parts[i:])
+        if candidate.is_file():
+            return candidate.resolve()
+    return path
+
+
 def _load_reads(ws_root: Path) -> dict[str, dict[str, Any]]:
+    """The documents read, keyed by their absolute path here."""
     f = _read_state(ws_root)
     if not f.is_file():
         return {}
@@ -213,7 +280,16 @@ def _load_reads(ws_root: Path) -> dict[str, dict[str, Any]]:
         data = json.loads(f.read_text(encoding="utf-8"))
     except ValueError:
         return {}
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        return {}
+    reads: dict[str, dict[str, Any]] = {}
+    for key, row in data.items():
+        if not isinstance(row, dict):
+            continue
+        path = str(recorded_path(ws_root, key))
+        if int(reads.get(path, {}).get("seq", 0)) <= int(row.get("seq", 0)):
+            reads[path] = {**row, "path": path}
+    return reads
 
 
 def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
@@ -223,7 +299,7 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     state = _load_reads(ws_root)
     seq = max((int(r.get("seq", 0)) for r in state.values()), default=0) + 1
     state[str(doc.resolve())] = {
-        "path": str(doc),
+        "path": str(doc.resolve()),
         "sha256": digest,
         "seq": seq,  # read order (read_at has one-second resolution)
         "read_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -231,7 +307,11 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     f = _read_state(ws_root)
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    stored = {
+        stored_path(ws_root, Path(k)): {**r, "path": stored_path(ws_root, Path(k))}
+        for k, r in state.items()
+    }
+    tmp.write_text(json.dumps(stored, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     os.replace(tmp, f)
     return digest
 
@@ -265,6 +345,7 @@ class Result:
     unchanged: bool
     paragraphs: int
     text_path: Path
+    notes: tuple[str, ...] = ()
 
 
 def _versions(ws_root: Path) -> list[Path]:
@@ -277,9 +358,12 @@ def ingest(path: Path, ws_root: Path) -> Result:
     data = path.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
     existing = _versions(ws_root)
-    draft = read(path, data, text_mode=text_mode(ws_root))
+    mode = text_mode(ws_root)
+    draft = read(path, data, text_mode=mode)
     if not draft.paragraphs:
         raise IngestError("no text found")
+    if mode != "lines":  # verse is one line per paragraph by design
+        draft.notes = [*draft.notes, *_wrap_notes(draft)]
     if path.suffix.lower() == ".docx" and not is_last_read(ws_root, path.resolve(), digest):
         # What the tool has seen: `lc docx` refuses to edit a file saved since.
         record_read(ws_root, path.resolve(), data)
@@ -292,7 +376,7 @@ def ingest(path: Path, ws_root: Path) -> Result:
         version = existing[-1].stem
         text = ws_root / "text" / f"{version}.txt"
         if text.is_file() and (ws_root / "text" / f"{version}.meta.json").is_file():
-            return Result(version, True, len(draft.paragraphs), text)
+            return Result(version, True, len(draft.paragraphs), text, tuple(draft.notes))
         # A previous run stopped after the snapshot: finish writing text and meta.
     (ws_root / "manuscript").mkdir(parents=True, exist_ok=True)
     (ws_root / "manuscript" / f"{version}{path.suffix.lower()}").write_bytes(data)
@@ -336,4 +420,4 @@ def _write_text(ws_root: Path, version: str, source_name: str, digest: str, draf
     (ws_root / "text" / f"{version}.meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=0) + "\n", encoding="utf-8"
     )
-    return Result(version, False, len(draft.paragraphs), text_path)
+    return Result(version, False, len(draft.paragraphs), text_path, tuple(draft.notes))

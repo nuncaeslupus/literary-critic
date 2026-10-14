@@ -9,12 +9,19 @@ platform by running a tiny pipeline in a temporary folder.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import json
 import os
+import re
 import sys
 import tempfile
+import time
+import urllib.request
 import zipfile
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from litcritic import __version__
 from litcritic.workspace import repo_root
@@ -42,6 +49,79 @@ from litcritic.cli import main  # noqa: E402
 
 raise SystemExit(main())
 '''
+
+
+VERSION_FILE = "VERSION"  # in a kit or Skill zip: {"version", "built", "source"}
+
+
+def _stamp(source: str) -> str:
+    built = datetime.now(UTC).strftime("%Y-%m-%d")
+    return json.dumps({"version": __version__, "built": built, "source": source}) + "\n"
+
+
+def version_info(root: Path | None = None) -> dict[str, Any]:
+    """This copy's version, build date and where it came from: ``kit`` or ``skill``
+    (a zip's ``VERSION`` stamp), ``checkout`` (a git work tree) or ``package``."""
+    root = root or repo_root()
+    stamp = root / VERSION_FILE
+    if stamp.is_file():
+        with contextlib.suppress(ValueError, OSError):
+            d = json.loads(stamp.read_text(encoding="utf-8"))
+            return {"version": str(d["version"]), "built": d.get("built"), "source": d["source"]}
+    source = "checkout" if (root / ".git").exists() else "package"
+    return {"version": __version__, "built": None, "source": source}
+
+
+TAGS_URL = "https://api.github.com/repos/nuncaeslupus/literary-critic/tags?per_page=100"
+TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
+UPDATE_TIMEOUT = 3.0  # seconds; past it the check says nothing
+CACHE = Path(tempfile.gettempdir()) / "litcritic-latest.json"  # one network read a day
+CACHE_SECONDS = 24 * 3600
+
+
+def _fetch_tags(timeout: float) -> list[str] | None:
+    """The repository's tag names, or None on any failure (offline, slow, refused)."""
+    req = urllib.request.Request(TAGS_URL, headers={"User-Agent": "literary-critic"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return [str(t["name"]) for t in json.loads(resp.read().decode("utf-8"))]
+    except Exception:  # any failure means "unknown", never an error for the writer
+        return None
+
+
+def _parse(version: str) -> tuple[int, ...] | None:
+    m = TAG.fullmatch("v" + version.lstrip("v"))
+    return tuple(int(n) for n in m.groups()) if m else None
+
+
+def _latest() -> str | None:
+    """The newest ``vX.Y.Z`` release tag without its ``v``, read at most once a day."""
+    with contextlib.suppress(OSError, ValueError, KeyError):
+        cached = json.loads(CACHE.read_text(encoding="utf-8"))
+        if time.time() - float(cached["at"]) < CACHE_SECONDS:
+            return str(cached["latest"]) if cached["latest"] else None
+    tags = _fetch_tags(UPDATE_TIMEOUT)
+    if tags is None:
+        return None
+    found = [v for v in (_parse(t) for t in tags if TAG.fullmatch(t)) if v]
+    latest = ".".join(map(str, max(found))) if found else None
+    with contextlib.suppress(OSError):
+        CACHE.write_text(json.dumps({"at": time.time(), "latest": latest}), encoding="utf-8")
+    return latest
+
+
+def update_check(info: dict[str, Any], network: bool = True) -> dict[str, Any]:
+    """``latest`` and ``update_available`` (``yes``, ``no`` or ``unknown``) for a copy
+    described by ``version_info``. ``yes`` only when its version is older than the
+    newest release; a source checkout, no network or any failure is ``unknown``."""
+    latest = _latest() if network and info.get("source") != "checkout" else None
+    mine = _parse(str(info.get("version", "")))
+    newest = _parse(latest) if latest else None
+    if info.get("source") == "checkout" or mine is None or newest is None:
+        state = "unknown"
+    else:
+        state = "yes" if mine < newest else "no"
+    return {"latest": latest, "update_available": state}
 
 
 SKILL = Path(".claude") / "skills" / "litcritic" / "SKILL.md"
@@ -116,7 +196,7 @@ def build(out: Path | None = None) -> tuple[Path, int]:
     """Write ``literary-critic-kit-<version>.zip``; returns its path and file count."""
     root = _checkout()
     out = (out or root / "dist" / f"literary-critic-kit-{__version__}.zip").resolve()
-    return out, _build(out, _files(root), {"lc.py": LAUNCHER})
+    return out, _build(out, _files(root), {"lc.py": LAUNCHER, VERSION_FILE: _stamp("kit")})
 
 
 def build_skill(out: Path | None = None) -> tuple[Path, int]:
@@ -125,7 +205,8 @@ def build_skill(out: Path | None = None) -> tuple[Path, int]:
     root = _checkout(SKILL)
     out = (out or root / "dist" / f"litcritic-skill-{__version__}.zip").resolve()
     files = {"SKILL.md": root / SKILL, **_files(root)}
-    count = _build(out, files, {"lc.py": LAUNCHER}, f"{SKILL_NAME}/", SKILL_MAX_BYTES)
+    generated = {"lc.py": LAUNCHER, VERSION_FILE: _stamp("skill")}
+    count = _build(out, files, generated, f"{SKILL_NAME}/", SKILL_MAX_BYTES)
     return out, count
 
 

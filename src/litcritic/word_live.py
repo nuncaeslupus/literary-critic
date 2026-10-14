@@ -16,13 +16,16 @@ live-Word code of its own.
 ``locate`` is fed by ``lc docx locate``: its whole answer is a valid request
 (``document``, ``path``, ``at``, ``find``, ``unique``, ``paragraphs_after``, ``locator``;
 ``find`` may also come from the locator alone). The live engine selects the paragraph by
-its address ``at``, which it checks against the open document. Edits never go through
+its address ``at``, which it checks against the open document, or, without one, by the
+``find`` phrase. A live call that fails, or takes longer than ``LIVE_TIMEOUT``, leaves the
+steps to do it. Edits never go through
 Word: ``lc docx edits`` / ``rename`` change the file while Word has it closed, and these
 operations only save, close, reopen and bring Word to the passage.
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import sys
 from dataclasses import dataclass
@@ -218,9 +221,30 @@ def _unfindable(payload: dict[str, Any]) -> dict[str, Any] | None:
     return {"status": "manual", "how": "computer-use", "steps": steps, "writer": writer}
 
 
+LIVE_TIMEOUT = 10.0  # seconds a live call may take before the steps take over
+FIND_CODES = {"^p": "\r", "^t": "\t", "^^": "^"}  # Word's Find-box codes with a plain form
+
+
+def _phrase(find: str) -> str | None:
+    """A Find-box string as the plain phrase ``live.select`` takes, or None when it
+    holds a code with no plain form (``^u173``, ``^-``, ``^~``…)."""
+    out, k = [], 0
+    while k < len(find):
+        code = find[k : k + 2]
+        if find[k] == "^":
+            if code not in FIND_CODES:
+                return None
+            out.append(FIND_CODES[code])
+            k += 2
+        else:
+            out.append(find[k])
+            k += 1
+    return "".join(out)
+
+
 def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     """The doc-control live request for ``op``; None when it has none (no full path, or a
-    passage without its address)."""
+    passage with neither its address nor a phrase Word's search could type)."""
     if op not in LIVE:
         return None
     doc = str(payload.get("path") or payload.get("document") or "")
@@ -228,9 +252,14 @@ def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
         return None
     request: dict[str, Any] = {"doc": doc}
     if op == "locate":
-        if not payload.get("at"):
+        if payload.get("at"):
+            request["at"] = str(payload["at"])
+        elif phrase := _phrase(str(payload.get("find") or "")):
+            request["find_phrase"] = phrase
+            if payload.get("paragraphs_after"):
+                request["paragraphs_after"] = int(payload["paragraphs_after"])
+        else:
             return None
-        request["at"] = str(payload["at"])
     elif op == "close":
         request["save"] = bool(payload.get("save"))
     elif op == "reopen":
@@ -239,8 +268,18 @@ def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
-    """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``)."""
-    return dc.run(LIVE[op], request)
+    """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
+    Word takes longer than ``LIVE_TIMEOUT`` or a passage comes back unselected)."""
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
+        result = pool.submit(dc.run, LIVE[op], request).result(timeout=LIVE_TIMEOUT)
+    except TimeoutError as exc:
+        raise dc.DocError("LIVE_TIMEOUT", f"Word did not answer in {LIVE_TIMEOUT:g}s") from exc
+    finally:
+        pool.shutdown(wait=False)
+    if op == "locate" and (not result.get("at") or result.get("selected") is False):
+        raise dc.DocError("NOT_SELECTED", "Word did not select the passage")
+    return result
 
 
 def _done(op: str, payload: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
@@ -248,8 +287,12 @@ def _done(op: str, payload: dict[str, Any], result: dict[str, Any]) -> dict[str,
     if op == "locate":
         out["selected"] = result.get("text", "")
         lang = str(payload.get("language") or "en")
-        if where := _where(payload.get("locator"), lang):
-            out["writer"] = f"{'En' if lang == 'es' else 'In'} {_name(payload)}: {where}."
+        where = _where(payload.get("locator"), lang) or (
+            "el pasaje está seleccionado en Word"
+            if lang == "es"
+            else "the passage is selected in Word"
+        )
+        out["writer"] = f"{'En' if lang == 'es' else 'In'} {_name(payload)}: {where}."
     elif op == "selection":
         out["selected"] = result.get("text", "")
         out["paragraph"] = result.get("paragraph")
@@ -262,16 +305,16 @@ def call(op: str, payload: dict[str, Any], platform: str = sys.platform) -> dict
     """One operation done in the open Word, or its computer-use steps and writer line."""
     if op not in OPERATIONS:
         raise WordLiveError(f"unknown operation {op!r}; one of {', '.join(OPERATIONS)}")
+    if op == "locate":
+        payload = _with_find(payload)
     request = _request(op, payload)
     if request is not None:
         try:
             return _done(op, payload, _live(op, request))
         except dc.DocError as exc:
             why = {"code": exc.code, "message": exc.message}
-    if op == "locate":
-        payload = _with_find(payload)
-        if plain := _unfindable(payload):
-            return _with_live(plain, op, request, why if request else None)
+    if op == "locate" and (plain := _unfindable(payload)):
+        return _with_live(plain, op, request, why if request else None)
     missing = [k for k in OPERATIONS[op] if k not in payload or payload[k] in ("", None)]
     if missing:
         raise WordLiveError(f"{op} needs {', '.join(missing)}")

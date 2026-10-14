@@ -13,7 +13,8 @@ Each packet names its tier on its first line. Tiers, not model names:
 **cheap** (Haiku-class), **standard** (Sonnet-class), **strong** (Opus-class,
 or the best this session has).
 
-- Entity packets (`e1`, `e2`…) and the new-names packet (`n1`): **strong**.
+- Entity packets (`e1`, `e2`…), the new-names packet (`n1`) and the links
+  packet (`l1`): **strong**.
 - Scene packets (`s001`, `s002`…): **standard**.
 
 On the measured validation the cheap tier stayed below 0.9 agreement with the
@@ -43,7 +44,11 @@ strong one on entities, and left fields out on scenes, so it is not used.
      prints the next packet still to do after an ok, saving a call.
 5. Plan again: `lc index plan --workspace <slug>`. If scene answers queued
    new names, this adds the packet `n1` (strong tier). Answer and import it
-   like an entity packet. When `lc index status --workspace <slug>` shows
+   like an entity packet. Once every scene is read, payoffs that found no
+   setup (scene packets answered in parallel cannot see each other's setups)
+   go to the links packet `l1` (strong tier): it lists the open setups and
+   those payoffs, and the answer pairs a payoff id with a setup id. Each
+   payoff is offered once. When `lc index status --workspace <slug>` shows
    every packet `done`, the index is complete.
 
 ### Reading a packet

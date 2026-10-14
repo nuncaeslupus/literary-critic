@@ -8,7 +8,7 @@ messages (a few lines), and do every technical step yourself.
 
 | Check | How | If missing |
 |---|---|---|
-| You can run code | Run `lc doctor` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
+| You can run code | Run `lc doctor --json` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
 | A folder on the writer's computer is connected | You can list it (Cowork: the folder the writer picked) | Ask the writer to connect the folder that holds the novel (one click in Cowork: "Choose folder") |
 | You can see and use the screen (computer use) | Try to take a screenshot | Fine: give the writer plain locations instead of taking them there |
 | Word on the writer's computer can be reached (Cowork) | You have doc-control's tools (`live_status`) and it lists Word as reachable | Fine: computer use takes the writer there, more slowly; the writer can add doc-control's server to Claude's desktop app later |
@@ -23,7 +23,26 @@ only what is missing and needed. Facts to give when asked:
   uploads the manuscript, you analyse it and hand back a commented copy to
   download; they make the changes themselves.
 
+### Updates
+
+`lc doctor --json` says `update_available`. Only when it is `"yes"`, and only at
+the start of a conversation (never while a change is being applied), tell the
+writer once, in their language, in these words or close to them:
+
+> There is a newer version of the tool with fixes. Shall I update it? It takes a minute.
+
+If they agree and you fetched the tool yourself, fetch it again. If they
+uploaded it as a Skill, give the steps to replace it one at a time. `"no"` or
+`"unknown"`: say nothing.
+
 ## 2. Find the novel
+
+**Coming back.** If the connected folder already holds a `literary-critic`
+working folder, the writer has been here before: run `lc setup --folder <dir>`
+as below, skip the questions of step 3, and continue where the log says they
+stopped. In Cowork a new conversation may not see the folder even inside the
+same project: if you cannot list it, ask the writer, in one line, to choose it
+again.
 
 Run `lc setup --folder <the connected folder>`. It finds the manuscript (the
 newest full draft), its other versions and unrelated documents, and creates
@@ -40,19 +59,33 @@ If `environment.word_lock` is true, the novel is open in Word: that is fine
 for reading; before any change you will ask them to save and close it (see
 `80-live-word.md`).
 
-## 3. Agree how to work (two short questions)
+## 3. Agree how to work (three short questions, one at a time)
 
 1. **What they want:** improve their own novel (`revision`, the default) or an
    assessment of it as a reader or agent would write it (`reader-report`).
-2. **Changes in the file:** you only ever change the file after they approve
-   each change, as tracked changes they can accept or reject in Word, with a
-   backup every time. Do they want that, or do they prefer to type every
-   change themselves? Either is fine. Record the answer, so later sessions
-   know it: `lc setup --folder <dir> --edit-in-place yes` (or `no`). Only a
-   `.docx` manuscript can be changed this way.
+2. **Who writes the new words.** Ask it with the AI-text notice in full,
+   above the choices (`lc setup` printed it as `ai_notice`, in the novel's
+   language): the writer chooses knowing what is at stake. Then three choices
+   (buttons when you can show them), the first one marked as recommended:
+   1. **You write everything** (recommended). The tool says what to change,
+      where, why and which options there are; you choose every word.
+      Nothing to run: this is the default.
+   2. **You write; I help with small fixes.** A word, punctuation, grammar, a
+      sentence trimmed, each one shown for you to take or leave; anything
+      longer stays yours. `lc setup --folder <dir> --prose-suggestions minor
+      --ack-ai-notice`.
+   3. **I can propose wording**, passages included, labelled as suggestions
+      you take, change or reject. `--prose-suggestions on --ack-ai-notice`.
 
-Wording suggestions stay off unless the writer asks for them; then follow
-house rule 1 of `00-guide.md` (the AI-text notice comes first).
+   Pass `--ack-ai-notice` only after they have read the notice and chosen 2
+   or 3. Do not argue with the choice: say once that they can change it any
+   time, and go on.
+3. **Changes in the file:** whoever writes them, you only ever put changes in
+   the file after they approve each one, as tracked changes they can accept
+   or reject in Word, with a backup every time. Do they want that, or do they
+   prefer to type every change themselves? Either is fine. Record the answer,
+   so later sessions know it: `lc setup --folder <dir> --edit-in-place yes`
+   (or `no`). Only a `.docx` manuscript can be changed this way.
 
 ## 4. First feedback
 

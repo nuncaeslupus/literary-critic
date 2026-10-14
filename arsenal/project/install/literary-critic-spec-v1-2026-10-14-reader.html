@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="18d90b8a9b40705cca6ee3d77b7358aa385810e24a7d5633befbfb572aac4037">
+<title>Literary Critic — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#5f5c56;--line:#e3ded4;
+  --card:#ffffff;--accent:#0f766e;--accent2:#9a4a0b;--chip:#e8efed;
+  --note:#fffaf0;--note-line:#d9a441;--note-fg:#7a3b06;--code:#f1eee8;--link:#0f766e;
+  --measure:70ch;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#ebe9e4;--muted:#aaa69f;--line:#34313a;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#24302f;
+    --note:#221d12;--note-line:#8a6a22;--note-fg:#fcd34d;--code:#26242b;--link:#7ff0dc;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:calc(var(--measure) + 120px);margin:0 auto;padding:0 16px}
+a{color:var(--link);text-underline-offset:2px}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;font-size:.88em;line-height:1.5}
+pre code{background:none;padding:0;font-size:1em}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#9a4a0b}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:26px 0 6px}
+.hero h1{font-size:1.75rem;line-height:1.2;margin:.1em 0 .3em;letter-spacing:-.01em}
+.hero p{color:var(--muted);margin:.3em 0;max-width:var(--measure)}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:30px 0}
+.part-title{font-size:1.45rem;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 10px}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+/* Two heading levels, told apart by size, weight and a rule: a ## section opens
+   with a full-width rule; a ### section sits indented under it on a side rule. */
+.sec{scroll-margin-top:72px}
+.sec.l2{padding:14px 0 4px;border-top:1px solid var(--line);margin-top:10px}
+.part>.sec.l2:first-of-type{border-top:none;margin-top:0}
+.sec.l3{margin:6px 0 6px 2px;padding:2px 0 2px 14px;border-left:3px solid var(--line)}
+.sec-h{margin:6px 0 8px;line-height:1.3}
+h3.sec-h{font-size:1.3rem;font-weight:750}
+h4.sec-h{font-size:1.08rem;font-weight:650;color:var(--fg)}
+.sec.bare>.sec-h{margin-bottom:2px}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+h4 .chip{font-size:11px;color:var(--muted)}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p,.sec-body li,.sec-body blockquote{max-width:var(--measure)}
+.sec-body p{margin:.6em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body h4,.sec-body h5,.sec-body h6{font-size:1em;margin:1em 0 .3em}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;font-size:13.5px;line-height:1.45;margin:.6em 0;
+  display:block;max-width:100%;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+/* The note field: the one thing on the page that is the reviewer's, so it must
+   not read as more document. Dashed while empty, solid once written in. */
+.note{max-width:var(--measure);background:var(--note);border:1.5px dashed var(--note-line);
+  border-left:4px solid var(--note-line);border-radius:10px;padding:8px 12px;margin:12px 0 18px}
+.note:focus-within{border-style:solid;box-shadow:0 0 0 3px color-mix(in srgb,var(--note-line) 30%,transparent)}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;cursor:text}
+.note-ico{color:var(--note-fg);font-weight:800}
+.note-label{font-size:11.5px;font-weight:800;color:var(--note-fg);text-transform:uppercase;letter-spacing:.06em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:16px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:1}
+.note.filled{border-style:solid}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+/* Phone width: smaller type, no floating column over the text, the hint dropped. */
+@media(max-width:600px){
+  body{font-size:16px;padding-bottom:76px}
+  .hero h1{font-size:1.45rem}
+  .part-title{font-size:1.25rem}
+  h3.sec-h{font-size:1.15rem}
+  h4.sec-h{font-size:1rem}
+  .sec.l3{padding-left:10px}
+  .statusbar .hint{display:none}
+  .fab{left:0;right:0;bottom:0;flex-direction:row;justify-content:flex-end;gap:6px;padding:8px 10px;
+    flex-wrap:wrap;background:var(--bg);border-top:1px solid var(--line)}
+  .fab .btn{box-shadow:none;padding:7px 9px}
+  .toast{bottom:64px}
+}
+@media print{.topbar,.statusbar,.fab,.help,.note:not(.filled){display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Specification<small>annotatable reader · 2026-10-14</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 14 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Spec</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-prompts-only-conservati">Option A: Prompts only (Conservative)</a></li>
+<li><a href="#s-spec-option-b-scripted-update-check-p">Option B: Scripted update check plus a packaged live engine, branching on Q-1 (Recommended)</a></li>
+<li><a href="#s-spec-option-c-our-own-installer-for-t">Option C: Our own installer for the writer's computer</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-cli-contracts-additive">CLI contracts (additive)</a></li>
+<li><a href="#s-spec-inter-component-contracts">Inter-component contracts</a></li>
+<li><a href="#s-spec-data-changes">Data changes</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Spec</h2>
+<article class="sec l2" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-14
+<strong>Ticket / PR</strong>: workspace <code>install</code>
+<strong>Author</strong>: Claude (with the owner)
+<strong>Revision</strong>: 1
+<strong>Status</strong>: approved (2026-10-14, revision 1) — without annotations
+<strong>Revision log</strong>:
+- r1 — first draft, from the owner's Cowork run (<code>status/evidence/W9-walkthrough.md</code>, "Owner's run in Cowork") and the open items in <code>arsenal/session/handover.md</code></p>
+<blockquote>
+<p>Review record. Each round of reviewer notes makes a new revision: bump
+<strong>Revision</strong>, add a log line naming the export it applied
+(<code>- r2 — applied `&lt;project&gt;-spec-notes-&lt;date&gt;-r1.md`</code>), and commit that
+export beside this file in the same commit. On approval set
+<strong>Status</strong> to <code>approved (YYYY-MM-DD, revision N)</code> and, when the reviewer sent
+no notes for that revision, add <code>— without annotations</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-intro"><label class="note-head" for="n-s-spec-intro"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></label><textarea class="note-ta" data-key="s-spec-intro" id="n-s-spec-intro" data-label="Preamble &amp; scope" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>The <code>chat</code> workspace decided how the tool reaches a writer: Claude fetches it
+itself, with the Skill zip upload as the fallback (chat D-7), the main target is
+a paid plan with Cowork (chat D-8), and Cowork reaches the open Word through
+computer use until a Word-control engine exists (chat D-20, D-21). That engine
+now exists: doc-control 0.6 ships a live engine with a Word adapter and an MCP
+server. Three gaps remain before a non-technical writer gets the full
+experience on their own:</p>
+<ul>
+<li><strong>Live Word is slow and clumsy.</strong> "Take me there" by computer use worked
+  (1 of 1) but took about 30 s and about 15 steps, with windows flickering.
+  doc-control's <code>live_select</code> does the same in about 2.5 s on the host. But the
+  writer has no way to install the live engine without editing a JSON config
+  file, and nobody knows yet whether a Cowork conversation can call an MCP
+  server running on the writer's computer (Cowork's own commands run in a
+  sandbox that cannot reach Word).</li>
+<li><strong>Nothing tells the writer the tool is out of date.</strong> An uploaded Skill, or a
+  copy fetched weeks ago, keeps running old code and old prompts silently.</li>
+<li><strong>We do not know whether a Cowork project keeps the novel's folder</strong> across
+  conversations, so <code>prompts/05-setup.md</code> cannot tell the writer what to expect
+  when they come back.</li>
+</ul>
+<p>This spec decides how a writer installs the tool and the live engine on each
+surface, how the tool notices it is out of date and says so plainly, and how a
+returning writer resumes. It is a planned improvement; it blocks doc-control's
+one-click writer install, which waits on the answer to open question Q-1.</p>
+<p><strong>Success criteria (measurable)</strong></p>
+<ul>
+<li>[ ] <code>writer_setup_actions &lt;= 5</code> on the Cowork main path, unchanged from the
+  <code>chat</code> spec, counted from "I want to use literary-critic for my novel" to the
+  first feedback. The live engine is not part of this count.</li>
+<li>[ ] <code>writer_live_install_actions &lt;= 3</code>: the one-time actions (clicks, file
+  opens, app restarts) a writer performs to turn on fast "take me there",
+  counted on a scripted walkthrough checklist on Windows and on a Mac. Typing
+  or editing a config file counts as a failure, not as actions.</li>
+<li>[ ] <code>live_locate_seconds_p50 &lt;= 5</code> and <code>live_locate_writer_visible_steps &lt;= 1</code>
+  (Word comes to the front once, at the passage) when the live engine is
+  reachable; measured over 10 located actions on Windows and 10 on a Mac.</li>
+<li>[ ] <code>live_locate_success &gt;= 0.9</code> (the <code>chat</code> criterion) holds on every path,
+  live engine or computer use; on failure the writer gets the plain locator.</li>
+<li>[ ] <code>live_fallback_correct == 1.0</code>: with the live engine missing, not
+  reachable, or failing, the tool falls back to computer use, then to the plain
+  locator, without asking the writer anything technical. Tested by script with
+  each failure injected.</li>
+<li>[ ] <code>update_detected_rate == 1.0</code> and <code>update_false_alarms == 0</code> over the
+  scripted cases: kit or Skill older than the latest release (online), current
+  (online), older but offline, a source checkout, a development version newer
+  than the latest release.</li>
+<li>[ ] <code>update_notice_plain == 1</code>: the out-of-date message has no tool talk (no
+  version numbers, commands or file names unless the writer asks with
+  <code>[[...]]</code>), is at most 40 words, appears once per conversation, and never
+  interrupts a change being applied. Judged on the scripted walkthrough.</li>
+<li>[ ] <code>writer_update_actions &lt;= 2</code> when Claude can fetch the tool itself; when
+  the writer must replace an uploaded Skill, the steps are given one at a time
+  and counted (target <code>&lt;= 4</code>).</li>
+<li>[ ] <code>resume_setup_actions == 0</code> when a returning writer opens a new
+  conversation in the same Cowork project with the folder still connected;
+  otherwise exactly 1 (pick the folder again), and the tool finds the existing
+  working folder without re-running setup questions.</li>
+<li>[ ] Owner's hand tests Q-1 and Q-3 are run and recorded in <code>status/evidence/</code>
+  before any task that depends on their answer is designed.</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><label class="note-head" for="n-s-spec-1"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></label><textarea class="note-ta" data-key="s-spec-1" id="n-s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prompts/05-setup.md</code></td>
+<td>Primary</td>
+<td>Setup wizard: checks what Claude can do, finds the novel</td>
+<td>Yes</td>
+<td>Adds the live-engine check, the update check, and the resume path</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>prompts/80-live-word.md</code>, <code>src/litcritic/word_live.py</code></td>
+<td>Primary</td>
+<td>"Take me there" and closing/reopening Word</td>
+<td>Yes</td>
+<td><code>live_select</code> first; computer-use steps and the plain locator as fallbacks</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>.claude/skills/litcritic/SKILL.md</code> ("Running the tool")</td>
+<td>Primary</td>
+<td>How Claude gets and runs the tool</td>
+<td>Yes (by its owner, not in this spec's tasks unless approved)</td>
+<td>Carries the version and the update rule</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/kit.py</code></td>
+<td>Primary</td>
+<td>Builds the kit zip and the Skill zip; <code>lc doctor</code></td>
+<td>Yes</td>
+<td>Stamps version and build date into the Skill; <code>lc doctor</code> reports <code>update_available</code></td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/dc.py</code></td>
+<td>Dependent</td>
+<td>The only door to doc-control</td>
+<td>Validation only</td>
+<td><code>capabilities</code> already lists engines; used to tell whether <code>live</code> is present</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>doc-control (separate repo)</td>
+<td>External dependency</td>
+<td>Live engine, Word adapter, MCP server</td>
+<td>Yes, in doc-control's own session</td>
+<td>Packages the MCP server for one-click install (Q-1 decides how)</td>
+<td>High</td>
+</tr>
+<tr>
+<td>Claude desktop app / Cowork</td>
+<td>Host</td>
+<td>Runs the conversation, computer use, MCP servers, folder access</td>
+<td>No (outside our control)</td>
+<td>Whether Cowork can call a host MCP server decides the main path</td>
+<td>High</td>
+</tr>
+<tr>
+<td>GitHub releases / tags of this repo</td>
+<td>Shared resource</td>
+<td>The source of "latest version"</td>
+<td>Yes</td>
+<td>Releases must be tagged so the check has something to compare</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Writer's novel folder (<code>&lt;novel&gt;/literary-critic/</code>, chat D-10)</td>
+<td>Data</td>
+<td>The working folder that holds all state</td>
+<td>No</td>
+<td>It already holds the state, so resuming needs only the folder</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact dimensions.</strong> Data: none; the working folder format does not change.
+API: <code>lc doctor</code> gains fields (additive). Performance: locate goes from about
+30 s to about 2.5 s where live works. User-facing: fewer clicks, no
+flickering, a plain update notice. Operational: tagged releases become part of
+shipping. Risk of inaction: writers run stale prompts, and "take me there"
+stays slow enough that writers stop using it.</p></div>
+<div class="note" data-for="s-spec-2"><label class="note-head" for="n-s-spec-2"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></label><textarea class="note-ta" data-key="s-spec-2" id="n-s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+<div class="sec-body"><p>Every option keeps chat D-7 (Claude fetches the tool; Skill zip fallback) and
+chat D-19/D-20 (Cowork does everything; computer use until the live engine is
+reachable). They differ in how the live engine reaches the writer, how the
+update check works, and what each costs.</p>
+<p><strong>Per surface (common to all options)</strong></p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Installing the tool</th>
+<th>Live Word</th>
+<th>Updates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Cowork, paid plan (main)</td>
+<td>Claude fetches it from the repository in the conversation (seen working in the owner's run); Skill zip if the network is closed</td>
+<td>Depends on Q-1 (below)</td>
+<td>Claude re-fetches; uploaded Skill needs a replacement</td>
+</tr>
+<tr>
+<td>Claude Code on the writer's computer</td>
+<td><code>uv tool install</code> / <code>pip install</code> from the repository, run by Claude</td>
+<td>doc-control's live CLI or MCP server runs on the same machine: works today (2.5 s measured)</td>
+<td>Claude runs the upgrade command after asking</td>
+</tr>
+<tr>
+<td>Plain chat (no Cowork)</td>
+<td>Skill zip or kit zip uploaded once</td>
+<td>None: basic mode, plain locator and a commented copy (<code>05-setup.md</code>)</td>
+<td>Writer re-uploads; told in plain words</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The branch on Q-1</strong> (can a Cowork conversation call an MCP server on the
+writer's computer?):</p>
+<ul>
+<li><strong>Q-1 = yes.</strong> The live engine is installed once on the computer as an MCP
+  server; Cowork calls <code>live_select</code> and friends directly. The work is making
+  that install one-click (Options B and C differ here).</li>
+<li><strong>Q-1 = no.</strong> Cowork cannot use the live engine at all. Cowork keeps computer
+  use for "take me there" (current path, chat D-20), made faster where possible
+  (fewer screenshots, Find with the shortest unique phrase). Writers who want
+  fast live Word use Claude Code on their computer, where the live engine runs
+  locally; the setup wizard offers it only when the writer asks why "take me
+  there" is slow. The one-click install is then built for that surface only, or
+  deferred.</li>
+</ul></div>
+<div class="note" data-for="s-spec-3"><label class="note-head" for="n-s-spec-3"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></label><textarea class="note-ta" data-key="s-spec-3" id="n-s-spec-3" data-label="§3 Options" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-a-prompts-only-conservati">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Prompts only (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Document the manual MCP config step in the setup prompt for
+  writers who want it; keep computer use as the only Cowork path. For updates,
+  <code>lc doctor</code> prints the version and the prompt asks Claude to compare it with
+  the repository's latest tag when the network allows. Resume is a sentence in
+  <code>05-setup.md</code>.</li>
+<li><strong>Scope</strong>: <code>prompts/05-setup.md</code>, <code>prompts/80-live-word.md</code>, <code>SKILL.md</code> text.</li>
+<li><strong>Effort</strong>: Small</li>
+<li><strong>Tradeoffs</strong>: Almost no code. But a writer would have to edit a JSON file
+  (fails <code>writer_live_install_actions</code>), and the update check is LLM judgment,
+  not a tested script (breaks rule 7, script first).</li>
+<li><strong>Compatibility</strong>: Fully backwards compatible.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-prompts-only-conservati"><label class="note-head" for="n-s-spec-option-a-prompts-only-conservati"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Prompts only (Conservative)</span></label><textarea class="note-ta" data-key="s-spec-option-a-prompts-only-conservati" id="n-s-spec-option-a-prompts-only-conservati" data-label="Option A: Prompts only (Conservative)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-b-scripted-update-check-p">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Scripted update check plus a packaged live engine, branching on Q-1 (Recommended)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>:<ol>
+<li><strong>Version and update check, by script.</strong> The Skill zip and kit carry the
+ version and build date (<code>kit.py</code>). <code>lc doctor</code> (already run first by the
+ wizard) adds <code>version</code>, <code>latest</code> and <code>update_available</code>, reading the
+ latest release tag from the repository with a short timeout. Offline, or
+ in a source checkout, it reports <code>unknown</code> and the tool says nothing. A
+ version newer than the latest release (development) is never "out of
+ date". The prompt turns <code>update_available</code> into one plain sentence
+ ("There is a newer version of the tool with fixes. Shall I update it? It
+ takes a minute.") at the start of a conversation, never mid-change. If
+ Claude fetched the tool, it re-fetches on yes. If the tool came from an
+ uploaded Skill, it gives the replacement steps one at a time.</li>
+<li><strong>Live engine first, two fallbacks.</strong> <code>word_live.call</code> asks doc-control's
+ <code>capabilities</code> for the <code>live</code> engine, tries <code>live_select</code> (or the MCP
+ tool when Cowork exposes it), falls back to the computer-use steps, then
+ to the plain locator. One adapter (chat D-21), no change elsewhere.</li>
+<li><strong>One-click live install, owned by doc-control.</strong> If Q-1 = yes,
+ doc-control ships its MCP server as a desktop extension bundle the writer
+ opens once (one double-click and one confirm in the Claude app), and the
+ wizard links to it only after the first slow "take me there". If Q-1 =
+ no, the bundle targets Claude Code users only and Cowork stays on
+ computer use; nothing in literary-critic changes between the two except
+ which surfaces the wizard offers it on.</li>
+<li><strong>Resume.</strong> The wizard first looks for an existing <code>literary-critic/</code>
+ working folder in the connected folder and resumes from it (no setup
+ questions). <code>05-setup.md</code> says, after Q-3, whether the writer needs to
+ pick the folder again in a new conversation.</li>
+</ol>
+</li>
+<li><strong>Scope</strong>: <code>kit.py</code>, <code>lc doctor</code>, <code>word_live.py</code>, <code>prompts/05-setup.md</code>,
+  <code>prompts/80-live-word.md</code>, <code>SKILL.md</code> "Running the tool"; tests for the
+  update check and the fallback chain; doc-control's packaging in its own
+  session.</li>
+<li><strong>Effort</strong>: Medium</li>
+<li><strong>Tradeoffs</strong>: Meets every criterion on both Q-1 outcomes; the update check
+  is a tested script. Costs a network call at start (short timeout, fail
+  silent) and a release-tagging habit. The one-click bundle depends on the
+  Claude app's extension format and on doc-control's dependencies being
+  installable without a terminal (Q-2).</li>
+<li><strong>Compatibility</strong>: Additive. <code>lc doctor</code> gains fields; older Skills simply
+  lack the check until replaced (the first update after this ships cannot be
+  announced by the old Skill).</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-scripted-update-check-p"><label class="note-head" for="n-s-spec-option-b-scripted-update-check-p"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Scripted update check plus a packaged live engine, branching on Q-1 (Recommended)</span></label><textarea class="note-ta" data-key="s-spec-option-b-scripted-update-check-p" id="n-s-spec-option-b-scripted-update-check-p" data-label="Option B: Scripted update check plus a packaged live engine, branching on Q-1 (Recommended)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-c-our-own-installer-for-t">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Our own installer for the writer's computer</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: A literary-critic installer (Windows and Mac) that installs
+  Python, the tool, doc-control's live engine and its MCP config, and updates
+  itself in the background.</li>
+<li><strong>Scope</strong>: New packaging and signing for two operating systems, a background
+  updater, uninstall.</li>
+<li><strong>Effort</strong>: Large</li>
+<li><strong>Tradeoffs</strong>: Fewest writer actions once installed and works for Claude Code
+  too. But it is a second product: code signing, antivirus false positives,
+  admin rights, an updater that touches the writer's computer, and it still
+  does nothing for Cowork if Q-1 = no. It duplicates what doc-control and the
+  Claude app's extension format should own.</li>
+<li><strong>Compatibility</strong>: New install path; existing ones keep working.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-our-own-installer-for-t"><label class="note-head" for="n-s-spec-option-c-our-own-installer-for-t"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Our own installer for the writer's computer</span></label><textarea class="note-ta" data-key="s-spec-option-c-our-own-installer-for-t" id="n-s-spec-option-c-our-own-installer-for-t" data-label="Option C: Our own installer for the writer's computer" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Small</td>
+<td>Medium</td>
+<td>Large</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>Low code risk; high usability risk (config editing)</td>
+<td>Medium (depends on Q-1, Q-2)</td>
+<td>High (signing, admin rights, background updates)</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Update check by judgment; live install manual</td>
+<td>All criteria, both Q-1 outcomes</td>
+<td>All criteria on the computer; Cowork still gated by Q-1</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>Full</td>
+<td>Additive</td>
+<td>New path</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Low</td>
+<td>Medium (release tags, one adapter)</td>
+<td>High (two OS installers)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><label class="note-head" for="n-s-spec-comparison"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></label><textarea class="note-ta" data-key="s-spec-comparison" id="n-s-spec-comparison" data-label="Comparison" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B. It builds on chat D-7, D-20 and D-21 without
+reopening them, makes the update check a tested script, gives the fastest
+"take me there" wherever the live engine is reachable and degrades cleanly
+where it is not, and leaves packaging the live engine to doc-control, which
+owns it.</p>
+<p><strong>Immediate next action</strong>: the owner runs the Q-1 test from the handover (add
+doc-control's MCP server to the Claude desktop app, restart, ask Cowork for
+<code>live_select</code> on an open document) and the Q-3 test (a second conversation in
+the same Cowork project); record both in <code>status/evidence/</code>, tell the
+doc-control session the Q-1 result, then <code>design</code> the plan. The update check
+and the fallback chain do not depend on Q-1 and can be designed first.</p>
+<p><strong>Open questions</strong>:
+- [ ] <strong>Q-1 (owner test, pending):</strong> can a Cowork conversation call an MCP
+  server on the writer's computer (doc-control's <code>live_select</code>)? Yes → one-click
+  install for Cowork; no → Cowork stays on computer use and fast live Word is
+  offered on Claude Code only.
+- [ ] <strong>Q-2:</strong> can doc-control's live engine be packaged so the writer installs
+  it with a double-click (no Python or terminal on their side), on both Windows
+  and a Mac? doc-control's session answers; if not, <code>writer_live_install_actions</code>
+  cannot be met and the live engine stays an opt-in for technical users.
+- [ ] <strong>Q-3 (owner test):</strong> does a Cowork project keep the novel's folder
+  connected across conversations? The answer goes into <code>05-setup.md</code>.
+- [ ] <strong>Q-4:</strong> where is "latest" read from: GitHub release tags (proposed), or
+  a version file on the default branch? Releases need tagging either way.
+- [ ] <strong>Q-5:</strong> should Claude update a fetched tool without asking when the
+  change is only fixes? Proposed: always ask once, in one sentence.</p>
+<p><strong>Decisions log</strong> (decisions this spec builds on, from <code>arsenal/project/chat/spec.md</code>, and the ones it proposes):</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Decision</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chat D-7</td>
+<td>Install: Claude fetches the tool itself (B); falls back to Skill zip upload (A)</td>
+<td>agreed (kept)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>chat D-8</td>
+<td>Main target paid plan + Cowork; free as basic mode</td>
+<td>agreed (kept)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>chat D-10</td>
+<td>Working files in <code>&lt;novel&gt;/literary-critic/</code></td>
+<td>agreed (kept; resume relies on it)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>chat D-20</td>
+<td>Cowork reaches the open Word through computer use now; Word-control engine later</td>
+<td>agreed (kept; the engine now exists as doc-control's live engine)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>chat D-21</td>
+<td>Word-control is a separate project behind one adapter</td>
+<td>agreed (kept; doc-control fills it)</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>D-1</td>
+<td>"Take me there" tries the live engine first, then computer use, then the plain locator</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td>The update check is a script (<code>lc doctor</code>), silent when offline or unknown; the writer sees one plain sentence, never mid-change</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>Packaging the live engine for writers belongs to doc-control; literary-critic only detects and uses it</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>A returning writer resumes from the existing working folder, without setup questions</td>
+<td>proposed</td>
+<td>2026-10-14</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="sec-body"><p>Q-4 and Q-5 take the proposed answers with this approval: "latest" is the
+newest <code>vX.Y.Z</code> release tag of this repository, and Claude always asks once
+before updating.</p></div>
+<div class="note" data-for="s-spec-5"><label class="note-head" for="n-s-spec-5"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></label><textarea class="note-ta" data-key="s-spec-5" id="n-s-spec-5" data-label="§5 Contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-cli-contracts-additive">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI contracts (additive)</span></h4>
+<div class="sec-body"><h4><code>lc doctor [--json] [--no-network]</code></h4>
+<p>Prints problems as today; <code>--json</code> prints one object. New fields only; an older
+caller ignores them.</p>
+<pre><code class="language-json">{&quot;problems&quot;: [],
+ &quot;version&quot;: &quot;0.2.0&quot;, &quot;built&quot;: &quot;2026-10-20&quot;, &quot;source&quot;: &quot;kit&quot;,
+ &quot;latest&quot;: &quot;0.3.0&quot;, &quot;update_available&quot;: &quot;yes&quot;,
+ &quot;live&quot;: &quot;available&quot;}
+</code></pre>
+<ul>
+<li><code>source</code>: <code>kit</code> (kit zip), <code>skill</code> (Skill zip), <code>checkout</code> (git work tree), <code>package</code> (installed).</li>
+<li><code>latest</code>: newest release tag without the <code>v</code>, or <code>null</code> when unknown.</li>
+<li><code>update_available</code>: <code>yes</code> only when <code>version &lt; latest</code>; <code>no</code> when equal or
+  newer (a development build is never out of date); <code>unknown</code> offline, after a
+  3 s timeout, with <code>--no-network</code>, or in a <code>checkout</code>.</li>
+<li><code>live</code>: <code>available</code> when doc-control's <code>capabilities</code> lists the <code>live</code> engine
+  and it answers; <code>missing</code> otherwise. Never an error.</li>
+<li>The network read is one HTTPS GET of the repository's tags (stdlib
+  <code>urllib</code>), at most once per day per working folder (cached in
+  <code>&lt;ws&gt;/.cache/latest.json</code> when a workspace is known).</li>
+</ul>
+<h4><code>lc word locate|… --json</code> (result, additive)</h4>
+<p><code>how</code> gains the value <code>live</code>: <code>{"status": "done", "how": "live", "writer": "…"}</code>.
+Order: <code>live</code> → <code>computer-use</code> steps → plain locator (<code>how: "plain"</code>). Any
+failure of a step moves to the next one; the result never asks the writer a
+technical question.</p></div>
+<div class="note" data-for="s-spec-cli-contracts-additive"><label class="note-head" for="n-s-spec-cli-contracts-additive"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI contracts (additive)</span></label><textarea class="note-ta" data-key="s-spec-cli-contracts-additive" id="n-s-spec-cli-contracts-additive" data-label="CLI contracts (additive)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-inter-component-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Inter-component contracts</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Callee</th>
+<th>Protocol</th>
+<th>Contract</th>
+<th>Failure handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>word_live.call</code></td>
+<td>doc-control via <code>dc.py</code></td>
+<td>in-process / CLI</td>
+<td><code>capabilities</code> → <code>engines</code> contains <code>live</code>; <code>live.select {"doc", "find"}</code> → <code>{"selected": true}</code></td>
+<td>any <code>DocError</code>, timeout (10 s) or <code>selected: false</code> → computer-use steps</td>
+</tr>
+<tr>
+<td><code>kit.doctor</code></td>
+<td>GitHub tags of <code>nuncaeslupus/literary-critic</code></td>
+<td>HTTPS GET, 3 s timeout</td>
+<td>newest tag matching <code>v\d+\.\d+\.\d+</code></td>
+<td>any error → <code>unknown</code>, silent</td>
+</tr>
+<tr>
+<td><code>prompts/05-setup.md</code></td>
+<td><code>lc doctor --json</code></td>
+<td>CLI</td>
+<td>reads <code>update_available</code>, <code>live</code></td>
+<td>missing fields (older kit) → no notice</td>
+</tr>
+<tr>
+<td>doc-control (its session)</td>
+<td>Claude desktop app</td>
+<td>desktop extension / MCP</td>
+<td>one-click bundle (Q-1, Q-2)</td>
+<td>not in this repo</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-inter-component-contracts"><label class="note-head" for="n-s-spec-inter-component-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Inter-component contracts</span></label><textarea class="note-ta" data-key="s-spec-inter-component-contracts" id="n-s-spec-inter-component-contracts" data-label="Inter-component contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-data-changes">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data changes</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kit and Skill zips</td>
+<td>add <code>VERSION</code> file (<code>version</code>, <code>built</code>)</td>
+<td>yes</td>
+<td>yes (absent → version from the package)</td>
+</tr>
+<tr>
+<td><code>&lt;ws&gt;/.cache/latest.json</code></td>
+<td>new, disposable cache</td>
+<td>yes (delete)</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-data-changes"><label class="note-head" for="n-s-spec-data-changes"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Data changes</span></label><textarea class="note-ta" data-key="s-spec-data-changes" id="n-s-spec-data-changes" data-label="Data changes" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The tag read slows every start</td>
+<td>Med</td>
+<td>Med</td>
+<td>3 s timeout, once a day, silent on failure</td>
+<td>unit: mocked slow/failed network → <code>unknown</code> within 3.5 s</td>
+</tr>
+<tr>
+<td>A false "out of date" (dev build, untagged release)</td>
+<td>Med</td>
+<td>Med</td>
+<td>only <code>version &lt; latest</code> is <code>yes</code>; checkout is <code>unknown</code></td>
+<td>unit: the 5 scripted cases</td>
+</tr>
+<tr>
+<td>The Claude app changes MCP or extension behaviour</td>
+<td>Med</td>
+<td>High</td>
+<td>fallback chain; doc-control owns packaging</td>
+<td>unit: injected failures; hand: walkthrough per release</td>
+</tr>
+<tr>
+<td>Live select picks the wrong paragraph</td>
+<td>Low</td>
+<td>High</td>
+<td>same Find string <code>lc docx locate</code> already proves (100/100 on Word)</td>
+<td>hand: 10 located actions per platform</td>
+</tr>
+<tr>
+<td>An old uploaded Skill cannot announce its replacement</td>
+<td>High</td>
+<td>Low</td>
+<td>release notes say it; the wizard checks when Claude fetches the tool</td>
+<td>manual: release checklist</td>
+</tr>
+<tr>
+<td>Update notice interrupts a change being applied</td>
+<td>Low</td>
+<td>Med</td>
+<td>prompt rule: only at conversation start</td>
+<td>walkthrough judgment (<code>update_notice_plain</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><label class="note-head" for="n-s-spec-6"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></label><textarea class="note-ta" data-key="s-spec-6" id="n-s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
+  function exportName(){return 'literary-critic-spec-v1-'+today()+'-notes.md';}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var saved=download(exportName(),r.text);openModal(r.text);
+    // download() returning only means the download was REQUESTED; a browser can
+    // still block or drop it. So `dirty` — what arms the unload warning — is
+    // cleared only on a confirmed copy: the clipboard promise fulfilling.
+    var cp=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){cp=navigator.clipboard.writeText(r.text);}}catch(e){cp=null;}
+    if(cp&&typeof cp.then==='function'){cp.then(function(){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');},function(){});}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    setState('Download requested '+nowStamp(),'ok');
+    toast('Download requested — '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){if(ok){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');}
+                        toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download(exportName(),modalTa.value);toast('Download requested');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>

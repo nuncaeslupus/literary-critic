@@ -52,6 +52,8 @@ with computer use, and the plain line for the writer when you cannot.
      and Ctrl+S underlines): press only the keys the steps give.
 3. If none of this works, or the passage is not found, give the writer the
    `writer` line instead: chapter, page, and the quoted first and last words.
+4. Every time the writer asks to be taken somewhere, run these steps again,
+   even for a passage you showed before: they may have moved since.
 
 ## Lists of places: one click each
 

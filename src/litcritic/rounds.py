@@ -8,7 +8,8 @@ confidence x the profile's weight / effort) and records the round in
 decision on its issue (a ``decision`` item); ``mark`` records one. ``letter``
 renders the writer-facing ``letter.md`` in the work's language. The script only
 arranges what the issues say; it never writes prose for the work. Quoted wording
-that is not in the draft is flagged unless the writer turned prose suggestions on.
+that is not in the draft is flagged unless the writer turned prose suggestions fully on
+(``minor`` allows only short fixes, so long new passages are still flagged).
 """
 
 from __future__ import annotations
@@ -267,7 +268,7 @@ def build(
     actions = round_actions(ws_root, out_dir, cx, loc)
     text = "\n".join(ix.paragraphs)
     try:
-        prose_on = settings.load(ws_root)["prose_suggestions"]
+        prose_on = settings.load(ws_root)["prose_suggestions"] is True
     except settings.SettingsError:
         prose_on = False
     warnings = [] if prose_on else [w for a in actions for w in prose_flags(a, text)]

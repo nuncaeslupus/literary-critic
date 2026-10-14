@@ -32,8 +32,8 @@ Claude can do, finds the novel and agrees how to work, step by step.
 The procedures live in `prompts/` so any chatbot can follow them; this skill
 says which one to read. Read `prompts/00-guide.md` at the start of every
 session that touches a novel. It holds the rules that matter most: the writer
-writes (no drafted prose unless the writer turned prose suggestions on, after
-the AI-text notice), never edit the manuscript without
+writes (no drafted prose unless the writer chose small fixes or suggested
+wording, after the AI-text notice), never edit the manuscript without
 permission for that change, plain language, locate everything, one change per
 message.
 

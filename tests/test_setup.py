@@ -250,6 +250,41 @@ def test_notice_on_a_new_folder_and_new_profile(
     assert main(["validate", "profile", str(folder / "literary-critic/analysis/profile.toml")]) == 0
 
 
+def test_who_writes_has_three_answers_and_help_needs_the_notice(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """ "Who writes?": the writer (off, recommended), small fixes (minor) or suggested
+    wording (on). The notice comes with the question, and both kinds of help need it read."""
+    folder = _novel_folder(tmp_path)
+    ws = folder / "literary-critic"
+    profile = ws / "analysis" / "profile.toml"
+    assert main(["setup", "--folder", str(folder)]) == 0
+    asked = "IA" in json.loads(capsys.readouterr().out)["ai_notice"]  # shown before choosing
+    argv = ["setup", "--folder", str(folder), "--prose-suggestions", "minor"]
+    assert main(argv) == 1
+    asked = asked and json.loads(capsys.readouterr().out)["reason"] == "ai_notice"
+    assert main([*argv, "--ack-ai-notice"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    minor = out["settings"]["prose_suggestions"] == "minor" and "ai_notice" not in out
+    minor = minor and tomllib.loads(profile.read_text())["prose_suggestions"] == "minor"
+    assert main(["validate", "profile", str(profile)]) == 0
+    capsys.readouterr()
+    # From small fixes to full suggestions and back to the writer alone.
+    on = ["setup", "--folder", str(folder), "--prose-suggestions", "on", "--ack-ai-notice"]
+    assert main(on) == 0
+    minor = minor and json.loads(capsys.readouterr().out)["settings"]["prose_suggestions"] is True
+    assert main(["setup", "--folder", str(folder), "--prose-suggestions", "off"]) == 0
+    off = json.loads(capsys.readouterr().out)["settings"]["prose_suggestions"] is False
+    # "minor" written by hand, without the acknowledgement, stays off.
+    profile.write_text('mode = "revision"\nlanguage = "es"\nprose_suggestions = "minor"\n')
+    off = off and settings.load(ws)["prose_suggestions"] is False
+    # The notice says what is at stake, and that it is not legal advice.
+    en = settings.notice("en")
+    told = all(w in en for w in ("copyright", "watermark", "disclose", "not legal advice"))
+    who_writes_ok = int(asked and minor and off and told)
+    assert who_writes_ok == 1
+
+
 def test_writer_choice_of_manuscript_and_edit_answer_are_kept(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -271,3 +306,53 @@ def test_writer_choice_of_manuscript_and_edit_answer_are_kept(
     assert main(argv) == 0
     assert json.loads(capsys.readouterr().out)["manuscript"]["path"] == "MyNovel_v4.docx"
     assert main([*argv, "--manuscript", "missing.docx"]) == 2
+
+
+def test_a_workspace_still_works_when_the_novel_folder_moves(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The workspace records the manuscript relative to the novel's folder, so it keeps
+    working when that folder is reached by another path (a sandbox's copy of it, the
+    writer's computer, a later conversation)."""
+    folder = _novel_folder(tmp_path)
+    assert main(["setup", "--folder", str(folder), "--manuscript", "MyNovel_v2.docx"]) == 0
+    capsys.readouterr()
+    ws = folder / "literary-critic"
+    choice = json.loads((ws / setup.CHOICE).read_text(encoding="utf-8"))
+    reads = json.loads((ws / "state" / "documents.json").read_text(encoding="utf-8"))
+    assert choice["manuscript"] == "MyNovel_v2.docx"
+    assert (
+        list(reads) == ["MyNovel_v2.docx"] and reads["MyNovel_v2.docx"]["path"] == "MyNovel_v2.docx"
+    )
+
+    moved = tmp_path / "elsewhere" / "MyNovel"
+    moved.parent.mkdir()
+    folder.rename(moved)
+    assert main(["setup", "--folder", str(moved)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["manuscript"]["path"] == "MyNovel_v2.docx" and out["version"] == "v001"
+    doc = moved / "MyNovel_v2.docx"
+    assert ingest.last_read(moved / "literary-critic", doc) == reads["MyNovel_v2.docx"]["sha256"]
+    assert ingest.known_documents(moved / "literary-critic") == [doc.resolve()]
+
+
+def test_absolute_paths_recorded_elsewhere_are_found_in_the_novel_folder(tmp_path: Path) -> None:
+    """Workspaces from before kept absolute paths; one recorded where the folder had
+    another path (Cowork's sandbox) is found again under the novel's folder."""
+    folder = tmp_path / "MyNovel"
+    (folder / "drafts").mkdir(parents=True)
+    ws = folder / "literary-critic"
+    (ws / "state").mkdir(parents=True)
+    doc = folder / "drafts" / "MyNovel.docx"
+    doc.write_bytes(docx(_paras("marianela", 5), seed=1))
+    gone = "/tmp/claude-0/mnt/MyNovel/drafts/MyNovel.docx"
+    rows = {gone: {"path": gone, "sha256": "old", "seq": 1}}
+    (ws / "state" / "documents.json").write_text(json.dumps(rows), encoding="utf-8")
+    assert ingest.recorded_path(ws, gone) == doc.resolve()
+    assert ingest.last_read(ws, doc) == "old"
+    ingest.record_read(ws, doc)
+    rows = json.loads((ws / "state" / "documents.json").read_text(encoding="utf-8"))
+    assert list(rows) == ["drafts/MyNovel.docx"] and rows["drafts/MyNovel.docx"]["seq"] == 2
+    outside = tmp_path / "other.docx"
+    assert ingest.stored_path(ws, outside) == str(outside.resolve())
+    assert ingest.recorded_path(ws, str(outside)) == outside

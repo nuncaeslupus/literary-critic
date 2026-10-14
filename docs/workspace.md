@@ -130,7 +130,12 @@ The LLM fills the Codex in bounded packets, each answered with JSON only:
   `lc index plan` drops queued names the Codex already covers or the draft never
   uses and packs the rest into one small entities packet on the strong tier
   (`n1`: each name with its count in the draft and up to two contexts); importing
-  it clears those names from the queue. An answer that still carries a scene
+  it clears those names from the queue. Once every scene packet is done, the
+  plan adds the links packet (`l1`, strong tier) for payoffs no setup was linked
+  to (scene packets answered in parallel cannot see each other's setups): it
+  lists the open setups and those payoffs, each with its own words, and the
+  answer (`schemas/index-links-answer.schema.json`) pairs a payoff id with an
+  earlier setup id. A payoff is offered once per draft (`links_asked`). An answer that still carries a scene
   `entities` field is refused naming it.
 - Scene `time` is when the scene's main action happens (not an opening frame,
   memory or dream unless that is the scene); `location` is where it happens (not

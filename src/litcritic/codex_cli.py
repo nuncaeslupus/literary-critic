@@ -251,6 +251,10 @@ def _run(args: argparse.Namespace) -> int:
             cols, rows = questions.ask(v, q, given, max_rows=cap)
             print(f"{q.title}")
             print(view.table(cols, rows[:cap], args.budget, len(rows) > cap), end="")
+            if not rows:
+                for t in sorted(set(re.findall(r"\bv_(\w+)", q.sql))):
+                    if t in cx.types and not cx.of_type(t):
+                        print(f"(no {t} records in the Codex yet: this question reads them)")
         elif args.codex_cmd == "sync":
             report = sync.sync(ws.root, args.version, cx)
             print("\n".join(report.lines()))

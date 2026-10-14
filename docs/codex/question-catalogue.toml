@@ -261,7 +261,7 @@ sql = "SELECT e.name, a.text, b.text FROM links l JOIN items a ON a.id = l.src J
 id = "dialogue-01"
 family = "dialogue"
 text = "What share of the book is dialogue, chapter by chapter?"
-needs = ["item:dialogue", "spans.words", "paragraphs.chapter"]
+needs = ["speech.words", "paragraphs.chapter"]
 question = "dialogue-share"
 
 [[question]]

@@ -237,7 +237,7 @@ def _recorded_choice(root: Path, found: Discovery) -> Path | None:
     """The file the writer chose before, unless a draft was saved after that choice."""
     try:
         data = json.loads((root / CHOICE).read_text(encoding="utf-8"))
-        path, at = Path(data["manuscript"]), float(data["chosen_at"])
+        path, at = ingest.recorded_path(root, data["manuscript"]), float(data["chosen_at"])
     except (OSError, ValueError, KeyError, TypeError):
         return None
     if not path.is_file() or found.manuscript.modified > at:
@@ -286,14 +286,14 @@ def setup(
         )
     if manuscript is not None:
         (ws.root / CHOICE).parent.mkdir(parents=True, exist_ok=True)
-        choice = {"manuscript": str(doc.resolve()), "chosen_at": time.time()}
+        choice = {"manuscript": ingest.stored_path(ws.root, doc), "chosen_at": time.time()}
         (ws.root / CHOICE).write_text(json.dumps(choice) + "\n", encoding="utf-8")
     result = ingest.ingest(doc, ws.root)
     structure_file = ws.root / "index" / result.version / "structure.json"
     if not result.unchanged or not structure_file.is_file():
         structure.build(ws.root, result.version)
     if prose:
-        settings.set_prose_suggestions(ws.root, prose == "on", ack, _language(ws.root))
+        settings.set_prose_suggestions(ws.root, prose, ack, _language(ws.root))
     if edit_in_place:
         settings.set_edit_in_place(ws.root, edit_in_place == "yes", _language(ws.root))
     try:
@@ -301,7 +301,7 @@ def setup(
         current: dict[str, Any] = {k: now[k] for k in ("prose_suggestions", "edit_in_place")}
     except settings.SettingsError as exc:  # a hand-edited profile: setup still works
         current = {"prose_suggestions": False, "edit_in_place": None, "profile_error": str(exc)}
-    return {
+    out: dict[str, Any] = {
         "status": "ready",
         "workspace": _rel(folder, ws.root),
         "workspace_path": str(ws.root),  # what --workspace takes in every later command
@@ -313,6 +313,10 @@ def setup(
         "language": str(ws.manifest.get("language", "")),
         "settings": current,
     }
+    if current["prose_suggestions"] is False:
+        # shown with the "who writes?" question, before the writer chooses
+        out["ai_notice"] = settings.notice(out["language"] or "en")
+    return out
 
 
 def _language(ws_root: Path) -> str:
@@ -361,7 +365,12 @@ def register(sub: Any) -> None:
         default=None,
         help="approved changes may go into the file as tracked changes",
     )
-    p.add_argument("--prose-suggestions", choices=("on", "off"), default=None)
+    p.add_argument(
+        "--prose-suggestions",
+        choices=tuple(settings.LEVELS),
+        default=None,
+        help="who writes: off (the writer), minor (small fixes), on (suggested wording)",
+    )
     p.add_argument("--ack-ai-notice", action="store_true", help="the writer read the AI notice")
     p.add_argument("--language", default=None, help="language of the notice (default: the work's)")
     p.set_defaults(func=_cmd)
