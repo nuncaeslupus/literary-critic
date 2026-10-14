@@ -261,3 +261,11 @@ def test_tool_talk_waits_for_the_tool_channel() -> None:
         for sentence in re.split(r"(?<=[.:;])\s+", " ".join(path.read_text("utf-8").split())):
             if re.search(r"\bpropose\b", sentence) and "[[" in sentence:
                 assert re.search(r"only (then|when asked)", sentence, re.I), (path.name, sentence)
+
+
+def test_setup_prompt_update_notice_is_short() -> None:
+    text = (repo_root() / "prompts" / "05-setup.md").read_text(encoding="utf-8")
+    updates = text.split("### Updates", 1)[1].split("\n## ", 1)[0]
+    (notice,) = [ln[2:] for ln in updates.splitlines() if ln.startswith("> ")]
+    assert len(notice.split()) <= 40
+    assert not re.search(r"`|\blc\b|\.md\b|\.json\b|\d+\.\d+", notice)  # no tool talk
