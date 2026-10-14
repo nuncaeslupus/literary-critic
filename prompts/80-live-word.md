@@ -15,10 +15,13 @@ with computer use, and the plain line for the writer when you cannot.
 - **Cowork**: `lc` runs in a sandbox that cannot reach Word. If you have
   doc-control's tools (`live_select`, `live_open`, …: the writer added
   doc-control's server to Claude's desktop app), call the tool named in the
-  answer's `live`, with its `arguments`, but with `doc` set to the document's
-  path **on the writer's computer** (the folder they connected, not the
-  sandbox's path). It answers in a few seconds. Without those tools, or if the
-  tool fails, follow the `steps`.
+  answer's `live` with its `arguments` as they are: `doc` is the file name
+  alone, and doc-control finds the open document of that name on the writer's
+  computer. It answers in a few seconds. If it answers `DOC_AMBIGUOUS` (two
+  open documents share the name), call it again with `doc` set to the right
+  one of the full paths in `details.candidates`; `live_status` without `doc`
+  lists the open documents. Without those tools, or if the tool fails, follow
+  the `steps`.
 - **A chat without either**: the `writer` line.
 
 ## Take the writer to a passage

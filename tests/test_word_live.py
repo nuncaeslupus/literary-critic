@@ -176,13 +176,14 @@ def test_the_live_engine_does_it_when_word_has_the_document_open(
 
 def test_without_the_live_engine_the_steps_carry_the_mcp_call(tmp_path: Path) -> None:
     """Where doc-control cannot reach Word (Cowork's sandbox, the document not open), the
-    computer-use steps come with the doc-control MCP call that would do it, and why not."""
+    computer-use steps come with the doc-control MCP call that would do it, and why not.
+    Its ``doc`` is the bare file name, which doc-control resolves on the writer's computer."""
     doc = str(tmp_path / "N.docx")
     out = word_live.call("locate", {**PAYLOADS["locate"], "path": doc, "at": "p7#0a1b2c3d"})
     assert out["status"] == "manual" and out["steps"]
     assert out["live"] == {
         "tool": "live_select",
-        "arguments": {"doc": doc, "at": "p7#0a1b2c3d"},
+        "arguments": {"doc": "N.docx", "at": "p7#0a1b2c3d"},  # the bare name: see the docstring
         "error": {"code": "LIVE_UNAVAILABLE", "message": "no live app"},
     }
     close = word_live.call("close", {"document": doc, "save": True})
