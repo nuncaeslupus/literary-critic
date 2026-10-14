@@ -1,12 +1,12 @@
 # Handover
 
-**Last session (2026-10-14):** `lc word` acts in the open Word through doc-control's live engine (PR #147, branch `feat/word-live-engine`). Record in `status/evidence/W9-walkthrough.md`, "`lc word` through doc-control's live engine".
+**Last session (2026-10-14, evening):** live Word through doc-control, workspace paths, the "who writes?" choice. Merged: #147 (`lc word` tries doc-control's `live.*` first; locate selects by `at`, else by the Find phrase; a failure, `LIVE_TIMEOUT` = 10 s or an unselected result leaves the computer-use steps; conflict with #160 resolved keeping both), #148 (manuscript paths relative to the novel's folder), #150 ("take me to chapter 7", lists of places with one click each, "Done." for direct requests), #161 (the AI-text notice shown with "who writes?"; `prose_suggestions` is `false` / `"minor"` / `true`).
 
-- **Done on the host:** `lc docx locate` prints `path` and `at`; `lc word` locate/save/close/reopen/selection try `live.*` first and answer `status: done` (locate selected the paragraph in 1.8 s). When Word is out of reach, the steps carry `live: {tool, arguments, error}`, which is the doc-control MCP call to make. Requires doc-control 0.6, plus the `live` extra on Windows.
-- **Still waiting on the owner:** add doc-control's MCP server to the desktop app (Settings → Developer → Edit Config; `mcpServers` → `doc-control`: `uvx --from "doc-control[live]" doc-control mcp`), restart, then in Cowork call `live_select` on a document open in Word.
-- **Cowork path problem:** the MCP server needs the path on the writer's computer, and Cowork's sandbox only knows `/tmp/claude-0/...`. The doc-control session was asked (2026-10-14) for `live.status` to list open documents, or for live ops to accept a bare file name when only one open document matches. Its answer is pending.
-- **Generic bug, task chip offered:** `state/manuscript.json` and `state/documents.json` store absolute paths, so a workspace made in Cowork does not work on the host. Those paths should be relative to the novel's folder.
-- **Later:** use doc-control's live `batch` (tracked edits in the open Word) instead of close → edit → reopen.
+- **doc-control 0.6.1 adopted:** `live.status` lists open documents; a bare file name works as `doc` (so Cowork's sandbox paths no longer matter); `DOC_AMBIGUOUS` gives full paths in `details.candidates`. The owner's desktop app runs doc-control's MCP server and refreshes it on every start (`uvx --refresh-package`); the config change needs a full Quit of the app to apply.
+- **Waiting on doc-control #196:** centre the selected passage, safe select (no accidental typing over it), bring Word to the front, a `doc-control://` link scheme (owner's decision). The doc-control session will say when it ships; then adopt it in `src/litcritic/word_live.py` and `prompts/80-live-word.md`.
+- **Later, owner's request:** spec headers, footers, page numbers, sections and front matter (ask the doc-control session what it ships first). Broaden the tool to other documents (thesis: references, citations, indexes) as a shared core plus per-kind packs; rename (e.g. doc-helper) only once a second pack exists. Both go through explore-idea → specify.
+- **Guard false positive:** the owner's test workspace `guard-terms.txt` lists the corpus novel's title, so `lc guard` flags `corpus/` files; ignore it or drop that term there.
+- **Still not done:** `SKILL.md` does not mention the update check, `l1` or the `minor` level.
 
 **Last session (2026-10-14, day):** install workspace — spec and plan approved; T1 version stamp (#158), T5 owner hand tests (#159, `status/evidence/install-Q1-Q3.md`), T3 live-first locate (#160), T2 update check (#162), T4 prompts (#163) merged.
 
