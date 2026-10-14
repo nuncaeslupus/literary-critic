@@ -9,6 +9,7 @@ validation were not run.
 | File | Use it to |
 |------|-----------|
 | `00-guide.md` | Talk to the writer: modes, language, the two channels, house rules. Read first, every session. |
+| `01-chat-guide.md` | The short guide the desktop extension's `resume` returns: the work by name, the two channels, writer rules, one-call jumps. |
 | `05-setup.md` | First contact: check what this Claude can do, find the novel, agree how to work (setup wizard). |
 | `10-ingest-and-structure.md` | Bring a draft in, check its structure, correct it with overrides. |
 | `20-codex-items.md` | Index the novel in packets (`lc index`): entities, scenes, setups, new names; spot fixes by hand; write the synopsis. |
