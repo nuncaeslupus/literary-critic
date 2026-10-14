@@ -21,7 +21,7 @@ import unicodedata
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from litcritic import dc
@@ -237,7 +237,42 @@ def _read_state(ws_root: Path) -> Path:
     return ws_root / "state" / "documents.json"
 
 
+def stored_path(ws_root: Path, doc: Path) -> str:
+    """How the workspace records ``doc``: relative to the novel's folder (the
+    workspace's parent) when it lies inside it, so the workspace still works when that
+    folder is reached by another path (Cowork's sandbox, the writer's computer, a later
+    conversation); absolute otherwise."""
+    doc = doc.resolve()
+    try:
+        return doc.relative_to(ws_root.resolve().parent).as_posix()
+    except ValueError:
+        return str(doc)
+
+
+def recorded_path(ws_root: Path, stored: str) -> Path:
+    """The document a workspace recorded as ``stored``. An absolute path that is gone
+    (recorded where the novel's folder had another path) is found again under the
+    novel's folder by its longest tail that exists there."""
+    base = ws_root.resolve().parent
+    path = Path(stored)
+    # recorded on another system: a sandbox's /tmp/... is not absolute to Windows
+    other = next(
+        (p for p in (PurePosixPath(stored), PureWindowsPath(stored)) if p.is_absolute()), None
+    )
+    if other is None:
+        return (base / path).resolve()
+    if path.is_absolute() and path.exists():
+        return path.resolve()
+    parts = other.parts[1:]
+    for i in range(len(parts)):
+        candidate = base.joinpath(*parts[i:])
+        if candidate.is_file():
+            return candidate.resolve()
+    return path
+
+
 def _load_reads(ws_root: Path) -> dict[str, dict[str, Any]]:
+    """The documents read, keyed by their absolute path here."""
     f = _read_state(ws_root)
     if not f.is_file():
         return {}
@@ -245,7 +280,16 @@ def _load_reads(ws_root: Path) -> dict[str, dict[str, Any]]:
         data = json.loads(f.read_text(encoding="utf-8"))
     except ValueError:
         return {}
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        return {}
+    reads: dict[str, dict[str, Any]] = {}
+    for key, row in data.items():
+        if not isinstance(row, dict):
+            continue
+        path = str(recorded_path(ws_root, key))
+        if int(reads.get(path, {}).get("seq", 0)) <= int(row.get("seq", 0)):
+            reads[path] = {**row, "path": path}
+    return reads
 
 
 def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
@@ -255,7 +299,7 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     state = _load_reads(ws_root)
     seq = max((int(r.get("seq", 0)) for r in state.values()), default=0) + 1
     state[str(doc.resolve())] = {
-        "path": str(doc),
+        "path": str(doc.resolve()),
         "sha256": digest,
         "seq": seq,  # read order (read_at has one-second resolution)
         "read_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -263,7 +307,11 @@ def record_read(ws_root: Path, doc: Path, data: bytes | None = None) -> str:
     f = _read_state(ws_root)
     f.parent.mkdir(parents=True, exist_ok=True)
     tmp = f.with_suffix(".tmp")
-    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    stored = {
+        stored_path(ws_root, Path(k)): {**r, "path": stored_path(ws_root, Path(k))}
+        for k, r in state.items()
+    }
+    tmp.write_text(json.dumps(stored, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     os.replace(tmp, f)
     return digest
 
