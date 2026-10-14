@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from test_docx_cli import _corpus_docx, _workspace
 
-from litcritic import word_live
+from litcritic import dc, word_live
 from litcritic.cli import main
 
 LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
@@ -18,6 +18,16 @@ PAYLOADS: dict[str, dict[str, Any]] = {
     "reopen": {"document": "N/N.docx"},
     "selection": {"document": "N/N.docx"},
 }
+
+
+@pytest.fixture(autouse=True)
+def _no_live_word(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test reaches a real Word: the live engine is out of reach unless a test says."""
+
+    def unreachable(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        raise dc.DocError("LIVE_UNAVAILABLE", "no live app")
+
+    monkeypatch.setattr(word_live, "_live", unreachable)
 
 
 def test_every_operation_answers_with_computer_use_steps() -> None:
@@ -123,3 +133,58 @@ def test_lc_word_reads_inline_and_file_payloads(
     request.write_text(json.dumps({**PAYLOADS["locate"], "find": 'I don\'t "know"'}))
     assert main(["word", "locate", "--payload", str(request)]) == 0
     assert "I don't" in " ".join(json.loads(capsys.readouterr().out)["steps"])
+
+
+def test_the_live_engine_does_it_when_word_has_the_document_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With a full path, `lc word` asks doc-control's live engine first; locate selects by
+    the paragraph's address, and the answer says it is done."""
+    doc = str(tmp_path / "N.docx")
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    def live(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        calls.append((word_live.LIVE[op], request))
+        if op == "locate":
+            return {"text": "Ya voy, dijo cansada.", "at": request["at"]}
+        return {"saved": True}
+
+    monkeypatch.setattr(word_live, "_live", live)
+    payload = {**PAYLOADS["locate"], "path": doc, "at": "p7#0a1b2c3d"}
+    out = word_live.call("locate", payload)
+    assert out == {
+        "status": "done",
+        "how": "live",
+        "selected": "Ya voy, dijo cansada.",
+        "writer": "In N.docx: Chapter 7, p. ≈112: the paragraph that starts “Ya voy…” "
+        "and ends “…cansada.”.",
+    }
+    assert calls[-1] == ("live.select", {"doc": doc, "at": "p7#0a1b2c3d"})
+    assert word_live.call("save", {"document": doc})["result"] == {"saved": True}
+    word_live.call("close", {"document": doc, "save": False})
+    assert calls[-1] == ("live.close", {"doc": doc, "save": False})
+    word_live.call("reopen", {"document": doc})
+    assert calls[-1] == ("live.open", {"doc": doc, "app": "word"})
+    # file edits never go through Word; a relative path or a passage without its address
+    # has no live request
+    calls.clear()
+    word_live.call("apply_edits", {"document": doc, "edits": []})
+    word_live.call("locate", {**PAYLOADS["locate"], "path": doc})
+    word_live.call("save", {"document": "N/N.docx"})
+    assert calls == []
+
+
+def test_without_the_live_engine_the_steps_carry_the_mcp_call(tmp_path: Path) -> None:
+    """Where doc-control cannot reach Word (Cowork's sandbox, the document not open), the
+    computer-use steps come with the doc-control MCP call that would do it, and why not."""
+    doc = str(tmp_path / "N.docx")
+    out = word_live.call("locate", {**PAYLOADS["locate"], "path": doc, "at": "p7#0a1b2c3d"})
+    assert out["status"] == "manual" and out["steps"]
+    assert out["live"] == {
+        "tool": "live_select",
+        "arguments": {"doc": doc, "at": "p7#0a1b2c3d"},
+        "error": {"code": "LIVE_UNAVAILABLE", "message": "no live app"},
+    }
+    close = word_live.call("close", {"document": doc, "save": True})
+    assert close["live"]["tool"] == "live_close" and close["live"]["arguments"]["save"] is True
+    assert "live" not in word_live.call("locate", PAYLOADS["locate"])

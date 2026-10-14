@@ -517,6 +517,9 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
         {
             "status": "ok",
             "document": _shown(root, doc),
+            # for `lc word locate`: the file where lc runs, and the paragraph's address
+            "path": str(doc.resolve()),
+            "at": at.split(":")[0],
             **places.find(at, text),
             "locator": places.locator(k),
         }
