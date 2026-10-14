@@ -79,7 +79,16 @@ When a reply names passages for the writer to look at (places to work on,
 findings, the repetitions of a word), and Word can be reached (any of the
 ways above), make each place a way there:
 
-- If you can show an interactive widget whose buttons send a chat message,
+- If you have doc-control's tools, list the places to `lc docx places`, each
+  as `lc docx locate` takes it (an anchor, a chapter's number, a quote):
+  `lc docx places 7 c03.s2.p4 --workspace <ws>` prints the call; call the tool in its `live`
+  (`live_places`) with its `arguments` exactly. The writer sees one button
+  per place, and a click takes Word there at once, without a message to you
+  (✓ when Word went there, ✗ when not: then take them there yourself as
+  above). Places listed under `missing` were not found: name them in plain
+  words. If the buttons do not show (the tool answers with the places as
+  text), use the next way.
+- Else, if you can show an interactive widget whose buttons send a chat message,
   show the places as a short list, each with a button ("Take me there" in the
   writer's language) that sends "Take me to <anchor>: “<first words>…”".
   The click comes back to you as that request: locate the anchor, take the

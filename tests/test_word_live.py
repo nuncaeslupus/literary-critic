@@ -256,3 +256,25 @@ def test_docx_locate_go_takes_word_there_in_one_step(
     two_steps = json.loads(capsys.readouterr().out)
     assert main(["docx", "locate", "c01.s1.p5", "--go", "--workspace", str(ws)]) == 0
     assert json.loads(capsys.readouterr().out) == two_steps
+
+
+def test_docx_places_is_one_live_places_call(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`lc docx places` turns a list into doc-control's `live_places`: one button per place,
+    each at the paragraph `lc docx locate` finds, the cursor left there; misses are listed."""
+    ws, _ = _workspace(tmp_path, _corpus_docx(120), anchor=True)
+    capsys.readouterr()
+    assert main(["docx", "locate", "c01.s1.p5", "--workspace", str(ws)]) == 0
+    one = json.loads(capsys.readouterr().out)
+    targets = ["c01.s1.p5", "c02", "no such words anywhere"]
+    assert main(["docx", "places", *targets, "--workspace", str(ws)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    args = out["live"]["arguments"]
+    assert out["live"]["tool"] == "live_places" and args["mode"] == "cursor"
+    assert args["doc"] == Path(one["path"]).name and len(args["places"]) == 2
+    first = args["places"][0]
+    assert first["at"] == one["at"] and one["locator"]["first_words"] in first["label"]
+    assert out["writer"].splitlines()[0] == f"1. {first['label']}"
+    assert [m["target"] for m in out["missing"]] == [targets[2]]
+    assert main(["docx", "places", targets[2], "--workspace", str(ws)]) == 1
