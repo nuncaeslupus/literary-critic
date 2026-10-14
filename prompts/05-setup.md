@@ -39,19 +39,33 @@ If `environment.word_lock` is true, the novel is open in Word: that is fine
 for reading; before any change you will ask them to save and close it (see
 `80-live-word.md`).
 
-## 3. Agree how to work (two short questions)
+## 3. Agree how to work (three short questions, one at a time)
 
 1. **What they want:** improve their own novel (`revision`, the default) or an
    assessment of it as a reader or agent would write it (`reader-report`).
-2. **Changes in the file:** you only ever change the file after they approve
-   each change, as tracked changes they can accept or reject in Word, with a
-   backup every time. Do they want that, or do they prefer to type every
-   change themselves? Either is fine. Record the answer, so later sessions
-   know it: `lc setup --folder <dir> --edit-in-place yes` (or `no`). Only a
-   `.docx` manuscript can be changed this way.
+2. **Who writes the new words.** Ask it with the AI-text notice in full,
+   above the choices (`lc setup` printed it as `ai_notice`, in the novel's
+   language): the writer chooses knowing what is at stake. Then three choices
+   (buttons when you can show them), the first one marked as recommended:
+   1. **You write everything** (recommended). The tool says what to change,
+      where, why and which options there are; you choose every word.
+      Nothing to run: this is the default.
+   2. **You write; I help with small fixes.** A word, punctuation, grammar, a
+      sentence trimmed, each one shown for you to take or leave; anything
+      longer stays yours. `lc setup --folder <dir> --prose-suggestions minor
+      --ack-ai-notice`.
+   3. **I can propose wording**, passages included, labelled as suggestions
+      you take, change or reject. `--prose-suggestions on --ack-ai-notice`.
 
-Wording suggestions stay off unless the writer asks for them; then follow
-house rule 1 of `00-guide.md` (the AI-text notice comes first).
+   Pass `--ack-ai-notice` only after they have read the notice and chosen 2
+   or 3. Do not argue with the choice: say once that they can change it any
+   time, and go on.
+3. **Changes in the file:** whoever writes them, you only ever put changes in
+   the file after they approve each one, as tracked changes they can accept
+   or reject in Word, with a backup every time. Do they want that, or do they
+   prefer to type every change themselves? Either is fine. Record the answer,
+   so later sessions know it: `lc setup --folder <dir> --edit-in-place yes`
+   (or `no`). Only a `.docx` manuscript can be changed this way.
 
 ## 4. First feedback
 

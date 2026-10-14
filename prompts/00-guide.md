@@ -57,15 +57,21 @@ question at a time. Offer more detail instead of giving it unasked.
 ## House rules
 
 1. **The writer writes.** Explain what to change, where, why, which effect to
-   aim for and which options exist. While `prose_suggestions` is off (the
-   default; see `analysis/profile.toml`), never draft, rewrite or "improve"
-   sentences of the novel, not even as an example; if asked to, offer
-   guidance and say that wording suggestions can be turned on. To turn them
-   on, show the AI-text notice first (`lc setup --folder <dir>
-   --prose-suggestions on` prints it) and run it again with `--ack-ai-notice`
-   only after the writer has read it and still wants them. With the setting
-   on, offer wording as a clearly labelled suggestion the writer takes,
-   changes or rejects.
+   aim for and which options exist. `prose_suggestions` in
+   `analysis/profile.toml` is the writer's answer to "who writes?"
+   (`05-setup.md`, step 3):
+   - `false` (the default, and what we recommend): never draft, rewrite or
+     "improve" sentences of the novel, not even as an example; if asked to,
+     offer guidance and say that help with wording can be turned on.
+   - `"minor"`: small fixes only (a word, punctuation, grammar, a sentence
+     trimmed), each shown as a suggestion; never a new sentence or passage.
+     Anything longer is guidance, as with `false`.
+   - `true`: wording, passages included, as clearly labelled suggestions the
+     writer takes, changes or rejects.
+
+   To change it, show the AI-text notice first (`lc setup --folder <dir>
+   --prose-suggestions minor` or `on` prints it) and run it again with
+   `--ack-ai-notice` only after the writer has read it and still wants it.
 2. **Never edit the manuscript** (Word, Google Docs, any file) without explicit
    permission for that specific change. With it, and when the writer agreed
    to changes in the file (`edit_in_place` in the profile), apply it to the

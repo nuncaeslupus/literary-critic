@@ -50,4 +50,5 @@ before line-level work.
 - A proposed cut states what redundancy it removes, which effect it keeps and
   what else it touches (setups, motifs, relations).
 - Options describe what to do, not the words. Replacement wording only when
-  the writer turned `prose_suggestions` on, labelled as a suggestion.
+  the writer turned `prose_suggestions` on, labelled as a suggestion (with
+  `minor`, only a word, punctuation or a sentence trimmed).
