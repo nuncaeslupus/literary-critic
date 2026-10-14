@@ -513,17 +513,21 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
             return _out({"status": "refused", "reason": "quote", "message": why}, 1)
         m = ADDRESS.fullmatch(at)
         k, text = (int(m.group(1)) - 1 if m else -1), args.target
-    return _out(
-        {
-            "status": "ok",
-            "document": _shown(root, doc),
-            # for `lc word locate`: the file where lc runs, and the paragraph's address
-            "path": str(doc.resolve()),
-            "at": at.split(":")[0],
-            **places.find(at, text),
-            "locator": places.locator(k),
-        }
-    )
+    found = {
+        "status": "ok",
+        "document": _shown(root, doc),
+        # for `lc word locate`: the file where lc runs, and the paragraph's address
+        "path": str(doc.resolve()),
+        "at": at.split(":")[0],
+        **places.find(at, text),
+        "locator": places.locator(k),
+    }
+    if args.go:
+        # one step for "take me there": `lc word locate` on this answer, in the same process
+        from litcritic import word_live
+
+        return _out(word_live.call("locate", {**found, "language": args.lang}))
+    return _out(found)
 
 
 def _status(args: argparse.Namespace, root: Path) -> int:
@@ -617,6 +621,11 @@ def register(sub: Any) -> None:
         "or a quote from the text",
     )
     p_lo.add_argument("--quote", action="store_true", help="search the target as text only")
+    p_lo.add_argument(
+        "--go",
+        action="store_true",
+        help="also take the open Word there: print what `lc word locate` would",
+    )
     common(p_lo)
     p_st = dsub.add_parser("status", help="is the document open, changed, backed up")
     common(p_st)

@@ -36,9 +36,12 @@ with computer use, and the plain line for the writer when you cannot.
    paragraph's address, for the live engine), `find` (Word's search text),
    `unique`, `paragraphs_after` and the plain `locator` (chapter, page, first
    and last words).
-2. Save that answer, exactly as printed, to a file, `locate.json` (a file,
-   because passages contain quotes and apostrophes); add `"language": "es"` for
-   a writer line in Spanish. Then `lc word locate --payload locate.json`.
+2. To take the writer there, run the same command with `--go`:
+   `lc docx locate c07 --go --workspace <ws>`. It finds the passage and
+   asks Word to go there in one step, so the writer waits less, and answers as
+   `lc word locate --payload locate.json` does, with the writer line in the novel's language.
+   (The two steps also work apart: save the answer of step 1, exactly as
+   printed, to `locate.json`, then `lc word locate --payload locate.json`.)
    - `"status": "done"`: Word is in front with the passage in the middle of
      the window and the cursor at its start (nothing selected, so a key
      pressed by accident cannot replace it). Answer a direct request ("take me to

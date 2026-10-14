@@ -239,3 +239,20 @@ def test_a_live_failure_falls_back_to_the_steps(
     out = word_live.call("locate", {**PAYLOADS["locate"], "path": str(tmp_path / "N.docx")})
     assert out["status"] == "manual" and out["how"] == "computer-use" and out["steps"]
     assert out["live"]["error"]["code"]
+
+
+def test_docx_locate_go_takes_word_there_in_one_step(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`lc docx locate --go` answers as `lc word locate` on its answer, in one command."""
+    ws, _ = _workspace(tmp_path, _corpus_docx(120), anchor=True)
+    capsys.readouterr()
+    assert main(["docx", "locate", "c01.s1.p5", "--workspace", str(ws)]) == 0
+    request = tmp_path / "locate.json"
+    # the writer line in the novel's language, as the prompt asks of the two steps
+    located = {**json.loads(capsys.readouterr().out), "language": "es"}
+    request.write_text(json.dumps(located, ensure_ascii=False), encoding="utf-8")
+    assert main(["word", "locate", "--payload", str(request)]) == 0
+    two_steps = json.loads(capsys.readouterr().out)
+    assert main(["docx", "locate", "c01.s1.p5", "--go", "--workspace", str(ws)]) == 0
+    assert json.loads(capsys.readouterr().out) == two_steps
