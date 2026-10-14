@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="b10a5f4db768382313a955867fb3dbe48b6938d3d658988926a514295ae45b39">
+<meta name="arsenal-source-sha256" content="18d90b8a9b40705cca6ee3d77b7358aa385810e24a7d5633befbfb572aac4037">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -161,7 +161,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 9 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 14 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -191,6 +191,11 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <li><a href="#s-spec-option-c-our-own-installer-for-t">Option C: Our own installer for the writer's computer</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-cli-contracts-additive">CLI contracts (additive)</a></li>
+<li><a href="#s-spec-inter-component-contracts">Inter-component contracts</a></li>
+<li><a href="#s-spec-data-changes">Data changes</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -201,7 +206,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <strong>Ticket / PR</strong>: workspace <code>install</code>
 <strong>Author</strong>: Claude (with the owner)
 <strong>Revision</strong>: 1
-<strong>Status</strong>: draft
+<strong>Status</strong>: approved (2026-10-14, revision 1) — without annotations
 <strong>Revision log</strong>:
 - r1 — first draft, from the owner's Cowork run (<code>status/evidence/W9-walkthrough.md</code>, "Owner's run in Cowork") and the open items in <code>arsenal/session/handover.md</code></p>
 <blockquote>
@@ -651,17 +656,176 @@ and the fallback chain do not depend on Q-1 and can be designed first.</p>
 <td>2026-10-14</td>
 </tr>
 </tbody>
-</table>
-<blockquote>
-<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>. Risks found so far:
-the Claude app's extension or MCP behaviour changes under us (mitigation: the
-fallback chain and <code>live_fallback_correct</code>); a network check slows every
-start (mitigation: short timeout, fail silent); an old uploaded Skill can never
-announce its own replacement (mitigation: the first release with the check
-says so in its notes; the wizard also checks when Claude fetches the tool);
-the computer-use window staying on top is the app's fault and not fixable here.</p>
-</blockquote></div>
+</table></div>
 <div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+<div class="sec-body"><p>Q-4 and Q-5 take the proposed answers with this approval: "latest" is the
+newest <code>vX.Y.Z</code> release tag of this repository, and Claude always asks once
+before updating.</p></div>
+<div class="note" data-for="s-spec-5"><label class="note-head" for="n-s-spec-5"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §5</span></label><textarea class="note-ta" data-key="s-spec-5" id="n-s-spec-5" data-label="§5 Contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-cli-contracts-additive">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI contracts (additive)</span></h4>
+<div class="sec-body"><h4><code>lc doctor [--json] [--no-network]</code></h4>
+<p>Prints problems as today; <code>--json</code> prints one object. New fields only; an older
+caller ignores them.</p>
+<pre><code class="language-json">{&quot;problems&quot;: [],
+ &quot;version&quot;: &quot;0.2.0&quot;, &quot;built&quot;: &quot;2026-10-20&quot;, &quot;source&quot;: &quot;kit&quot;,
+ &quot;latest&quot;: &quot;0.3.0&quot;, &quot;update_available&quot;: &quot;yes&quot;,
+ &quot;live&quot;: &quot;available&quot;}
+</code></pre>
+<ul>
+<li><code>source</code>: <code>kit</code> (kit zip), <code>skill</code> (Skill zip), <code>checkout</code> (git work tree), <code>package</code> (installed).</li>
+<li><code>latest</code>: newest release tag without the <code>v</code>, or <code>null</code> when unknown.</li>
+<li><code>update_available</code>: <code>yes</code> only when <code>version &lt; latest</code>; <code>no</code> when equal or
+  newer (a development build is never out of date); <code>unknown</code> offline, after a
+  3 s timeout, with <code>--no-network</code>, or in a <code>checkout</code>.</li>
+<li><code>live</code>: <code>available</code> when doc-control's <code>capabilities</code> lists the <code>live</code> engine
+  and it answers; <code>missing</code> otherwise. Never an error.</li>
+<li>The network read is one HTTPS GET of the repository's tags (stdlib
+  <code>urllib</code>), at most once per day per working folder (cached in
+  <code>&lt;ws&gt;/.cache/latest.json</code> when a workspace is known).</li>
+</ul>
+<h4><code>lc word locate|… --json</code> (result, additive)</h4>
+<p><code>how</code> gains the value <code>live</code>: <code>{"status": "done", "how": "live", "writer": "…"}</code>.
+Order: <code>live</code> → <code>computer-use</code> steps → plain locator (<code>how: "plain"</code>). Any
+failure of a step moves to the next one; the result never asks the writer a
+technical question.</p></div>
+<div class="note" data-for="s-spec-cli-contracts-additive"><label class="note-head" for="n-s-spec-cli-contracts-additive"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI contracts (additive)</span></label><textarea class="note-ta" data-key="s-spec-cli-contracts-additive" id="n-s-spec-cli-contracts-additive" data-label="CLI contracts (additive)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-inter-component-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Inter-component contracts</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Callee</th>
+<th>Protocol</th>
+<th>Contract</th>
+<th>Failure handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>word_live.call</code></td>
+<td>doc-control via <code>dc.py</code></td>
+<td>in-process / CLI</td>
+<td><code>capabilities</code> → <code>engines</code> contains <code>live</code>; <code>live.select {"doc", "find"}</code> → <code>{"selected": true}</code></td>
+<td>any <code>DocError</code>, timeout (10 s) or <code>selected: false</code> → computer-use steps</td>
+</tr>
+<tr>
+<td><code>kit.doctor</code></td>
+<td>GitHub tags of <code>nuncaeslupus/literary-critic</code></td>
+<td>HTTPS GET, 3 s timeout</td>
+<td>newest tag matching <code>v\d+\.\d+\.\d+</code></td>
+<td>any error → <code>unknown</code>, silent</td>
+</tr>
+<tr>
+<td><code>prompts/05-setup.md</code></td>
+<td><code>lc doctor --json</code></td>
+<td>CLI</td>
+<td>reads <code>update_available</code>, <code>live</code></td>
+<td>missing fields (older kit) → no notice</td>
+</tr>
+<tr>
+<td>doc-control (its session)</td>
+<td>Claude desktop app</td>
+<td>desktop extension / MCP</td>
+<td>one-click bundle (Q-1, Q-2)</td>
+<td>not in this repo</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-inter-component-contracts"><label class="note-head" for="n-s-spec-inter-component-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Inter-component contracts</span></label><textarea class="note-ta" data-key="s-spec-inter-component-contracts" id="n-s-spec-inter-component-contracts" data-label="Inter-component contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-data-changes">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data changes</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kit and Skill zips</td>
+<td>add <code>VERSION</code> file (<code>version</code>, <code>built</code>)</td>
+<td>yes</td>
+<td>yes (absent → version from the package)</td>
+</tr>
+<tr>
+<td><code>&lt;ws&gt;/.cache/latest.json</code></td>
+<td>new, disposable cache</td>
+<td>yes (delete)</td>
+<td>yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-data-changes"><label class="note-head" for="n-s-spec-data-changes"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Data changes</span></label><textarea class="note-ta" data-key="s-spec-data-changes" id="n-s-spec-data-changes" data-label="Data changes" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The tag read slows every start</td>
+<td>Med</td>
+<td>Med</td>
+<td>3 s timeout, once a day, silent on failure</td>
+<td>unit: mocked slow/failed network → <code>unknown</code> within 3.5 s</td>
+</tr>
+<tr>
+<td>A false "out of date" (dev build, untagged release)</td>
+<td>Med</td>
+<td>Med</td>
+<td>only <code>version &lt; latest</code> is <code>yes</code>; checkout is <code>unknown</code></td>
+<td>unit: the 5 scripted cases</td>
+</tr>
+<tr>
+<td>The Claude app changes MCP or extension behaviour</td>
+<td>Med</td>
+<td>High</td>
+<td>fallback chain; doc-control owns packaging</td>
+<td>unit: injected failures; hand: walkthrough per release</td>
+</tr>
+<tr>
+<td>Live select picks the wrong paragraph</td>
+<td>Low</td>
+<td>High</td>
+<td>same Find string <code>lc docx locate</code> already proves (100/100 on Word)</td>
+<td>hand: 10 located actions per platform</td>
+</tr>
+<tr>
+<td>An old uploaded Skill cannot announce its replacement</td>
+<td>High</td>
+<td>Low</td>
+<td>release notes say it; the wizard checks when Claude fetches the tool</td>
+<td>manual: release checklist</td>
+</tr>
+<tr>
+<td>Update notice interrupts a change being applied</td>
+<td>Low</td>
+<td>Med</td>
+<td>prompt rule: only at conversation start</td>
+<td>walkthrough judgment (<code>update_notice_plain</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><label class="note-head" for="n-s-spec-6"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></label><textarea class="note-ta" data-key="s-spec-6" id="n-s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
 </article>
 </section>
 </div>

@@ -12,7 +12,7 @@
 **Ticket / PR**: workspace `install`
 **Author**: Claude (with the owner)
 **Revision**: 1
-**Status**: draft
+**Status**: approved (2026-10-14, revision 1) — without annotations
 **Revision log**:
 - r1 — first draft, from the owner's Cowork run (`status/evidence/W9-walkthrough.md`, "Owner's run in Cowork") and the open items in `arsenal/session/handover.md`
 
@@ -304,17 +304,98 @@ and the fallback chain do not depend on Q-1 and can be designed first.
 | D-3 | Packaging the live engine for writers belongs to doc-control; literary-critic only detects and uses it | proposed | 2026-10-14 |
 | D-4 | A returning writer resumes from the existing working folder, without setup questions | proposed | 2026-10-14 |
 
-
-> Sections 5–6 (contracts, risks) are appended by `design`. Risks found so far:
-> the Claude app's extension or MCP behaviour changes under us (mitigation: the
-> fallback chain and `live_fallback_correct`); a network check slows every
-> start (mitigation: short timeout, fail silent); an old uploaded Skill can never
-> announce its own replacement (mitigation: the first release with the check
-> says so in its notes; the wizard also checks when Claude fetches the tool);
-> the computer-use window staying on top is the app's fault and not fixable here.
-
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+Q-4 and Q-5 take the proposed answers with this approval: "latest" is the
+newest `vX.Y.Z` release tag of this repository, and Claude always asks once
+before updating.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §5`
+> _(your notes here — replace this line)_
+
+### CLI contracts (additive)
+
+#### `lc doctor [--json] [--no-network]`
+
+Prints problems as today; `--json` prints one object. New fields only; an older
+caller ignores them.
+
+```json
+{"problems": [],
+ "version": "0.2.0", "built": "2026-10-20", "source": "kit",
+ "latest": "0.3.0", "update_available": "yes",
+ "live": "available"}
+```
+
+- `source`: `kit` (kit zip), `skill` (Skill zip), `checkout` (git work tree), `package` (installed).
+- `latest`: newest release tag without the `v`, or `null` when unknown.
+- `update_available`: `yes` only when `version < latest`; `no` when equal or
+  newer (a development build is never out of date); `unknown` offline, after a
+  3 s timeout, with `--no-network`, or in a `checkout`.
+- `live`: `available` when doc-control's `capabilities` lists the `live` engine
+  and it answers; `missing` otherwise. Never an error.
+- The network read is one HTTPS GET of the repository's tags (stdlib
+  `urllib`), at most once per day per working folder (cached in
+  `<ws>/.cache/latest.json` when a workspace is known).
+
+#### `lc word locate|… --json` (result, additive)
+
+`how` gains the value `live`: `{"status": "done", "how": "live", "writer": "…"}`.
+Order: `live` → `computer-use` steps → plain locator (`how: "plain"`). Any
+failure of a step moves to the next one; the result never asks the writer a
+technical question.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › CLI contracts (additive)`
+> _(your notes here — replace this line)_
+
+### Inter-component contracts
+
+| Caller | Callee | Protocol | Contract | Failure handling |
+|--------|--------|----------|----------|-----------------|
+| `word_live.call` | doc-control via `dc.py` | in-process / CLI | `capabilities` → `engines` contains `live`; `live.select {"doc", "find"}` → `{"selected": true}` | any `DocError`, timeout (10 s) or `selected: false` → computer-use steps |
+| `kit.doctor` | GitHub tags of `nuncaeslupus/literary-critic` | HTTPS GET, 3 s timeout | newest tag matching `v\d+\.\d+\.\d+` | any error → `unknown`, silent |
+| `prompts/05-setup.md` | `lc doctor --json` | CLI | reads `update_available`, `live` | missing fields (older kit) → no notice |
+| doc-control (its session) | Claude desktop app | desktop extension / MCP | one-click bundle (Q-1, Q-2) | not in this repo |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Inter-component contracts`
+> _(your notes here — replace this line)_
+
+### Data changes
+
+| Where | Change | Reversible | Forward-compatible |
+|-------|--------|------------|-------------------|
+| kit and Skill zips | add `VERSION` file (`version`, `built`) | yes | yes (absent → version from the package) |
+| `<ws>/.cache/latest.json` | new, disposable cache | yes (delete) | yes |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Data changes`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| The tag read slows every start | Med | Med | 3 s timeout, once a day, silent on failure | unit: mocked slow/failed network → `unknown` within 3.5 s |
+| A false "out of date" (dev build, untagged release) | Med | Med | only `version < latest` is `yes`; checkout is `unknown` | unit: the 5 scripted cases |
+| The Claude app changes MCP or extension behaviour | Med | High | fallback chain; doc-control owns packaging | unit: injected failures; hand: walkthrough per release |
+| Live select picks the wrong paragraph | Low | High | same Find string `lc docx locate` already proves (100/100 on Word) | hand: 10 located actions per platform |
+| An old uploaded Skill cannot announce its replacement | High | Low | release notes say it; the wizard checks when Claude fetches the tool | manual: release checklist |
+| Update notice interrupts a change being applied | Low | Med | prompt rule: only at conversation start | walkthrough judgment (`update_notice_plain`) |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 
