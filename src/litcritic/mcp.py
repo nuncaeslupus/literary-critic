@@ -29,6 +29,10 @@ from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
 SERVER_NAME = "literary-critic"
+UI_EXTENSION = "io.modelcontextprotocol/ui"
+UI_MIME = "text/html;profile=mcp-app"
+PLACES_URI = "ui://literary-critic/places"
+UI_PAGES = {PLACES_URI: Path(__file__).with_name("ui") / "places.html"}
 
 Handler = Callable[[dict[str, Any]], dict[str, Any]]
 
@@ -48,12 +52,16 @@ class Tool:
     handler: Handler
     properties: dict[str, Any] = field(default_factory=dict)
     required: tuple[str, ...] = ()
+    ui: str = ""  # the ``ui://`` page that renders this tool's result (MCP Apps)
 
     def listing(self) -> dict[str, Any]:
         schema: dict[str, Any] = {"type": "object", "properties": self.properties}
         if self.required:
             schema["required"] = list(self.required)
-        return {"name": self.name, "description": self.description, "inputSchema": schema}
+        out = {"name": self.name, "description": self.description, "inputSchema": schema}
+        if self.ui:
+            out["_meta"] = {"ui": {"resourceUri": self.ui, "visibility": ["model", "app"]}}
+        return out
 
 
 class Server:
@@ -86,7 +94,11 @@ class Server:
             self.client = params if isinstance(params, dict) else {}
             result: dict[str, Any] = {
                 "protocolVersion": self.client.get("protocolVersion") or PROTOCOL_VERSION,
-                "capabilities": {"tools": {}},
+                "capabilities": {
+                    "tools": {},
+                    "resources": {},
+                    "extensions": {UI_EXTENSION: {"mimeTypes": [UI_MIME]}},
+                },
                 "serverInfo": {"name": SERVER_NAME, "version": self.version},
             }
             if self.instructions:
@@ -98,6 +110,18 @@ class Server:
             return _result(msg_id, {"tools": [t.listing() for t in self.tools.values()]})
         if method == "tools/call":
             return self._call(msg_id, params)
+        if method == "resources/list":
+            pages = [{"uri": u, "name": p.stem, "mimeType": UI_MIME} for u, p in UI_PAGES.items()]
+            return _result(msg_id, {"resources": pages})
+        if method == "resources/templates/list":
+            return _result(msg_id, {"resourceTemplates": []})
+        if method == "resources/read":
+            uri = params.get("uri")
+            if uri not in UI_PAGES:
+                return _error(msg_id, -32002, f"resource not found: {uri}")
+            text = UI_PAGES[uri].read_text(encoding="utf-8")
+            contents = [{"uri": uri, "mimeType": UI_MIME, "text": text}]
+            return _result(msg_id, {"contents": contents})
         return _error(msg_id, -32601, f"method not found: {method}")
 
     def _call(self, msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
@@ -120,7 +144,11 @@ class Server:
             out, is_error = {"error": "internal", "detail": repr(exc)}, True
         self._note("call", name, "error" if is_error else "ok")
         text = json.dumps(out, ensure_ascii=False, indent=1)
-        return _result(msg_id, {"content": [{"type": "text", "text": text}], "isError": is_error})
+        result: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": is_error}
+        if tool.ui and not is_error:
+            result["structuredContent"] = out
+            result["_meta"] = {"ui": {"resourceUri": tool.ui}}
+        return _result(msg_id, result)
 
     def serve(self, stdin: TextIO, stdout: TextIO) -> None:
         for line in stdin:
@@ -328,6 +356,11 @@ def run_lc(grant: Any, work: str, argv: Any) -> dict[str, Any]:
     ws = _work(grant, work)
     if isinstance(ws, dict):
         return ws
+    return _run_argv(grant, ws, argv)
+
+
+def _run_argv(grant: Any, ws: Workspace, argv: list[str]) -> dict[str, Any]:
+    """Run ``lc`` in this process on ``ws``: output captured, paths confined."""
     for a in argv[1:]:
         if a.split("=")[0] in ("--workspace", "--home"):
             raise ToolError("not_allowed", detail=f"{a} is set by the tool")
@@ -356,6 +389,55 @@ WORK_HINT = (
     "Use when the writer talks about their novel or manuscript, or wants to continue, "
     "resume or work on it."
 )
+
+
+def _json_run(grant: Any, work: str, argv: list[str]) -> dict[str, Any]:
+    """A ``docx`` subcommand's JSON answer (they print JSON on success and on refusal)."""
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    ran = _run_argv(grant, ws, argv)
+    try:
+        out: dict[str, Any] = json.loads(ran["output"])
+    except ValueError:
+        return ran
+    return out
+
+
+def locate(grant: Any, work: str, target: str, go: bool = True) -> dict[str, Any]:
+    """Where a passage is for the writer, and with ``go`` Word taken there (`docx locate`)."""
+    return _json_run(grant, work, ["docx", "locate", target, *(["--go"] if go else [])])
+
+
+def places(grant: Any, work: str, targets: list[str]) -> dict[str, Any]:
+    """A list of places, rendered by the places page as one button each."""
+    if not targets:
+        raise ToolError("missing_arguments", missing=["targets"])
+    out = _json_run(grant, work, ["docx", "places", *[str(t) for t in targets]])
+    live = out.get("live")
+    if out.get("status") != "ok" or not isinstance(live, dict):
+        return out
+    shown: dict[str, Any] = {**live["arguments"], "writer": out.get("writer", "")}
+    if out.get("missing"):
+        shown["missing"] = out["missing"]
+    return shown
+
+
+SELECT_KEYS = ("at", "find_phrase", "find_phrase_across", "mode", "front")
+
+
+def select(args: dict[str, Any]) -> dict[str, Any]:
+    """The places page's button: doc-control's ``live.select`` in the open Word."""
+    from litcritic import dc
+
+    doc = str(args.get("doc") or "")
+    if not doc or "/" in doc or "\\" in doc:
+        raise ToolError("not_allowed", detail="doc is the open document's file name")
+    request = {"doc": doc, **{k: args[k] for k in SELECT_KEYS if k in args}}
+    try:
+        return {"ok": True, "result": dc.run("live.select", request)}
+    except dc.DocError as exc:
+        return {"ok": False, "error": {"code": exc.code, "message": exc.message}}
 
 
 WORK_ARG = {"type": "string", "description": "the novel's title or folder name"}
@@ -433,6 +515,38 @@ def tools(grant: Any) -> list[Tool]:
             lambda a: run_lc(grant, str(a.get("work") or ""), a.get("command")),
             {"work": WORK_ARG, "command": {"type": "array", "items": {"type": "string"}}},
             ("work", "command"),
+        ),
+        Tool(
+            "locate",
+            "Take the writer to a passage in the open Word: a chapter (by its number), a "
+            'scene, a paragraph anchor or a quote. Then say only "Done.".',
+            lambda a: locate(
+                grant, str(a.get("work") or ""), str(a.get("target") or ""), a.get("go", True)
+            ),
+            {"work": WORK_ARG, "target": {"type": "string"}, "go": {"type": "boolean"}},
+            ("work", "target"),
+        ),
+        Tool(
+            "places",
+            "Show a list of places in the novel as buttons; each click takes Word there.",
+            lambda a: places(grant, str(a.get("work") or ""), list(a.get("targets") or [])),
+            {"work": WORK_ARG, "targets": {"type": "array", "items": {"type": "string"}}},
+            ("work", "targets"),
+            ui=PLACES_URI,
+        ),
+        Tool(
+            "select",
+            "Put Word's cursor on a place (used by the places buttons).",
+            select,
+            {
+                "doc": {"type": "string"},
+                "at": {"type": "string"},
+                "find_phrase": {"type": "string"},
+                "find_phrase_across": {"type": "boolean"},
+                "mode": {"type": "string"},
+                "front": {"type": "boolean"},
+            },
+            ("doc",),
         ),
         Tool(
             "add_folder",
