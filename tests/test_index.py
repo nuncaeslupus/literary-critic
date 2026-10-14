@@ -756,7 +756,7 @@ def test_first_person_pov_is_accepted(ws: Path) -> None:
 
 def test_tiers_are_three_valued(base: Path) -> None:
     assert packets.TIERS == ("cheap", "standard", "strong")
-    assert packets.TIER == {"entities": "strong", "scenes": "standard"}
+    assert packets.TIER == {"entities": "strong", "scenes": "standard", "links": "strong"}
     assert set(packets.TIER.values()) <= set(packets.TIERS)
     for p in packets.load_plan(base)["packets"]:
         assert p["tier"] in packets.TIERS
