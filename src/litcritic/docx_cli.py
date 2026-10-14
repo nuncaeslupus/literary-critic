@@ -611,7 +611,11 @@ def register(sub: Any) -> None:
     p_rn.add_argument("--dry-run", action="store_true", help="list the hits, write nothing")
     common(p_rn)
     p_lo = dsub.add_parser("locate", help="the Word Find string and writer locator of a passage")
-    p_lo.add_argument("target", help="a paragraph anchor (c03.s1.p4) or a quote from the text")
+    p_lo.add_argument(
+        "target",
+        help="a paragraph anchor (c03.s1.p4), a chapter or scene (c03, c03.s1), "
+        "or a quote from the text",
+    )
     p_lo.add_argument("--quote", action="store_true", help="search the target as text only")
     common(p_lo)
     p_st = dsub.add_parser("status", help="is the document open, changed, backed up")

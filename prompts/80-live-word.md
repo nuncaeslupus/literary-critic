@@ -15,24 +15,31 @@ with computer use, and the plain line for the writer when you cannot.
 - **Cowork**: `lc` runs in a sandbox that cannot reach Word. If you have
   doc-control's tools (`live_select`, `live_open`, …: the writer added
   doc-control's server to Claude's desktop app), call the tool named in the
-  answer's `live`, with its `arguments`, but with `doc` set to the document's
-  path **on the writer's computer** (the folder they connected, not the
-  sandbox's path). It answers in a few seconds. Without those tools, or if the
-  tool fails, follow the `steps`.
+  answer's `live` with its `arguments` as they are: `doc` is the file name
+  alone, and doc-control finds the open document of that name on the writer's
+  computer. It answers in a few seconds. If it answers `DOC_AMBIGUOUS` (two
+  open documents share the name), call it again with `doc` set to the right
+  one of the full paths in `details.candidates`; `live_status` without `doc`
+  lists the open documents. Without those tools, or if the tool fails, follow
+  the `steps`.
 - **A chat without either**: the `writer` line.
 
 ## Take the writer to a passage
 
 1. `lc docx locate "<first words of the passage>" --workspace <ws>` (or an
-   anchor such as `c07.s2.p4`). It prints `path` and `at` (the file and the
+   anchor such as `c07.s2.p4`; a chapter `c07` or a scene `c07.s2` lands on its
+   first paragraph). For "take me to chapter 7", find the chapter's id in
+   `lc show --workspace <ws>` first: the novel's numbering and titles need not
+   match the ids. It prints `path` and `at` (the file and the
    paragraph's address, for the live engine), `find` (Word's search text),
    `unique`, `paragraphs_after` and the plain `locator` (chapter, page, first
    and last words).
 2. Save that answer, exactly as printed, to a file, `locate.json` (a file,
    because passages contain quotes and apostrophes); add `"language": "es"` for
    a writer line in Spanish. Then `lc word locate --payload locate.json`.
-   - `"status": "done"`: the passage is selected in Word. Tell the writer it
-     is there (the `writer` line says where).
+   - `"status": "done"`: Word is there. Answer a direct request ("take me to
+     chapter 7", a click on a place) with one word: "Done." ("Hecho." in
+     Spanish). The writer is looking at Word, not at a description of it.
    - `live.error` says the document is not open: open it
      (`lc word reopen --payload '{"document": "<path>"}'`, or `live_open` in
      Cowork) and repeat this step.
@@ -45,6 +52,22 @@ with computer use, and the plain line for the writer when you cannot.
      and Ctrl+S underlines): press only the keys the steps give.
 3. If none of this works, or the passage is not found, give the writer the
    `writer` line instead: chapter, page, and the quoted first and last words.
+
+## Lists of places: one click each
+
+When a reply names passages for the writer to look at (places to work on,
+findings, the repetitions of a word), and Word can be reached (any of the
+ways above), make each place a way there:
+
+- If you can show an interactive widget whose buttons send a chat message,
+  show the places as a short list, each with a button ("Take me there" in the
+  writer's language) that sends "Take me to <anchor>: “<first words>…”".
+  The click comes back to you as that request: locate the anchor, select it,
+  answer "Done.".
+- Otherwise number the places and end with one line: "Tell me a number and I
+  will take you there."
+
+Each place still shows its quoted first words, so the list reads on its own.
 
 ## Change the document (only what the writer approved)
 

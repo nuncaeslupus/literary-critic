@@ -8,8 +8,10 @@ the answer is ``{"status": "manual", "how": "computer-use", "steps": [...], "wri
 "..."}``: the steps the agent performs with computer use, and the plain instruction for
 the writer when computer use is not available. It also carries ``live``: the doc-control
 MCP tool and arguments that would do it, for an agent that has doc-control's MCP server
-on the writer's computer (``doc`` must then be the path there), and why the engine could
-not. literary-critic builds no live-Word code of its own.
+on the writer's computer, and why the engine could not. Its ``doc`` is the file name
+alone: the sandbox's path means nothing on the writer's computer, and doc-control (0.6.1+)
+resolves a bare name to the one open document of that name. literary-critic builds no
+live-Word code of its own.
 
 ``locate`` is fed by ``lc docx locate``: its whole answer is a valid request
 (``document``, ``path``, ``at``, ``find``, ``unique``, ``paragraphs_after``, ``locator``;
@@ -24,7 +26,7 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import Any
 
 from litcritic import dc, locate
@@ -283,7 +285,9 @@ def _with_live(
     if request is None:
         return out
     tool = LIVE[op].replace(".", "_")  # doc-control's MCP tool names
-    return {**out, "live": {"tool": tool, "arguments": request, "error": why}}
+    # the bare file name: doc-control resolves it to the open document of that name
+    arguments = {**request, "doc": PurePath(request["doc"]).name}
+    return {**out, "live": {"tool": tool, "arguments": arguments, "error": why}}
 
 
 def _cmd(args: Any) -> int:
