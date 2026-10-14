@@ -272,6 +272,12 @@ def resume(grant: Any, work: str = "") -> dict[str, Any]:
     return {"work": state(ws), "guide": guide()}
 
 
+def _add_folder(grant: Any) -> Handler:
+    from litcritic.folders import add_folder  # folders imports ToolError from here
+
+    return lambda a: add_folder(grant)
+
+
 WORK_HINT = (
     "Use when the writer talks about their novel or manuscript, or wants to continue, "
     "resume or work on it."
@@ -295,6 +301,13 @@ def tools(grant: Any) -> list[Tool]:
             "switches novels.",
             lambda a: resume(grant, str(a.get("work") or "")),
             {"work": {"type": "string", "description": "the novel's title or folder name"}},
+        ),
+        Tool(
+            "add_folder",
+            "Open the folder picker on the writer's screen to add the folder that holds a "
+            "novel the other tools cannot find. Offer it first; the writer's choice is the "
+            "permission.",
+            _add_folder(grant),
         ),
     ]
 
