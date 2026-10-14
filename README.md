@@ -1,7 +1,7 @@
-# literary-critic
+# <img src="https://raw.githubusercontent.com/nuncaeslupus/literary-critic/main/docs/logo.png" width="40" height="40" alt="" align="top"> literary-critic
 
 <p align="center">
-  <img src="docs/social-preview.png" width="100%" alt="literary-critic: editor-grade feedback on a whole novel. An LLM indexes, analyses and advises across drafts; the writer writes.">
+  <img src="https://raw.githubusercontent.com/nuncaeslupus/literary-critic/main/docs/hero.png" width="100%" alt="literary-critic: three panels — a manuscript page cut into paragraph anchors with a word marked in red, a codex card for a character whose eye colour differs between two anchors, and a round of revision advice ordered structure, scene, line">
 </p>
 
 Tooling that lets an LLM work through a full novel manuscript as a professional
