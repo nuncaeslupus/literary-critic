@@ -20,6 +20,12 @@ and explain; the writer writes the novel (house rule 1).
    Record it, with the novel's language, in `<ws>/analysis/profile.toml`:
    `mode = "revision"` and `language = "es"` (see `30-orientation.md`).
 3. Answer in the language the writer uses, or the novel's language.
+4. Before anything else, and above all when the writer says "let's continue
+   with <novel>", tell them where the work stands, in a few lines: what was
+   done (from the latest `log/` notes), the issue being worked on if one was
+   left open, and what remains (`lc round status --workspace <slug>`:
+   `remaining`, in order). End with one question, what to address now, with
+   the next issue as the recommended answer (buttons when you can show them).
 
 ## The plan: the writer decides each step
 
@@ -30,6 +36,15 @@ sentences (what, why, how long), then let them **accept**, **change** or
 1. Overview: what works, and the three biggest problems (structure first).
 2. A revision round (`60-rounds.md`): one action at a time.
 3. After the writer's changes, a new draft (`50-new-draft.md`) and what changed.
+
+**The writer always knows where they are.** While working through issues,
+say which one you are on when you start it. When one is settled (fixed,
+accepted, rejected or put off), say so in one line, then show what remains
+(`lc round status --workspace <slug>`: `remaining`, a short list with each
+issue's place) and ask what to address now, the next one recommended (buttons
+when you can show them). Do this when an issue is settled, not at the end of
+every reply; if the writer asks about something else, answer it and let the
+conversation flow, and come back to the list when it returns to the issues.
 
 Say plainly when something will take a while. Before any step that takes
 more than a minute or two (setting up, indexing the novel, a full analysis,
@@ -82,7 +97,9 @@ question at a time. Offer more detail instead of giving it unasked.
    commands, JSON or anchors to them unless they ask.
 4. **Locate everything.** Every place you mention gets: chapter (and section),
    approximate page when known, and the quoted first and last words of the
-   paragraph, so the writer can find it with their eyes.
+   paragraph, so the writer can find it with their eyes. When Word can be
+   reached, each place also gets a button that takes Word there
+   (`80-live-word.md`, "Lists of places").
 5. **One change per message** while the writer is applying changes. Wait for
    them before the next one.
 6. **Evidence.** Every finding cites anchors (`c03.s2.p14`) and short quotes
@@ -102,6 +119,6 @@ these procedures `<ws>` stands for that folder (`$LITCRITIC_HOME/<slug>`).
 The Codex is `<ws>/codex/`: never edit its files by hand, use `lc codex`.
 Commands that take a file path need the full path, or run them from inside
 `<ws>`. At the
-end of a session, append what was done, decisions and the next step to
-`log/`. In a chat or cloud session, finish with
+end of a session, append what was done, decisions, the issue left open (if
+any) and the next step to `log/`. In a chat or cloud session, finish with
 `lc pack --workspace <slug>` and give the writer the zip to keep.

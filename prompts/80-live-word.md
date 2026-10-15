@@ -75,9 +75,14 @@ is not `"status": "done"`.
 
 ## Lists of places: one click each
 
-When a reply names passages for the writer to look at (places to work on,
-findings, the repetitions of a word), and Word can be reached (any of the
-ways above), make each place a way there:
+A button is the fastest way there: a click moves Word at once, while asking
+you to take them there costs a whole turn. So whenever the conversation is
+about part of the novel (the issue being worked on, a chapter, a scene, a
+character's moments, findings, the repetitions of a word), and Word can be
+reached (any of the ways above), give a button for every place the reply is
+about, unasked — one place included. Do it before the writer has to ask
+"take me there"; leave it out only when the reply names no place. Make each
+place a way there:
 
 - If you have doc-control's tools, list the places to `lc docx places`, each
   as `lc docx locate` takes it (an anchor, a chapter's number, a quote):
