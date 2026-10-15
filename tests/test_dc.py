@@ -21,7 +21,7 @@ def test_dc_check_rejects_other_major(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setattr(dc, "_execute", fake)
     with pytest.raises(dc.DocError) as err:
-        dc.run("capabilities", {})
+        dc.run("server.capabilities", {})
     assert err.value.code == "API_UNSUPPORTED" and "pip install" in err.value.hint
 
 
@@ -49,9 +49,9 @@ def test_dc_source_names_how_a_text_file_was_read(tmp_path: Path) -> None:
 
 
 def test_dc_run_returns_result_and_raises_error_envelopes() -> None:
-    assert "operations" in dc.run("capabilities", {})
+    assert "operations" in dc.run("server.capabilities", {})
     with pytest.raises(dc.DocError) as err:
-        dc.run("info", {"doc": "/nonexistent/x.docx"})
+        dc.run("doc.info", {"doc": "/nonexistent/x.docx"})
     assert err.value.code and err.value.message
 
 

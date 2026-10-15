@@ -139,9 +139,9 @@ def segment(
     request: dict[str, Any] = {"profile": profile, "language": _language(language)}
     if overrides:
         request["overrides"] = overrides
-    found = doc.run("segment", {**request, "unit": "chapters"})
-    parts_found = doc.run("segment", {**request, "unit": "parts"})["parts"]
-    scene_reply = doc.run("segment", {**request, "unit": "scenes"})
+    found = doc.run("doc.segment", {**request, "unit": "chapters"})
+    parts_found = doc.run("doc.segment", {**request, "unit": "parts"})["parts"]
+    scene_reply = doc.run("doc.segment", {**request, "unit": "scenes"})
     scenes_found = scene_reply["scenes"]
     errors = [
         f"{o['kind']} {o['action']} {o['fp']}"

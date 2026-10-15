@@ -54,7 +54,7 @@ def _comments(path: Path) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     request: dict[str, object] = {"doc": str(path), "limit": 1000}
     while True:
-        result = dc.run("comments.list", request)
+        result = dc.run("comment.list", request)
         out += result["comments"]
         if "_next" not in result:
             return out
@@ -97,7 +97,7 @@ def test_add_comments_errors(tmp_path: Path) -> None:
     path.write_bytes(docgen.docx([("Uno dos tres.", False), ("", False), ("Tres cuatro.", False)]))
     first, second = (p.at for p in ingest.read(path).paragraphs)
     assert docx_out.add_comments(path, {second: ["c"], first: ["a", "b"]}) == 2
-    texts = [c["text"] for c in dc.run("comments.list", {"doc": str(path)})["comments"]]
+    texts = [c["text"] for c in dc.run("comment.list", {"doc": str(path)})["comments"]]
     assert texts == ["a\nb", "c"]
     with pytest.raises(docx_out.DocxError):  # an address the document does not have
         docx_out.add_comments(path, {"p9#00000000": ["x"]})

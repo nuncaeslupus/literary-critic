@@ -204,7 +204,7 @@ def _title(path: Path) -> str:
 def _word_lock(manuscript: Path) -> bool:
     """Word has the manuscript open (doc-control reads its lock file; .docx only)."""
     try:
-        return bool(dc.run("info", {"doc": str(manuscript)}).get("word_lock"))
+        return bool(dc.run("doc.info", {"doc": str(manuscript)}).get("word_lock"))
     except dc.DocError:
         return False
 

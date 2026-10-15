@@ -126,7 +126,7 @@ def align_documents(
     """doc-control's ``diff`` of two documents, onto the paragraphs at those addresses
     (``text_mode``: how a ``.txt`` is cut into paragraphs)."""
     with dc.open(old_docx, text_mode=text_mode) as doc:
-        result = doc.run("diff", {"old": str(old_docx), "new": str(new_docx)})
+        result = doc.run("doc.diff", {"old": str(old_docx), "new": str(new_docx)})
     if result.get("next"):
         raise ValueError("doc-control returned a partial diff")
     return from_diff(result, old_at, new_at)

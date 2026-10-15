@@ -38,7 +38,7 @@ def add_comments(path: Path, targets: dict[str, list[str]]) -> int:
     ]
     try:
         if ops:
-            dc.run("batch", {"doc": str(path), "ops": ops, "author": AUTHOR})
+            dc.run("doc.batch", {"doc": str(path), "ops": ops, "author": AUTHOR})
     except dc.DocError as exc:
         raise DocxError(str(exc)) from exc
     return len(ops)

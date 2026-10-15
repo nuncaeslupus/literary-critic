@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 6, 0)  # the live engine (`lc word` selects in the open Word)
-INSTALL_HINT = "install doc-control 0.6 (API 1.x): pip install 'doc-control>=0.6,<0.7'"
+MIN_VERSION = (0, 7, 0)  # resource.action operation names
+INSTALL_HINT = "install doc-control 0.7 (API 1.x): pip install 'doc-control>=0.7,<0.8'"
 
 
 class DocError(Exception):
@@ -134,7 +134,7 @@ class Document:
         text, ``encoding`` and ``mode`` (``blocks``, ``lines`` or ``markdown``); empty
         for a Word document."""
         with _errors():
-            reply = self._handle().reply("info")
+            reply = self._handle().reply("doc.info")
         return dict((reply.doc or {}).get("source") or {})
 
     def close(self) -> None:
