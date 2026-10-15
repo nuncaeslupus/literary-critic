@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="e26c40ad6f9003ff5a769912b43811310bf4df5d58d04c3c87e0bb67dc81a73e">
+<title>Literary Critic — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#5f5c56;--line:#e3ded4;
+  --card:#ffffff;--accent:#0f766e;--accent2:#9a4a0b;--chip:#e8efed;
+  --note:#fffaf0;--note-line:#d9a441;--note-fg:#7a3b06;--code:#f1eee8;--link:#0f766e;
+  --measure:70ch;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#ebe9e4;--muted:#aaa69f;--line:#34313a;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#24302f;
+    --note:#221d12;--note-line:#8a6a22;--note-fg:#fcd34d;--code:#26242b;--link:#7ff0dc;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:calc(var(--measure) + 120px);margin:0 auto;padding:0 16px}
+a{color:var(--link);text-underline-offset:2px}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;font-size:.88em;line-height:1.5}
+pre code{background:none;padding:0;font-size:1em}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#9a4a0b}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:26px 0 6px}
+.hero h1{font-size:1.75rem;line-height:1.2;margin:.1em 0 .3em;letter-spacing:-.01em}
+.hero p{color:var(--muted);margin:.3em 0;max-width:var(--measure)}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:30px 0}
+.part-title{font-size:1.45rem;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 10px}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+/* Two heading levels, told apart by size, weight and a rule: a ## section opens
+   with a full-width rule; a ### section sits indented under it on a side rule. */
+.sec{scroll-margin-top:72px}
+.sec.l2{padding:14px 0 4px;border-top:1px solid var(--line);margin-top:10px}
+.part>.sec.l2:first-of-type{border-top:none;margin-top:0}
+.sec.l3{margin:6px 0 6px 2px;padding:2px 0 2px 14px;border-left:3px solid var(--line)}
+.sec-h{margin:6px 0 8px;line-height:1.3}
+h3.sec-h{font-size:1.3rem;font-weight:750}
+h4.sec-h{font-size:1.08rem;font-weight:650;color:var(--fg)}
+.sec.bare>.sec-h{margin-bottom:2px}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+h4 .chip{font-size:11px;color:var(--muted)}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p,.sec-body li,.sec-body blockquote{max-width:var(--measure)}
+.sec-body p{margin:.6em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body h4,.sec-body h5,.sec-body h6{font-size:1em;margin:1em 0 .3em}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;font-size:13.5px;line-height:1.45;margin:.6em 0;
+  display:block;max-width:100%;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+/* The note field: the one thing on the page that is the reviewer's, so it must
+   not read as more document. Dashed while empty, solid once written in. */
+.note{max-width:var(--measure);background:var(--note);border:1.5px dashed var(--note-line);
+  border-left:4px solid var(--note-line);border-radius:10px;padding:8px 12px;margin:12px 0 18px}
+.note:focus-within{border-style:solid;box-shadow:0 0 0 3px color-mix(in srgb,var(--note-line) 30%,transparent)}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;cursor:text}
+.note-ico{color:var(--note-fg);font-weight:800}
+.note-label{font-size:11.5px;font-weight:800;color:var(--note-fg);text-transform:uppercase;letter-spacing:.06em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:16px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:1}
+.note.filled{border-style:solid}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+/* Phone width: smaller type, no floating column over the text, the hint dropped. */
+@media(max-width:600px){
+  body{font-size:16px;padding-bottom:76px}
+  .hero h1{font-size:1.45rem}
+  .part-title{font-size:1.25rem}
+  h3.sec-h{font-size:1.15rem}
+  h4.sec-h{font-size:1rem}
+  .sec.l3{padding-left:10px}
+  .statusbar .hint{display:none}
+  .fab{left:0;right:0;bottom:0;flex-direction:row;justify-content:flex-end;gap:6px;padding:8px 10px;
+    flex-wrap:wrap;background:var(--bg);border-top:1px solid var(--line)}
+  .fab .btn{box-shadow:none;padding:7px 9px}
+  .toast{bottom:64px}
+}
+@media print{.topbar,.statusbar,.fab,.help,.note:not(.filled){display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Specification<small>annotatable reader · 2026-10-15</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 17 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Spec</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-extend-the-rounds-only">Option A: Extend the rounds only (Conservative)</a></li>
+<li><a href="#s-spec-option-b-a-plan-layer-above-the">Option B: A plan layer above the rounds, with change proposals in its log (Recommended)</a></li>
+<li><a href="#s-spec-option-c-the-plan-as-codex-items">Option C: The plan as Codex items</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-plan-contract-feature-1">Plan contract (feature 1)</a></li>
+<li><a href="#s-spec-change-contract-feature-2">Change contract (feature 2)</a></li>
+<li><a href="#s-spec-buttons-in-each-surface">Buttons in each surface</a></li>
+<li><a href="#s-spec-writing-plainly-decided-by-the-o">Writing plainly (DECIDED by the owner, depends on doc-control D-21)</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-cli-contracts-lc-stdlib-only-one">CLI contracts (lc, stdlib only; one JSON object on stdout; exit 0 done, 1 refused, 2 usage)</a></li>
+<li><a href="#s-spec-mcp-tools-lc-mcp">MCP tools (lc mcp)</a></li>
+<li><a href="#s-spec-inter-service-contracts">Inter-service contracts</a></li>
+<li><a href="#s-spec-workspace-file-changes">Workspace file changes</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Spec</h2>
+<article class="sec l2" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-15
+<strong>Ticket / PR</strong>: workspace <code>workplan</code>
+<strong>Author</strong>: Claude (with the owner)
+<strong>Revision</strong>: 1
+<strong>Status</strong>: approved (2026-10-15, revision 1) — without annotations
+<strong>Revision log</strong>:
+- r1 — first draft, from the owner's two requests (steerable plan; small changes
+  approved with buttons and written plainly) and the setup wording of PR #192;
+  doc-control dependencies cited as doc-control#318, #319 and #320 (D-21, D-22)</p>
+<blockquote>
+<p>Review record. Each round of reviewer notes makes a new revision: bump
+<strong>Revision</strong>, add a log line naming the export it applied
+(<code>- r2 — applied `&lt;repo&gt;-spec-v1-&lt;date&gt;-notes.md`</code>), and commit that
+export beside this file in the same commit. On approval set
+<strong>Status</strong> to <code>approved (YYYY-MM-DD, revision N)</code> and, when the reviewer sent
+no notes for that revision, add <code>— without annotations</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-intro"><label class="note-head" for="n-s-spec-intro"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></label><textarea class="note-ta" data-key="s-spec-intro" id="n-s-spec-intro" data-label="Preamble &amp; scope" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>The setup now asks the writer whether they want help with specific aspects, one
+at a time, or a full report, and promises that "the work follows a plan the
+writer steers" (<code>prompts/05-setup.md</code> q1, <code>prompts/00-guide.md</code> "The plan").
+Nothing holds that plan. The only work state a script keeps is the revision
+round (<code>src/litcritic/rounds.py</code>): the open problem issues of one editorial
+level, each an action with a status (<code>pending</code>, <code>accepted</code>, <code>rejected</code>, <code>done</code>,
+<code>deferred</code>) recorded as a Codex <code>decision</code>. A round cannot hold what the writer
+asks for that is not yet an issue ("look at the dialogue in the first
+chapters"), a skipped level, the parts of a reader report the writer wants to
+work through, or the order the writer chose. So a later session rebuilds
+"where the work stands" from free-text <code>log/</code> notes, and a skipped part comes
+back. Second, small changes the writer agrees to are applied by hand-writing
+<code>edits.json</code> and land as Word tracked changes. The owner finds Word's
+accept/reject review hard to follow. They want each small change put to them in
+the chat ("Replace «X» with «Y»?", Approve / Dismiss), then written plainly
+into the <code>.docx</code>, with Word taken to the place. Both are planned improvements.
+They decide whether a non-technical writer can steer the work and apply
+changes without learning Word's review pane.</p>
+<p><strong>Success criteria (measurable)</strong></p>
+<p>Plan (feature 1):</p>
+<ul>
+<li>[ ] <code>plan_replay_mismatches == 0</code>: over scripted event sequences (add, accept,
+  start, skip, reopen, move, done, changes), the stored <code>plan.json</code> equals a
+  fresh replay of <code>log.jsonl</code>.</li>
+<li>[ ] <code>invalid_transitions_accepted == 0</code>: every status transition outside the
+  allowed graph (§4, "Plan contract") is refused with exit 1 and writes nothing.
+  The test runs the full status × event matrix.</li>
+<li>[ ] <code>events_missing_fields == 0</code>: every logged event has <code>seq</code>, <code>at</code> (UTC),
+  <code>by</code> (<code>writer</code> / <code>tool</code>) and <code>event</code>, and every <code>skipped</code>, <code>dismissed</code> and
+  <code>reopened</code> event also has a non-empty <code>reason</code>. The CLI refuses an event
+  without them.</li>
+<li>[ ] <code>resume_names_where_work_stands == 1.0</code>: after a restart (new process,
+  fixture workspace mid-plan), <code>lc plan status</code> and the MCP <code>resume</code> state give
+  the active part, the next part, what remains, and the last five changes with
+  their reasons. Checked by test on five fixture states.</li>
+<li>[ ] <code>legacy_workspace_regressions == 0</code>: a workspace without <code>plan/</code> behaves
+  as today. The existing rounds, MCP and prompt tests pass unchanged, and
+  <code>lc plan status</code> on it proposes a plan seeded from its rounds instead of
+  failing.</li>
+</ul>
+<p>Small changes (feature 2):</p>
+<ul>
+<li>[ ] <code>approved_change_text_mismatches == 0</code>: over the fixture manuscripts, the
+  text diff after approving a change equals exactly that change's X → Y, and
+  nothing outside the edited runs changes (the existing <code>lc docx edits</code>
+  guarantees, reached through <code>lc change approve</code>).</li>
+<li>[ ] <code>writes_without_a_live_proposal == 0</code>: approving an unknown id, an id
+  already approved or dismissed, or a proposal whose quote no longer resolves
+  exactly once writes nothing and logs the refusal.</li>
+<li>[ ] <code>assistant_wording_accepted_when_prose_off == 0</code> and
+  <code>minor_size_violations_accepted == 0</code>: <code>lc change propose --by assistant</code>
+  is refused when <code>prose_suggestions</code> is <code>false</code>, and refused under <code>minor</code>
+  when Y exceeds the small-fix limit (§4). A Y from the writer is always
+  accepted.</li>
+<li>[ ] <code>dismissals_logged == 1.0</code>: every Dismiss leaves a <code>change.dismissed</code>
+  event with a reason (a default reason when the writer gave none) and touches
+  no file.</li>
+<li>[ ] <code>clicks_per_change == 1</code> on the desktop extension: one click on Approve
+  writes the change, takes Word to it and logs it. Judged on a scripted
+  walkthrough on the owner's PC: the card shows, one click, Word lands at the
+  new text, and <code>lc plan status</code> lists the change.</li>
+<li>[ ] After doc-control D-21 ships: <code>approved_change_revision_marks == 0</code> (no
+  <code>w:ins</code> / <code>w:del</code> written by an approved change) and
+  <code>undo_after_plain_change_mismatches == 0</code> (<code>lc docx undo</code> returns the
+  paragraph byte for byte).</li>
+<li>[ ] <code>tracked_wording_in_writer_texts == 0</code>: after the switch, no prompt, help
+  text or writer line says an approved change "shows as a tracked change" or
+  that "Word also marks it". A grep test lists the files (§2).</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><label class="note-head" for="n-s-spec-1"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></label><textarea class="note-ta" data-key="s-spec-1" id="n-s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src/litcritic/plan.py</code> + <code>lc plan</code> (new)</td>
+<td>Primary</td>
+<td>Owns the plan: parts, statuses, the event log, replay, status view</td>
+<td>Yes</td>
+<td>New module and CLI with tests</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/change.py</code> + <code>lc change</code> (new)</td>
+<td>Primary</td>
+<td>Stores small-change proposals, validates them (prose rule, size, quote resolves once), approves by calling the <code>docx edits</code> path, dismisses, renders the card text</td>
+<td>Yes</td>
+<td>New module; reuses <code>docx_cli</code> internals (<code>_resolve</code>, the batch call, <code>_written</code>)</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/rounds.py</code></td>
+<td>Primary</td>
+<td>Turns issues into actions; records decisions</td>
+<td>Yes, small</td>
+<td><code>build</code> gains optional <code>area</code> and <code>issues</code> filters so a plan part can run a round on one aspect or one report part. Statuses, <code>mark</code>, <code>status</code>, <code>remaining</code> and the Codex decisions are unchanged</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>src/litcritic/docx_cli.py</code></td>
+<td>Primary</td>
+<td>Writes the <code>.docx</code> through doc-control</td>
+<td>Yes</td>
+<td><code>"tracked": True</code> becomes plain (<code>"tracked": False</code>) once doc-control D-21 ships. The module docstring and the <code>docx</code> / <code>edits</code> / <code>rename</code> help ("tracked changes") are reworded. <code>undo</code> maps the entry it took back to its change id and logs <code>change.undone</code></td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/mcp.py</code> + <code>src/litcritic/ui/change.html</code> (new)</td>
+<td>UI</td>
+<td>The desktop extension's tools and MCP App pages</td>
+<td>Yes</td>
+<td>New <code>plan</code> tool; new <code>change_card</code> tool rendered by a change page whose buttons call the app-only <code>change_approve</code> / <code>change_dismiss</code>; <code>state()</code> and <code>next_step</code> read the plan when there is one</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/word_live.py</code></td>
+<td>Dependent</td>
+<td>Manual steps and writer lines for Word</td>
+<td>Yes</td>
+<td>The <code>apply_edits</code> / <code>rename</code> step "shows as a tracked change the writer can accept or reject" is reworded</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>src/litcritic/setup.py</code></td>
+<td>Dependent</td>
+<td><code>--edit-in-place</code> help ("as tracked changes")</td>
+<td>Yes</td>
+<td>Reworded</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>src/litcritic/workspace.py</code></td>
+<td>Dependent</td>
+<td>Workspace subfolders</td>
+<td>Yes</td>
+<td><code>plan</code> is added to <code>SUBDIRS</code>; <code>lc pack</code> / <code>unpack</code> and <code>lc remove</code> carry it (check, no code change expected)</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>Codex (<code>codex/</code>, <code>decision</code> type)</td>
+<td>Shared resource</td>
+<td>Issues and the writer's decisions on them</td>
+<td>No</td>
+<td>Stays the record of issue decisions. The plan references issue, action and decision ids and never copies them (§4)</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>prompts/00-guide.md</code>, <code>05-setup.md</code>, <code>60-rounds.md</code>, <code>80-live-word.md</code>, <code>01-chat-guide.md</code>, litcritic skill</td>
+<td>UI (LLM procedure)</td>
+<td>How the assistant runs the plan and puts changes to the writer</td>
+<td>Yes</td>
+<td>"The plan" section uses <code>lc plan</code>. Setup q1 seeds the plan. Rounds step 5 uses <code>lc change</code> instead of a hand-written <code>edits.json</code>. Live-Word step 4 and setup q3 drop the tracked-change wording. The three button surfaces are described once in <code>80-live-word.md</code></td>
+<td>Med</td>
+</tr>
+<tr>
+<td>doc-control (separate repo)</td>
+<td>Dependent (external)</td>
+<td><code>tracked: false</code> on <code>batch</code>, <code>term.rename</code>, <code>restore</code> (D-21: file engine <a href="https://github.com/nuncaeslupus/doc-control/issues/318">doc-control#318</a>, live engines <a href="https://github.com/nuncaeslupus/doc-control/issues/319">doc-control#319</a>, after #318)</td>
+<td>No (theirs)</td>
+<td>literary-critic needs a minimum doc-control version with D-21. A range overlapping an unresolved tracked change is refused there (<code>UNSUPPORTED_CONTENT</code>), and literary-critic must explain it plainly</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>doc-control <code>history.adopt</code> (separate repo)</td>
+<td>Dependent (external)</td>
+<td>A moved or renamed document takes its old history back; <code>open</code> lists <code>adoptable</code> candidates (D-22, <a href="https://github.com/nuncaeslupus/doc-control/issues/320">doc-control#320</a>)</td>
+<td>No (theirs)</td>
+<td>Not blocking. Until it ships, a novel moved without its <code>.doc-control/</code> folder loses <code>lc docx undo</code> for earlier changes; the change log still lists them. Once it ships, <code>lc docx status</code> can offer the adoption in plain words</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>tests/</code></td>
+<td>Dependent</td>
+<td>Pytest suite</td>
+<td>Yes</td>
+<td>New tests for plan, change, the MCP tools and page, the wording grep; existing tests unchanged</td>
+<td>Low</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Impact dimensions</strong></p>
+<ul>
+<li><strong>Data</strong> (Med): two new workspace files, <code>plan/log.jsonl</code> (append-only, the
+  source of truth) and <code>plan/plan.json</code> (a snapshot rebuilt from it).
+  Change proposals live in the same log. Nothing existing is migrated. A
+  workspace with rounds and no plan gets one seeded on first <code>lc plan</code> use.</li>
+<li><strong>API contracts</strong> (Low): additive CLI commands and MCP tools. <code>rounds.build</code>
+  gains optional keyword arguments only. The <code>lc docx edits</code> output keeps its
+  shape; <code>revisions</code> keeps counting changed spans.</li>
+<li><strong>User-facing</strong> (High): approved changes stop appearing in Word's review pane.
+  This is the owner's decision. A writer who used the tool before keeps their
+  earlier tracked changes as they were; the tool says so once.</li>
+<li><strong>Operational</strong> (Med): the plain-write switch waits on a doc-control release.
+  Until then the change cards ship and write tracked, as today, with today's
+  wording.</li>
+<li><strong>Performance</strong> (Low): a plan holds tens of parts and hundreds of events;
+  replay is milliseconds.</li>
+<li><strong>Risk of inaction</strong> (High): setup promises a plan nobody keeps, skipped
+  parts come back, sessions lose their place, and every applied change goes
+  through a review UI the owner cannot follow.</li>
+</ul></div>
+<div class="note" data-for="s-spec-2"><label class="note-head" for="n-s-spec-2"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></label><textarea class="note-ta" data-key="s-spec-2" id="n-s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2 bare" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+</article>
+<article class="sec l3" id="s-spec-option-a-extend-the-rounds-only">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: Extend the rounds only (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Keep the round as the only work state. A skipped level, or a
+  report part the writer picks, becomes a round flag. A part the writer adds
+  becomes an ad-hoc issue in the Codex, then a round action. Small changes stay
+  a hand-written <code>edits.json</code>, now with an <code>approved_in_chat</code> log line. The
+  chat shows changes as numbered text everywhere. The tracked flag flips once
+  doc-control ships.</li>
+<li><strong>Scope</strong>: <code>rounds.py</code>, <code>docx_cli.py</code>, prompts.</li>
+<li><strong>Effort</strong>: Small</li>
+<li><strong>Tradeoffs</strong>: Least code. But a round is "the open issues of one level, by
+  score": it has no place for the writer's order, for steps that are not issues
+  (overview, checks, report, new draft), or for "skip this level and why". Each
+  of those becomes a special case inside <code>build</code>. Writer-added parts would
+  become Codex issues before anyone has read the text for them, which breaks
+  "no anchor, no finding". No buttons, so each change costs a typed answer.</li>
+<li><strong>Compatibility</strong>: Fully backwards compatible.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-extend-the-rounds-only"><label class="note-head" for="n-s-spec-option-a-extend-the-rounds-only"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: Extend the rounds only (Conservative)</span></label><textarea class="note-ta" data-key="s-spec-option-a-extend-the-rounds-only" id="n-s-spec-option-a-extend-the-rounds-only" data-label="Option A: Extend the rounds only (Conservative)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-b-a-plan-layer-above-the">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: A plan layer above the rounds, with change proposals in its log (Recommended)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: A new <code>plan.py</code> owns an ordered list of <strong>parts</strong> (overview,
+  checks on an aspect, a round, the report, a report part to work through, a
+  new draft, or a free aspect the writer named) and an append-only event log of
+  every change to them and every small change put to the writer. Rounds stay
+  the engine for "work through these issues one at a time": a round part points
+  to <code>round-NN</code>, and its progress is read live from <code>rounds.status</code>, never
+  copied. Issue decisions stay Codex <code>decision</code> items. <code>lc change</code> stores each
+  small-change proposal, validates it, and on Approve runs the existing
+  <code>docx edits</code> path from the stored proposal. On the desktop extension the card
+  is an MCP App page with Approve / Dismiss buttons; elsewhere it is a widget
+  whose buttons send a chat message, or numbered text.</li>
+<li><strong>Scope</strong>: new <code>plan.py</code>, <code>change.py</code>, <code>ui/change.html</code>; small changes to
+  <code>rounds.py</code>, <code>docx_cli.py</code>, <code>mcp.py</code>, <code>word_live.py</code>, <code>setup.py</code>,
+  <code>workspace.py</code>; prompts.</li>
+<li><strong>Effort</strong>: Medium</li>
+<li><strong>Tradeoffs</strong>: One more state file, and a join between the plan, the rounds
+  and the Codex decisions for the status view. In return each store keeps one
+  job. The Codex holds what is known about the text, decisions included, and is
+  re-anchored on every new draft. Rounds turn issues into a letter. The plan
+  holds what the writer chose to do, in what order, and why. The writer's
+  steering never has to pretend to be an issue.</li>
+<li><strong>Compatibility</strong>: Additive. Workspaces without a plan run as today and get a
+  plan seeded from their rounds on first use.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-a-plan-layer-above-the"><label class="note-head" for="n-s-spec-option-b-a-plan-layer-above-the"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: A plan layer above the rounds, with change proposals in its log (Recommended)</span></label><textarea class="note-ta" data-key="s-spec-option-b-a-plan-layer-above-the" id="n-s-spec-option-b-a-plan-layer-above-the" data-label="Option B: A plan layer above the rounds, with change proposals in its log (Recommended)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-c-the-plan-as-codex-items">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: The plan as Codex items</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: New Codex types <code>step</code> and <code>change</code> (no spans required, like
+  <code>decision</code>), linked to issues. History comes from the Codex's item revisions
+  and retirements; order is a field.</li>
+<li><strong>Scope</strong>: <code>codex_types/step.toml</code>, <code>change.toml</code>, <code>codex_cli</code> commands,
+  <code>rounds.py</code>, prompts, MCP.</li>
+<li><strong>Effort</strong>: Medium</li>
+<li><strong>Tradeoffs</strong>: One store, and the Codex already has revisions, <code>by</code>,
+  <code>retire</code> and queries. But the Codex is the knowledge base about the novel,
+  synced and re-anchored on each draft and checked by <code>lc codex check</code>. Process
+  state would ride through every sync for nothing. A reorder rewrites many
+  items, and "every transition with its reason and time" would have to be
+  reconstructed from item revisions instead of read in order. The Codex guard
+  and question catalogue grow types no question needs.</li>
+<li><strong>Compatibility</strong>: Additive, but changes the Codex schema set every consumer
+  validates.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-the-plan-as-codex-items"><label class="note-head" for="n-s-spec-option-c-the-plan-as-codex-items"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: The plan as Codex items</span></label><textarea class="note-ta" data-key="s-spec-option-c-the-plan-as-codex-items" id="n-s-spec-option-c-the-plan-as-codex-items" data-label="Option C: The plan as Codex items" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Small</td>
+<td>Medium</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>Low code risk; high risk the plan stays a promise</td>
+<td>Medium; one new store, well bounded</td>
+<td>Medium; Codex schema and sync touched</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Partial: no writer-added parts, no order, no buttons</td>
+<td>Full: both features, every surface</td>
+<td>Full plan; changes still need B's card work</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>Full</td>
+<td>Full (additive)</td>
+<td>Additive, but every Codex consumer sees new types</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Special cases pile up in <code>build</code></td>
+<td>Three stores, one job each</td>
+<td>Process state mixed into the knowledge base</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><label class="note-head" for="n-s-spec-comparison"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></label><textarea class="note-ta" data-key="s-spec-comparison" id="n-s-spec-comparison" data-label="Comparison" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option B. The plan is a layer above the rounds, and the
+small-change proposals live in its log. Rounds are kept and extended only by
+two filters. Each store keeps one job: the Codex holds knowledge and the
+writer's decisions on issues, rounds work through issues, and the plan holds
+the writer's steering and its history. Every requirement the owner named fits
+without bending the other two: skip, add, iterative or report, logged with
+status, reason and time, read by the next session.</p></div>
+<div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-plan-contract-feature-1">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Plan contract (feature 1)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Files</strong>: <code>&lt;ws&gt;/plan/log.jsonl</code>, append-only and the source of truth; one
+  event per line: <code>seq</code>, <code>at</code> (UTC ISO), <code>by</code> (<code>writer</code> | <code>tool</code>), <code>event</code>,
+  <code>part</code> or <code>change</code>, <code>reason</code>, <code>refs</code> (round, issue, action, decision, change
+  ids). <code>&lt;ws&gt;/plan/plan.json</code> is the replayed snapshot, rewritten by every
+  command. It is never edited by hand; <code>lc plan check</code> verifies it against a
+  replay.</li>
+<li><strong>Mode</strong>: <code>lc plan init --mode iterative|report</code> from setup q1 (<code>iterative</code> ⇔
+  profile <code>mode = "revision"</code>, <code>report</code> ⇔ <code>reader-report</code>; the profile key is
+  unchanged). It seeds proposed parts. Iterative: overview, then the aspects
+  the writer picks. Report: checks, the report, then one <code>report-part</code> per
+  weakness section the writer wants to work through.</li>
+<li><strong>Part kinds</strong>: <code>overview</code>, <code>checks</code> (a checklist area), <code>round</code> (a level, an
+  area or an explicit issue list), <code>report</code>, <code>report-part</code> (the report section
+  and its issue ids), <code>new-draft</code>, <code>aspect</code> (the writer's own words, until
+  checks map it to issues). Each part has <code>id</code> (<code>P1</code>…), <code>kind</code>, <code>title</code> in the
+  writer's language, <code>status</code>, <code>order</code>, <code>origin</code> (<code>tool</code> | <code>writer</code>), and
+  <code>refs</code>.</li>
+<li><strong>Statuses and transitions</strong>: <code>proposed</code> → <code>todo</code> (the writer agreed) →
+  <code>active</code> (at most one at a time) → <code>done</code>. <code>proposed</code>, <code>todo</code> and <code>active</code>
+  can go to <code>skipped</code> (reason required). <code>skipped</code> and <code>done</code> can be
+  <code>reopened</code> (back to <code>todo</code>, reason required). Any part can be <code>moved</code> and
+  <code>edited</code> (title, refs); added parts enter as <code>proposed</code> (tool) or <code>todo</code>
+  (writer). Anything else is refused.</li>
+<li><strong>The LLM proposes, the script records</strong>: the assistant runs
+  <code>lc plan add|accept|start|skip|done|reopen|move</code> only on the writer's word,
+  with <code>--by writer</code> and their reason in their words. The <code>tool</code> origin covers
+  proposals and automatic facts (a round built, a change applied). <code>lc plan
+  next</code> returns the next <code>todo</code> part and the command that starts it, for
+  example <code>lc round build --area dialogue</code> for an aspect part.</li>
+<li><strong>Rounds</strong>: unchanged statuses, <code>mark</code>, <code>status</code>, <code>remaining</code>, letter and
+  Codex decisions. <code>build(level, area=None, issues=None)</code> adds the two filters.
+  The default order (structure, then scenes, then prose) stays the plan's
+  default proposal; skipping a level is a <code>skipped</code> round part, and the next
+  round is built with the level the plan names. A round part shows the round's
+  <code>remaining</code> inside it, and <code>lc plan</code> proposes <code>done</code> once the round can
+  close. The writer confirms.</li>
+<li><strong>Where the work stands</strong>: <code>lc plan status</code> gives the active part with its
+  round's <code>remaining</code>, the next parts, counts by status, and a timeline. The
+  timeline merges plan events, change events and the Codex decisions of the
+  plan's rounds, ordered by <code>at</code>, each with its reason. <code>mcp.state()</code> includes
+  that summary, and <code>next_step</code> follows the plan when there is one.
+  <code>00-guide.md</code> step 4 and "The writer always knows where they are" read it
+  instead of <code>log/</code> notes. <code>log/</code> stays for free-form session notes.</li>
+</ul></div>
+<div class="note" data-for="s-spec-plan-contract-feature-1"><label class="note-head" for="n-s-spec-plan-contract-feature-1"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Plan contract (feature 1)</span></label><textarea class="note-ta" data-key="s-spec-plan-contract-feature-1" id="n-s-spec-plan-contract-feature-1" data-label="Plan contract (feature 1)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-change-contract-feature-2">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Change contract (feature 2)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Propose</strong>: <code>lc change propose --workspace &lt;ws&gt; --quote X --prefix … --suffix
+  … --replace Y --why "…" --by writer|assistant [--part P3] [--action A7]
+  [--closes]</code>. The script checks that X resolves exactly once in the current
+  <code>.docx</code> (the same resolver as <code>docx edits</code>) and that the change stays inside
+  one paragraph. It applies the prose rule and the size limit below, stores the
+  proposal as <code>change.proposed</code> (<code>C1</code>…) with the document's sha256, and prints
+  the card: the writer-language line "Replace «X» with «Y»?", the plain locator
+  (chapter, page, first and last words), and who wrote Y ("your words" or
+  "suggested").</li>
+<li><strong>House rule 5, who proposes Y</strong>: <code>prose_suggestions = false</code> means only the
+  writer's own words, and <code>--by assistant</code> is refused. The card then serves
+  changes the writer dictated ("change <em>dijo</em> to <em>susurró</em>"). <code>"minor"</code> lets
+  the assistant propose a small fix: at most 12 changed words (the rounds'
+  <code>MAX_QUOTE_WORDS</code>), no new sentence. <code>true</code> allows suggested wording up to a
+  whole paragraph, still one paragraph per card. Longer rewrites are not small
+  changes: the writer types them. Every card labels a suggested Y as a
+  suggestion.</li>
+<li><strong>Approve</strong>: <code>lc change approve C1</code>. Only a <code>proposed</code> change whose document
+  still matches can be approved. It builds the edit from the stored proposal,
+  so nothing is retyped, and runs the <code>docx edits</code> path: backup, <code>expect.sha256</code>,
+  the refusal rules, verify-and-restore, <code>log/edits.jsonl</code>. It logs
+  <code>change.approved</code>, then <code>change.applied</code> or <code>change.refused</code> with the plain
+  reason. It returns the <code>docx locate --go</code> call for the new text, so the chat
+  takes Word to it. With <code>--closes</code>, it also runs <code>rounds.mark &lt;action&gt; done</code>.
+  With <code>edit_in_place = no</code>, or a non-<code>.docx</code> manuscript, Approve writes
+  nothing: it logs <code>change.approved</code> with <code>typed_by: writer</code>, takes the writer
+  to the place, and the card says "type it there".</li>
+<li><strong>Dismiss</strong>: <code>lc change dismiss C1 [--reason …]</code> logs <code>change.dismissed</code>; the
+  default reason is "dismissed in the chat". No file is touched, and the same
+  X → Y is not proposed again unless the writer asks.</li>
+<li><strong>Undo</strong>: <code>lc docx undo</code> stays the way to take a change back. It undoes the
+  tool's last write, as today, and when that write was a change it logs
+  <code>change.undone</code> on it. An older change is taken back by proposing the
+  reverse change (Y → X), which is a card of its own.</li>
+<li><strong>One change per message</strong> (house rule 5 of the guide): one card at a time.
+  A name changed everywhere is one card over <code>lc docx rename</code>, listing the
+  number of places.</li>
+</ul></div>
+<div class="note" data-for="s-spec-change-contract-feature-2"><label class="note-head" for="n-s-spec-change-contract-feature-2"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Change contract (feature 2)</span></label><textarea class="note-ta" data-key="s-spec-change-contract-feature-2" id="n-s-spec-change-contract-feature-2" data-label="Change contract (feature 2)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-buttons-in-each-surface">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Buttons in each surface</span></h4>
+<div class="sec-body"><ol>
+<li><strong>Desktop extension (<code>lc mcp</code>, MCP Apps)</strong>: a <code>change_card</code> tool rendered by
+   <code>ui://literary-critic/change</code>, built like the places page. Its Approve and
+   Dismiss buttons call the server tools <code>change_approve</code> / <code>change_dismiss</code>
+   with the change id only, through the page's <code>tools/call</code>. Both tools have
+   <code>visibility: ["app"]</code>, so on this surface a click is the only way to
+   approve. The page shows ✓ with the place, or the plain refusal reason. It
+   then sends a <code>ui/message</code> ("Approved C1" / "Dismissed C1") so the
+   conversation continues, if the host supports it (Q-1). Otherwise the
+   assistant reads <code>lc plan status</code> at the writer's next message.</li>
+<li><strong>A chat that can show a widget whose buttons send a message</strong> (claude.ai,
+   Cowork): the card as a small widget whose buttons send "Approve C1" /
+   "Dismiss C1". The assistant runs <code>lc change approve|dismiss</code> and takes Word
+   there the usual way (<code>80-live-word.md</code>).</li>
+<li><strong>Text only</strong>: "Replace «X» with «Y»? Answer <em>yes</em> or <em>no</em>." The writer's
+   yes or no is the click. Basic mode (no file access) is the same card with
+   <code>typed_by: writer</code>.</li>
+</ol>
+<p>doc-control's <code>live_places</code> page is not reused for the card: the extension
+serves its own pages (desktop D-6), and approval is literary-critic's decision
+record, not a generic document primitive.</p></div>
+<div class="note" data-for="s-spec-buttons-in-each-surface"><label class="note-head" for="n-s-spec-buttons-in-each-surface"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Buttons in each surface</span></label><textarea class="note-ta" data-key="s-spec-buttons-in-each-surface" id="n-s-spec-buttons-in-each-surface" data-label="Buttons in each surface" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-writing-plainly-decided-by-the-o">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Writing plainly (DECIDED by the owner, depends on doc-control D-21)</span></h4>
+<div class="sec-body"><p>Until doc-control ships <code>tracked: false</code> (<a href="https://github.com/nuncaeslupus/doc-control/issues/318">doc-control#318</a>), the cards ship and write
+tracked, with today's wording. When it lands, one change in literary-critic:</p>
+<ul>
+<li>Raise the minimum doc-control version. In <code>docx_cli.py</code>, <code>"tracked": True</code>
+  in the <code>batch</code> request becomes <code>"tracked": False</code>; pass <code>tracked: False</code> to
+  <code>term.rename</code>; <code>undo</code> is unchanged (doc-control undoes from the logged
+  paragraph bytes).</li>
+<li>Map doc-control's refusal of a range that overlaps an unresolved tracked
+  change (<code>UNSUPPORTED_CONTENT</code>) to a plain reason: "this sentence still has a
+  marked change from before; accept or reject it in Word first".</li>
+<li>Reword the writer-facing texts:<ul>
+<li>the <code>docx_cli.py</code> docstring and its <code>docx</code>, <code>edits</code> and <code>rename</code> help;</li>
+<li>the <code>setup.py</code> <code>--edit-in-place</code> help;</li>
+<li>the <code>word_live.py</code> <code>apply_edits</code> step;</li>
+<li><code>prompts/00-guide.md</code> house rule 2;</li>
+<li><code>prompts/05-setup.md</code> q3 ("Word also marks it" becomes "the change is
+written into your file; a copy is kept each time, and you can ask me to
+take it back");</li>
+<li><code>prompts/80-live-word.md</code> step 4 ("shows as a tracked change …" becomes
+"say what changed and where; to take it back, ask");</li>
+<li><code>prompts/60-rounds.md</code> step 5.
+  A grep test pins the wording.</li>
+</ul>
+</li>
+<li>When the live engines get plain writes (<a href="https://github.com/nuncaeslupus/doc-control/issues/319">doc-control#319</a>), Approve can write into
+  the open Word without the save-and-close step; until then the card says
+  "save and close Word first" when <code>locked</code>.</li>
+</ul>
+<p><strong>Immediate next action</strong>: on approval, hand this spec to <code>design</code> for the plan.
+Suggested order: <code>plan.py</code> and <code>lc plan</code> with replay tests; the rounds filters;
+<code>change.py</code> and <code>lc change</code> (tracked); the MCP card and page; the prompts. The
+plain-write switch is a separate task gated on doc-control's release.</p>
+<p><strong>Open questions</strong>:
+- [ ] Q-1: Does the Claude desktop app honour MCP Apps <code>ui/message</code> from a
+  page, so the model sees a click without the writer typing? To probe on the
+  owner's PC; the fallback above works either way.
+- [ ] Q-2: Should a writer who prefers Word's marks be able to keep tracked
+  writes (a profile setting), or is plain the only mode? Proposed: plain only,
+  as decided. Revisit if a writer asks.
+- [ ] Q-3: The small-change limits: 12 changed words under <code>minor</code>, one
+  paragraph under <code>on</code>. Do these match what the owner means by "small"?
+- [ ] Q-4: Should the overview the guide gives first be a plan part the writer
+  accepts, or always happen before the plan exists? Proposed: a seeded
+  <code>proposed</code> part, so even it can be skipped.</p>
+<p><strong>Decisions log</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Decision</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D-1</td>
+<td>An approved small change is written plainly, not as a tracked change; Word's accept/reject review is hard for the owner to follow. Depends on doc-control D-21 (<code>tracked: false</code> on <code>batch</code>, <code>term.rename</code>, <code>restore</code>; doc-control#318 file engine, #319 live engines)</td>
+<td>agreed (owner)</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td><code>lc docx undo</code> stays the way to take a change back</td>
+<td>agreed (owner)</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>The plan is a layer above the rounds (Option B), not an extension of them and not Codex items</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td><code>plan/log.jsonl</code> is append-only and the source of truth; <code>plan.json</code> is its replay</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>Issue decisions stay Codex <code>decision</code> items; the plan references them and never copies them</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-6</td>
+<td>Change proposals are stored by the script and approved by id; Approve rebuilds the edit from the stored proposal</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-7</td>
+<td>On the desktop extension the card is literary-critic's own MCP App page, with app-only approve/dismiss tools; widget-with-message and numbered text elsewhere</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-8</td>
+<td><code>prose_suggestions</code> gates who may supply Y: off = writer only, minor = small fixes, on = up to a paragraph</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+<tr>
+<td>D-9</td>
+<td>Cards write tracked until doc-control D-21 ships; the plain switch is its own task</td>
+<td>proposed</td>
+<td>2026-10-15</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-writing-plainly-decided-by-the-o"><label class="note-head" for="n-s-spec-writing-plainly-decided-by-the-o"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Writing plainly (DECIDED by the owner, depends on doc-control D-21)</span></label><textarea class="note-ta" data-key="s-spec-writing-plainly-decided-by-the-o" id="n-s-spec-writing-plainly-decided-by-the-o" data-label="Writing plainly (DECIDED by the owner, depends on doc-control D-21)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2 bare" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+</article>
+<article class="sec l3" id="s-spec-cli-contracts-lc-stdlib-only-one">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">CLI contracts (<code>lc</code>, stdlib only; one JSON object on stdout; exit 0 done, 1 refused, 2 usage)</span></h4>
+<div class="sec-body"><h4><code>lc plan init --workspace &lt;ws&gt; --mode iterative|report</code></h4>
+<p>Seeds the proposed parts for the mode. This happens once: a second <code>init</code> is
+refused. On a workspace that already has rounds, each round becomes a <code>round</code>
+part with the status its round implies, logged <code>by: tool</code>. The latest round with
+open actions is <code>active</code>; the others are <code>done</code>.</p>
+<pre><code class="language-json">{&quot;status&quot;: &quot;ok&quot;, &quot;mode&quot;: &quot;iterative&quot;,
+ &quot;parts&quot;: [{&quot;id&quot;: &quot;P1&quot;, &quot;kind&quot;: &quot;overview&quot;, &quot;title&quot;: &quot;Overview: what works, the biggest problems&quot;,
+            &quot;status&quot;: &quot;proposed&quot;, &quot;origin&quot;: &quot;tool&quot;, &quot;order&quot;: 1, &quot;refs&quot;: {}}]}
+</code></pre>
+<h4><code>lc plan add|accept|start|skip|done|reopen|move|edit</code></h4>
+<pre><code>lc plan add --kind aspect --title &quot;the dialogue in the first chapters&quot; --by writer [--after P2] [--refs-json '{&quot;area&quot;: &quot;dialogue&quot;}']
+lc plan accept P1 --by writer
+lc plan start P1 --by writer|tool
+lc plan skip P3 --by writer --reason &quot;the writer's words&quot;
+lc plan done P1 --by writer [--reason &quot;...&quot;]
+lc plan reopen P3 --by writer --reason &quot;...&quot;
+lc plan move P4 --after P1 --by writer
+lc plan edit P4 --title &quot;...&quot; [--refs-json '{...}'] --by writer|tool
+</code></pre>
+<p>Every command answers with the part it changed and the event it logged:</p>
+<pre><code class="language-json">{&quot;status&quot;: &quot;ok&quot;, &quot;part&quot;: {&quot;id&quot;: &quot;P3&quot;, &quot;status&quot;: &quot;skipped&quot;},
+ &quot;event&quot;: {&quot;seq&quot;: 12, &quot;at&quot;: &quot;2026-10-15T10:02:11.120000Z&quot;, &quot;by&quot;: &quot;writer&quot;,
+           &quot;event&quot;: &quot;skipped&quot;, &quot;part&quot;: &quot;P3&quot;, &quot;reason&quot;: &quot;the writer's words&quot;, &quot;refs&quot;: {}}}
+</code></pre>
+<p>A refusal exits 1 and writes nothing:
+<code>{"status": "refused", "reason": "transition" | "missing_reason" | "missing_by" | "unknown_part" | "one_active", "message": "..."}</code>.</p>
+<p>The transitions:</p>
+<ul>
+<li><code>proposed→todo</code> (accept).</li>
+<li><code>proposed|todo→active</code> (start). Refused while another part is active.</li>
+<li><code>active→done</code>.</li>
+<li><code>proposed|todo|active→skipped</code>.</li>
+<li><code>skipped|done→todo</code> (reopen).</li>
+<li><code>move</code> and <code>edit</code> work from any status.</li>
+</ul>
+<h4><code>lc plan status --workspace &lt;ws&gt; [--timeline N]</code>, <code>lc plan next</code>, <code>lc plan check</code></h4>
+<pre><code class="language-json">{&quot;status&quot;: &quot;ok&quot;, &quot;mode&quot;: &quot;iterative&quot;,
+ &quot;active&quot;: {&quot;id&quot;: &quot;P2&quot;, &quot;kind&quot;: &quot;round&quot;, &quot;title&quot;: &quot;First round&quot;, &quot;round&quot;: &quot;round-01&quot;,
+            &quot;remaining&quot;: [{&quot;id&quot;: &quot;A3&quot;, &quot;status&quot;: &quot;pending&quot;, &quot;severity&quot;: &quot;high&quot;}],
+            &quot;can_close&quot;: false},
+ &quot;next&quot;: [{&quot;id&quot;: &quot;P3&quot;, &quot;kind&quot;: &quot;aspect&quot;, &quot;title&quot;: &quot;the dialogue in the first chapters&quot;}],
+ &quot;by_status&quot;: {&quot;done&quot;: 1, &quot;active&quot;: 1, &quot;todo&quot;: 2, &quot;skipped&quot;: 1},
+ &quot;timeline&quot;: [{&quot;at&quot;: &quot;...&quot;, &quot;what&quot;: &quot;change.applied&quot;, &quot;id&quot;: &quot;C4&quot;, &quot;reason&quot;: &quot;approved in the chat&quot;, &quot;by&quot;: &quot;writer&quot;},
+              {&quot;at&quot;: &quot;...&quot;, &quot;what&quot;: &quot;decision&quot;, &quot;id&quot;: &quot;A2&quot;, &quot;verdict&quot;: &quot;rejected&quot;, &quot;reason&quot;: &quot;...&quot;, &quot;by&quot;: &quot;writer&quot;}]}
+</code></pre>
+<ul>
+<li><strong>No <code>plan/</code> yet.</strong> The answer is <code>{"status": "no_plan", "proposed": [...]}</code>:
+  the parts <code>init</code> would seed, taken from the profile's mode and the existing
+  rounds. Nothing is written.</li>
+<li><strong><code>lc plan next</code></strong> answers <code>{"part": {...}, "command": ["round", "build", "--area", "dialogue"]}</code>.
+  For a part the assistant carries out by reading, such as the overview, it
+  answers <code>"command": null</code>.</li>
+<li><strong><code>lc plan check</code></strong> exits 1 when <code>plan.json</code> differs from a replay of
+  <code>log.jsonl</code>, and names the first part that differs. <code>--repair</code> rewrites the
+  snapshot from the log.</li>
+</ul>
+<h4><code>lc round build --workspace &lt;ws&gt; [--level L] [--area A] [--issues id,id]</code></h4>
+<p>The two new filters narrow the open problem issues before the level is chosen:</p>
+<ul>
+<li><code>--area</code> keeps only the issues whose check belongs to that checklist area.</li>
+<li><code>--issues</code> keeps only the listed ids.</li>
+</ul>
+<p>Neither changes scoring, numbering, reuse or the output. An empty selection is
+refused, as it is today (<code>no open … issues</code>).</p>
+<h4><code>lc change propose</code></h4>
+<pre><code>lc change propose --workspace &lt;ws&gt; --quote X [--prefix P] [--suffix S] --replace Y
+                  --why W --by writer|assistant [--part P3] [--action A7] [--closes]
+                  [--document D] [--again]
+</code></pre>
+<pre><code class="language-json">{&quot;status&quot;: &quot;proposed&quot;, &quot;id&quot;: &quot;C4&quot;, &quot;by&quot;: &quot;assistant&quot;,
+ &quot;card&quot;: {&quot;line&quot;: &quot;Replace «dijo» with «susurró»?&quot;, &quot;label&quot;: &quot;suggested&quot;,
+          &quot;where&quot;: &quot;Chapter 3, page 41: «—Ya voy…» … «…cansada.»&quot;,
+          &quot;approve&quot;: &quot;Approve&quot;, &quot;dismiss&quot;: &quot;Dismiss&quot;},
+ &quot;document&quot;: &quot;novel.docx&quot;, &quot;sha256&quot;: &quot;…&quot;}
+</code></pre>
+<p>The card's words are in the work's language. A refusal exits 1, with one of
+these reasons:</p>
+<ul>
+<li><code>prose_off</code>: <code>--by assistant</code> while <code>prose_suggestions = false</code>.</li>
+<li><code>too_long</code>: more than 12 changed words under <code>minor</code>, or more than one
+  paragraph under <code>on</code>.</li>
+<li><code>not_once</code>: the quote resolves 0 times or several times. The answer gives the <code>count</code>.</li>
+<li><code>cross_paragraph</code>: the quote spans more than one paragraph.</li>
+<li><code>repeat</code>: the same X → Y was dismissed before. Pass <code>--again</code> when the writer
+  asks for it.</li>
+</ul>
+<h4><code>lc change approve C4</code> / <code>lc change dismiss C4 [--reason R]</code> / <code>lc change status [C4]</code></h4>
+<p><code>approve</code> refuses (exit 1, nothing written) in three cases:</p>
+<ul>
+<li>the id is unknown;</li>
+<li>the change is not <code>proposed</code>;</li>
+<li>the document's sha256 changed since the proposal and the quote no longer
+  resolves once.</li>
+</ul>
+<p>Otherwise it runs the same write as <code>lc docx edits</code>, with the edit id set to the
+change id, and answers:</p>
+<pre><code class="language-json">{&quot;status&quot;: &quot;applied&quot;, &quot;id&quot;: &quot;C4&quot;, &quot;backup&quot;: &quot;…&quot;, &quot;document&quot;: &quot;novel.docx&quot;,
+ &quot;locate&quot;: {&quot;target&quot;: &quot;susurró&quot;, &quot;prefix&quot;: &quot;—Ya voy —&quot;, &quot;suffix&quot;: &quot; con voz cansada.&quot;},
+ &quot;closed&quot;: &quot;A7&quot;}
+</code></pre>
+<ul>
+<li><strong>No write.</strong> With <code>edit_in_place = no</code>, or a manuscript that is not <code>.docx</code>,
+  it answers <code>{"status": "approved", "typed_by": "writer", "locate": {...}}</code>
+  and writes nothing.</li>
+<li><strong>doc-control refuses.</strong> The answer is
+  <code>{"status": "refused", "reason": "locked" | "changed" | "edit" | "marked" | "doc_control_too_old", "message": "…"}</code>,
+  and the change stays <code>proposed</code>. <code>marked</code> is the plain reason for
+  <code>UNSUPPORTED_CONTENT</code> on a range that overlaps an earlier tracked change,
+  once writes are plain.</li>
+<li><strong><code>dismiss</code></strong> answers <code>{"status": "dismissed", "id": "C4"}</code>. The default reason
+  is "dismissed in the chat".</li>
+</ul>
+<h4><code>lc docx undo</code></h4>
+<p>The output is unchanged. When the entry it takes back is a change (an edit id
+<code>C…</code> in <code>log/edits.jsonl</code>), it also logs <code>change.undone</code> for that id and adds
+<code>"change": "C4"</code> to its answer.</p></div>
+<div class="note" data-for="s-spec-cli-contracts-lc-stdlib-only-one"><label class="note-head" for="n-s-spec-cli-contracts-lc-stdlib-only-one"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › CLI contracts (lc, stdlib only; one JSON object on stdout; exit 0 done, 1 refused, 2 usage)</span></label><textarea class="note-ta" data-key="s-spec-cli-contracts-lc-stdlib-only-one" id="n-s-spec-cli-contracts-lc-stdlib-only-one" data-label="CLI contracts (lc, stdlib only; one JSON object on stdout; exit 0 done, 1 refused, 2 usage)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-mcp-tools-lc-mcp">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">MCP tools (<code>lc mcp</code>)</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Visibility</th>
+<th>Arguments</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plan</code></td>
+<td>model</td>
+<td><code>work</code></td>
+<td><code>lc plan status</code></td>
+</tr>
+<tr>
+<td><code>change_card</code></td>
+<td>model (renders <code>ui://literary-critic/change</code>)</td>
+<td><code>work</code>, <code>change</code> (an id from <code>lc change propose</code>)</td>
+<td><code>{"card": {...}, "id": "C4", "work": "..."}</code></td>
+</tr>
+<tr>
+<td><code>change_approve</code></td>
+<td>app only</td>
+<td><code>work</code>, <code>change</code></td>
+<td>the <code>lc change approve</code> answer; on <code>applied</code>, the tool then runs <code>docx locate --go</code> on the new text</td>
+</tr>
+<tr>
+<td><code>change_dismiss</code></td>
+<td>app only</td>
+<td><code>work</code>, <code>change</code>, <code>reason?</code></td>
+<td>the <code>lc change dismiss</code> answer</td>
+</tr>
+</tbody>
+</table>
+<p>Other MCP changes:</p>
+<ul>
+<li><strong><code>RUN_ALLOWED</code></strong> gains <code>plan</code> and <code>change</code>, so the text surfaces work through <code>run</code>.</li>
+<li><strong><code>state()</code></strong> gains <code>"plan"</code>: the <code>active</code> and <code>next</code> parts and the last five
+  timeline rows.</li>
+<li><strong><code>next_step</code></strong> follows <code>lc plan next</code> when a plan exists.</li>
+<li><strong>The change page</strong> sends <code>ui/message</code> with "Approved C4" or "Dismissed C4"
+  after the tool returns, when the host advertises that capability (Q-1).
+  Otherwise it only shows the result.</li>
+</ul></div>
+<div class="note" data-for="s-spec-mcp-tools-lc-mcp"><label class="note-head" for="n-s-spec-mcp-tools-lc-mcp"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › MCP tools (lc mcp)</span></label><textarea class="note-ta" data-key="s-spec-mcp-tools-lc-mcp" id="n-s-spec-mcp-tools-lc-mcp" data-label="MCP tools (lc mcp)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-inter-service-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Inter-service contracts</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Callee</th>
+<th>Protocol</th>
+<th>Contract</th>
+<th>Failure handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>change.approve</code></td>
+<td><code>docx_cli</code> write path</td>
+<td>Python call</td>
+<td><code>apply_edits(root, doc, edits, dry_run=False) -&gt; dict</code>, extracted from <code>_edits</code>; the same answer <code>lc docx edits</code> prints</td>
+<td>Refusals pass through unchanged and are logged <code>change.refused</code></td>
+</tr>
+<tr>
+<td><code>docx_cli</code></td>
+<td>doc-control <code>batch</code> / <code>term.rename</code></td>
+<td><code>litcritic.dc.run</code></td>
+<td><code>"tracked": True</code> today; <code>"tracked": False</code> after doc-control#318, behind a minimum-version check</td>
+<td>An older doc-control is refused with <code>doc_control_too_old</code> rather than silently writing tracked</td>
+</tr>
+<tr>
+<td>change page</td>
+<td><code>lc mcp</code></td>
+<td>MCP Apps <code>tools/call</code></td>
+<td><code>change_approve</code> / <code>change_dismiss</code> with the id only; the page never sends text to write</td>
+<td>The tool error shows on the card. The card stays actionable after a refusal, so the writer can retry once Word is closed</td>
+</tr>
+<tr>
+<td><code>plan status</code></td>
+<td><code>rounds.status</code>, Codex decisions, <code>plan/log.jsonl</code></td>
+<td>Python call</td>
+<td>Read-only join</td>
+<td>A missing round or a retired decision shows as such; it never fails the status</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-inter-service-contracts"><label class="note-head" for="n-s-spec-inter-service-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Inter-service contracts</span></label><textarea class="note-ta" data-key="s-spec-inter-service-contracts" id="n-s-spec-inter-service-contracts" data-label="Inter-service contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-workspace-file-changes">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Workspace file changes</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>File</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>&lt;ws&gt;/plan/log.jsonl</code></td>
+<td>CREATE, append-only. One event per line: <code>seq</code>, <code>at</code>, <code>by</code>, <code>event</code>, <code>part</code> or <code>change</code>, <code>reason</code>, <code>refs</code>. A <code>change.proposed</code> event also carries the proposal: <code>quote</code>, <code>prefix</code>, <code>suffix</code>, <code>replace</code>, <code>why</code>, <code>by</code>, <code>document</code>, <code>sha256</code>, <code>part</code>, <code>action</code>, <code>closes</code></td>
+<td>Yes: delete <code>plan/</code>; nothing else reads it</td>
+<td>Yes: unknown event types are kept and skipped by replay</td>
+</tr>
+<tr>
+<td><code>&lt;ws&gt;/plan/plan.json</code></td>
+<td>CREATE, rewritten atomically after each command: <code>schema_version: 1</code>, <code>mode</code>, <code>parts</code>, <code>changes</code>, <code>last_seq</code></td>
+<td>Yes: rebuilt from the log</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>&lt;ws&gt;/log/edits.jsonl</code></td>
+<td>Format UNCHANGED; an edit id may now be a change id <code>C…</code></td>
+<td>n/a</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td><code>workspace.SUBDIRS</code></td>
+<td>ADD <code>plan</code></td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-workspace-file-changes"><label class="note-head" for="n-s-spec-workspace-file-changes"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Workspace file changes</span></label><textarea class="note-ta" data-key="s-spec-workspace-file-changes" id="n-s-spec-workspace-file-changes" data-label="Workspace file changes" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The assistant moves plan statuses on its own, so the plan stops being the writer's</td>
+<td>Med</td>
+<td>High</td>
+<td><code>--by</code> is required. The prompts allow a <code>writer</code> move only on the writer's word, with the writer's reason; <code>tool</code> covers proposals and facts only. The timeline shows who made each move</td>
+<td>Unit (the CLI refuses a missing <code>--by</code>), prompt pin, walkthrough review</td>
+</tr>
+<tr>
+<td><code>plan.json</code> drifts from the log after a crash between the append and the snapshot</td>
+<td>Low</td>
+<td>Med</td>
+<td>The log is appended first. The snapshot goes to a temp file that then replaces the old one. Every command replays when <code>last_seq</code> differs</td>
+<td>Unit: kill between the two writes, then <code>lc plan check --repair</code></td>
+</tr>
+<tr>
+<td>A card's button approves a change the writer did not see (stale page, double click)</td>
+<td>Med</td>
+<td>High</td>
+<td>Approve takes the id only, and only for a <code>proposed</code> change; a second click gets <code>not proposed</code>. The document hash is checked again</td>
+<td>Unit and MCP transcript test</td>
+</tr>
+<tr>
+<td>Plain writes make a wrong change harder to spot than a tracked one</td>
+<td>Med</td>
+<td>Med</td>
+<td>Every change is shown before it is written and named after, and Word is taken to it. Every write makes a backup, <code>lc docx undo</code> takes it back, and the timeline lists every applied change</td>
+<td>Walkthrough and undo round-trip test</td>
+</tr>
+<tr>
+<td>An earlier tracked change from the tool overlaps a new plain change, and doc-control refuses</td>
+<td>Med</td>
+<td>Low</td>
+<td>The plain <code>marked</code> reason tells the writer to accept or reject the earlier mark in Word first</td>
+<td>Unit with a fixture that holds a tracked revision</td>
+</tr>
+<tr>
+<td>The desktop app ignores <code>ui/message</code> (Q-1), so the model never learns of a click</td>
+<td>Med</td>
+<td>Low</td>
+<td>The tool result and <code>plan status</code> carry the click. The guide says to read pending cards at each writer message</td>
+<td>Probe in T8</td>
+</tr>
+<tr>
+<td>doc-control#318 slips</td>
+<td>Med</td>
+<td>Low</td>
+<td>The cards ship writing tracked, with today's wording. T9 is its own task, gated on the release</td>
+<td>Dependency check in T9</td>
+</tr>
+<tr>
+<td>A moved novel loses its undo history before doc-control#320 ships</td>
+<td>Low</td>
+<td>Low</td>
+<td>The change log still lists the changes. Once #320 ships, <code>docx status</code> offers adoption</td>
+<td>None needed now</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><label class="note-head" for="n-s-spec-6"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></label><textarea class="note-ta" data-key="s-spec-6" id="n-s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
+  function exportName(){return 'literary-critic-spec-v1-'+today()+'-notes.md';}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var saved=download(exportName(),r.text);openModal(r.text);
+    // download() returning only means the download was REQUESTED; a browser can
+    // still block or drop it. So `dirty` — what arms the unload warning — is
+    // cleared only on a confirmed copy: the clipboard promise fulfilling.
+    var cp=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){cp=navigator.clipboard.writeText(r.text);}}catch(e){cp=null;}
+    if(cp&&typeof cp.then==='function'){cp.then(function(){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');},function(){});}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    setState('Download requested '+nowStamp(),'ok');
+    toast('Download requested — '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){if(ok){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');}
+                        toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download(exportName(),modalTa.value);toast('Download requested');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
