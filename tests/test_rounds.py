@@ -140,3 +140,33 @@ def test_mark_refuses_an_issue_gone_from_the_codex(ws: Path) -> None:
     f.write_text("\n".join(keep) + "\n", encoding="utf-8")
     with pytest.raises(rounds.RoundError, match="not in the Codex"):
         rounds.mark(ws, actions[0]["id"], "done")
+
+
+def test_round_build_area_keeps_only_that_area(ws: Path) -> None:
+    ids = _issues(ws)
+    _, actions, _ = rounds.build(ws, area="architecture")
+    assert [a["issue"] for a in actions] == [ids["F3"], ids["F2"]]
+    _, actions, _ = rounds.build(ws, area="scene-craft", level="scene")
+    assert [a["issue"] for a in actions] == [ids["F1"]]
+    with pytest.raises(rounds.RoundError, match="no open problem issues"):
+        rounds.build(ws, area="no-such-area")
+
+
+def test_round_build_issues_keeps_only_those_ids(
+    ws: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ids = _issues(ws)
+    _, actions, _ = rounds.build(ws, issues=[ids["F2"]])
+    assert [a["issue"] for a in actions] == [ids["F2"]]
+    w = ["--workspace", str(ws)]
+    assert main(["round", "build", "--area", "architecture", "--issues", ids["F3"], *w]) == 0
+    assert capsys.readouterr().out.startswith("1 actions")
+
+
+def test_round_build_without_filters_unchanged(ws: Path) -> None:
+    ids = _issues(ws)
+    out, _, _ = rounds.build(ws)
+    plain = out.read_bytes()
+    out2, _, _ = rounds.build(ws, area=None, issues=None)
+    assert out2.read_bytes() == plain
+    assert [a["issue"] for a in json.loads(plain)["actions"]] == [ids["F3"], ids["F2"]]
