@@ -358,9 +358,11 @@ Suggested order: `plan.py` and `lc plan` with replay tests; the rounds filters;
 plain-write switch is a separate task gated on doc-control's release.
 
 **Open questions**:
-- [ ] Q-1: Does the Claude desktop app honour MCP Apps `ui/message` from a
-  page, so the model sees a click without the writer typing? To probe on the
-  owner's PC; the fallback above works either way.
+- [x] Q-1: Does the Claude desktop app honour MCP Apps `ui/message` from a
+  page, so the model sees a click without the writer typing? Yes, after one
+  press of Send: the app puts "Approved C1" in the message box under a caution
+  banner, and the model sees it once the writer sends it. The click alone has
+  already changed the file (`status/evidence/workplan-Q1-ui-message.md`).
 - [ ] Q-2: Should a writer who prefers Word's marks be able to keep tracked
   writes (a profile setting), or is plain the only mode? Proposed: plain only,
   as decided. Revisit if a writer asks.
