@@ -422,3 +422,43 @@ def test_state_includes_plan_active_and_next(
 
     tool = _text(_call_raw(server, "plan", {"work": "mynovel"}))
     assert tool["status"] == "ok" and tool["active"]["id"] == ids[0]
+
+
+def test_a_novel_never_set_up_is_found_and_set_up_from_the_chat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    novel = tmp_path / "Novelas" / "Señora, Ñúñez"  # a comma and accents survive
+    novel.mkdir(parents=True)
+    text = (Path(__file__).parents[1] / "corpus" / "jekyll-hyde" / "text.txt").read_text("utf-8")
+    (novel / "Ruiseñor.txt").write_text(text[:20000], encoding="utf-8")
+    (novel / "~$iseñor.docx").write_text("lock", encoding="utf-8")
+    server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Novelas")])))
+
+    missing = _call(server, "resume", {"work": "ruisenor"})
+    assert missing["not_set_up"][0] == {
+        "name": "Señora, Ñúñez",
+        "folder": str(novel),
+        "named": "yes",
+    }
+    assert "setup" in missing["hint"]
+
+    ready = _call(server, "setup", {"folder": str(novel)})
+    assert ready["status"] == "ready" and ready["manuscript"]["path"] == "Ruiseñor.txt"
+    assert "ai_notice" in ready and "resume" in ready["say"]
+    refused = _call(server, "setup", {"folder": str(novel), "prose_suggestions": "minor"})
+    assert refused["reason"] == "ai_notice" and refused["notice"]
+    chosen = _call(server, "setup", {"folder": str(novel), "edit_in_place": False})
+    assert chosen["settings"]["edit_in_place"] is False
+
+    found = _call(server, "resume", {"work": "Señora, Ñúñez"})
+    assert found["work"]["draft"] == "v001"
+    assert _call(server, "resume", {"work": "x"}).get("not_set_up") is None
+
+
+def test_setup_refuses_a_folder_outside_the_grant(tmp_path: Path) -> None:
+    server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Granted")])))
+    (tmp_path / "Granted").mkdir()
+    res = _call_raw(server, "setup", {"folder": str(tmp_path)})
+    assert res["isError"]
+    assert json.loads(res["content"][0]["text"])["error"] == "outside_granted_folders"
