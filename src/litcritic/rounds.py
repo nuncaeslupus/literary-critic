@@ -331,8 +331,27 @@ def mark(ws_root: Path, action_id: str, status: str, reason: str = "") -> dict[s
     raise RoundError(f"no action {action_id!r}")
 
 
-def status(ws_root: Path) -> dict[str, Any]:
-    d = latest_round(ws_root)
+def open_actions(ws_root: Path, d: Path, cx: Codex) -> int:
+    """How many of a round's actions are still to address (Codex only, no places)."""
+    n = 0
+    for entry in _round_meta(d).get("actions", []):
+        try:
+            issue = cx.get(entry["issue"])
+        except CodexError:
+            continue
+        if issue.status != "retired" and action_status(cx, issue.id) in OPEN:
+            n += 1
+    return n
+
+
+def status(ws_root: Path, name: str | None = None) -> dict[str, Any]:
+    """The state of the latest round, or of the round folder called ``name``."""
+    if name is None:
+        d = latest_round(ws_root)
+    else:
+        d = ws_root / "revisions" / name
+        if not (d / "round.json").is_file():
+            raise RoundError(f"no round {name!r}")
     actions = round_actions(ws_root, d)
     counts: dict[str, int] = {}
     for a in actions:
