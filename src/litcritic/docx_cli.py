@@ -229,7 +229,7 @@ def _resolve(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
         anchor["prefix"] = prefix
     if suffix.strip():
         anchor["suffix"] = suffix
-    req = {"doc": str(doc), "anchor": anchor, "mode": "exact"}
+    req = {"doc": str(doc), "anchor": anchor, "mode": "exact", "match_level": "exact"}
     try:
         return str(dc.run("anchor.resolve", req)["at"])
     except dc.DocError as exc:
