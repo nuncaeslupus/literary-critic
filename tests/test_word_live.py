@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -358,3 +359,39 @@ def test_live_plain_write_refusals_have_the_file_engines_reasons(
         tmp_path, monkeypatch, capsys, dc.DocError(code, message)
     )
     assert status == 1 and out["status"] == "refused" and out["reason"] == reason
+
+
+def test_every_live_call_runs_on_one_thread(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Word's COM handle answers only on the thread that made it: status, the write and
+    the select must share one thread, or the second call sees no open document."""
+    threads: list[int] = []
+
+    def run(name: str, request: dict[str, Any]) -> dict[str, Any]:
+        threads.append(threading.get_ident())
+        return {"documents": [], "at": "p1", "text": ""}
+
+    monkeypatch.setattr(dc, "run", run)
+    word_live.is_open(tmp_path / "N.docx")
+    word_live.write({"doc": "N.docx", "ops": []})
+    word_live.run("live.select", {"doc": "N.docx"})
+    word_live.is_open(tmp_path / "N.docx")
+    assert len(threads) == 4 and len(set(threads)) == 1
+    assert threads[0] != threading.get_ident()
+
+
+def test_a_timed_out_live_call_frees_the_thread(monkeypatch: pytest.MonkeyPatch) -> None:
+    release = threading.Event()
+
+    def run(name: str, request: dict[str, Any]) -> dict[str, Any]:
+        if name == "slow":
+            release.wait(5)
+        return {"name": name}
+
+    monkeypatch.setattr(dc, "run", run)
+    with pytest.raises(dc.DocError) as err:
+        word_live.run("slow", {}, timeout=0.05)
+    assert err.value.code == "LIVE_TIMEOUT"
+    assert word_live.run("fast", {}, timeout=1) == {"name": "fast"}
+    release.set()

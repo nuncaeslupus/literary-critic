@@ -527,14 +527,14 @@ SELECT_KEYS = ("at", "find_phrase", "find_phrase_across", "mode", "front")
 
 def select(args: dict[str, Any]) -> dict[str, Any]:
     """The places page's button: doc-control's ``live.select`` in the open Word."""
-    from litcritic import dc
+    from litcritic import dc, word_live
 
     doc = str(args.get("doc") or "")
     if not doc or "/" in doc or "\\" in doc:
         raise ToolError("not_allowed", detail="doc is the open document's file name")
     request = {"doc": doc, **{k: args[k] for k in SELECT_KEYS if k in args}}
     try:
-        return {"ok": True, "result": dc.run("live.select", request)}
+        return {"ok": True, "result": word_live.run("live.select", request)}
     except dc.DocError as exc:
         return {"ok": False, "error": {"code": exc.code, "message": exc.message}}
 
