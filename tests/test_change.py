@@ -119,3 +119,35 @@ def test_change_propose_needs_the_quote_once_and_approve_can_stay_with_the_write
     assert code == 0 and out["typed_by"] == "writer"
     assert doc.read_bytes() == before
     assert docx_cli.AUTHOR  # the write path is shared with `lc docx edits`
+
+
+def test_docx_undo_of_change_logs_change_undone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, doc = _novel(tmp_path)
+    before = doc.read_bytes()
+    _propose(capsys, ws, "fria", "fría", "--by", "writer")
+    _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    capsys.readouterr()
+    assert main(["docx", "undo", "--workspace", str(ws)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["status"] == "undone" and out["change"] == "C1"
+    assert _texts(doc.read_bytes()) == _texts(before)
+    events = [e["event"] for e in plan.read_log(ws)]
+    assert events[-1] == "change.undone"
+    # nothing left to undo: refused, and nothing more is logged
+    assert main(["docx", "undo", "--workspace", str(ws)]) == 1
+    capsys.readouterr()
+    assert [e["event"] for e in plan.read_log(ws)] == events
+
+
+def test_docx_undo_of_plain_edit_has_no_change(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, doc = _novel(tmp_path)
+    code, _ = docx_cli.apply_edits(ws, doc, [("A1", "fria", "fría", "", "")], {})
+    assert code is not None
+    capsys.readouterr()
+    assert main(["docx", "undo", "--workspace", str(ws)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert "change" not in out and plan.read_log(ws) == []

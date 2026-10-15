@@ -285,6 +285,23 @@ def approve(
     return out, 0
 
 
+def mark_undone(root: Path, edit_ids: list[str], op_id: str) -> str | None:
+    """Log ``change.undone`` for the first of ``edit_ids`` that is an applied change."""
+    known = _changes(root)
+    for cid in edit_ids:
+        if cid in known and known[cid]["status"] == "applied":
+            plan.record(
+                root,
+                "change.undone",
+                "tool",
+                change=cid,
+                data={"undid": op_id},
+                refs=_refs(root, cid),
+            )
+            return cid
+    return None
+
+
 def dismiss(root: Path, cid: str, reason: str = "") -> dict[str, Any]:
     _live(root, cid)
     _state, ev = plan.record(
