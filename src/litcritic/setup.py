@@ -29,7 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from litcritic import dc, ingest, metrics, rounds, settings, structure, workspace
+from litcritic import dc, ingest, metrics, rounds, settings, structure, word_live, workspace
 
 WORKSPACE_DIR = "literary-critic"
 SHINGLE = 5
@@ -319,6 +319,25 @@ def setup(
     return out
 
 
+def open_in_word() -> dict[str, Any]:
+    """The documents open in Word that setup could work on, so the writer need not find
+    the file: each with its folder (what ``--folder`` takes) and whether that folder
+    was set up before. Empty when Word cannot be reached."""
+    docs = [d for d in word_live.open_documents() if d.suffix.lower() in FORMATS]
+    return {
+        "status": "open_in_word",
+        "documents": [
+            {
+                "path": str(d),
+                "name": d.name,
+                "folder": str(d.parent),
+                "set_up": (d.parent / WORKSPACE_DIR / workspace.MANIFEST).is_file(),
+            }
+            for d in docs
+        ],
+    }
+
+
 def _language(ws_root: Path) -> str:
     """The work's language (profile, then manifest), English when unknown."""
     try:
@@ -328,6 +347,12 @@ def _language(ws_root: Path) -> str:
 
 
 def _cmd(args: argparse.Namespace) -> int:
+    if args.from_word:
+        print(json.dumps(open_in_word(), ensure_ascii=False, indent=1))
+        return 0
+    if args.folder is None:
+        print(json.dumps({"status": "error", "message": "--folder or --from-word"}))
+        return 2
     try:
         out = setup(
             args.folder,
@@ -357,7 +382,12 @@ def _cmd(args: argparse.Namespace) -> int:
 
 def register(sub: Any) -> None:
     p = sub.add_parser("setup", help="find the novel in a folder and prepare its workspace")
-    p.add_argument("--folder", type=Path, required=True, help="the folder holding the novel")
+    p.add_argument("--folder", type=Path, default=None, help="the folder holding the novel")
+    p.add_argument(
+        "--from-word",
+        action="store_true",
+        help="list the documents open in Word, to set up from one of them",
+    )
     p.add_argument("--manuscript", type=Path, default=None, help="the writer's choice of file")
     p.add_argument(
         "--edit-in-place",

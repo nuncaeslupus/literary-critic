@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from docgen import docx
 
-from litcritic import corpus, ingest, settings, setup
+from litcritic import corpus, dc, ingest, settings, setup, word_live, workspace
 from litcritic.cli import main
 
 
@@ -356,3 +356,48 @@ def test_absolute_paths_recorded_elsewhere_are_found_in_the_novel_folder(tmp_pat
     outside = tmp_path / "other.docx"
     assert ingest.stored_path(ws, outside) == str(outside.resolve())
     assert ingest.recorded_path(ws, str(outside)) == outside
+
+
+def test_from_word_lists_the_open_documents_setup_can_use(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The writer need not find the file: the documents open in Word, with their folders."""
+    known = tmp_path / "Known"
+    (known / setup.WORKSPACE_DIR).mkdir(parents=True)
+    (known / setup.WORKSPACE_DIR / workspace.MANIFEST).write_text("", encoding="utf-8")
+    docs = [
+        {"app": "word", "path": str(tmp_path / "New" / "Novel.docx"), "name": "Novel.docx"},
+        {"app": "word", "path": str(known / "Other.docx"), "name": "Other.docx"},
+        {"app": "word", "path": str(tmp_path / "chart.xlsx"), "name": "chart.xlsx"},
+    ]
+    calls = []
+
+    def run(op: str, request: dict[str, object]) -> dict[str, object]:
+        calls.append((op, request))
+        return {"apps": ["word"], "documents": docs}
+
+    monkeypatch.setattr(dc, "run", run)
+    assert main(["setup", "--from-word"]) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert calls == [("live.status", {})]
+    assert out["status"] == "open_in_word"
+    assert [(d["name"], d["folder"], d["set_up"]) for d in out["documents"]] == [
+        ("Novel.docx", str(tmp_path / "New"), False),
+        ("Other.docx", str(known), True),
+    ]
+
+
+def test_from_word_is_empty_when_word_cannot_be_reached(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def run(op: str, request: dict[str, object]) -> dict[str, object]:
+        raise dc.DocError("ENGINE_UNAVAILABLE", "no Word")
+
+    monkeypatch.setattr(dc, "run", run)
+    assert word_live.open_documents() == []
+    assert setup.open_in_word()["documents"] == []
+
+
+def test_setup_needs_a_folder_or_word(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["setup"]) == 2
+    assert json.loads(capsys.readouterr().out)["status"] == "error"

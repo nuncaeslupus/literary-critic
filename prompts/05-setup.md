@@ -44,6 +44,15 @@ stopped. In Cowork a new conversation may not see the folder even inside the
 same project: if you cannot list it, ask the writer, in one line, to choose it
 again.
 
+**Open in Word first.** The writer may have the novel open: run
+`lc setup --from-word` (or, where lc cannot reach Word, doc-control's
+`live_status` without `doc`). It lists the documents open in Word, each with
+its `folder` and `set_up` (that folder was set up before: they are coming
+back). If one looks like the novel, ask in one line, "Is <name> your novel?"
+(buttons when you can show them), and on yes run
+`lc setup --folder <its folder> --manuscript <its path>`. The file may stay
+open. If nothing is open, or none is the novel, use the connected folder:
+
 Run `lc setup --folder <the connected folder>`. It finds the manuscript (the
 newest full draft), its other versions and unrelated documents, and creates
 the working folder `literary-critic` next to the novel. Tell the writer, in
@@ -61,8 +70,14 @@ for reading; before any change you will ask them to save and close it (see
 
 ## 3. Agree how to work (three short questions, one at a time)
 
-1. **What they want:** improve their own novel (`revision`, the default) or an
-   assessment of it as a reader or agent would write it (`reader-report`).
+1. **What they want**, in words like these: "Shall I help you with specific
+   aspects of the novel, one at a time, or write you a full report of what I
+   find, as an agent or a publisher's reader would?" Make the difference
+   plain: the first is a conversation you work through together, issue by
+   issue (`revision`); the second is a document to read (`reader-report`).
+   Add that after the report they can pick any part of it to work on the
+   same way. Either way the work follows a plan the writer steers: parts can
+   be skipped or added at any time (`00-guide.md`, "The plan").
 2. **Who writes the new words.** Ask it with the AI-text notice in full,
    above the choices (`lc setup` printed it as `ai_notice`, in the novel's
    language): the writer chooses knowing what is at stake. Then three choices
@@ -80,19 +95,23 @@ for reading; before any change you will ask them to save and close it (see
    Pass `--ack-ai-notice` only after they have read the notice and chosen 2
    or 3. Do not argue with the choice: say once that they can change it any
    time, and go on.
-3. **Changes in the file:** whoever writes them, you only ever put changes in
-   the file after they approve each one, as tracked changes they can accept
-   or reject in Word, with a backup every time. Do they want that, or do they
-   prefer to type every change themselves? Either is fine. Record the answer,
-   so later sessions know it: `lc setup --folder <dir> --edit-in-place yes`
+3. **Who types the changes into the file.** Ask it in words like these: "When
+   we agree on a small change, shall I make it in your file for you, or do
+   you prefer to type it yourself?" Explain in one line how it works: each
+   change is shown here first ("Replace … with …?") and goes into the file
+   only when they approve it, with a copy of the file kept every time; Word
+   also marks it, so they can see what changed. Either answer is fine. Record
+   it, so later sessions know it: `lc setup --folder <dir> --edit-in-place yes`
    (or `no`). Only a `.docx` manuscript can be changed this way.
 
 ## 4. First feedback
 
 Follow `30-orientation.md` (the profile) and `10-ingest-and-structure.md` if
 the structure needs checking, then give the first short overview of strengths
-and the most important problems, and propose the plan (`00-guide.md`, "The
-plan"). Count what the writer had to do; it should be a handful of clicks.
+and the most important problems, from the biggest to the smallest, and propose
+the plan (`00-guide.md`, "The plan"). Say what you are doing as you go, in the
+same message as the work: a line per step, never a turn of its own. Count what
+the writer had to do; it should be a handful of clicks.
 
 ## Basic mode
 
@@ -104,3 +123,17 @@ letter (`lc round letter --workspace <ws>`) and, for a `.docx` manuscript, the
 commented copy (`lc docx-comments --workspace <ws>`) as downloads. Without
 code, read the text directly and follow the same rules: plain locations, one
 change at a time, the writer writes.
+
+## Start over (delete the tool's work)
+
+Only when the writer asks to delete the tool's work on a novel, or to start
+again from nothing. Their novel's own files are never touched; what goes is the
+`literary-critic` working folder: analysis, rounds, notes and the tool's copies.
+
+1. `lc remove --workspace <ws>` deletes nothing: it prints the `title`, how
+   many `files` would go and the `confirm` id. Tell the writer, in plain words,
+   what will be deleted and that their novel stays as it is; offer to keep a
+   copy first (`lc pack --workspace <ws>`). Ask: delete it?
+2. On yes, ask once more, plainly: "Are you sure? This cannot be undone."
+3. Only on a second yes, run `lc remove --workspace <ws> --confirm <confirm>`
+   and say it is done. A no at either step: delete nothing, and go on.
