@@ -321,7 +321,7 @@ def record(
         "by": by,
         "event": name,
     }
-    for key in ("part", "reason", "data"):
+    for key in ("part", "change", "reason", "data"):
         if fields.get(key) not in (None, "", {}):
             event[key] = fields[key]
     event["refs"] = fields.get("refs") or {}

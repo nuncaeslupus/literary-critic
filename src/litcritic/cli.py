@@ -11,6 +11,7 @@ from pathlib import Path
 
 from litcritic import (
     __version__,
+    change,
     checklist,
     codex,
     codex_cli,
@@ -603,6 +604,7 @@ def build_parser() -> argparse.ArgumentParser:
     docx_cli.register(sub)
     setup.register(sub)
     plan.register(sub)
+    change.register(sub)
     remove.register(sub)
     upgrade.register(sub)
     word_live.register(sub)
