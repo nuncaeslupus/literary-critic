@@ -49,7 +49,7 @@ be cut is wasted.
    With prose suggestions off, the new text is the writer's own words.
    When the writer approves a change of this kind, it is a card
    (`00-guide.md`, "Change cards"), one at a time: a proposal for the
-   action (`lc change propose --workspace <slug> --action A3 ...`), then the
+   action (`lc change propose --workspace <slug> --action A3 --quote "<old>" --replace "<new>" --why "<reason>"`), then the
    buttons or yes/no of the surface, and approve or dismiss on their answer
    (`--closes` marks the action done). The
    card has the new text only under `prose_suggestions` `minor` or on; with it

@@ -63,7 +63,7 @@ tools). Read it at the start and whenever the writer says what to do next.
 
 ### Change cards
 
-One proposed change is one card, one per message (`lc change propose --workspace <slug> ...`; the
+One proposed change is one card, one per message (`lc change propose --workspace <slug> --quote "<old>" --replace "<new>" --why "<reason>" --by writer`; the
 tool works the card out in the novel's language). Show it on the surface in
 front of you, and never write to the file before the writer approves:
 
