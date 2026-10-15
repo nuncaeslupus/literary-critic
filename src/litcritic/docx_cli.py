@@ -322,10 +322,31 @@ def _edits(args: argparse.Namespace, root: Path) -> int:
     if not edits or len(set(ids)) != len(edits):
         raise CliError("the edits file needs at least one edit, each with its own id")
     doc = _document(root, args.document or req.get("document"))
+    reasons = {str(e["id"]): str(e.get("reason", "")) for e in items}
+    payload, code = apply_edits(root, doc, edits, reasons, args.dry_run)
+    return _out(payload, code)
+
+
+Edit = tuple[str, str, str, str, str]  # id, quote, replace, prefix, suffix
+
+
+def apply_edits(
+    root: Path,
+    doc: Path,
+    edits: list[Edit],
+    reasons: dict[str, str] | None = None,
+    dry_run: bool = False,
+) -> tuple[dict[str, Any], int]:
+    """The one write path for approved edits: resolve each quote once, then one tracked
+    batch with backup, ``expect.sha256`` and verify-and-restore, and a line in
+    ``log/edits.jsonl``. Returns the answer and its exit code (0 applied, 1 refused)."""
+    ids = [e[0] for e in edits]
     base = {"document": _shown(root, doc), "author": AUTHOR}
 
-    def refused(reason: str, message: str, problems: dict[str, str] | None = None) -> int:
-        return _out(_refused(base, reason, message, problems or {}, ids), 1)
+    def refused(
+        reason: str, message: str, problems: dict[str, str] | None = None
+    ) -> tuple[dict[str, Any], int]:
+        return _refused(base, reason, message, problems or {}, ids), 1
 
     if not doc.is_file():
         return refused("missing", f"{doc} does not exist")
@@ -352,23 +373,21 @@ def _edits(args: argparse.Namespace, root: Path) -> int:
     ops = [{"op": "text.replace", "at": at, "text": replace} for at, _, replace in spots]
     batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": True}
     last = ingest.last_read(root, doc)
-    if not args.dry_run and not last:
+    if not dry_run and not last:
         return refused(*_unread(doc))
     try:
-        if args.dry_run:
+        if dry_run:
             dc.run("doc.batch", {**batch, "dry_run": True})
             st = _state(root, doc)
-            return _out(
-                {
-                    "status": "dry_run",
-                    "applied": ids,
-                    "skipped": [],
-                    "revisions": len(ids),
-                    "locked": st["locked"],
-                    "changed_on_disk": st["changed_on_disk"],
-                    **base,
-                }
-            )
+            return {
+                "status": "dry_run",
+                "applied": ids,
+                "skipped": [],
+                "revisions": len(ids),
+                "locked": st["locked"],
+                "changed_on_disk": st["changed_on_disk"],
+                **base,
+            }, 0
         result = dc.run("doc.batch", {**batch, "expect": {"sha256": last}})
     except dc.DocError as exc:
         reason, message = _why(exc, doc)
@@ -376,18 +395,16 @@ def _edits(args: argparse.Namespace, root: Path) -> int:
         named = {eid: message for at, eid, _ in spots if para and at.startswith(para + ":")}
         return refused(reason, message, named)
     log: dict[str, Any] = {"command": "edits", "edit_ids": ids}
-    log["reasons"] = {str(e["id"]): e.get("reason", "") for e in items}
+    log["reasons"] = {eid: (reasons or {}).get(eid, "") for eid in ids}
     backup = _written(root, doc, last, result, log)
-    return _out(
-        {
-            "status": "applied",
-            "applied": ids,
-            "skipped": [],
-            "backup": _shown(root, backup),
-            "revisions": len(ids),
-            **base,
-        }
-    )
+    return {
+        "status": "applied",
+        "applied": ids,
+        "skipped": [],
+        "backup": _shown(root, backup),
+        "revisions": len(ids),
+        **base,
+    }, 0
 
 
 def _refused(
