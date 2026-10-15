@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<!-- The MCP App behind literary-critic's `change_card` tool: one proposed change with exactly
+     two buttons. A click calls the extension's app-only `change_approve` / `change_dismiss`
+     tool through the host with the change id only (the page never sends text to write), so
+     approving takes one click and no assistant turn. Afterwards it sends a `ui/message` when
+     the host advertises that capability. Self-contained (no CDN): hosts sandbox app frames. -->
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px system-ui, sans-serif; margin: 8px; background: transparent; color: CanvasText; }
+  #status { font-size: 12px; opacity: .7; margin-bottom: 4px; }
+  #card { border: 1px solid #8886; border-radius: 8px; padding: 10px 12px; }
+  #text { margin: 0 0 6px; }
+  #meta { font-size: 12px; opacity: .75; margin: 2px 0; }
+  #buttons { display: flex; gap: 8px; margin-top: 10px; }
+  button {
+    flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid #8886;
+    background: #8881; color: inherit; font: inherit; cursor: pointer;
+  }
+  button:hover { background: #8882; }
+  button:disabled { opacity: .6; cursor: default; }
+  #result { margin-top: 8px; font-size: 13px; }
+  #result.ok { color: #2a2; }
+  #result.err { color: #c33; }
+</style>
+</head>
+<body>
+<div id="status">Loading the change…</div>
+<div id="card" hidden>
+  <p id="text"></p>
+  <div id="meta"></div>
+  <div id="buttons">
+    <button id="approve" type="button">Approve</button>
+    <button id="dismiss" type="button">Dismiss</button>
+  </div>
+  <div id="result"></div>
+</div>
+<script>
+"use strict";
+let nextId = 0;
+const pending = {};
+let canMessage = false;
+let shown = null;
+const $ = id => document.getElementById(id);
+const send = message => window.parent.postMessage(message, "*");
+
+function request(method, params) {
+  return new Promise((resolve, reject) => {
+    const id = ++nextId;
+    pending[id] = { resolve, reject };
+    send({ jsonrpc: "2.0", id, method, params });
+  });
+}
+
+function resize() {
+  send({
+    jsonrpc: "2.0", method: "ui/notifications/size-changed",
+    params: { width: document.body.scrollWidth, height: document.body.scrollHeight + 16 },
+  });
+}
+
+function result(text, cls) {
+  const el = $("result");
+  el.textContent = text;
+  el.className = cls || "";
+  resize();
+}
+
+function render(data) {
+  shown = { work: data.work, change: data.id };
+  const card = data.card || {};
+  $("text").textContent = card.text || "";
+  const meta = [];
+  if (card.words_by) meta.push(card.words_by);
+  if (card.why) meta.push(card.why);
+  $("meta").textContent = meta.join(" · ");
+  $("card").hidden = false;
+  $("status").textContent = "Change " + data.id;
+  resize();
+}
+
+// A tool error arrives as {isError: true, content: [{text: '{"error": code, "message": ...}'}]}.
+function failure(res) {
+  try {
+    const e = JSON.parse(res.content[0].text);
+    return (e.message || e.error || "error");
+  } catch (e) { return "error"; }
+}
+
+async function act(name, done) {
+  if (!shown) return;
+  $("approve").disabled = $("dismiss").disabled = true;
+  result("…");
+  try {
+    const res = await request("tools/call", { name, arguments: { ...shown } });
+    if (res.isError) {
+      // The card stays actionable after a refusal, so the writer can try again.
+      $("approve").disabled = $("dismiss").disabled = false;
+      result("✗ " + failure(res), "err");
+      return;
+    }
+    result("✓ " + done, "ok");
+    if (canMessage) {
+      request("ui/message", {
+        role: "user", content: [{ type: "text", text: done + " " + shown.change }],
+      }).catch(() => {});
+    }
+  } catch (e) {
+    $("approve").disabled = $("dismiss").disabled = false;
+    result("✗ " + ((e && e.message) || "error"), "err");
+  }
+}
+
+$("approve").onclick = () => act("change_approve", "Approved");
+$("dismiss").onclick = () => act("change_dismiss", "Dismissed");
+
+window.addEventListener("message", event => {
+  const m = event.data;
+  if (event.source !== window.parent || !m || m.jsonrpc !== "2.0") return;
+  if (m.id !== undefined && !m.method && pending[m.id]) {
+    const p = pending[m.id];
+    delete pending[m.id];
+    m.error ? p.reject(m.error) : p.resolve(m.result);
+    return;
+  }
+  if (m.method === "ui/notifications/tool-result") {
+    const sc = (m.params || {}).structuredContent;
+    if (sc && sc.card) render(sc);
+    else $("status").textContent = "No change to show.";
+  }
+  if (m.method === "ping" && m.id !== undefined) send({ jsonrpc: "2.0", id: m.id, result: {} });
+});
+
+let initialized = false;
+function markInitialized() {
+  if (initialized) return;
+  initialized = true;
+  send({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} });
+}
+const info = { name: "literary-critic-change", version: "1" };
+request("ui/initialize", {
+  protocolVersion: "2026-01-26", appInfo: info, clientInfo: info, appCapabilities: {}, capabilities: {},
+}).then(res => {
+  // ui/message is sent only when the host says it takes it (spec Q-1).
+  canMessage = !!((res || {}).hostCapabilities || {}).message;
+  markInitialized();
+}, markInitialized);
+setTimeout(markInitialized, 1500);
+resize();
+</script>
+</body>
+</html>

@@ -255,3 +255,118 @@ def test_places_result_carries_ui_resource(tmp_path: Path, monkeypatch: pytest.M
     assert picked["ok"] and calls == [("live.select", args)]
     refused = _call_raw(server, "select", {"doc": str(doc)})
     assert refused["isError"]
+
+
+def _change_work(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, propose: bool = True
+) -> tuple[mcp.Server, Path]:
+    from test_docx_cli import _plain, _workspace
+
+    from litcritic import change
+
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    p1 = "It was a cold afternoon and nobody left the house."
+    ws, _doc = _workspace(tmp_path, _plain(p1, "The street stayed empty."))
+    if propose:
+        change.propose(ws, "cold", "bitter", by="writer", why="stronger word")
+    return mcp.Server(mcp.tools(folders.Grant([str(tmp_path)]))), ws
+
+
+def _listed(server: mcp.Server) -> dict[str, Any]:
+    reply = _replay(server, [{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}])[0]
+    return {t["name"]: t for t in reply["result"]["tools"]}
+
+
+def _text(res: dict[str, Any]) -> dict[str, Any]:
+    out: dict[str, Any] = json.loads(res["content"][0]["text"])
+    return out
+
+
+def test_change_card_result_links_ui_resource(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server, _ws = _change_work(tmp_path, monkeypatch)
+    tool = _listed(server)["change_card"]
+    assert tool["_meta"]["ui"]["resourceUri"] == mcp.CHANGE_URI == "ui://literary-critic/change"
+
+    res = _call_raw(server, "change_card", {"work": "mynovel", "change": "C1"})
+    assert not res["isError"], res
+    assert res["_meta"]["ui"]["resourceUri"] == mcp.CHANGE_URI
+    shown = res["structuredContent"]
+    assert shown["id"] == "C1" and shown["work"] == "mynovel"
+    assert "cold" in shown["card"]["text"] and "bitter" in shown["card"]["text"]
+
+    msg = {"jsonrpc": "2.0", "id": 2, "method": "resources/read", "params": {"uri": mcp.CHANGE_URI}}
+    page = _replay(server, [msg])[0]["result"]["contents"][0]
+    assert page["mimeType"] == mcp.UI_MIME
+    html = page["text"]
+    assert html.count("<button") == 2
+    assert ">Approve</button>" in html and ">Dismiss</button>" in html
+    assert '"change_approve"' in html and '"change_dismiss"' in html
+    assert "hostCapabilities" in html  # ui/message only when the host advertises it
+
+    assert _call_raw(server, "change_card", {"work": "mynovel", "change": "C9"})["isError"]
+
+
+def test_change_approve_tool_is_app_only_and_locates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import change
+
+    server, ws = _change_work(tmp_path, monkeypatch)
+    tools = _listed(server)
+    for name in ("change_approve", "change_dismiss"):
+        assert tools[name]["_meta"]["ui"]["visibility"] == ["app"]
+        assert "resourceUri" not in tools[name]["_meta"]["ui"]
+    assert tools["change_card"]["_meta"]["ui"]["visibility"] == ["model", "app"]
+    # the id only: the work and the change, never text to write
+    schema = tools["change_approve"]["inputSchema"]
+    assert set(schema["properties"]) == {"work", "change"}
+    assert schema["required"] == ["work", "change"]
+
+    ran: list[list[str]] = []
+
+    def fake_run(grant: Any, work: str, argv: list[str]) -> dict[str, Any]:
+        ran.append(argv)
+        return {"status": "ok"}
+
+    monkeypatch.setattr(mcp, "_json_run", fake_run)
+    res = _call_raw(server, "change_approve", {"work": "mynovel", "change": "C1"})
+    out = _text(res)
+    assert not res["isError"], out
+    assert out["status"] == "applied" and out["locate"]["target"] == "bitter"
+    assert ran == [["docx", "locate", "--quote", "bitter", "--go"]]
+
+    again = _call_raw(server, "change_approve", {"work": "mynovel", "change": "C1"})
+    assert again["isError"] and _text(again)["error"] == "not_proposed"
+
+    change.propose(ws, "street", "road", by="writer")
+    dismissed = _call_raw(server, "change_dismiss", {"work": "mynovel", "change": "C2"})
+    assert _text(dismissed)["status"] == "dismissed"
+
+
+def test_state_includes_plan_active_and_next(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import plan
+
+    server, ws = _change_work(tmp_path, monkeypatch, propose=False)
+    assert _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]["plan"] is None
+
+    state, _ev = plan.init(ws, "iterative")
+    ids = [p["id"] for p in state["parts"]][:3]
+    for pid in ids:
+        plan.transition(ws, "accept", pid, "writer")
+    plan.transition(ws, "start", ids[0], "writer")
+
+    shown = _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]
+    assert shown["plan"]["active"]["id"] == ids[0]
+    assert [p["id"] for p in shown["plan"]["next"]] == ids[1:3]
+    assert 0 < len(shown["plan"]["timeline"]) <= 5
+    assert shown["next_step"]["step"] == "index"  # indexing still comes before the plan
+    monkeypatch.setattr(mcp, "_index_state", lambda root: {"packets": 1, "todo": 0})
+    done = _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]
+    assert done["next_step"]["step"] == "plan"
+
+    tool = _text(_call_raw(server, "plan", {"work": "mynovel"}))
+    assert tool["status"] == "ok" and tool["active"]["id"] == ids[0]
