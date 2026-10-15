@@ -295,15 +295,38 @@ def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     return request
 
 
+_POOL: concurrent.futures.ThreadPoolExecutor | None = None
+
+
+def _thread() -> concurrent.futures.ThreadPoolExecutor:
+    """The one thread every live call runs on. doc-control's Word engine keeps its COM
+    handle across calls, and a COM handle answers only on the thread that made it: a call
+    from another thread sees no open document (so an approved edit falls to the file and
+    is refused as locked, and ``locate`` does not move the cursor)."""
+    global _POOL
+    if _POOL is None:
+        _POOL = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="live")
+    return _POOL
+
+
+def run(name: str, request: dict[str, Any], timeout: float | None = None) -> dict[str, Any]:
+    """doc-control's ``name`` on the live thread, given up after ``timeout`` seconds
+    (raises ``dc.DocError``). A call that times out leaves its thread stuck, so the next
+    call starts a new one."""
+    global _POOL
+    future = _thread().submit(dc.run, name, request)
+    try:
+        return future.result(timeout=timeout)
+    except TimeoutError as exc:
+        stuck, _POOL = _POOL, None
+        if stuck is not None:
+            stuck.shutdown(wait=False)
+        raise dc.DocError("LIVE_TIMEOUT", f"Word did not answer in {timeout:g}s") from exc
+
+
 def _timed(name: str, request: dict[str, Any]) -> dict[str, Any]:
     """doc-control's ``name``, given up after ``LIVE_TIMEOUT`` (raises ``dc.DocError``)."""
-    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-    try:
-        return pool.submit(dc.run, name, request).result(timeout=LIVE_TIMEOUT)
-    except TimeoutError as exc:
-        raise dc.DocError("LIVE_TIMEOUT", f"Word did not answer in {LIVE_TIMEOUT:g}s") from exc
-    finally:
-        pool.shutdown(wait=False)
+    return run(name, request, LIVE_TIMEOUT)
 
 
 def open_documents() -> list[Path]:
@@ -327,7 +350,7 @@ def write(request: dict[str, Any]) -> dict[str, Any]:
     """One ``doc.batch`` in the open document (``engine: "live"``). The request carries
     ``"tracked": false``, so the edit is a plain write; an older doc-control refuses that
     with ``SCHEMA_INVALID``. Raises ``dc.DocError``."""
-    return dc.run("doc.batch", {**request, "engine": "live"})
+    return run("doc.batch", {**request, "engine": "live"})
 
 
 def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
