@@ -175,20 +175,21 @@ def _reject_all(data: bytes) -> list[str]:
     return _texts(out.getvalue())
 
 
-def test_edits_are_tracked_revisions(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    ws, doc = _workspace(tmp_path, docx(_corpus_paragraphs(), seed=11))
+def test_edits_are_plain_writes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    ws, doc = _workspace(tmp_path, _plain(*(t for t, _ in _corpus_paragraphs(8))))
     data = doc.read_bytes()
     plans = _plan(capsys, ws, doc, random.Random(11), 5)
     code, out = _edits(capsys, ws, [e for e, _, _ in plans])
     assert code == 0 and out["author"] == AUTHOR
     xml = _members(doc.read_bytes())["word/document.xml"].decode()
-    assert len(re.findall(rf'<w:ins\b[^>]*w:author="{AUTHOR}"', xml)) == 5
-    assert len(re.findall(rf'<w:del\b[^>]*w:author="{AUTHOR}"', xml)) >= 5
-    ids = re.findall(r'<w:(?:ins|del)\b[^>]*\bw:id="(\d+)"', xml)
-    assert len(ids) == len(set(ids))  # every revision has its own id
-    assert _reject_all(doc.read_bytes()) == _texts(data)
+    assert not re.findall(r"<w:(?:ins|del)[ >]", xml)  # no revision marks
+    after = _texts(doc.read_bytes())
+    for _, i, want in plans:
+        assert after[i] == want
     listed = dc.run("revision.list", {"doc": str(doc), "author": AUTHOR})
-    assert {r["type"] for r in listed["revisions"]} == {"insert", "delete"}
+    assert listed["revisions"] == []
+    assert main(["docx", "undo", "--workspace", str(ws)]) == 0
+    assert _texts(doc.read_bytes()) == _texts(data)
 
 
 def test_edit_refused_when_ambiguous_missing_or_overlapping(
@@ -407,6 +408,10 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     ck(code == 1 and out["reason"] == "changed")
     code, out = _lc(capsys, "docx", "locate", quote.upper(), *w)
     ck(code == 0 and out["locator"] is None)
+    # a rename over a paragraph with an old tracked change is refused as `marked`
+    code, out = _lc(capsys, "docx", "rename", "Choto", "Perro", "--dry-run", *w)
+    ck(code == 1 and out["reason"] == "marked")
+    dc.run("doc.batch", {"doc": str(doc), "ops": [{"op": "revision.accept", "all": True}]})
     # a document open in Word is never written
     lock = doc.parent / ("~$" + doc.name[2:])
     lock.write_text("x")
@@ -436,7 +441,7 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     (ws.parent / "broken.docx").write_bytes(b"not a zip")
     code, out = _lc(capsys, "docx", "locate", "--document", "broken.docx", "x", *w)
     ck(code == 1 and out["reason"] == "unreadable")
-    docx_cli_contract_ok = int(checks == 26 and not failed)
+    docx_cli_contract_ok = int(checks == 27 and not failed)
     assert docx_cli_contract_ok == 1, f"failed checks at lines {failed}"
 
 

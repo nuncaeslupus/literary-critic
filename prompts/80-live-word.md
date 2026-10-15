@@ -118,8 +118,7 @@ Each place still shows its quoted first words, so the list reads on its own.
    `--dry-run`. For a name changed everywhere: `lc docx rename OLD NEW --workspace <ws> --dry-run`, then without it.
 4. Reopen the document (`lc word reopen --payload '{"document": "<path>"}'`)
    and take the writer to the change (above). Tell them, in one short message:
-   what changed, where, and that it shows as a tracked change they can accept
-   or reject.
+   what changed, where, and that they can ask you to take it back.
 
 If a command answers `refused`, nothing was written: explain the reason in
 plain words and what the writer can do (close Word, save, quote more words).

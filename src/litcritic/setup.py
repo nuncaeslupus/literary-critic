@@ -393,7 +393,7 @@ def register(sub: Any) -> None:
         "--edit-in-place",
         choices=("yes", "no"),
         default=None,
-        help="approved changes may go into the file as tracked changes",
+        help="approved changes may be written into the file (a backup is kept each time)",
     )
     p.add_argument(
         "--prose-suggestions",

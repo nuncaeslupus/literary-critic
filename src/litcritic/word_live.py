@@ -161,8 +161,8 @@ def manual(op: str, payload: dict[str, Any], platform: str = sys.platform) -> di
             f"Run `lc docx status` first. If {name} is open in Word, save and close it "
             f"({keys.save}, then {keys.close}), or ask the writer to.",
             "Apply the change with `lc docx edits` or `lc docx rename`.",
-            f"Reopen {name} in Word (double-click it in its folder); the change shows "
-            "as a tracked change the writer can accept or reject.",
+            f"Reopen {name} in Word (double-click it in its folder); the change is "
+            "already written into the text, and a backup was kept.",
         ]
         writer = f"Please save and close {name} in Word; I will tell you when to open it again."
     elif op == "save":

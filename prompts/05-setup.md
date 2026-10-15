@@ -99,8 +99,8 @@ for reading; before any change you will ask them to save and close it (see
    we agree on a small change, shall I make it in your file for you, or do
    you prefer to type it yourself?" Explain in one line how it works: each
    change is shown here first ("Replace … with …?") and goes into the file
-   only when they approve it, with a copy of the file kept every time; Word
-   also marks it, so they can see what changed. Either answer is fine. Record
+   only when they approve it, with a copy of the file kept every time, and they
+   can ask you to take it back. Either answer is fine. Record
    it, so later sessions know it: `lc setup --folder <dir> --edit-in-place yes`
    (or `no`). Only a `.docx` manuscript can be changed this way.
 
