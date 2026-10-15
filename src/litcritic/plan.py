@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from litcritic import rounds, workspace
+from litcritic.codex import Codex, CodexError
 
 SCHEMA_VERSION = 1
 PLAN_DIR = "plan"
@@ -170,6 +171,9 @@ def refusal(state: dict[str, Any], event: dict[str, Any]) -> Refused | None:
             return Refused("already_initialized", "this work already has a plan")
         if data.get("mode") not in MODES:
             return Refused("invalid", f"mode must be one of {', '.join(MODES)}")
+        seeded = [p.get("status", "proposed") for p in data.get("parts", [])]
+        if any(st not in STATUSES for st in seeded) or seeded.count("active") > 1:
+            return Refused("invalid", "seeded parts need valid statuses and at most one active")
         return None
     if name != "added" and name not in _PART_EVENTS:
         return None
@@ -224,7 +228,14 @@ def apply(state: dict[str, Any], event: dict[str, Any]) -> dict[str, Any]:
     if name == "initialized":
         new["mode"] = data["mode"]
         for part in data.get("parts", []):
-            new["parts"].append({**part, "status": "proposed", "origin": "tool", "refs": {}})
+            new["parts"].append(
+                {
+                    **part,
+                    "status": part.get("status", "proposed"),
+                    "origin": "tool",
+                    "refs": part.get("refs") or {},
+                }
+            )
         _renumber(new)
     elif name == "added":
         part = {
@@ -287,6 +298,48 @@ def seed_parts(mode: str, language: str = "en") -> list[dict[str, Any]]:
     ]
 
 
+def _round_title(d: Path, language: str) -> str:
+    meta = rounds.load_json(d / "round.json", {})
+    text = rounds.TEXT.get(language, rounds.TEXT["en"])
+    level = str(meta.get("level") or "")
+    return str(text["title"]).format(
+        n=int(d.name.split("-")[1]), level=text["levels"].get(level, level)
+    )
+
+
+def round_parts(root: Path, language: str = "en") -> list[dict[str, Any]]:
+    """One ``round`` part per existing round; the latest with open actions is active.
+
+    Read-only. A workspace whose Codex cannot be read counts its rounds as done.
+    """
+    dirs = rounds.round_dirs(root)
+    if not dirs:
+        return []
+    open_by_round: dict[str, int] = {}
+    try:
+        cx = Codex(root)
+        open_by_round = {d.name: rounds.open_actions(root, d, cx) for d in dirs}
+    except (CodexError, OSError, ValueError):
+        pass
+    active = next((d.name for d in reversed(dirs) if open_by_round.get(d.name)), None)
+    return [
+        {
+            "id": f"P{i}",
+            "kind": "round",
+            "title": _round_title(d, language),
+            "status": "active" if d.name == active else "done",
+            "refs": {"round": d.name},
+        }
+        for i, d in enumerate(dirs, 1)
+    ]
+
+
+def initial_parts(root: Path, mode: str) -> list[dict[str, Any]]:
+    """What ``init`` seeds: the rounds already there, else the mode's proposed parts."""
+    language = _language(root)
+    return round_parts(root, language) or seed_parts(mode, language)
+
+
 def profile_mode(root: Path) -> str | None:
     f = root / "analysis" / "profile.toml"
     try:
@@ -337,7 +390,7 @@ def init(
     mode = mode or profile_mode(root)
     if mode is None:
         raise Refused("invalid", f"say the mode: --mode {'|'.join(MODES)}")
-    data: dict[str, Any] = {"mode": mode, "parts": seed_parts(mode, _language(root))}
+    data: dict[str, Any] = {"mode": mode, "parts": initial_parts(root, mode)}
     return record(root, "initialized", by, data=data)
 
 
@@ -388,8 +441,14 @@ def status(root: Path, timeline: int = 10) -> dict[str, Any]:
     if not events:
         mode = profile_mode(root) or "iterative"
         proposed = [
-            {**p, "status": "proposed", "origin": "tool", "order": i, "refs": {}}
-            for i, p in enumerate(seed_parts(mode, _language(root)), 1)
+            {
+                **p,
+                "status": p.get("status", "proposed"),
+                "origin": "tool",
+                "order": i,
+                "refs": p.get("refs") or {},
+            }
+            for i, p in enumerate(initial_parts(root, mode), 1)
         ]
         return {"status": "no_plan", "mode": mode, "proposed": proposed}
     state = replay(events)
@@ -401,20 +460,86 @@ def status(root: Path, timeline: int = 10) -> dict[str, Any]:
         {
             "at": e.get("at"),
             "what": e["event"],
-            "id": e.get("part") or e.get("change"),
+            "id": e.get("part") or e.get("change") or e.get("id"),
             "reason": e.get("reason", ""),
             "by": e.get("by"),
         }
         for e in events
     ]
+    rows += _decision_rows(root, parts)
+    rows.sort(key=lambda r: str(r["at"] or ""))  # stable: same-time rows keep log order
+    active = next((p for p in parts if p["status"] == "active"), None)
     return {
         "status": "ok",
         "mode": state["mode"],
-        "active": next((p for p in parts if p["status"] == "active"), None),
+        "active": _with_round(root, active) if active else None,
         "next": [p for p in parts if p["status"] == "todo"][:3],
         "by_status": by_status,
-        "timeline": rows[-timeline:][::-1] if timeline > 0 else [],
+        "timeline": rows[::-1][:timeline] if timeline > 0 else [],
     }
+
+
+def _round_of(part: dict[str, Any]) -> str | None:
+    name = (part.get("refs") or {}).get("round")
+    return str(name) if name else None
+
+
+def _with_round(root: Path, part: dict[str, Any]) -> dict[str, Any]:
+    """An active round part with its round and what remains in it (read live)."""
+    name = _round_of(part)
+    if part["kind"] != "round" or not name:
+        return part
+    out = {**part, "round": name}
+    try:
+        st = rounds.status(root, name)
+    except (rounds.RoundError, CodexError, OSError, ValueError) as exc:
+        return {**out, "remaining": [], "can_close": False, "round_unreadable": str(exc)}
+    return {**out, "remaining": st["remaining"], "can_close": st["can_close"]}
+
+
+def _decision_rows(root: Path, parts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The writer's current decisions on the plan's rounds (none when the Codex is unreadable)."""
+    names = dict.fromkeys(n for n in map(_round_of, parts) if n)
+    out: list[dict[str, Any]] = []
+    try:
+        cx = Codex(root)
+        for name in names:
+            meta = rounds.load_json(root / "revisions" / name / "round.json", {})
+            for entry in meta.get("actions", []):
+                d = rounds.decision(cx, str(entry.get("issue")))
+                if d is None:
+                    continue
+                out.append(
+                    {
+                        "at": d.fields.get("at"),
+                        "what": "decision",
+                        "id": entry["id"],
+                        "verdict": d.fields.get("verdict"),
+                        "reason": d.fields.get("reason", ""),
+                        "by": "writer",
+                    }
+                )
+    except (CodexError, OSError, ValueError, KeyError):
+        pass
+    return out
+
+
+def command_for(part: dict[str, Any]) -> list[str] | None:
+    """The ``lc`` command (after ``lc``) that carries a part out; None when it is read."""
+    refs = part.get("refs") or {}
+    issues = refs.get("issues")
+    filters: list[str] = []
+    if refs.get("area"):
+        filters = ["--area", str(refs["area"])]
+    elif isinstance(issues, list) and issues:
+        filters = ["--issues", ",".join(str(i) for i in issues)]
+    if part["kind"] == "round":
+        if refs.get("round"):
+            return ["round", "status"]
+        return ["round", "build", *(["--level", str(refs["level"])] if refs.get("level") else [])]
+    if part["kind"] in ("aspect", "report-part") and filters:
+        return ["round", "build", *filters]
+    return None
 
 
 def next_part(root: Path) -> dict[str, Any]:
@@ -422,7 +547,7 @@ def next_part(root: Path) -> dict[str, Any]:
     if state["mode"] is None:
         raise Refused("no_plan", "there is no plan yet: run `lc plan init`")
     part = next((p for p in state["parts"] if p["status"] == "todo"), None)
-    return {"status": "ok", "part": part, "command": None}
+    return {"status": "ok", "part": part, "command": command_for(part) if part else None}
 
 
 def check(root: Path, repair: bool = False) -> dict[str, Any]:
