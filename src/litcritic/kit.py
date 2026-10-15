@@ -233,7 +233,7 @@ def doctor(home: Path | None = None) -> list[str]:
     from litcritic import dc, ingest, metrics, pack, query, structure, workspace
 
     try:
-        if dc.run("capabilities", {}).get("api") is None:
+        if dc.run("server.capabilities", {}).get("api") is None:
             problems.append("doc-control answered without its API version")
     except Exception as exc:  # DocError, or anything doc-control raises
         problems.append(f"doc-control: {type(exc).__name__}: {exc}")

@@ -16,7 +16,7 @@ def _read_back(path: Path) -> list[dict[str, Any]]:
         req: dict[str, Any] = {"doc": str(path), "limit": 1000}
         if cursor:
             req["cursor"] = cursor
-        result = dc.run("text.normalized", req)
+        result = dc.run("text.normalize", req)
         for part in result["paragraphs"]:  # a long paragraph comes as several parts
             if entries and entries[-1]["at"] == part["at"]:
                 entries[-1]["text"] += part["text"]

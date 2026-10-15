@@ -370,7 +370,7 @@ def ingest(path: Path, ws_root: Path) -> Result:
         # doc-control backs the file up and notes it in its history; in a read-only
         # folder it cannot, and every write backs the file up again anyway.
         with contextlib.suppress(dc.DocError):
-            dc.run("open", {"doc": str(path.resolve())})
+            dc.run("doc.open", {"doc": str(path.resolve())})
     version = f"v{int(existing[-1].stem[1:]) + 1:03d}" if existing else "v001"
     if existing and hashlib.sha256(existing[-1].read_bytes()).hexdigest() == digest:
         version = existing[-1].stem

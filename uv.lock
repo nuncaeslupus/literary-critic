@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -218,11 +218,11 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.6.3"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/bb/14/e8271ba6273090f735002d109382b2561edb701da87e35480def73ee0e23/doc_control-0.6.3.tar.gz", hash = "sha256:b0cdf5bf3d4ac6d6e73d3de7d62409583e803d2dc1c00c80c23adff139e7a260", size = 642482, upload-time = "2026-10-14T16:54:59.414Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/35/dc/2ef9ded0fcebc8e3353b0d105e76666bb1f06bce981a85eeec88eaf9770a/doc_control-0.7.0.tar.gz", hash = "sha256:b3a09df9e5e7a5b3206981e22a83b45f3e109453bd0430c873bdd0205148c415", size = 736563, upload-time = "2026-10-15T15:19:00.032Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6a/f7/1e68cba91c62d97b30ddb1059a4a02016249dcf295b6dc6f3b5a9438fb24/doc_control-0.6.3-py3-none-any.whl", hash = "sha256:c71df42be56876812af776f3df402f8f82b65ac50b0858b55c18fe3a83d692f4", size = 413357, upload-time = "2026-10-14T16:54:57.898Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/61/f907b132ca2bc61242e591e838aa8952b7f6d94ea1f5112f0012532c897b/doc_control-0.7.0-py3-none-any.whl", hash = "sha256:484e6ae07a941207f3fb6b07c6d3b343e2e8da4e92afd64b76f61d7f860510c1", size = 456912, upload-time = "2026-10-15T15:18:58.32Z" },
 ]
 
 [package.optional-dependencies]
@@ -397,8 +397,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "doc-control", specifier = ">=0.6.3,<0.7" },
-    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.6.3,<0.7" },
+    { name = "doc-control", specifier = ">=0.7.0,<0.8" },
+    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.7.0,<0.8" },
 ]
 provides-extras = ["live"]
 

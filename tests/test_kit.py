@@ -137,7 +137,7 @@ def test_kit_selftest_offline(tmp_path: Path) -> None:
     probe = (
         "import sys; sys.path.insert(0, 'src')\n"
         "import doc_control; from litcritic import dc\n"
-        "print(doc_control.__file__); print(dc.run('capabilities', {})['api'])"
+        "print(doc_control.__file__); print(dc.run('server.capabilities', {})['api'])"
     )
     ran = subprocess.run(
         [sys.executable, "-I", "-S", "-c", probe],

@@ -276,7 +276,15 @@ class Resolver:
         doc = self._open()
         self.calls += 1
         try:
-            status, rows = "found", [doc.run("anchor.resolve", {"anchor": anchor, "mode": "exact"})]
+            status, rows = (
+                "found",
+                [
+                    doc.run(
+                        "anchor.resolve",
+                        {"anchor": anchor, "mode": "exact", "match_level": "exact"},
+                    )
+                ],
+            )
         except dc.DocError as exc:
             if exc.code == "ANCHOR_AMBIGUOUS":
                 status, rows = "ambiguous", list(exc.details.get("candidates") or [])

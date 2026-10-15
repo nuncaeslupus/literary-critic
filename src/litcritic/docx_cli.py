@@ -159,7 +159,7 @@ class _Places:
         once in the document; None otherwise."""
         if text not in self.typed:
             req = {"query": text, "ignore_case": True, "limit": 1, "context": 0}
-            found = self.handle.run("find", req)
+            found = self.handle.run("text.find", req)
             word = found.get("query_word")
             once = int(found.get("total", 0)) == 1
             defaults = found.get("query_word_options") == WORD_DEFAULTS
@@ -229,7 +229,7 @@ def _resolve(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
         anchor["prefix"] = prefix
     if suffix.strip():
         anchor["suffix"] = suffix
-    req = {"doc": str(doc), "anchor": anchor, "mode": "exact"}
+    req = {"doc": str(doc), "anchor": anchor, "mode": "exact", "match_level": "exact"}
     try:
         return str(dc.run("anchor.resolve", req)["at"])
     except dc.DocError as exc:
@@ -288,7 +288,7 @@ def _written(
 
 def _state(ws_root: Path, doc: Path) -> dict[str, Any]:
     last = ingest.last_read(ws_root, doc)
-    info = dc.run("info", {"doc": str(doc)})
+    info = dc.run("doc.info", {"doc": str(doc)})
     history = dc.run("history.list", {"doc": str(doc), "limit": 200}).get("entries", [])
     return {
         "document": str(doc),
@@ -356,7 +356,7 @@ def _edits(args: argparse.Namespace, root: Path) -> int:
         return refused(*_unread(doc))
     try:
         if args.dry_run:
-            dc.run("batch", {**batch, "dry_run": True})
+            dc.run("doc.batch", {**batch, "dry_run": True})
             st = _state(root, doc)
             return _out(
                 {
@@ -369,7 +369,7 @@ def _edits(args: argparse.Namespace, root: Path) -> int:
                     **base,
                 }
             )
-        result = dc.run("batch", {**batch, "expect": {"sha256": last}})
+        result = dc.run("doc.batch", {**batch, "expect": {"sha256": last}})
     except dc.DocError as exc:
         reason, message = _why(exc, doc)
         para = str(exc.details.get("paragraph", ""))
@@ -442,7 +442,7 @@ def _rename(args: argparse.Namespace, root: Path) -> int:
     if counts.get("skipped_unsupported") or counts.get("skipped_boundary"):
         # doc-control counts the occurrences it leaves alone; find says where they are.
         found = dc.run(
-            "find",
+            "text.find",
             {
                 "doc": str(doc),
                 "query": args.old,
@@ -606,7 +606,7 @@ def _undo(args: argparse.Namespace, root: Path) -> int:
     else:
         req["expect"] = {"sha256": last}
     try:
-        result = dc.run("undo", req)
+        result = dc.run("history.undo", req)
     except dc.DocError as exc:
         reason, message = _why(exc, doc)
         if reason == "nothing":

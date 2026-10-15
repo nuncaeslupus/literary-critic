@@ -187,7 +187,7 @@ def test_edits_are_tracked_revisions(tmp_path: Path, capsys: pytest.CaptureFixtu
     ids = re.findall(r'<w:(?:ins|del)\b[^>]*\bw:id="(\d+)"', xml)
     assert len(ids) == len(set(ids))  # every revision has its own id
     assert _reject_all(doc.read_bytes()) == _texts(data)
-    listed = dc.run("revisions.list", {"doc": str(doc), "author": AUTHOR})
+    listed = dc.run("revision.list", {"doc": str(doc), "author": AUTHOR})
     assert {r["type"] for r in listed["revisions"]} == {"insert", "delete"}
 
 
