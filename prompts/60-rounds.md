@@ -23,7 +23,9 @@ be cut is wasted.
    `lc round mark --id A3 --status rejected --reason "their words" --workspace <slug>`
    (`accepted`, `rejected`, `deferred`, `done`; `pending` withdraws a decision).
    Each decision is a Codex `decision` item, so a rejected point is never
-   raised again.
+   raised again. Then tell the writer it is settled and what remains
+   (`lc round status --workspace <slug>`: `remaining`), and ask which to take next
+   (`00-guide.md`, "The writer always knows where they are").
 4. `lc round status --workspace <slug>` says whether the round can close: no
    open high-severity action left, or the writer decides to close it.
 5. **Applying a change the writer approved** (a `.docx` manuscript, and

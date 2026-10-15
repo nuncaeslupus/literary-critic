@@ -69,7 +69,10 @@ def test_round_built_from_issue_items(ws: Path) -> None:
     assert [a["issue"] for a in actions] == [ids["F3"], ids["F2"]]  # high before medium
     assert actions[1]["options"] == ["Cut", "Merge"] and actions[0]["status"] == "pending"
     assert actions[0]["where"]["chapter"].startswith("9")
-    assert rounds.status(ws)["can_close"] is False
+    st = rounds.status(ws)
+    assert st["can_close"] is False
+    assert [r["id"] for r in st["remaining"]] == [a["id"] for a in actions]
+    assert st["remaining"][0]["where"]["chapter"].startswith("9")
     # Rebuilding before the letter and any decision replaces the round.
     _, again, _ = rounds.build(ws)
     assert [d.name for d in rounds.round_dirs(ws)] == ["round-01"]
@@ -83,8 +86,10 @@ def test_round_built_from_issue_items(ws: Path) -> None:
     d = rounds.decision(cx, ids["F3"])
     assert d is not None and d.fields["verdict"] == "rejected"
     assert d.fields["reason"] == "it is the point" and d.fields["at"]
+    assert [r["id"] for r in rounds.status(ws)["remaining"]] == [actions[1]["id"]]
     rounds.mark(ws, actions[1]["id"], "done")
     assert rounds.status(ws)["can_close"] is True
+    assert rounds.status(ws)["remaining"] == []
     _, scene_round, _ = rounds.build(ws)
     assert [a["issue"] for a in scene_round] == [ids["F1"]]  # F9's check makes no action
     assert scene_round[0]["id"] == "A3" and scene_round[0]["round"] == 2

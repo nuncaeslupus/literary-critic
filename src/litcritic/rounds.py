@@ -47,6 +47,7 @@ VERDICT_STATUS = {
     "deferred": "deferred",
 }
 STATUSES = ("pending", "accepted", "rejected", "done", "deferred")
+OPEN = ("pending", "accepted", "deferred")  # an action still to address
 
 DEFAULT_OPTIONS = {
     "es": ["Mantenerlo así (si es deliberado, dime por qué)", "Revisarlo como se describe"],
@@ -335,6 +336,12 @@ def status(ws_root: Path) -> dict[str, Any]:
         "by_status": counts,
         "open_high": open_high,
         "can_close": not open_high,
+        # What is still to address, in the round's order: what the writer sees as "what remains".
+        "remaining": [
+            {k: a[k] for k in ("id", "status", "severity", "what", "where")}
+            for a in actions
+            if a["status"] in OPEN
+        ],
     }
 
 
@@ -436,7 +443,7 @@ def live(cx: Codex, kind: str) -> list[Item]:
         for i in cx.of_type("issue")
         if i.status == "active"
         and i.fields.get("kind", "problem") == kind
-        and action_status(cx, i.id) in ("pending", "accepted", "deferred")
+        and action_status(cx, i.id) in OPEN
     ]
 
 
