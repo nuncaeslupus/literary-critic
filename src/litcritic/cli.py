@@ -325,7 +325,9 @@ def _cmd_round(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
         if args.action == "build":
-            out, actions, warnings = rounds.build(ws.root, args.version, args.level)
+            out, actions, warnings = rounds.build(
+                ws.root, args.version, args.level, args.area, args.issues
+            )
             for w in warnings:
                 print(f"warning: {w}", file=sys.stderr)
             print(f"{len(actions)} actions ({actions[0]['level'] if actions else '-'}) -> {out}")
@@ -547,6 +549,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_round.add_argument("--workspace", required=True, help="workspace folder or slug")
     p_round.add_argument("--version", default=None)
     p_round.add_argument("--level", choices=list(rounds.LEVELS), default=None)
+    p_round.add_argument("--area", default=None, help="build: only issues of checks in this area")
+    p_round.add_argument(
+        "--issues", nargs="+", default=None, metavar="ID", help="build: only these issue ids"
+    )
     p_round.add_argument("--id", dest="action_id", default=None, help="action id for mark, e.g. A3")
     p_round.add_argument(
         "--status", choices=["pending", "accepted", "rejected", "done", "deferred"], default=None

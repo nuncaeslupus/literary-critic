@@ -124,6 +124,11 @@ def level_of(issue: Item, checks: dict[str, checklist.Check]) -> str | None:
     return ISSUE_LEVEL.get(str(issue.fields.get("level")), "scene")
 
 
+def _area_of(issue: Item, checks: dict[str, checklist.Check]) -> str | None:
+    check = checks.get(str(issue.fields.get("check", "")))
+    return check.area if check is not None else None
+
+
 def score(issue: Item, weights: dict[str, float], check: checklist.Check | None) -> float:
     weight = 1.0
     if check is not None:
@@ -208,7 +213,11 @@ def round_actions(
 
 
 def build(
-    ws_root: Path, version: str | None = None, level: str | None = None
+    ws_root: Path,
+    version: str | None = None,
+    level: str | None = None,
+    area: str | None = None,
+    issues: list[str] | None = None,
 ) -> tuple[Path, list[dict[str, Any]], list[str]]:
     """Record the next round; returns (round.json path, actions, warnings).
 
@@ -216,6 +225,8 @@ def build(
     put to the writer yet, so it is rebuilt in place (same number) rather than
     followed. Once its letter exists, its numbering is fixed.
     ``version`` is accepted for the CLI and must be the Codex's synced draft.
+    ``area`` keeps only issues of checks in that checklist area, and ``issues`` only
+    those ids; both narrow the open problems before the level is chosen.
     """
     cx = Codex(ws_root)
     if version and version != cx.draft:
@@ -240,6 +251,8 @@ def build(
         and decision(cx, i.id) is None
         and i.id not in in_rounds
         and level_of(i, checks) is not None
+        and (issues is None or i.id in issues)
+        and (area is None or _area_of(i, checks) == area)
     ]
     if level is None:
         level = next(
