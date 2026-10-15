@@ -1,5 +1,6 @@
 import io
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -343,6 +344,57 @@ def test_change_approve_tool_is_app_only_and_locates(
     change.propose(ws, "street", "road", by="writer")
     dismissed = _call_raw(server, "change_dismiss", {"work": "mynovel", "change": "C2"})
     assert _text(dismissed)["status"] == "dismissed"
+
+
+def test_change_status_tool_is_app_only_and_live(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import change
+
+    server, ws = _change_work(tmp_path, monkeypatch)
+    tool = _listed(server)["change_status"]
+    assert tool["_meta"]["ui"]["visibility"] == ["app"]
+    assert set(tool["inputSchema"]["properties"]) == {"work", "change"}
+
+    def status(cid: str) -> str:
+        res = _call_raw(server, "change_status", {"work": "mynovel", "change": cid})
+        assert not res["isError"], res
+        out = _text(res)
+        assert out["id"] == cid and out["work"] == "mynovel"
+        return str(out["status"])
+
+    # the card's own result stays "proposed"; the status tool follows the log
+    card = _call_raw(server, "change_card", {"work": "mynovel", "change": "C1"})
+    assert card["structuredContent"]["status"] == "proposed" == status("C1")
+    monkeypatch.setattr(mcp, "_json_run", lambda *a: {"status": "ok"})
+    assert not _call_raw(server, "change_approve", {"work": "mynovel", "change": "C1"})["isError"]
+    assert status("C1") == "applied"
+    assert change.mark_undone(ws, ["C1"], "op1") == "C1"
+    assert status("C1") == "undone"
+    change.propose(ws, "street", "road", by="writer")
+    change.dismiss(ws, "C2")
+    assert status("C2") == "dismissed"
+
+    unknown = _call_raw(server, "change_status", {"work": "mynovel", "change": "C9"})
+    assert unknown["isError"] and _text(unknown)["error"] == "unknown_change"
+
+
+def test_change_page_renders_settled_changes_as_settled() -> None:
+    from litcritic import change
+
+    html = (Path(mcp.__file__).parent / "ui" / "change.html").read_text(encoding="utf-8")
+    assert '"change_status"' in html  # asked on load, the tool result may be stale
+    block = re.search(r"const SETTLED = \{(.*?)\};", html, re.S)
+    assert block, "the page names every settled status"
+    words = dict(re.findall(r"(\w+): \"([^\"]+)\"", block.group(1)))
+    # every status a change can reach that is no longer actionable, and none that is
+    assert set(words) == {"approved", "applied", "typed_by_writer", "dismissed", "undone"}
+    assert not set(words) & {"proposed", *change.LIVE}
+    assert words["applied"].startswith("✓") and words["dismissed"] == "Dismissed"
+    assert "✗" not in "".join(words.values())
+    # a refusal for a settled change shows the settled state, not the red error
+    assert 'why.code === "not_proposed" && settle(await liveStatus())' in html
+    assert '$("buttons").hidden = true' in html
 
 
 def test_state_includes_plan_active_and_next(

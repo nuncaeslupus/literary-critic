@@ -5,7 +5,10 @@
 <!-- The MCP App behind literary-critic's `change_card` tool: one proposed change with exactly
      two buttons. A click calls the extension's app-only `change_approve` / `change_dismiss`
      tool through the host with the change id only (the page never sends text to write), so
-     approving takes one click and no assistant turn. Afterwards it sends a `ui/message` when
+     approving takes one click and no assistant turn. On load it asks the app-only
+     `change_status` tool for the change's status now (the tool result is from when the card
+     was first shown), and a change already approved, dismissed or undone shows as settled
+     with no buttons. Afterwards it sends a `ui/message` when
      the host advertises that capability. Self-contained (no CDN): hosts sandbox app frames. -->
 <style>
   :root { color-scheme: light dark; }
@@ -24,6 +27,7 @@
   #result { margin-top: 8px; font-size: 13px; }
   #result.ok { color: #2a2; }
   #result.err { color: #c33; }
+  #result.settled { opacity: .8; }
 </style>
 </head>
 <body>
@@ -79,14 +83,49 @@ function render(data) {
   $("card").hidden = false;
   $("status").textContent = "Change " + data.id;
   resize();
+  if (!settle(data.status)) {
+    // Hold the buttons until the server says whether the change is still proposed.
+    $("approve").disabled = $("dismiss").disabled = true;
+    liveStatus().then(status => {
+      if (!settle(status)) $("approve").disabled = $("dismiss").disabled = false;
+    });
+  }
+}
+
+// A change no longer proposed (or refused, which can be approved again) is settled: say what
+// became of it in plain words and take the buttons away. Undefined for a live change.
+const SETTLED = {
+  approved: "✓ Approved", applied: "✓ Approved", typed_by_writer: "✓ Approved: you type it in",
+  dismissed: "Dismissed", undone: "Undone",
+};
+
+function settle(status) {
+  const words = SETTLED[status];
+  if (!words) return false;
+  $("approve").disabled = $("dismiss").disabled = true;
+  $("buttons").hidden = true;
+  result(words, words.startsWith("✓") ? "ok" : "settled");
+  return true;
+}
+
+// The change's status now; null when the server cannot say (the card then stays as shown).
+// A host that never answers counts as "cannot say" after a few seconds.
+async function liveStatus() {
+  const call = request("tools/call", { name: "change_status", arguments: { ...shown } });
+  const late = new Promise(resolve => setTimeout(() => resolve(null), 4000));
+  try {
+    const res = await Promise.race([call, late]);
+    if (res && !res.isError) return JSON.parse(res.content[0].text).status || null;
+  } catch (e) { /* keep the card as shown */ }
+  return null;
 }
 
 // A tool error arrives as {isError: true, content: [{text: '{"error": code, "message": ...}'}]}.
 function failure(res) {
   try {
     const e = JSON.parse(res.content[0].text);
-    return (e.message || e.error || "error");
-  } catch (e) { return "error"; }
+    return { code: e.error || "", text: e.message || e.error || "error" };
+  } catch (e) { return { code: "", text: "error" }; }
 }
 
 async function act(name, done) {
@@ -96,9 +135,12 @@ async function act(name, done) {
   try {
     const res = await request("tools/call", { name, arguments: { ...shown } });
     if (res.isError) {
-      // The card stays actionable after a refusal, so the writer can try again.
+      const why = failure(res);
+      // Already settled (approved, dismissed or undone elsewhere): say so, not an error.
+      if (why.code === "not_proposed" && settle(await liveStatus())) return;
+      // The card stays actionable after another refusal, so the writer can try again.
       $("approve").disabled = $("dismiss").disabled = false;
-      result("✗ " + failure(res), "err");
+      result("✗ " + why.text, "err");
       return;
     }
     result("✓ " + done, "ok");
