@@ -1,11 +1,12 @@
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 import pytest
-from test_docx_cli import _plain, _texts, _workspace
+from test_docx_cli import _members, _plain, _texts, _workspace
 
-from litcritic import docx_cli, plan
+from litcritic import dc, docx_cli, plan
 from litcritic.cli import main
 
 P1 = "Era una tarde fria de otoño y nadie salía de casa."
@@ -151,3 +152,70 @@ def test_docx_undo_of_plain_edit_has_no_change(
     assert main(["docx", "undo", "--workspace", str(ws)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert "change" not in out and plan.read_log(ws) == []
+
+
+def _marks(data: bytes) -> int:
+    xml = _members(data)["word/document.xml"].decode("utf-8")
+    return len(re.findall(r"<w:(?:ins|del)[ >]", xml))
+
+
+def test_change_approve_leaves_no_revision_marks(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, doc = _novel(tmp_path)
+    _propose(capsys, ws, "fria", "fría", "--by", "writer")
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 0 and out["status"] == "applied"
+    approved_change_revision_marks = _marks(doc.read_bytes())
+    assert approved_change_revision_marks == 0
+    assert _texts(doc.read_bytes())[0] == P1.replace("fria", "fría")
+    capsys.readouterr()
+    assert main(["docx", "undo", "--workspace", str(ws)]) == 0  # the backup takes it back
+    assert _texts(doc.read_bytes())[0] == P1
+
+
+def test_overlap_with_tracked_revision_gives_marked(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, doc = _novel(tmp_path)
+    at = dc.run("anchor.resolve", {"doc": str(doc), "anchor": {"exact": "tarde"}, "mode": "exact"})
+    dc.run(
+        "doc.batch",
+        {
+            "doc": str(doc),
+            "ops": [{"op": "text.replace", "at": at["at"], "text": "noche"}],
+            "author": "someone",
+            "tracked": True,
+        },
+    )
+    main(["ingest", str(doc), "--workspace", str(ws)])
+    assert _marks(doc.read_bytes()) > 0
+    before = doc.read_bytes()
+    _propose(capsys, ws, "fria", "fría", "--by", "writer")
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 1 and out["status"] == "refused" and out["reason"] == "marked"
+    assert "accept or reject" in out["message"] or "marked" in out["message"]
+    assert doc.read_bytes() == before
+
+
+def test_old_doc_control_refused_not_tracked(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ws, doc = _novel(tmp_path)
+    before = doc.read_bytes()
+    sent: list[dict[str, Any]] = []
+    real = dc.run
+
+    def old(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        if op == "doc.batch":
+            sent.append(request)
+            if request.get("tracked") is False:
+                raise dc.DocError("SCHEMA_INVALID", "unknown field 'tracked'")
+        return real(op, request)
+
+    monkeypatch.setattr(dc, "run", old)
+    _propose(capsys, ws, "fria", "fría", "--by", "writer")
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 1 and out["status"] == "refused" and out["reason"] == "doc_control_too_old"
+    assert sent and all(r["tracked"] is False for r in sent)  # never silently tracked
+    assert doc.read_bytes() == before

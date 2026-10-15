@@ -35,7 +35,7 @@ Status: early development. See `status/specification.md` and `status/plan.md`.
 Documents are read and written through
 [doc-control](https://github.com/nuncaeslupus/doc-control), which owns the generic
 document work (paragraph addresses, chapters and scenes, diff, locating,
-tracked-change edits, comments, undo). literary-critic owns the literary side: the
+edits with a backup, comments, undo). literary-critic owns the literary side: the
 index, the Codex, the checks, letters and revision rounds. See
 [`docs/architecture.md`](docs/architecture.md).
 
@@ -49,7 +49,7 @@ index, the Codex, the checks, letters and revision rounds. See
 | Chat without code execution | Paste the portable prompts from `prompts/`; reduced mode without metrics. |
 
 **What you need for the full experience** (the novel's folder connected, changes
-applied in Word as tracked changes, Word opened at the right paragraph): Claude's
+written into the file with a backup, Word opened at the right paragraph): Claude's
 desktop app with Cowork, which needs a paid Claude plan and a Mac with Apple
 silicon or Windows Pro, Enterprise or Education. On the free plan, Windows Home
 or an Intel Mac there is no Cowork: the tool works in basic mode, where you
@@ -74,7 +74,7 @@ spec-driven Claude Code workflow and gated task queue this repo is developed on.
 Same author:
 
 - [claude-arsenal](https://github.com/nuncaeslupus/claude-arsenal) — a Claude Code skill and plugin marketplace: specs before code, failing tests first, gates with numbers.
-- [doc-control](https://github.com/nuncaeslupus/doc-control) — a deterministic tool for AI agents to read and edit Word documents as tracked changes; literary-critic's document layer.
+- [doc-control](https://github.com/nuncaeslupus/doc-control) — a deterministic tool for AI agents to read and edit Word documents; literary-critic's document layer.
 - [drawspec](https://github.com/nuncaeslupus/drawspec) — declarative diagram spec → clean, themeable SVG; JSON with no coordinates, so an LLM can write it.
 - [integral-job-search](https://github.com/nuncaeslupus/integral-job-search) — a candidate-centred job search run as a conversation in Claude Code.
 

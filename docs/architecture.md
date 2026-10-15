@@ -6,7 +6,7 @@ layer** it owns.
 - **doc-control** ([PyPI `doc-control`](https://github.com/nuncaeslupus/doc-control),
   stdlib only) owns everything generic about a document: reading paragraphs with
   stable addresses, chapters and scenes, draft-to-draft diff, locating a passage
-  for a writer, page estimates, anchors, tracked-change edits, comments, locks,
+  for a writer, page estimates, anchors, edits, comments, locks,
   backups, verification and undo. literary-critic never rebuilds any of it; a gap
   is a request to doc-control, not new code here.
 - **literary-critic** owns what is about the novel: the workspace, the literary
@@ -67,6 +67,6 @@ a document.
    the workspace; every location shown to the writer comes from `locate`.
 4. **Next draft** — `diff` aligns drafts, `spans` re-anchors the Codex exactly,
    `sync` reports what changed.
-5. **Write back** — only with the writer's approval: `lc docx` (tracked-change edits,
+5. **Write back** — only with the writer's approval: `lc docx` (plain edits with a backup,
    renames, undo) and `lc docx-out` (comments) go through doc-control's `batch`,
    which locks, backs up and verifies.

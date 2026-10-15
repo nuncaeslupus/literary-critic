@@ -3,7 +3,7 @@
 doc-control (PyPI ``doc-control``, stdlib only) owns the generic primitives —
 reading Word documents (and plain text, Markdown or OpenDocument text as if
 they were one),
-segmenting, diffing, locating and editing Word documents as tracked changes.
+segmenting, diffing, locating and editing Word documents.
 This module is the only place that imports it, so a change in its API touches
 one file. Calls run in-process with doc-control's own request schemas.
 """
@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 7, 0)  # resource.action operation names
-INSTALL_HINT = "install doc-control 0.7 (API 1.x): pip install 'doc-control>=0.7,<0.8'"
+MIN_VERSION = (0, 7, 1)  # resource.action operation names
+INSTALL_HINT = "install doc-control 0.7.1 (API 1.x): pip install 'doc-control>=0.7.1,<0.8'"
 
 
 class DocError(Exception):

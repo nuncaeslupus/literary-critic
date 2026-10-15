@@ -9,10 +9,12 @@ Placeholders like <slug> stand for any value.
 import argparse
 import contextlib
 import io
+import json
 import re
 import shlex
 from pathlib import Path
 
+from litcritic import docx_cli, word_live
 from litcritic.cli import build_parser
 from litcritic.workspace import repo_root
 
@@ -325,3 +327,29 @@ def test_cards_prompt_respects_prose_setting() -> None:
     assert "prose_suggestions" in guide
     assert "minor" in rounds and "off" in rounds
     assert 'only if `prose_suggestions` is `"minor"` or\non' in guide
+
+
+TRACKED_WORDING = re.compile(r"tracked[- ]changes?|Word (?:also )?marks|as tracked", re.I)
+
+
+def test_writer_texts_have_no_tracked_wording(tmp_path: Path) -> None:
+    """Gate tracked_wording_in_writer_texts == 0: after the switch to plain writes, no
+    prompt, help text or writer line says an approved change shows as a tracked change."""
+    root = repo_root()
+    texts = {d.name: d.read_text(encoding="utf-8") for d in _documents()}
+    texts["README.md"] = (root / "README.md").read_text(encoding="utf-8")
+    texts["architecture.md"] = (root / "docs" / "architecture.md").read_text(encoding="utf-8")
+    parser = build_parser()
+    for cmd in (("docx",), ("docx", "edits"), ("docx", "rename"), ("setup",)):
+        sub = parser
+        for name in cmd:
+            sub = _choices(sub)[name]
+        texts["help " + " ".join(cmd)] = sub.format_help()
+    texts["help lc"] = parser.format_help()
+    texts["docx_cli docstring"] = docx_cli.__doc__ or ""
+    steps = word_live.manual("apply_edits", {"document": str(tmp_path / "Novel.docx")})
+    texts["word_live apply_edits"] = json.dumps(steps, ensure_ascii=False)
+    tracked_wording_in_writer_texts = [
+        name for name, text in texts.items() if TRACKED_WORDING.search(text)
+    ]
+    assert tracked_wording_in_writer_texts == []

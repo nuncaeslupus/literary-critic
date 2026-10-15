@@ -5,7 +5,8 @@ check failed and nothing was written), 2 usage or input error.
 
 The edits themselves are doc-control's (through ``litcritic.dc``): quotes are
 resolved to addresses verbatim (``anchor.resolve`` in exact mode) and applied
-as one tracked ``batch`` or ``term.rename``. doc-control refuses a document open
+as one plain ``batch`` or ``term.rename`` (``"tracked": false``: the text is changed in
+place, no revision marks). doc-control refuses a document open
 in Word or changed since the tool last read it, backs it up, verifies the
 result and keeps the history ``lc docx undo`` takes back.
 
@@ -45,7 +46,13 @@ REASONS = {  # doc-control error code -> the stable reason `lc docx` reports
     "UNSUPPORTED_CONTENT": "edit",
     "BATCH_CONFLICT": "edit",
     "HISTORY_NOT_FOUND": "nothing",
+    "SCHEMA_INVALID": "doc_control_too_old",  # an older doc-control rejects "tracked": false
 }
+MARKED = "this passage still has a marked change from before; accept or reject it in Word first"
+TOO_OLD = (
+    "the installed doc-control is too old to write changes plainly; "
+    "update it (pip install -U 'doc-control>=0.7.1,<0.8')"
+)
 BY_HAND = "inside a field, link or note mark; change it by hand"
 
 
@@ -247,6 +254,10 @@ def _sha256(doc: Path) -> str:
 def _why(exc: dc.DocError, doc: Path) -> tuple[str, str]:
     """(reason, message for the writer) of a doc-control refusal."""
     reason = REASONS.get(exc.code, exc.code.lower())
+    if exc.code == "UNSUPPORTED_CONTENT" and "unresolved tracked" in str(exc.message):
+        return "marked", MARKED
+    if reason == "doc_control_too_old":
+        return reason, TOO_OLD
     if reason == "locked":
         lock = Path(str(exc.details.get("lock_file", "~$" + doc.name))).name
         return reason, (
@@ -337,7 +348,7 @@ def apply_edits(
     reasons: dict[str, str] | None = None,
     dry_run: bool = False,
 ) -> tuple[dict[str, Any], int]:
-    """The one write path for approved edits: resolve each quote once, then one tracked
+    """The one write path for approved edits: resolve each quote once, then one plain
     batch with backup, ``expect.sha256`` and verify-and-restore, and a line in
     ``log/edits.jsonl``. Returns the answer and its exit code (0 applied, 1 refused)."""
     ids = [e[0] for e in edits]
@@ -371,7 +382,7 @@ def apply_edits(
     if problems:
         return refused("edit", "; ".join(f"{k}: {v}" for k, v in problems.items()), problems)
     ops = [{"op": "text.replace", "at": at, "text": replace} for at, _, replace in spots]
-    batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": True}
+    batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": False}
     last = ingest.last_read(root, doc)
     if not dry_run and not last:
         return refused(*_unread(doc))
@@ -448,8 +459,12 @@ def _rename(args: argparse.Namespace, root: Path) -> int:
         "case_sensitive": sensitive,
         "preserve_case": True,  # with --ignore-case, each occurrence keeps its case
         "author": AUTHOR,
+        "tracked": False,
     }
-    plan = dc.run("term.rename", {**req, "dry_run": True, "preview_limit": 200})
+    try:
+        plan = dc.run("term.rename", {**req, "dry_run": True, "preview_limit": 200})
+    except dc.DocError as exc:
+        return refused(*_why(exc, doc))
     counts = plan.get("counts", {})
     if not counts.get("matches"):
         return refused("edit", f"{args.old!r} does not appear in the document")
@@ -685,7 +700,9 @@ def _run(args: argparse.Namespace) -> int:
 
 
 def register(sub: Any) -> None:
-    p = sub.add_parser("docx", help="edit the writer's Word file in place (tracked changes)")
+    p = sub.add_parser(
+        "docx", help="edit the writer's Word file in place (a backup is kept; undo takes it back)"
+    )
     dsub = p.add_subparsers(dest="docx_cmd", required=True)
 
     def common(sp: argparse.ArgumentParser) -> None:
@@ -694,11 +711,11 @@ def register(sub: Any) -> None:
         sp.add_argument("--document", default=None, help="the .docx (default: last one read)")
         sp.set_defaults(func=_run)
 
-    p_ed = dsub.add_parser("edits", help="apply approved edits as tracked changes")
+    p_ed = dsub.add_parser("edits", help="apply approved edits to the file (with a backup)")
     p_ed.add_argument("--edits", required=True, help="edits.json (see docs)")
     p_ed.add_argument("--dry-run", action="store_true", help="check only, write nothing")
     common(p_ed)
-    p_rn = dsub.add_parser("rename", help="rename a whole word everywhere, as tracked changes")
+    p_rn = dsub.add_parser("rename", help="rename a whole word everywhere (with a backup)")
     p_rn.add_argument("old")
     p_rn.add_argument("new")
     case = p_rn.add_mutually_exclusive_group()
