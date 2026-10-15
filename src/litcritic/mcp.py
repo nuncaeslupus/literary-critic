@@ -464,6 +464,19 @@ def change_card(grant: Any, work: str, cid: str) -> dict[str, Any]:
     return {"card": one["card"], "id": one["id"], "status": one["status"], "work": work}
 
 
+def change_status(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
+    """The change page's check on load: the change's status now, not when the card was shown."""
+    work, cid = str(args.get("work") or ""), str(args.get("change") or "")
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    try:
+        one = change.status(ws.root, cid)["changes"][0]
+    except plan.Refused as exc:
+        raise ToolError(exc.reason, message=exc.message) from None
+    return {"id": one["id"], "status": one["status"], "work": work}
+
+
 def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
     """The change page's Approve button: the id only. Applies it, then takes Word there."""
     work, cid = str(args.get("work") or ""), str(args.get("change") or "")
@@ -641,6 +654,14 @@ def tools(grant: Any) -> list[Tool]:
             "change_approve",
             "Approve a proposed change (used by the change card's button).",
             lambda a: change_approve(grant, a),
+            {"work": WORK_ARG, "change": {"type": "string"}},
+            ("work", "change"),
+            app_only=True,
+        ),
+        Tool(
+            "change_status",
+            "A change's current status (used by the change card when it opens).",
+            lambda a: change_status(grant, a),
             {"work": WORK_ARG, "change": {"type": "string"}},
             ("work", "change"),
             app_only=True,
