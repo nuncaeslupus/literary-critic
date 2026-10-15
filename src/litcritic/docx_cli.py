@@ -633,7 +633,31 @@ def _undo(args: argparse.Namespace, root: Path) -> int:
     if args.dry_run:
         return _out({"status": "dry_run", **out, "backup": None, **base})
     backup = _written(root, doc, last, result, {"command": "undo", "undid": out["undid"]})
-    return _out({"status": "undone", **out, "backup": _shown(root, backup), **base})
+    answer: dict[str, Any] = {"status": "undone", **out, "backup": _shown(root, backup), **base}
+    change_id = _undone_change(root, str(out["undid"] or ""))
+    if change_id:
+        answer["change"] = change_id
+    return _out(answer)
+
+
+def _undone_change(root: Path, op_id: str) -> str | None:
+    """Log ``change.undone`` when the edit just taken back came from ``lc change approve``."""
+    if not op_id:
+        return None
+    f = root / "log" / "edits.jsonl"
+    if not f.is_file():
+        return None
+    ids: list[str] = []
+    for line in f.read_text(encoding="utf-8").splitlines():
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        if e.get("command") == "edits" and e.get("op_id") == op_id:
+            ids = [str(i) for i in e.get("edit_ids", [])]
+    from litcritic import change
+
+    return change.mark_undone(root, ids, op_id)
 
 
 COMMANDS = {
