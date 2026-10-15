@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from litcritic.mcp import ToolError
-from litcritic.setup import WORKSPACE_DIR
+from litcritic.setup import FORMATS, WORKSPACE_DIR
 from litcritic.workspace import MANIFEST, Workspace
 
 FOLDERS_ENV = "LITCRITIC_FOLDERS"
@@ -144,6 +144,23 @@ class Grant:
                         found.setdefault(_key(real), real)
         return [Workspace(p) for p in sorted(found.values())]
 
+    def unset(self) -> list[Path]:
+        """Folders one level deep in the granted folders that hold a manuscript but were
+        never set up (no working folder): novels the writer can start on, sorted by path."""
+        found: dict[str, Path] = {}
+        for root in self.roots():
+            try:
+                children = [c for c in root.iterdir() if not c.name.startswith(".")]
+            except OSError:
+                children = []
+            for d in [root, *(c for c in children if c.is_dir())]:
+                if d.name == WORKSPACE_DIR or (d / MANIFEST).is_file():
+                    continue
+                if (d / WORKSPACE_DIR / MANIFEST).is_file() or not _has_manuscript(d):
+                    continue
+                found.setdefault(_key(d), d)
+        return sorted(found.values())
+
     def lookup(self, name: str) -> list[Workspace]:
         """Works whose title, slug, id or folder name matches ``name`` (any case or accents)."""
         want = _fold(name)
@@ -158,6 +175,30 @@ class Grant:
             if any(isinstance(n, str) and _fold(n) == want for n in names):
                 hits.append(ws)
         return hits
+
+
+def _has_manuscript(folder: Path) -> bool:
+    try:
+        return any(
+            f.is_file()
+            and f.suffix.lower() in FORMATS
+            and not f.name.startswith(("~$", ".~lock.", "."))
+            for f in folder.iterdir()
+        )
+    except OSError:
+        return False
+
+
+def matches(folder: Path, name: str) -> bool:
+    """Whether ``name`` names this not-set-up novel: its folder or one of its documents
+    (any case or accents)."""
+    want = _fold(name)
+    if _fold(folder.name) == want:
+        return True
+    try:
+        return any(_fold(f.stem) == want for f in folder.iterdir() if f.is_file())
+    except OSError:
+        return False
 
 
 def pick_folder(run: Runner = subprocess.run) -> str:
@@ -189,4 +230,7 @@ def add_folder(grant: Grant, run: Runner = subprocess.run) -> dict[str, object]:
             titles.append(str(ws.manifest.get("title") or ws.root.name))
         except (OSError, ValueError):
             titles.append(ws.root.name)
-    return {"added": str(folder), "works": titles}
+    out: dict[str, object] = {"added": str(folder), "works": titles}
+    if fresh := grant.unset():
+        out["not_set_up"] = [{"name": d.name, "folder": str(d)} for d in fresh]
+    return out

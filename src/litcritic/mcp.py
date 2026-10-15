@@ -186,6 +186,20 @@ ADD_FOLDER_HINT = (
     "If the novel is in another folder, offer to add it: add_folder opens the folder "
     "picker on the writer's screen."
 )
+SETUP_HINT = (
+    "not_set_up lists novels in the granted folders that were never set up. If one is "
+    "the writer's novel, confirm in one line, then call setup with its folder."
+)
+SETUP_NEXT = (
+    "Tell the writer which file you will work on and how many earlier versions you found, "
+    "and ask them to confirm (another file: setup again with manuscript). Then ask, one at "
+    "a time: what they want (work through aspects together, or a full reader's report); "
+    "who writes the new words, with ai_notice shown in full above the choices (you write "
+    "everything, recommended; small fixes; suggested passages), recorded with setup "
+    "prose_suggestions off, minor or on (minor and on with ack_ai_notice); and whether you may "
+    "type approved changes into their file (setup edit_in_place yes or no). Then call "
+    "resume with the novel's name."
+)
 NEXT_STEPS = {
     "setup": "Bring the manuscript in: find the novel's file and set it up (05-setup.md).",
     "index": "Finish indexing the novel, so questions are answered from the Codex "
@@ -317,16 +331,65 @@ def resume(grant: Any, work: str = "") -> dict[str, Any]:
         if len(hits) > 1:
             return {"choose": works_list(grant), "say": "Ask which novel to work on."}
     if not hits:
-        return {
-            "not_found": work,
-            "works": works_list(grant),
-            "hint": ADD_FOLDER_HINT,
-        }
+        out: dict[str, Any] = {"not_found": work, "works": works_list(grant)}
+        fresh = _not_set_up(grant, work)
+        if fresh:
+            out["not_set_up"] = fresh
+            out["hint"] = SETUP_HINT
+        else:
+            out["hint"] = ADD_FOLDER_HINT
+        return out
     if len(hits) > 1:
         return {"ambiguous": work, "works": [_entry(ws) for ws in hits]}
     ws = hits[0]
     _touch(ws)
     return {"work": state(ws), "guide": guide()}
+
+
+def _not_set_up(grant: Any, name: str) -> list[dict[str, str]]:
+    """The granted novels never set up, the ones ``name`` names first."""
+    from litcritic.folders import matches  # folders imports ToolError from here
+
+    found = grant.unset()
+    named = [d for d in found if name.strip() and matches(d, name)]
+    return [
+        {"name": d.name, "folder": str(d), **({"named": "yes"} if d in named else {})}
+        for d in named + [d for d in found if d not in named]
+    ]
+
+
+def setup_work(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
+    """`lc setup` on a granted folder: find the manuscript and prepare the working folder,
+    or record the writer's choices on a work already set up."""
+    from litcritic import settings, setup
+
+    if not str(a.get("folder") or "").strip():
+        raise ToolError("missing_arguments", missing=["folder"])
+    folder = grant.confine(str(a["folder"]))
+    manuscript = a.get("manuscript")
+    chosen = grant.confine(str(manuscript), base=folder) if manuscript else None
+    prose = a.get("prose_suggestions")
+    edit = a.get("edit_in_place")
+    try:
+        out = setup.setup(
+            folder,
+            "" if prose is None else str(prose).lower(),
+            bool(a.get("ack_ai_notice")),
+            chosen,
+            "" if edit is None else ("yes" if edit in (True, "yes") else "no"),
+        )
+    except settings.NoticeRequired as exc:
+        lang = setup._language(folder / setup.WORKSPACE_DIR)
+        return {
+            "status": "refused",
+            "reason": "ai_notice",
+            "message": str(exc),
+            "notice": settings.notice(lang),
+        }
+    except (setup.SetupError, settings.SettingsError, OSError, ValueError) as exc:
+        raise ToolError("setup_failed", message=str(exc)) from None
+    out["say"] = SETUP_NEXT
+    return out
 
 
 def _add_folder(grant: Any) -> Handler:
@@ -691,6 +754,21 @@ def tools(grant: Any) -> list[Tool]:
                 "front": {"type": "boolean"},
             },
             ("doc",),
+        ),
+        Tool(
+            "setup",
+            "Set up a novel the writer starts on for the first time (resume lists it under "
+            "not_set_up): find its manuscript in the folder and prepare the work. Call it "
+            "again on the same folder to record the writer's choices.",
+            lambda a: setup_work(grant, a),
+            {
+                "folder": {"type": "string", "description": "the folder holding the novel"},
+                "manuscript": {"type": "string", "description": "the writer's choice of file"},
+                "prose_suggestions": {"enum": ["off", "minor", "on"]},
+                "ack_ai_notice": {"type": "boolean"},
+                "edit_in_place": {"type": "boolean"},
+            },
+            ("folder",),
         ),
         Tool(
             "add_folder",

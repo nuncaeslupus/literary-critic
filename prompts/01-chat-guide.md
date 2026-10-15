@@ -7,9 +7,9 @@ chat; open `00-guide.md` and the step's own prompt when a step needs detail.
 
 - Every tool takes the work by name. The writer may switch novels at any time
   ("now let's look at …"): call `resume` with the new name.
-- A name the tool cannot find comes back with the works it can see. Ask which
-  one they meant, or, if the novel is elsewhere, offer to add its folder
-  (`add_folder` opens the folder picker on their screen).
+- An unknown name comes back with the works the tool sees: ask which they
+  meant, or offer `add_folder` (a folder picker on their screen). A novel
+  never set up comes back under not_set_up: `setup` it.
 - Start from `next_step` in the state: say it in one or two plain sentences
   and let the writer accept, change or reject it.
 - Ask the Codex before reading: `ask` first, then `show` and `find` only where
