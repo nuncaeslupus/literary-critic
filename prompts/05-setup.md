@@ -109,7 +109,9 @@ for reading; before any change you will ask them to save and close it (see
 Follow `30-orientation.md` (the profile) and `10-ingest-and-structure.md` if
 the structure needs checking, then give the first short overview of strengths
 and the most important problems, from the biggest to the smallest, and propose
-the plan (`00-guide.md`, "The plan"). Say what you are doing as you go, in the
+the plan (`00-guide.md`, "The plan"; record it with
+`lc plan init --workspace <ws> --mode iterative`, or `report`: the parts are
+proposals until the writer accepts them). Say what you are doing as you go, in the
 same message as the work: a line per step, never a turn of its own. Count what
 the writer had to do; it should be a handful of clicks.
 

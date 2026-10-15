@@ -47,6 +47,13 @@ be cut is wasted.
    action `done`. A name changed everywhere:
    `lc docx rename OLD NEW --workspace <slug> --dry-run`, then without it.
    With prose suggestions off, the new text is the writer's own words.
+   When the writer approves a change of this kind, it is a card
+   (`00-guide.md`, "Change cards"), one at a time: a proposal for the
+   action (`lc change propose --workspace <slug> --action A3 ...`), then the
+   buttons or yes/no of the surface, and approve or dismiss on their answer
+   (`--closes` marks the action done). The
+   card has the new text only under `prose_suggestions` `minor` or on; with it
+   off, the writer makes the change themselves.
 6. If the writer prefers to type the changes, or works in Google Docs, offer a commented copy:
    `lc docx-comments --workspace <slug>` writes
    `<ws>/revisions/round-NN/<version>-comments.docx` with each open action as a

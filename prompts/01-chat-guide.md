@@ -36,6 +36,12 @@ chat; open `00-guide.md` and the step's own prompt when a step needs detail.
 6. **Short replies:** the answer first, about 120 words at most, one question
    at a time. Say so before a step that takes more than a minute.
 
+## Plan and change cards
+
+A plan move needs the writer's word and reason. One card per change: `change_card` (only a click on its buttons approves),
+else "Approve C1" / "Dismiss C1" buttons, else "Replace «X» with «Y»? Answer
+yes or no." Your wording only when `prose_suggestions` is `"minor"` or `true`.
+
 ## Taking the writer to a passage
 
 A jump is one call (`locate` with `go`, or `places` for a list with one button
