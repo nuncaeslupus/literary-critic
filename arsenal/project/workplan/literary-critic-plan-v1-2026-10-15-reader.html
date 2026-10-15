@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="572475ff05cd09dd807fcd5c728aeea587766f516f191d492d631675ac63b61e">
+<title>Literary Critic — Plan (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#5f5c56;--line:#e3ded4;
+  --card:#ffffff;--accent:#0f766e;--accent2:#9a4a0b;--chip:#e8efed;
+  --note:#fffaf0;--note-line:#d9a441;--note-fg:#7a3b06;--code:#f1eee8;--link:#0f766e;
+  --measure:70ch;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#ebe9e4;--muted:#aaa69f;--line:#34313a;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#24302f;
+    --note:#221d12;--note-line:#8a6a22;--note-fg:#fcd34d;--code:#26242b;--link:#7ff0dc;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:calc(var(--measure) + 120px);margin:0 auto;padding:0 16px}
+a{color:var(--link);text-underline-offset:2px}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;font-size:.88em;line-height:1.5}
+pre code{background:none;padding:0;font-size:1em}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#9a4a0b}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:26px 0 6px}
+.hero h1{font-size:1.75rem;line-height:1.2;margin:.1em 0 .3em;letter-spacing:-.01em}
+.hero p{color:var(--muted);margin:.3em 0;max-width:var(--measure)}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:30px 0}
+.part-title{font-size:1.45rem;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 10px}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+/* Two heading levels, told apart by size, weight and a rule: a ## section opens
+   with a full-width rule; a ### section sits indented under it on a side rule. */
+.sec{scroll-margin-top:72px}
+.sec.l2{padding:14px 0 4px;border-top:1px solid var(--line);margin-top:10px}
+.part>.sec.l2:first-of-type{border-top:none;margin-top:0}
+.sec.l3{margin:6px 0 6px 2px;padding:2px 0 2px 14px;border-left:3px solid var(--line)}
+.sec-h{margin:6px 0 8px;line-height:1.3}
+h3.sec-h{font-size:1.3rem;font-weight:750}
+h4.sec-h{font-size:1.08rem;font-weight:650;color:var(--fg)}
+.sec.bare>.sec-h{margin-bottom:2px}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+h4 .chip{font-size:11px;color:var(--muted)}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p,.sec-body li,.sec-body blockquote{max-width:var(--measure)}
+.sec-body p{margin:.6em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body h4,.sec-body h5,.sec-body h6{font-size:1em;margin:1em 0 .3em}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;font-size:13.5px;line-height:1.45;margin:.6em 0;
+  display:block;max-width:100%;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+/* The note field: the one thing on the page that is the reviewer's, so it must
+   not read as more document. Dashed while empty, solid once written in. */
+.note{max-width:var(--measure);background:var(--note);border:1.5px dashed var(--note-line);
+  border-left:4px solid var(--note-line);border-radius:10px;padding:8px 12px;margin:12px 0 18px}
+.note:focus-within{border-style:solid;box-shadow:0 0 0 3px color-mix(in srgb,var(--note-line) 30%,transparent)}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;cursor:text}
+.note-ico{color:var(--note-fg);font-weight:800}
+.note-label{font-size:11.5px;font-weight:800;color:var(--note-fg);text-transform:uppercase;letter-spacing:.06em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:16px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:1}
+.note.filled{border-style:solid}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+/* Phone width: smaller type, no floating column over the text, the hint dropped. */
+@media(max-width:600px){
+  body{font-size:16px;padding-bottom:76px}
+  .hero h1{font-size:1.45rem}
+  .part-title{font-size:1.25rem}
+  h3.sec-h{font-size:1.15rem}
+  h4.sec-h{font-size:1rem}
+  .sec.l3{padding-left:10px}
+  .statusbar .hint{display:none}
+  .fab{left:0;right:0;bottom:0;flex-direction:row;justify-content:flex-end;gap:6px;padding:8px 10px;
+    flex-wrap:wrap;background:var(--bg);border-top:1px solid var(--line)}
+  .fab .btn{box-shadow:none;padding:7px 9px}
+  .toast{bottom:64px}
+}
+@media print{.topbar,.statusbar,.fab,.help,.note:not(.filled){display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Plan<small>annotatable reader · 2026-10-15</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 11 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Plan</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Plan</summary><ul>
+<li><a href="#s-plan-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-plan-technical-solution">Technical solution</a></li>
+<li><a href="#s-plan-architecture-overview">Architecture overview</a></li>
+<li><a href="#s-plan-data-flow">Data flow</a></li>
+<li><a href="#s-plan-state-changes">State changes</a></li>
+<li><a href="#s-plan-technology-choices">Technology choices</a></li>
+<li><a href="#s-plan-out-of-scope">Out of scope</a></li>
+<li><a href="#s-plan-implementation-tasks">Implementation tasks</a></li>
+<li><a href="#s-plan-task-details">Task details</a></li>
+<li><a href="#s-plan-dependency-graph">Dependency graph</a></li>
+<li><a href="#s-plan-evidence-log">Evidence log</a></li>
+<li><a href="#s-plan-sign-off">Sign-off</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge plan">Plan</span>Plan</h2>
+<article class="sec l2" id="s-plan-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-15
+<strong>Specification</strong>: <code>arsenal/project/workplan/spec.md</code> (approved, revision 1)
+<strong>Author</strong>: Claude (with the owner)
+<strong>Revision</strong>: 1
+<strong>Status</strong>: approved (2026-10-15, revision 1) — without annotations
+<strong>Revision log</strong>:
+- r1: first draft, from the approved spec (Option B). The cards write tracked until doc-control#318 ships; T8 makes the switch to plain writes.</p>
+<blockquote>
+<p>Review record, kept the way the spec keeps its own. Each round of notes bumps
+<strong>Revision</strong> and adds a log line naming the <code>&lt;repo&gt;-plan-v&lt;N&gt;-&lt;date&gt;-notes.md</code>
+export it applied, committed beside this file in the same commit. Approval is
+written <code>approved (YYYY-MM-DD, revision N)</code>, plus <code>— without annotations</code> when
+there were none.</p>
+</blockquote></div>
+<div class="note" data-for="s-plan-intro"><label class="note-head" for="n-s-plan-intro"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN · intro</span></label><textarea class="note-ta" data-key="s-plan-intro" id="n-s-plan-intro" data-label="Preamble &amp; scope" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2 bare" id="s-plan-technical-solution">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Technical solution</span></h3>
+</article>
+<article class="sec l3" id="s-plan-architecture-overview">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Architecture overview</span></h4>
+<div class="sec-body"><p>A plan layer sits above rounds. Rounds keep owning actions, and Codex decisions
+stay the record of each issue.</p>
+<ol>
+<li><strong><code>src/litcritic/plan.py</code></strong> owns <code>&lt;ws&gt;/plan/log.jsonl</code> (append-only, the
+   source of truth) and <code>plan.json</code> (its replay). It holds a pure transition
+   function <code>apply(state, event) -&gt; state</code> and the refusal rules. Every command
+   appends one event, replays, and writes the snapshot atomically.</li>
+<li><strong><code>lc plan</code></strong> (<code>cli.py</code> subcommands): <code>init</code>, <code>add</code>, <code>accept</code>, <code>start</code>,
+   <code>skip</code>, <code>done</code>, <code>reopen</code>, <code>move</code>, <code>edit</code>, <code>next</code>, <code>status</code> and <code>check</code>.
+   <code>status</code> joins the plan events, the change events, <code>rounds.status</code> and Codex
+   decisions into one timeline.</li>
+<li><strong><code>rounds.build</code></strong> gains <code>area</code> and <code>issues</code> filters and nothing else, so a
+   writer-added aspect part can become a round on just that aspect.</li>
+<li><strong><code>src/litcritic/change.py</code></strong> and <strong><code>lc change</code></strong> (<code>propose</code>, <code>approve</code>,
+   <code>dismiss</code>, <code>status</code>). Proposals are stored as <code>change.proposed</code> events in the
+   same log, with ids <code>C1…</code>. <code>approve</code> rebuilds the edit from the stored
+   proposal only, and writes through <code>apply_edits</code>, which is extracted from
+   <code>docx_cli._edits</code>. That is the same path <code>lc docx edits</code> uses, and it stays
+   tracked until T8.</li>
+<li><strong>MCP</strong> (<code>mcp.py</code>): the <code>plan</code> tool, the <code>change_card</code> tool with its page
+   <code>ui://literary-critic/change</code>, and the app-only <code>change_approve</code> and
+   <code>change_dismiss</code>. <code>state()</code> and <code>next_step</code> read the plan. <code>RUN_ALLOWED</code>
+   gains <code>plan</code> and <code>change</code>.</li>
+<li><strong>Prompts</strong> tell the assistant when to propose a part or a change, that a
+   writer move needs the writer's word and reason, and how each surface shows
+   the buttons. Prose stays behind <code>prose_suggestions</code> (house rule 5).</li>
+<li><strong>The switch to plain writes</strong> (T8, after doc-control#318) sets
+   <code>"tracked": False</code> and puts in the minimum-version check, the <code>marked</code>
+   reason and the wording changes the spec lists. The live engines follow in T9
+   (after doc-control#319).</li>
+</ol></div>
+<div class="note" data-for="s-plan-architecture-overview"><label class="note-head" for="n-s-plan-architecture-overview"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Architecture overview</span></label><textarea class="note-ta" data-key="s-plan-architecture-overview" id="n-s-plan-architecture-overview" data-label="Architecture overview" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-data-flow">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data flow</span></h4>
+<div class="sec-body"><figure class="drawspec"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-0.75 -0.75 665.5 516.3" role="img" aria-labelledby="ds02fd348262-title"><title id="ds02fd348262-title">A small change approved in the chat</title><path d="M 278.747 63.7 L 278.747 111.7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="278.747,111.7 275.147,103.7 282.347,103.7" fill="currentColor" stroke="none"/><path d="M 261.569 148.55 L 261.569 172.55 L 180.857 172.55 L 180.857 196.55" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="180.857,196.55 177.257,188.55 184.457,188.55" fill="currentColor" stroke="none"/><path d="M 295.925 148.55 L 295.925 172.55 L 376.637 172.55 L 376.637 203.975" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="376.637,203.975 373.037,195.975 380.237,195.975" fill="currentColor" stroke="none"/><path d="M 359.459 240.825 L 359.459 272.25 L 278.747 272.25 L 278.747 296.25" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="278.747,296.25 275.147,288.25 282.347,288.25" fill="currentColor" stroke="none"/><path d="M 393.815 240.825 L 393.815 272.25 L 474.527 272.25 L 474.527 296.25" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="474.527,296.25 470.927,288.25 478.127,288.25" fill="currentColor" stroke="none"/><path d="M 278.747 333.1 L 278.747 381.1" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="278.747,381.1 275.147,373.1 282.347,373.1" fill="currentColor" stroke="none"/><path d="M 261.569 417.95 L 261.569 441.95 L 229.802 441.95 L 229.802 465.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="229.802,465.95 226.202,457.95 233.402,457.95" fill="currentColor" stroke="none"/><path d="M 295.925 417.95 L 295.925 441.95 L 408.404 441.95 L 408.404 465.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="408.404,465.95 404.804,457.95 412.004,457.95" fill="currentColor" stroke="none"/><path d="M 474.527 333.1 L 474.527 441.95 L 442.76 441.95 L 442.76 465.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="442.76,465.95 439.16,457.95 446.36,457.95" fill="currentColor" stroke="none"/><rect x="192.857" y="296.25" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="278.747" y="317.483" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Approve</tspan></text><rect x="290.747" y="203.975" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="376.637" y="225.208" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>card: Replace X with Y?</tspan></text><rect x="388.637" y="296.25" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="474.527" y="317.483" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Dismiss</tspan></text><rect x="192.857" y="381.1" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="278.747" y="402.333" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>apply_edits via doc-control</tspan></text><rect x="339.692" y="465.95" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="425.582" y="487.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>plan/log.jsonl</tspan></text><rect x="143.912" y="465.95" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="229.802" y="487.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>docx locate --go</tspan></text><rect x="192.857" y="111.7" width="171.78" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="278.747" y="132.933" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>lc change propose</tspan></text><rect x="94.967" y="196.55" width="171.78" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="180.857" y="217.783" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>refused: prose_off,</tspan></text><text x="180.857" y="232.633" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>too_long, not_once</tspan></text><rect x="192.857" y="12" width="171.78" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="278.747" y="33.233" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>writer or assistant</tspan></text><text x="278.747" y="48.083" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>names X and Y</tspan></text><text x="199.726" y="165.442" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">rule fails</text><text x="280.917" y="186.582" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">change.proposed</text><text x="179.959" y="433.412" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">change.applied</text><text x="479.277" y="390.987" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">change.dismissed</text></svg></figure></div>
+<div class="note" data-for="s-plan-data-flow"><label class="note-head" for="n-s-plan-data-flow"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Data flow</span></label><textarea class="note-ta" data-key="s-plan-data-flow" id="n-s-plan-data-flow" data-label="Data flow" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-state-changes">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">State changes</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Store</th>
+<th>Change</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>workspace</td>
+<td><code>&lt;ws&gt;/plan/log.jsonl</code></td>
+<td>CREATE / APPEND</td>
+<td>Plan and change events: <code>seq</code>, <code>at</code>, <code>by</code>, <code>event</code>, <code>part</code> or <code>change</code>, <code>reason</code>, <code>refs</code></td>
+</tr>
+<tr>
+<td>workspace</td>
+<td><code>&lt;ws&gt;/plan/plan.json</code></td>
+<td>CREATE / REPLACE</td>
+<td>Snapshot rebuilt from the log; <code>schema_version: 1</code></td>
+</tr>
+<tr>
+<td>workspace</td>
+<td><code>&lt;ws&gt;/log/edits.jsonl</code></td>
+<td>APPEND</td>
+<td>Unchanged format; approved changes use their <code>C…</code> id as the edit id</td>
+</tr>
+<tr>
+<td>manuscript</td>
+<td>the <code>.docx</code></td>
+<td>UPDATE</td>
+<td>Only on Approve, with a backup, through doc-control: tracked until T8, plain after</td>
+</tr>
+<tr>
+<td>code</td>
+<td><code>workspace.SUBDIRS</code></td>
+<td>UPDATE</td>
+<td>Adds <code>plan</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-state-changes"><label class="note-head" for="n-s-plan-state-changes"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › State changes</span></label><textarea class="note-ta" data-key="s-plan-state-changes" id="n-s-plan-state-changes" data-label="State changes" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-technology-choices">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Technology choices</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>JSON Lines event log plus a replayed snapshot</td>
+<td>Any status at any time comes with its reason and date, and <code>plan_replay_mismatches == 0</code> can be checked mechanically; stdlib only (rule 9)</td>
+</tr>
+<tr>
+<td>Proposals stored by id, and approval by id only</td>
+<td>A button can never write text the writer was not shown (<code>writes_without_a_live_proposal == 0</code>)</td>
+</tr>
+<tr>
+<td><code>apply_edits</code> extracted from <code>docx_cli._edits</code></td>
+<td>One write path; literary-critic rebuilds nothing doc-control owns</td>
+</tr>
+<tr>
+<td>Its own MCP App page for the card</td>
+<td>The places page already shows that the desktop app renders <code>ui://</code> pages and lets them call app-only tools</td>
+</tr>
+<tr>
+<td><code>ui/message</code> only when advertised</td>
+<td>Q-1 is unanswered; the result and <code>plan status</code> carry the click either way</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-technology-choices"><label class="note-head" for="n-s-plan-technology-choices"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Technology choices</span></label><textarea class="note-ta" data-key="s-plan-technology-choices" id="n-s-plan-technology-choices" data-label="Technology choices" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-out-of-scope">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Out of scope</span></h4>
+<div class="sec-body"><ul>
+<li>Any change to how rounds number, score or reuse actions, or to the Codex item types.</li>
+<li>Edits longer than one paragraph, moves of text, or style changes through cards.</li>
+<li>Comments in the manuscript (the existing comment paths stay as they are).</li>
+<li>Adopting history after a move (doc-control#320); it is only cited.</li>
+<li>A plan editor page. The plan is steered in the chat; <code>plan status</code> is what the writer sees.</li>
+</ul></div>
+<div class="note" data-for="s-plan-out-of-scope"><label class="note-head" for="n-s-plan-out-of-scope"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Out of scope</span></label><textarea class="note-ta" data-key="s-plan-out-of-scope" id="n-s-plan-out-of-scope" data-label="Out of scope" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-plan-implementation-tasks">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Implementation tasks</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>T#</th>
+<th>Description</th>
+<th>Service</th>
+<th>Size</th>
+<th>Depends</th>
+<th>Gate</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>Plan log, replay and <code>lc plan</code></td>
+<td><code>src/litcritic/plan.py</code>, <code>cli.py</code>, <code>workspace.py</code></td>
+<td>L</td>
+<td>—</td>
+<td><code>invalid_transitions_accepted == 0</code></td>
+<td><code>test_plan_transition_matrix_refuses_every_invalid_move</code> in <code>tests/test_plan.py</code> — every status × command pair outside the allowed table exits 1 and appends nothing; <code>test_plan_replay_matches_snapshot_after_random_sequence</code> — 200 random valid command sequences replay to the stored <code>plan.json</code> with 0 mismatches; <code>test_plan_events_carry_required_fields</code> — each event has seq, at, by, event, part and a reason where one is required</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>Area and issue filters on round build</td>
+<td><code>src/litcritic/rounds.py</code>, <code>cli.py</code></td>
+<td>S</td>
+<td>—</td>
+<td><code>legacy_workspace_regressions == 0</code></td>
+<td><code>test_round_build_area_keeps_only_that_area</code> in <code>tests/test_rounds.py</code> — with <code>--area</code>, only issues of checks in that area become actions; <code>test_round_build_without_filters_unchanged</code> — the existing fixtures produce byte-identical rounds</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>Plan status, next and legacy seeding</td>
+<td><code>src/litcritic/plan.py</code>, <code>rounds.py</code></td>
+<td>M</td>
+<td>T1, T2</td>
+<td><code>resume_names_where_work_stands == 1.0</code></td>
+<td><code>test_plan_status_joins_rounds_and_decisions</code> in <code>tests/test_plan.py</code> — the active round part shows its remaining actions and Codex decisions in the timeline; <code>test_plan_init_on_legacy_workspace_seeds_rounds</code> — a workspace with two rounds gets two round parts, the open one active; <code>test_plan_next_aspect_part_builds_area_round</code> — <code>next</code> on an aspect part returns the <code>round build --area</code> command</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>Change propose, approve and dismiss (tracked)</td>
+<td><code>src/litcritic/change.py</code>, <code>docx_cli.py</code>, <code>cli.py</code></td>
+<td>L</td>
+<td>T1</td>
+<td><code>writes_without_a_live_proposal == 0</code></td>
+<td><code>test_change_approve_writes_exactly_the_proposed_text</code> in <code>tests/test_change.py</code> — after approve, the paragraph equals the original with X replaced by Y (<code>approved_change_text_mismatches == 0</code>); <code>test_change_propose_refuses_assistant_wording_when_prose_off</code> — <code>--by assistant</code> with <code>prose_suggestions = false</code> exits 1 with <code>prose_off</code>; <code>test_change_propose_minor_over_twelve_words_refused</code> — <code>too_long</code>; <code>test_change_approve_twice_refused</code> — the second approve answers <code>not proposed</code> and writes nothing; <code>test_change_dismiss_logs_reason</code> — the dismissal event carries the default reason (<code>dismissals_logged == 1.0</code>)</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>Undo marks a change undone</td>
+<td><code>src/litcritic/docx_cli.py</code>, <code>change.py</code></td>
+<td>S</td>
+<td>T4</td>
+<td><code>undo_after_plain_change_mismatches == 0</code></td>
+<td><code>test_docx_undo_of_change_logs_change_undone</code> in <code>tests/test_change.py</code> — undo after an approved change restores the original text and logs <code>change.undone</code> for that id</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>MCP plan tool and change card</td>
+<td><code>src/litcritic/mcp.py</code>, <code>src/litcritic/ui/change.html</code></td>
+<td>M</td>
+<td>T3, T4</td>
+<td><code>clicks_per_change == 1</code></td>
+<td><code>test_change_card_result_links_ui_resource</code> in <code>tests/test_mcp.py</code> — <code>change_card</code> links <code>ui://literary-critic/change</code> and the page holds exactly the Approve and Dismiss buttons; <code>test_change_approve_tool_is_app_only_and_locates</code> — <code>change_approve</code> is hidden from the model, takes only the id and returns the locate call; <code>test_state_includes_plan_active_and_next</code> — <code>resume</code> shows the active part and next parts</td>
+</tr>
+<tr>
+<td>T7</td>
+<td>Prompts for the plan and the cards</td>
+<td><code>prompts/00-guide.md</code>, <code>05-setup.md</code>, <code>60-rounds.md</code>, <code>80-live-word.md</code>, <code>01-chat-guide.md</code></td>
+<td>M</td>
+<td>T6</td>
+<td><code>assistant_wording_accepted_when_prose_off == 0</code></td>
+<td><code>test_guide_tells_writer_moves_need_writer_word</code> in <code>tests/test_prompts.py</code> — the guide says a writer move needs the writer's word and reason; <code>test_cards_prompt_respects_prose_setting</code> — the prompts say cards with the assistant's wording only under <code>minor</code> or on, and name each surface's buttons</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>Q-1 probe of ui/message</td>
+<td>owner, <code>status/evidence/</code></td>
+<td>S</td>
+<td>T6</td>
+<td><code>probes_answered == 1</code></td>
+<td><code>test_workplan_q1_evidence_answers_ui_message</code> in <code>tests/test_status.py</code> — the evidence file says whether the desktop app delivers the page's <code>ui/message</code> to the model, yes or no</td>
+</tr>
+<tr>
+<td>T9</td>
+<td>Plain writes in the file engine</td>
+<td><code>src/litcritic/docx_cli.py</code>, <code>setup.py</code>, <code>word_live.py</code>, <code>prompts/</code></td>
+<td>M</td>
+<td>T4, T7</td>
+<td><code>approved_change_revision_marks == 0</code></td>
+<td><code>test_change_approve_leaves_no_revision_marks</code> in <code>tests/test_change.py</code> — after approve, the document has no <code>w:ins</code>/<code>w:del</code> from this call; <code>test_overlap_with_tracked_revision_gives_marked</code> — the reason is <code>marked</code>; <code>test_old_doc_control_refused_not_tracked</code> — older doc-control answers <code>doc_control_too_old</code>; <code>test_writer_texts_have_no_tracked_wording</code> in <code>tests/test_prompts.py</code> — <code>tracked_wording_in_writer_texts == 0</code> across the listed help and prompt texts</td>
+</tr>
+<tr>
+<td>T10</td>
+<td>Plain writes in the live engines</td>
+<td><code>src/litcritic/word_live.py</code>, <code>docx_cli.py</code></td>
+<td>S</td>
+<td>T9</td>
+<td><code>approved_change_revision_marks == 0</code></td>
+<td><code>test_live_change_approve_sends_untracked_batch</code> in <code>tests/test_word_live.py</code> — with a live session open, approve sends <code>"tracked": false</code> to doc-control's live engine and the fake engine records no revisions</td>
+</tr>
+<tr>
+<td>T11</td>
+<td>Walkthrough</td>
+<td>owner + Claude, <code>status/evidence/</code></td>
+<td>M</td>
+<td>T7, T8, T9</td>
+<td><code>clicks_per_change == 1</code></td>
+<td><code>test_workplan_walkthrough_evidence_meets_gates</code> in <code>tests/test_status.py</code> — the record shows one click per change, every skip and add logged with its reason, resume naming where the work stands, and no tracked marks after approve</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-implementation-tasks"><label class="note-head" for="n-s-plan-implementation-tasks"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Implementation tasks</span></label><textarea class="note-ta" data-key="s-plan-implementation-tasks" id="n-s-plan-implementation-tasks" data-label="Implementation tasks" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-task-details">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Task details</span></h4>
+<div class="sec-body"><ul>
+<li><strong>T1 Plan log, replay and <code>lc plan</code></strong>: the event schema and the pure <code>apply</code>;
+  the commands and refusals from spec §5; <code>init --mode</code> seeds the parts for
+  iterative or report mode, from the profile's mode. The log is appended first,
+  then the snapshot is written to a temp file that replaces the old one;
+  <code>check</code> and <code>check --repair</code>. <code>plan</code> joins <code>workspace.SUBDIRS</code>.</li>
+<li><strong>T2 Area and issue filters on round build</strong>: <code>build(..., area=None,
+  issues=None)</code> filters the open problem issues before the level is chosen, and
+  the CLI gets <code>--area</code> and <code>--issues</code>. Nothing else about rounds changes.</li>
+<li><strong>T3 Plan status, next and legacy seeding</strong>: the read-only join (plan events,
+  change events, <code>rounds.status</code>, Codex decisions) and the timeline; <code>next</code>
+  maps a part kind to its command. <code>init</code> on a workspace with rounds seeds one
+  round part per round. With no <code>plan/</code>, <code>status</code> answers <code>no_plan</code> with the
+  proposal.</li>
+<li><strong>T4 Change propose, approve and dismiss (tracked)</strong>: the card in the work's
+  language; the prose rule read from the profile; the size limits (12 changed
+  words under <code>minor</code>, 1 paragraph under on); the resolve-once and
+  one-paragraph checks; the repeat check, with <code>--again</code>. <code>apply_edits</code> is
+  extracted from <code>_edits</code>, and <code>approve</code> sets the edit id to the change id;
+  <code>--closes</code> marks the round action done. With <code>edit_in_place = no</code> or a
+  manuscript that is not <code>.docx</code>, approve logs <code>typed_by: writer</code> and writes
+  nothing. Writes stay tracked here.</li>
+<li><strong>T5 Undo marks a change undone</strong>: <code>lc docx undo</code> looks up the edit id it
+  took back and logs <code>change.undone</code>; its answer gains <code>"change"</code>.</li>
+<li><strong>T6 MCP plan tool and change card</strong>: the <code>plan</code> tool; <code>change_card</code> with its
+  page; the app-only <code>change_approve</code> (which also runs <code>docx locate --go</code>) and
+  <code>change_dismiss</code>. The page sends <code>ui/message</code> only when the host advertises
+  it. <code>state()</code> and <code>next_step</code> read the plan, and <code>RUN_ALLOWED</code> gains <code>plan</code>
+  and <code>change</code>.</li>
+<li><strong>T7 Prompts for the plan and the cards</strong>: when to propose parts (by <code>tool</code>)
+  and when a move is the writer's; the order to follow in iterative and report
+  mode; the cards on each surface (desktop page, widget buttons that send
+  "Approve C1" / "Dismiss C1", text yes/no). The cards say "Word marks it" until
+  T9.</li>
+<li><strong>T8 Q-1 probe of ui/message</strong>: the owner clicks Approve on a test card in
+  the desktop app with a public-domain text from <code>corpus/</code>; record whether the
+  model sees the message. The spec's Q-1 is updated.</li>
+<li><strong>T9 Plain writes in the file engine</strong>: once doc-control#318 is released, pin
+  its minimum version in <code>dc.py</code>. Send <code>"tracked": False</code> in <code>docx_cli</code> (edits
+  and rename); map <code>UNSUPPORTED_CONTENT</code> to <code>marked</code>; reword the <code>docx_cli</code> help,
+  <code>setup.py --edit-in-place</code> help, <code>word_live.py</code>, <code>prompts/80-live-word.md</code>
+  step 4 and <code>prompts/05-setup.md</code> question 3. <code>lc docx undo</code> stays the way to
+  take a change back.</li>
+<li><strong>T10 Plain writes in the live engines</strong>: once doc-control#319 is released,
+  the same flag through the live path, with its version pin.</li>
+<li><strong>T11 Walkthrough</strong>: on a <code>corpus/</code> text: an iterative plan, one skipped
+  part, one added aspect part, five cards (three approved, one dismissed, one
+  refused), one undo, then a resume in a new chat. The transcript and the log
+  give every §1 criterion.</li>
+</ul>
+<p><strong>Status legend</strong>: ☐ not started · ◐ in progress · ☑ merged</p>
+<p><strong>Merge order</strong>: T1 and T2 in parallel; T3 and T4 after T1 (T3 also after T2);
+T5 after T4; T6 after T3 and T4; T7 and T8 after T6; T9 after T4 and T7, and
+after doc-control#318 is released; T10 after T9 and doc-control#319; T11 after
+T7, T8 and T9.
+<strong>Branch pattern</strong>: <code>workplan-T&lt;N&gt;-description</code> from the default branch</p></div>
+<div class="note" data-for="s-plan-task-details"><label class="note-head" for="n-s-plan-task-details"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Task details</span></label><textarea class="note-ta" data-key="s-plan-task-details" id="n-s-plan-task-details" data-label="Task details" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-dependency-graph">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Dependency graph</span></h4>
+<div class="sec-body"><figure class="drawspec"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-0.75 -0.75 665.5 605.4" role="img" aria-labelledby="ds1228ea8294-title"><title id="ds1228ea8294-title">Task dependencies</title><path d="M 292.009 71.125 L 292.009 102.55 L 434.643 102.55 L 434.643 133.975" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="434.643,133.975 431.043,125.975 438.243,125.975" fill="currentColor" stroke="none"/><path d="M 519.956 78.55 L 519.956 106.263 L 479.965 106.263 L 479.965 133.975" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="479.965,133.975 476.365,125.975 483.565,125.975" fill="currentColor" stroke="none"/><path d="M 246.687 71.125 L 246.687 102.55 L 206.696 102.55 L 206.696 126.55" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="206.696,126.55 203.096,118.55 210.296,118.55" fill="currentColor" stroke="none"/><path d="M 172.705 193.1 L 172.705 217.1 L 144.044 217.1 L 144.044 241.1" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="144.044,241.1 140.444,233.1 147.644,233.1" fill="currentColor" stroke="none"/><path d="M 457.304 185.675 L 457.304 217.1 L 417.313 217.1 L 417.313 241.1" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="417.313,241.1 413.713,233.1 420.913,233.1" fill="currentColor" stroke="none"/><path d="M 240.687 193.1 L 240.687 211.1 L 371.991 211.1 L 371.991 241.1" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="371.991,241.1 368.391,233.1 375.591,233.1" fill="currentColor" stroke="none"/><path d="M 371.991 292.8 L 371.991 316.8 L 269.348 316.8 L 269.348 340.8" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="269.348,340.8 265.748,332.8 272.948,332.8" fill="currentColor" stroke="none"/><path d="M 417.313 292.8 L 417.313 316.8 L 519.956 316.8 L 519.956 340.8" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="519.956,340.8 516.356,332.8 523.556,332.8" fill="currentColor" stroke="none"/><path d="M 206.696 193.1 L 206.696 223.1 L 267.79 223.1 L 267.79 316.8 L 144.044 316.8 L 144.044 416.5 L 215.361 416.5 L 215.361 440.5" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="215.361,440.5 211.761,432.5 218.961,432.5" fill="currentColor" stroke="none"/><path d="M 260.683 392.5 L 260.683 440.5" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="260.683,440.5 257.083,432.5 264.283,432.5" fill="currentColor" stroke="none"/><path d="M 215.361 492.2 L 215.361 516.2 L 164.928 516.2 L 164.928 540.2" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="164.928,540.2 161.328,532.2 168.528,532.2" fill="currentColor" stroke="none"/><path d="M 292.009 392.5 L 292.009 416.5 L 415.536 416.5 L 415.536 540.2" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="415.536,540.2 411.936,532.2 419.136,532.2" fill="currentColor" stroke="none"/><path d="M 519.956 392.5 L 519.956 516.2 L 449.527 516.2 L 449.527 540.2" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="449.527,540.2 445.927,532.2 453.127,532.2" fill="currentColor" stroke="none"/><path d="M 260.683 492.2 L 260.683 516.2 L 381.545 516.2 L 381.545 540.2" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="381.545,540.2 377.945,532.2 385.145,532.2" fill="currentColor" stroke="none"/><rect x="156.044" y="19.425" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="269.348" y="40.658" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T1</tspan></text><text x="269.348" y="55.508" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Plan log, replay and lc plan</tspan></text><rect x="51.624" y="540.2" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="164.928" y="561.433" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T10</tspan></text><text x="164.928" y="576.283" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Plain writes in the live engines</tspan></text><rect x="302.232" y="540.2" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="415.536" y="561.433" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T11</tspan></text><text x="415.536" y="576.283" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Walkthrough</tspan></text><rect x="406.652" y="12" width="226.608" height="66.55" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="519.956" y="33.233" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T2</tspan></text><text x="519.956" y="48.083" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Area and issue filters on</tspan></text><text x="519.956" y="62.933" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>round bui…</tspan></text><rect x="344" y="133.975" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="457.304" y="155.208" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T3</tspan></text><text x="457.304" y="170.058" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Plan status, next and legacy seeding</tspan></text><rect x="93.392" y="126.55" width="226.608" height="66.55" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="206.696" y="147.783" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T4</tspan></text><text x="206.696" y="162.633" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Change propose,</tspan></text><text x="206.696" y="177.483" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>approve and dismiss…</tspan></text><rect x="30.74" y="241.1" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="144.044" y="262.333" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T5</tspan></text><text x="144.044" y="277.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Undo marks a change undone</tspan></text><rect x="281.348" y="241.1" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="394.652" y="262.333" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T6</tspan></text><text x="394.652" y="277.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>MCP plan tool and change card</tspan></text><rect x="156.044" y="340.8" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="269.348" y="362.033" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T7</tspan></text><text x="269.348" y="376.883" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Prompts for the plan and the cards</tspan></text><rect x="406.652" y="340.8" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="519.956" y="362.033" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T8</tspan></text><text x="519.956" y="376.883" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Q-1 probe of ui/message</tspan></text><rect x="124.718" y="440.5" width="226.608" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="238.022" y="461.733" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T9</tspan></text><text x="238.022" y="476.583" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Plain writes in the file engine</tspan></text></svg></figure></div>
+<div class="note" data-for="s-plan-dependency-graph"><label class="note-head" for="n-s-plan-dependency-graph"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Dependency graph</span></label><textarea class="note-ta" data-key="s-plan-dependency-graph" id="n-s-plan-dependency-graph" data-label="Dependency graph" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-plan-evidence-log">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Evidence log</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>T#</th>
+<th>Gate</th>
+<th>Measured</th>
+<th>Command</th>
+<th>SHA</th>
+<th>Env</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-evidence-log"><label class="note-head" for="n-s-plan-evidence-log"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Evidence log</span></label><textarea class="note-ta" data-key="s-plan-evidence-log" id="n-s-plan-evidence-log" data-label="Evidence log" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-plan-sign-off">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Sign-off</span></h3>
+<div class="sec-body"><ul>
+<li>[x] Plan reviewed by the owner</li>
+<li>[ ] Q-1 answered (T8)</li>
+<li>[ ] doc-control#318 released before T9; #319 before T10</li>
+<li>[ ] Ready for execution</li>
+</ul></div>
+<div class="note" data-for="s-plan-sign-off"><label class="note-head" for="n-s-plan-sign-off"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Sign-off</span></label><textarea class="note-ta" data-key="s-plan-sign-off" id="n-s-plan-sign-off" data-label="Sign-off" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-plan-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
+  function exportName(){return 'literary-critic-plan-v1-'+today()+'-notes.md';}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Plan notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var saved=download(exportName(),r.text);openModal(r.text);
+    // download() returning only means the download was REQUESTED; a browser can
+    // still block or drop it. So `dirty` — what arms the unload warning — is
+    // cleared only on a confirmed copy: the clipboard promise fulfilling.
+    var cp=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){cp=navigator.clipboard.writeText(r.text);}}catch(e){cp=null;}
+    if(cp&&typeof cp.then==='function'){cp.then(function(){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');},function(){});}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    setState('Download requested '+nowStamp(),'ok');
+    toast('Download requested — '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){if(ok){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');}
+                        toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download(exportName(),modalTa.value);toast('Download requested');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
