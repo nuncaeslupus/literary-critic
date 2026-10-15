@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import concurrent.futures
 import json
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -313,6 +314,20 @@ def open_documents() -> list[Path]:
     except dc.DocError:
         return []
     return [Path(d["path"]) for d in docs if isinstance(d, dict) and d.get("path")]
+
+
+def is_open(doc: Path) -> bool:
+    """Whether the live engine holds ``doc`` open (Word or LibreOffice), so approved
+    edits go into the open document instead of the file."""
+    want = os.path.normcase(str(doc.resolve()))
+    return any(os.path.normcase(str(d.resolve())) == want for d in open_documents())
+
+
+def write(request: dict[str, Any]) -> dict[str, Any]:
+    """One ``doc.batch`` in the open document (``engine: "live"``). The request carries
+    ``"tracked": false``, so the edit is a plain write; an older doc-control refuses that
+    with ``SCHEMA_INVALID``. Raises ``dc.DocError``."""
+    return dc.run("doc.batch", {**request, "engine": "live"})
 
 
 def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
