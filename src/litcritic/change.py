@@ -280,6 +280,8 @@ def approve(
         "backup": payload.get("backup"),
         "locate": _locate_call(c["replace"]),
     }
+    if payload.get("how"):
+        out["how"] = payload["how"]  # "live": in the open document, the writer saves
     if closes:
         out["action"] = rounds.mark(root, action, "done")
     return out, 0

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from test_docx_cli import _corpus_docx, _workspace
+from test_docx_cli import _corpus_docx, _plain, _workspace
 
 from litcritic import dc, word_live
 from litcritic.cli import main
@@ -278,3 +278,83 @@ def test_docx_places_is_one_live_places_call(
     assert out["writer"].splitlines()[0] == f"1. {first['label']}"
     assert [m["target"] for m in out["missing"]] == [targets[2]]
     assert main(["docx", "places", targets[2], "--workspace", str(ws)]) == 1
+
+
+class _FakeLive:
+    """doc-control's live engine for one open document: records the batches it gets and,
+    like the real one, makes no revision for a plain write."""
+
+    def __init__(self, doc: Path, refuse: dc.DocError | None = None) -> None:
+        self.doc = doc
+        self.refuse = refuse
+        self.batches: list[dict[str, Any]] = []
+        self.revisions: list[Any] = []
+        self.real = dc.run
+
+    def run(self, op: str, req: dict[str, Any]) -> dict[str, Any]:
+        if op == "live.status":
+            return {"documents": [{"path": str(self.doc)}]}
+        if op == "doc.batch" and req.get("engine") == "live":
+            self.batches.append(req)
+            if self.refuse:
+                raise self.refuse
+            if req.get("tracked", True) is not False:
+                self.revisions.extend(req["ops"])
+            return {"applied": len(req["ops"]), "engine": "live"}
+        return self.real(op, req)
+
+
+def _approve_live(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    refuse: dc.DocError | None = None,
+) -> tuple[_FakeLive, int, dict[str, Any], bytes, Path]:
+    p1 = "Era una tarde fria de otoño y nadie salía de casa."
+    ws, doc = _workspace(tmp_path, _plain(p1, "La calle seguía vacía."))
+    fake = _FakeLive(doc, refuse)
+    monkeypatch.setattr(dc, "run", fake.run)
+    capsys.readouterr()
+    args = ["change", "propose", "--workspace", str(ws), "--quote", "fria", "--replace", "fría"]
+    assert main([*args, "--by", "writer"]) == 0
+    capsys.readouterr()
+    before = doc.read_bytes()
+    code = main(["change", "approve", "C1", "--workspace", str(ws)])
+    return fake, code, json.loads(capsys.readouterr().out), before, doc
+
+
+def test_live_change_approve_sends_untracked_batch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """With the document open in Word, approving a change is one plain `doc.batch` on the
+    live engine: `tracked: false`, no revision mark, and the file is left to the app."""
+    fake, code, out, before, doc = _approve_live(tmp_path, monkeypatch, capsys)
+    assert code == 0 and out["status"] == "applied" and out["how"] == "live"
+    assert len(fake.batches) == 1
+    sent = fake.batches[0]
+    assert sent["tracked"] is False and sent["engine"] == "live"
+    assert [o["op"] for o in sent["ops"]] == ["text.replace"] and sent["ops"][0]["text"]
+    assert "expect" not in sent and "dry_run" not in sent
+    assert fake.revisions == []
+    assert doc.read_bytes() == before  # Word holds the change until the writer saves
+
+
+@pytest.mark.parametrize(
+    ("code", "message", "reason"),
+    [
+        ("SCHEMA_INVALID", "unknown field tracked", "doc_control_too_old"),
+        ("UNSUPPORTED_CONTENT", "paragraph holds an unresolved tracked change", "marked"),
+    ],
+)
+def test_live_plain_write_refusals_have_the_file_engines_reasons(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    code: str,
+    message: str,
+    reason: str,
+) -> None:
+    _fake, status, out, _before, _doc = _approve_live(
+        tmp_path, monkeypatch, capsys, dc.DocError(code, message)
+    )
+    assert status == 1 and out["status"] == "refused" and out["reason"] == reason

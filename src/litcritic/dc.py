@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 7, 1)  # resource.action operation names
-INSTALL_HINT = "install doc-control 0.7.1 (API 1.x): pip install 'doc-control>=0.7.1,<0.8'"
+MIN_VERSION = (0, 7, 2)  # plain writes in the live engines
+INSTALL_HINT = "install doc-control 0.7.2 (API 1.x): pip install 'doc-control>=0.7.2,<0.8'"
 
 
 class DocError(Exception):

@@ -22,12 +22,13 @@ import hashlib
 import json
 import re
 import sys
+from collections.abc import Callable
 from datetime import UTC, datetime
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
-from litcritic import dc, ingest, locate, query, structure, workspace
+from litcritic import dc, ingest, locate, query, structure, word_live, workspace
 
 FIND_LIMIT = 255  # Word's Find box takes at most 255 characters
 HITS_SHOWN = 20
@@ -51,7 +52,7 @@ REASONS = {  # doc-control error code -> the stable reason `lc docx` reports
 MARKED = "this passage still has a marked change from before; accept or reject it in Word first"
 TOO_OLD = (
     "the installed doc-control is too old to write changes plainly; "
-    "update it (pip install -U 'doc-control>=0.7.1,<0.8')"
+    "update it (pip install -U 'doc-control>=0.7.2,<0.8')"
 )
 BY_HAND = "inside a field, link or note mark; change it by hand"
 
@@ -383,6 +384,8 @@ def apply_edits(
         return refused("edit", "; ".join(f"{k}: {v}" for k, v in problems.items()), problems)
     ops = [{"op": "text.replace", "at": at, "text": replace} for at, _, replace in spots]
     batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": False}
+    if not dry_run and word_live.is_open(doc):
+        return _apply_live(root, doc, batch, ids, reasons, base, refused)
     last = ingest.last_read(root, doc)
     if not dry_run and not last:
         return refused(*_unread(doc))
@@ -414,6 +417,48 @@ def apply_edits(
         "skipped": [],
         "backup": _shown(root, backup),
         "revisions": len(ids),
+        **base,
+    }, 0
+
+
+def _apply_live(
+    root: Path,
+    doc: Path,
+    batch: dict[str, Any],
+    ids: list[str],
+    reasons: dict[str, str] | None,
+    base: dict[str, Any],
+    refused: Callable[..., tuple[dict[str, Any], int]],
+) -> tuple[dict[str, Any], int]:
+    """The document is open in Word (or LibreOffice): the same plain batch goes into the
+    open document. The live engine has no backup, no ``expect`` and no all-or-nothing;
+    the app's own undo takes it back, and nothing is written to the file until the writer
+    saves."""
+    try:
+        word_live.write(batch)
+    except dc.DocError as exc:
+        reason, message = _why(exc, doc)
+        return refused(reason, message)
+    entry = {
+        "at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "document": str(doc),
+        "backup": "",
+        "how": "live",
+        "command": "edits",
+        "edit_ids": ids,
+        "reasons": {eid: (reasons or {}).get(eid, "") for eid in ids},
+    }
+    f = root / "log" / "edits.jsonl"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    with f.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    return {
+        "status": "applied",
+        "applied": ids,
+        "skipped": [],
+        "backup": None,
+        "how": "live",
+        "revisions": 0,
         **base,
     }, 0
 

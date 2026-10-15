@@ -5,11 +5,11 @@ description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
-dependencies = ["doc-control>=0.7.1,<0.8"]  # stdlib + doc-control only (AGENTS.md rule 9)
+dependencies = ["doc-control>=0.7.2,<0.8"]  # stdlib + doc-control only (AGENTS.md rule 9)
 
 [project.optional-dependencies]
 # doc-control's live engine: `lc word` acts in the writer's open Word (pywin32 on Windows)
-live = ["doc-control[live]>=0.7.1,<0.8"]
+live = ["doc-control[live]>=0.7.2,<0.8"]
 
 [project.scripts]
 lc = "litcritic.cli:main"
