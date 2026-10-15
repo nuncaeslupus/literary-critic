@@ -491,8 +491,12 @@ def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("error", message=str(exc)) from None
     if code != 0:
         raise ToolError(str(out.get("reason") or "refused"), message=str(out.get("message") or ""))
-    target = (out.get("locate") or {}).get("target")
-    if target:
+    locate = out.get("locate") or {}
+    if live := locate.get("live"):  # the edit is in the open Word, not yet in the file
+        from litcritic import word_live
+
+        out["went"] = word_live.go(Path(live["doc"]), str(live["find_phrase"]))
+    elif target := locate.get("target"):
         out["went"] = _json_run(grant, work, ["docx", "locate", "--quote", target, "--go"])
     return out
 

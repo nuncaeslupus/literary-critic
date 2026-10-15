@@ -353,6 +353,17 @@ def write(request: dict[str, Any]) -> dict[str, Any]:
     return run("doc.batch", {**request, "engine": "live"})
 
 
+def go(doc: Path, phrase: str) -> dict[str, Any]:
+    """Take Word to the paragraph holding ``phrase`` in the open document (an edit just
+    written there, not yet in the file the index reads)."""
+    request = {"doc": str(doc), "find_phrase": phrase, "match_level": "exact"}
+    try:
+        got = _timed("live.select", request)
+    except dc.DocError as exc:
+        return {"status": "failed", "error": {"code": exc.code, "message": exc.message}}
+    return {"status": "done", "how": "live", "selected": got.get("text", "")}
+
+
 def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
     """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
     Word takes longer than ``LIVE_TIMEOUT`` or a passage is not found)."""

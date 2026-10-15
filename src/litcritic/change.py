@@ -282,6 +282,7 @@ def approve(
     }
     if payload.get("how"):
         out["how"] = payload["how"]  # "live": in the open document, the writer saves
+        out["locate"]["live"] = {"doc": str(doc), "find_phrase": c["replace"]}
     if closes:
         out["action"] = rounds.mark(root, action, "done")
     return out, 0

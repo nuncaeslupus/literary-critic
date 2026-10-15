@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from doc_control.model.address import Address, fingerprint
 from test_docx_cli import _corpus_docx, _plain, _workspace
 
 from litcritic import dc, word_live
@@ -285,16 +286,27 @@ class _FakeLive:
     """doc-control's live engine for one open document: records the batches it gets and,
     like the real one, makes no revision for a plain write."""
 
-    def __init__(self, doc: Path, refuse: dc.DocError | None = None) -> None:
+    def __init__(
+        self, doc: Path, refuse: dc.DocError | None = None, texts: list[str] | None = None
+    ) -> None:
         self.doc = doc
         self.refuse = refuse
+        self.texts = texts or []  # the open document's paragraphs, unsaved edits and all
         self.batches: list[dict[str, Any]] = []
+        self.selected: list[str] = []
         self.revisions: list[Any] = []
         self.real = dc.run
 
     def run(self, op: str, req: dict[str, Any]) -> dict[str, Any]:
         if op == "live.status":
             return {"documents": [{"path": str(self.doc)}]}
+        if op == "live.select":
+            hits = [t for t in self.texts if req["find_phrase"].lower() in t.lower()]
+            if len(hits) != 1:
+                raise dc.DocError("ANCHOR_AMBIGUOUS" if hits else "ANCHOR_NOT_FOUND", "")
+            self.selected.append(req["find_phrase"])
+            n = self.texts.index(hits[0]) + 1
+            return {"text": hits[0], "at": str(Address(n, fingerprint(hits[0])))}
         if op == "doc.batch" and req.get("engine") == "live":
             self.batches.append(req)
             if self.refuse:
@@ -310,10 +322,11 @@ def _approve_live(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     refuse: dc.DocError | None = None,
+    unsaved: str = "",
 ) -> tuple[_FakeLive, int, dict[str, Any], bytes, Path]:
     p1 = "Era una tarde fria de otoño y nadie salía de casa."
     ws, doc = _workspace(tmp_path, _plain(p1, "La calle seguía vacía."))
-    fake = _FakeLive(doc, refuse)
+    fake = _FakeLive(doc, refuse, [unsaved + p1, "La calle seguía vacía."])
     monkeypatch.setattr(dc, "run", fake.run)
     capsys.readouterr()
     args = ["change", "propose", "--workspace", str(ws), "--quote", "fria", "--replace", "fría"]
@@ -395,3 +408,43 @@ def test_a_timed_out_live_call_frees_the_thread(monkeypatch: pytest.MonkeyPatch)
     assert err.value.code == "LIVE_TIMEOUT"
     assert word_live.run("fast", {}, timeout=1) == {"name": "fast"}
     release.set()
+
+
+def test_live_approve_finds_the_quote_in_the_open_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Word holds an edit not yet saved in the quote's paragraph: the range sent is the
+    open paragraph's (its address and offsets), not the saved file's."""
+    unsaved = "Al fin, "
+    fake, code, out, _before, doc = _approve_live(tmp_path, monkeypatch, capsys, unsaved=unsaved)
+    assert code == 0 and out["how"] == "live"
+    open_text = fake.texts[0]
+    start = open_text.index("fria")
+    at = f"{Address(1, fingerprint(open_text))}:{start}-{start + 4}"
+    assert fake.batches[0]["ops"][0]["at"] == at
+    assert out["locate"]["live"] == {"doc": str(doc), "find_phrase": "fría"}
+
+
+def test_live_approve_refuses_a_quote_gone_from_the_open_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    p1 = "Era una tarde fria de otoño y nadie salía de casa."
+    ws, doc = _workspace(tmp_path, _plain(p1, "La calle seguía vacía."))
+    fake = _FakeLive(doc, texts=["Era una tarde gris.", "La calle seguía vacía."])
+    monkeypatch.setattr(dc, "run", fake.run)
+    args = ["change", "propose", "--workspace", str(ws), "--quote", "fria", "--replace", "fría"]
+    assert main([*args, "--by", "writer"]) == 0
+    capsys.readouterr()
+    assert main(["change", "approve", "C1", "--workspace", str(ws)]) == 1
+    assert json.loads(capsys.readouterr().out)["reason"] == "edit"
+    assert fake.batches == []
+
+
+def test_go_takes_word_to_the_phrase_in_the_open_document(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    fake = _FakeLive(tmp_path / "N.docx", texts=["Una tarde fría.", "Otra."])
+    monkeypatch.setattr(dc, "run", fake.run)
+    out = word_live.go(tmp_path / "N.docx", "fría")
+    assert out == {"status": "done", "how": "live", "selected": "Una tarde fría."}
+    assert word_live.go(tmp_path / "N.docx", "nada")["status"] == "failed"
