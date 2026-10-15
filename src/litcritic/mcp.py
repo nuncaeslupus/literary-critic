@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
-from litcritic import __version__, rounds, settings, structure
+from litcritic import __version__, change, plan, rounds, settings, structure
 from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
@@ -32,7 +32,11 @@ SERVER_NAME = "literary-critic"
 UI_EXTENSION = "io.modelcontextprotocol/ui"
 UI_MIME = "text/html;profile=mcp-app"
 PLACES_URI = "ui://literary-critic/places"
-UI_PAGES = {PLACES_URI: Path(__file__).with_name("ui") / "places.html"}
+CHANGE_URI = "ui://literary-critic/change"
+UI_PAGES = {
+    PLACES_URI: Path(__file__).with_name("ui") / "places.html",
+    CHANGE_URI: Path(__file__).with_name("ui") / "change.html",
+}
 
 Handler = Callable[[dict[str, Any]], dict[str, Any]]
 
@@ -53,13 +57,16 @@ class Tool:
     properties: dict[str, Any] = field(default_factory=dict)
     required: tuple[str, ...] = ()
     ui: str = ""  # the ``ui://`` page that renders this tool's result (MCP Apps)
+    app_only: bool = False  # hidden from the model: only an MCP App page may call it
 
     def listing(self) -> dict[str, Any]:
         schema: dict[str, Any] = {"type": "object", "properties": self.properties}
         if self.required:
             schema["required"] = list(self.required)
         out = {"name": self.name, "description": self.description, "inputSchema": schema}
-        if self.ui:
+        if self.app_only:
+            out["_meta"] = {"ui": {"visibility": ["app"]}}
+        elif self.ui:
             out["_meta"] = {"ui": {"resourceUri": self.ui, "visibility": ["model", "app"]}}
         return out
 
@@ -186,6 +193,8 @@ NEXT_STEPS = {
     "round": "Continue the open revision round with the next pending action (60-rounds.md).",
     "overview": "Offer an overview: what works and the three biggest problems "
     "(30-orientation.md, 40-checks.md).",
+    "plan": "Follow the work plan: carry on with the active part, or propose the next one "
+    "and wait for the writer's word (00-guide.md).",
     "next_round": "Ask whether there is a new draft (50-new-draft.md) or start the next "
     "round (60-rounds.md).",
 }
@@ -243,6 +252,21 @@ def _index_state(root: Path) -> dict[str, Any] | None:
     return {"packets": len(packets), "todo": todo}
 
 
+PLAN_TIMELINE = 5
+
+
+def _plan_state(root: Path) -> dict[str, Any] | None:
+    """The plan's active part, next parts and last events; None when there is no plan."""
+    try:
+        now = plan.status(root, PLAN_TIMELINE)
+    except (OSError, ValueError, plan.PlanError, plan.Refused):
+        return None
+    if now.get("status") != "ok" or now.get("mode") is None:  # change events alone: no plan
+        return None
+    keep = ("mode", "active", "next", "by_status", "timeline")
+    return {k: now[k] for k in keep}
+
+
 def state(ws: Workspace) -> dict[str, Any]:
     """Where the work stands, and the next step to propose."""
     out: dict[str, Any] = _entry(ws)
@@ -265,12 +289,15 @@ def state(ws: Workspace) -> dict[str, Any]:
         out["round"] = rounds.status(ws.root)
     except (OSError, ValueError, rounds.RoundError):
         out["round"] = None
+    out["plan"] = _plan_state(ws.root)
     notes = sorted((ws.root / "log").glob("*.md")) if (ws.root / "log").is_dir() else []
     out["last_notes"] = notes[-1].name if notes else None
     if out["draft"] is None:
         step = "setup"
     elif out["index"] is None or out["index"]["todo"]:
         step = "index"
+    elif out["plan"] and (out["plan"]["active"] or out["plan"]["next"]):
+        step = "plan"
     elif out["round"] and out["round"]["by_status"].get("pending"):
         step = "round"
     elif out["round"] is None:
@@ -321,6 +348,8 @@ RUN_ALLOWED = (
     "metrics",
     "diff",
     "report",
+    "plan",
+    "change",
 )
 RUN_OUTPUT_CAP = 20000  # characters of output returned to the chat
 
@@ -421,6 +450,63 @@ def places(grant: Any, work: str, targets: list[str]) -> dict[str, Any]:
     if out.get("missing"):
         shown["missing"] = out["missing"]
     return shown
+
+
+def change_card(grant: Any, work: str, cid: str) -> dict[str, Any]:
+    """A proposed change as a card, rendered by the change page (Approve and Dismiss)."""
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    try:
+        one = change.status(ws.root, cid)["changes"][0]
+    except plan.Refused as exc:
+        raise ToolError(exc.reason, message=exc.message) from None
+    return {"card": one["card"], "id": one["id"], "status": one["status"], "work": work}
+
+
+def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
+    """The change page's Approve button: the id only. Applies it, then takes Word there."""
+    work, cid = str(args.get("work") or ""), str(args.get("change") or "")
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    try:
+        out, code = change.approve(ws.root, cid)
+    except plan.Refused as exc:
+        raise ToolError(exc.reason, message=exc.message) from None
+    except (OSError, ValueError, plan.PlanError) as exc:
+        raise ToolError("error", message=str(exc)) from None
+    if code != 0:
+        raise ToolError(str(out.get("reason") or "refused"), message=str(out.get("message") or ""))
+    target = (out.get("locate") or {}).get("target")
+    if target:
+        out["went"] = _json_run(grant, work, ["docx", "locate", "--quote", target, "--go"])
+    return out
+
+
+def change_dismiss(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
+    """The change page's Dismiss button."""
+    work, cid = str(args.get("work") or ""), str(args.get("change") or "")
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    try:
+        return change.dismiss(ws.root, cid, str(args.get("reason") or ""))
+    except plan.Refused as exc:
+        raise ToolError(exc.reason, message=exc.message) from None
+    except (OSError, ValueError, plan.PlanError) as exc:
+        raise ToolError("error", message=str(exc)) from None
+
+
+def plan_status(grant: Any, work: str) -> dict[str, Any]:
+    """The work plan: parts, the active one, what comes next (`lc plan status`)."""
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    try:
+        return plan.status(ws.root)
+    except (OSError, ValueError, plan.PlanError) as exc:
+        raise ToolError("error", message=str(exc)) from None
 
 
 SELECT_KEYS = ("at", "find_phrase", "find_phrase_across", "mode", "front")
@@ -533,6 +619,39 @@ def tools(grant: Any) -> list[Tool]:
             {"work": WORK_ARG, "targets": {"type": "array", "items": {"type": "string"}}},
             ("work", "targets"),
             ui=PLACES_URI,
+        ),
+        Tool(
+            "plan",
+            "Show the work plan: the parts, the active one and what comes next. Say where "
+            "the work stands from it.",
+            lambda a: plan_status(grant, str(a.get("work") or "")),
+            {"work": WORK_ARG},
+            ("work",),
+        ),
+        Tool(
+            "change_card",
+            "Show a proposed change as a card with Approve and Dismiss buttons. Propose it "
+            "first (`run` with `change propose`), then show it; the writer's click decides.",
+            lambda a: change_card(grant, str(a.get("work") or ""), str(a.get("change") or "")),
+            {"work": WORK_ARG, "change": {"type": "string", "description": "e.g. C1"}},
+            ("work", "change"),
+            ui=CHANGE_URI,
+        ),
+        Tool(
+            "change_approve",
+            "Approve a proposed change (used by the change card's button).",
+            lambda a: change_approve(grant, a),
+            {"work": WORK_ARG, "change": {"type": "string"}},
+            ("work", "change"),
+            app_only=True,
+        ),
+        Tool(
+            "change_dismiss",
+            "Dismiss a proposed change (used by the change card's button).",
+            lambda a: change_dismiss(grant, a),
+            {"work": WORK_ARG, "change": {"type": "string"}, "reason": {"type": "string"}},
+            ("work", "change"),
+            app_only=True,
         ),
         Tool(
             "select",
