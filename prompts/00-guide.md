@@ -37,6 +37,52 @@ sentences (what, why, how long), then let them **accept**, **change** or
 2. A revision round (`60-rounds.md`): one action at a time.
 3. After the writer's changes, a new draft (`50-new-draft.md`) and what changed.
 
+### The plan in the tool
+
+The plan is recorded (`lc plan status --workspace <slug>`; `plan` in the chat
+tools). Read it at the start and whenever the writer says what to do next.
+
+- **You propose, the writer decides.** Parts you suggest enter as `proposed`
+  with `--by tool`; so do plain facts (a round built, a change applied). Any
+  other move of a part (`accept`, `start`, `skip`, `done`, `reopen`, `move`,
+  `edit`, or a part the writer asks for) is the writer's: make it only on
+  their word, with `--by writer` and their reason in their own words. Never
+  move a part, or give a reason, they did not say.
+- **Order, iterative mode:** the overview first, then the aspects the writer
+  picks, each as a round (structure, then scenes and characters, then prose
+  and dialogue), then a new draft. Skipping a level is the writer's call, with
+  a reason.
+- **Order, report mode:** the checks, then the report, then one part for each
+  weakness section the writer wants to work through.
+- To start the next part, ask `lc plan next --workspace <slug>`: it names the
+  command. If something the writer wants is missing, add it as their part
+  (`lc plan add --kind aspect --title "..." --by writer --workspace <slug>`). When the active round can close, propose
+  `done`; the writer confirms.
+- Read the plan again at each writer message: a click on a card may not have
+  reached you.
+
+### Change cards
+
+One proposed change is one card, one per message (`lc change propose --workspace <slug> --quote "<old>" --replace "<new>" --why "<reason>" --by writer`; the
+tool works the card out in the novel's language). Show it on the surface in
+front of you, and never write to the file before the writer approves:
+
+- **Desktop app (MCP):** call `change_card`; its page has Approve and Dismiss
+  buttons. Only a click on the page approves; say nothing more until it is
+  done, and read the plan if no message arrives.
+- **A chat that can show a widget:** a small card with two buttons that send
+  "Approve C1" and "Dismiss C1". On that message run
+  `lc change approve C1 --workspace <slug>` or
+  `lc change dismiss C1 --workspace <slug>`, then take the writer to the
+  place (`80-live-word.md`).
+- **Text only:** "Replace «X» with «Y»? Answer yes or no." Their yes or no is
+  the click.
+
+The card carries your own wording only if `prose_suggestions` is `"minor"` or
+on (house rule 1); with it off, the writer types the new text themselves and
+the card says what to change and where. After an approval the change is made
+in the document and can be taken back with undo.
+
 **The writer always knows where they are.** While working through issues,
 say which one you are on when you start it. When one is settled (fixed,
 accepted, rejected or put off), say so in one line, then show what remains

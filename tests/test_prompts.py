@@ -295,3 +295,33 @@ def test_guide_prompt_names_channels_rules_and_done() -> None:
         assert tool in names, tool
     # no skill ships with the extension unless the guide loses (D-8): nothing to validate
     assert not list((repo_root() / "extension").glob("**/SKILL.md"))
+
+
+def _prompt(name: str) -> str:
+    return (repo_root() / "prompts" / name).read_text(encoding="utf-8")
+
+
+def test_guide_tells_writer_moves_need_writer_word() -> None:
+    guide = _prompt("00-guide.md")
+    assert "The plan in the tool" in guide
+    assert "--by tool" in guide
+    assert "--by writer" in guide
+    assert "only on" in guide and "their word" in guide
+    assert "their reason" in guide
+    assert "iterative mode" in guide and "report mode" in guide
+    assert "lc plan next" in guide
+
+
+def test_cards_prompt_respects_prose_setting() -> None:
+    guide = _prompt("00-guide.md")
+    chat = _prompt("01-chat-guide.md")
+    rounds = _prompt("60-rounds.md")
+    for text in (guide, chat):
+        assert "change_card" in text
+        assert "Approve C1" in text and "Dismiss C1" in text
+        assert "yes or no" in text
+        assert '"minor"' in text
+    assert "Approve" in guide and "Dismiss" in guide
+    assert "prose_suggestions" in guide
+    assert "minor" in rounds and "off" in rounds
+    assert 'only if `prose_suggestions` is `"minor"` or\non' in guide
