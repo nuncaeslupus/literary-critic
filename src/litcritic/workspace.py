@@ -15,7 +15,7 @@ REGISTRY_ENV = "LITCRITIC_REGISTRY"
 DEFAULT_HOME = Path.home() / "literary-critic"
 MANIFEST = "work.toml"
 GUARD_TERMS = "guard-terms.txt"
-SUBDIRS = ("manuscript", "text", "index", "metrics", "analysis", "revisions", "log")
+SUBDIRS = ("manuscript", "text", "index", "metrics", "analysis", "revisions", "log", "plan")
 
 
 class WorkspaceError(Exception):
