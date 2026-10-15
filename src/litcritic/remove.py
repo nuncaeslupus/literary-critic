@@ -3,7 +3,9 @@
 Only the work folder goes (analysis, rounds, notes, the tool's copies of the
 drafts) and its line in the registry; the writer's own files are never touched.
 Without ``--confirm`` it only says what would go: the writer confirms twice
-(``prompts/05-setup.md``), then the work's id is passed as ``--confirm``.
+(``prompts/05-setup.md``), then the work's id is passed as ``--confirm``. A zip
+of the folder (``lc pack``, restored with ``lc unpack``) is written next to it
+first, and nothing is deleted if that fails.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import stat
 from pathlib import Path
 from typing import Any
 
-from litcritic import workspace
+from litcritic import pack, workspace
 
 
 class RemoveError(Exception):
@@ -59,16 +61,17 @@ def remove(ref: str, confirm: str = "", base: Path | None = None) -> dict[str, A
     }
     if not work_id or confirm != work_id:
         return {"status": "dry_run", **out, "confirm": work_id}
+    backup, _ = pack.pack(root)
     _writable(files)
     shutil.rmtree(root)
     _unregister(root)
-    return {"status": "removed", **out}
+    return {"status": "removed", **out, "backup": str(backup)}
 
 
 def _cmd(args: Any) -> int:
     try:
         out = remove(args.workspace, args.confirm or "", args.home)
-    except (RemoveError, workspace.WorkspaceError, OSError, ValueError) as exc:
+    except (RemoveError, workspace.WorkspaceError, pack.PackError, OSError, ValueError) as exc:
         print(json.dumps({"status": "error", "message": str(exc)}, ensure_ascii=False))
         return 2
     print(json.dumps(out, ensure_ascii=False, indent=1))

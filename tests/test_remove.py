@@ -28,10 +28,16 @@ def test_remove_says_what_would_go_and_deletes_only_with_the_id(
     assert main(["remove", "--workspace", str(root), "--confirm", "wrong"]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "dry_run" and root.is_dir()
     assert main(["remove", "--workspace", str(root), "--confirm", dry["confirm"]]) == 0
-    assert json.loads(capsys.readouterr().out)["status"] == "removed"
+    removed = json.loads(capsys.readouterr().out)
+    assert removed["status"] == "removed"
     assert not root.exists()
-    assert (novel / "draft.md").is_file()  # the writer's own files stay
     assert str(root) not in workspace.registry_file().read_text(encoding="utf-8")
+    # a zip of the folder is kept, and brings it back
+    backup = Path(removed["backup"])
+    assert backup.is_file() and backup.parent == novel
+    assert main(["unpack", str(backup), "--workspace", str(root)]) == 0
+    assert (root / "log" / "notes.md").read_text(encoding="utf-8") == "notes\n"
+    assert (novel / "draft.md").is_file()  # the writer's own files stay
 
 
 def test_remove_refuses_what_is_not_a_work(

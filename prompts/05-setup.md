@@ -132,8 +132,10 @@ again from nothing. Their novel's own files are never touched; what goes is the
 
 1. `lc remove --workspace <ws>` deletes nothing: it prints the `title`, how
    many `files` would go and the `confirm` id. Tell the writer, in plain words,
-   what will be deleted and that their novel stays as it is; offer to keep a
-   copy first (`lc pack --workspace <ws>`). Ask: delete it?
-2. On yes, ask once more, plainly: "Are you sure? This cannot be undone."
-3. Only on a second yes, run `lc remove --workspace <ws> --confirm <confirm>`
-   and say it is done. A no at either step: delete nothing, and go on.
+   what will be deleted, that their novel stays as it is, and that a copy of
+   the tool's work is kept as a zip next to the novel. Ask: delete it?
+2. On yes, ask once more, plainly: "Are you sure?"
+3. Only on a second yes, run `lc remove --workspace <ws> --confirm <confirm>`.
+   It writes the zip (`backup`) first, then deletes. Say it is done and where
+   the zip is (`lc unpack <zip>` brings the work back). A no at either step:
+   delete nothing, and go on.
