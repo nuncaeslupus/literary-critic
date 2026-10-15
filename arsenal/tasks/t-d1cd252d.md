@@ -9,6 +9,8 @@ workspace: workplan
 
 Blocked outside this repo until doc-control ships `tracked: false` in the file engine: https://github.com/nuncaeslupus/doc-control/issues/318
 
+Detecting support (agreed with doc-control): `capabilities` carries a plain-writes feature flag, separate for the file engine and live; an older doc-control rejects `tracked: false` with `SCHEMA_INVALID`, so map that to `doc_control_too_old`; tracked stays the default when `tracked` is absent. doc-control will send the exact flag name and version when #318/#319 merge.
+
 ## Acceptance gate
 
 `approved_change_revision_marks == 0` (plan: `arsenal/project/workplan/plan.md` T9; details there under Task details).
