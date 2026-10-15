@@ -28,6 +28,7 @@ from litcritic import (
     metrics,
     pack,
     query,
+    remove,
     report,
     rounds,
     setup,
@@ -594,6 +595,7 @@ def build_parser() -> argparse.ArgumentParser:
     index_cli.register(sub)
     docx_cli.register(sub)
     setup.register(sub)
+    remove.register(sub)
     upgrade.register(sub)
     word_live.register(sub)
     mcp.register(sub)

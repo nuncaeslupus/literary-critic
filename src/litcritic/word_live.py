@@ -294,16 +294,31 @@ def _request(op: str, payload: dict[str, Any]) -> dict[str, Any] | None:
     return request
 
 
-def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
-    """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
-    Word takes longer than ``LIVE_TIMEOUT`` or a passage is not found)."""
+def _timed(name: str, request: dict[str, Any]) -> dict[str, Any]:
+    """doc-control's ``name``, given up after ``LIVE_TIMEOUT`` (raises ``dc.DocError``)."""
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     try:
-        result = pool.submit(dc.run, LIVE[op], request).result(timeout=LIVE_TIMEOUT)
+        return pool.submit(dc.run, name, request).result(timeout=LIVE_TIMEOUT)
     except TimeoutError as exc:
         raise dc.DocError("LIVE_TIMEOUT", f"Word did not answer in {LIVE_TIMEOUT:g}s") from exc
     finally:
         pool.shutdown(wait=False)
+
+
+def open_documents() -> list[Path]:
+    """Full paths of the documents open in Word (or another live app), empty when none
+    can be reached: no live engine, no Word running, or no answer in time."""
+    try:
+        docs = _timed("live.status", {}).get("documents") or []
+    except dc.DocError:
+        return []
+    return [Path(d["path"]) for d in docs if isinstance(d, dict) and d.get("path")]
+
+
+def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
+    """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
+    Word takes longer than ``LIVE_TIMEOUT`` or a passage is not found)."""
+    result = _timed(LIVE[op], request)
     if op == "locate" and (not result.get("at") or result.get("selected") is False):
         raise dc.DocError("NOT_SELECTED", "Word did not go to the passage")
     return result
