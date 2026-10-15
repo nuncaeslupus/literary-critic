@@ -248,6 +248,33 @@ def _resolve(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
         raise
 
 
+def _resolve_live(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
+    """The range of ``quote`` in the document open in Word, which may hold edits not yet
+    saved: ``live.select`` finds its paragraph (by the quote, or with its context when
+    the quote alone is not once) and answers that paragraph's text and address."""
+    context = prefix + quote + suffix
+    for phrase in dict.fromkeys((quote, context)):
+        request = {"doc": str(doc), "find_phrase": phrase, "match_level": "exact"}
+        try:
+            got = word_live.run("live.select", {**request, "mode": "cursor", "front": False})
+            break
+        except dc.DocError as exc:
+            if exc.code == "ANCHOR_NOT_FOUND":
+                raise NotOnce(0) from exc
+            if exc.code != "ANCHOR_AMBIGUOUS":
+                raise
+    else:
+        raise NotOnce(2)
+    text, at = str(got.get("text") or ""), str(got.get("at") or "")
+    if text.count(quote) == 1:
+        start = text.index(quote)
+    elif text.count(context) == 1 and context != quote:
+        start = text.index(context) + len(prefix)
+    else:
+        raise NotOnce(text.count(quote))
+    return f"{at}:{start}-{start + len(quote)}"
+
+
 def _sha256(doc: Path) -> str:
     return hashlib.sha256(doc.read_bytes()).hexdigest()
 
@@ -362,6 +389,8 @@ def apply_edits(
 
     if not doc.is_file():
         return refused("missing", f"{doc} does not exist")
+    live = not dry_run and word_live.is_open(doc)
+    resolve = _resolve_live if live else _resolve
     problems: dict[str, str] = {}
     spots: list[tuple[str, str, str]] = []  # (range, id, replacement)
     for eid, quote, replace, prefix, suffix in edits:
@@ -369,9 +398,13 @@ def apply_edits(
             problems[eid] = "empty quote"
             continue
         try:
-            spots.append((_resolve(doc, quote, prefix, suffix), eid, replace))
+            spots.append((resolve(doc, quote, prefix, suffix), eid, replace))
         except NotOnce as exc:
             problems[eid] = str(exc) + ("; add context" if exc.count else "")
+        except dc.DocError as exc:
+            if not live:
+                raise
+            return refused(*_why(exc, doc))
     places = sorted(
         (int(m.group(1)), int(m.group(3)), int(m.group(4)), eid)
         for at, eid, _ in spots
@@ -384,7 +417,7 @@ def apply_edits(
         return refused("edit", "; ".join(f"{k}: {v}" for k, v in problems.items()), problems)
     ops = [{"op": "text.replace", "at": at, "text": replace} for at, _, replace in spots]
     batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": False}
-    if not dry_run and word_live.is_open(doc):
+    if live:
         return _apply_live(root, doc, batch, ids, reasons, base, refused)
     last = ingest.last_read(root, doc)
     if not dry_run and not last:
