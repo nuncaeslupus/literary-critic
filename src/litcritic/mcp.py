@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
-from litcritic import __version__, change, overview, plan, rounds, settings, structure, winblock
+from litcritic import __version__, change, dc, overview, plan, rounds, settings, structure, winblock
 from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
@@ -256,6 +256,11 @@ def _entry(ws: Workspace) -> dict[str, Any]:
         "folder": str(novel),
         "last_used": time.strftime("%Y-%m-%d %H:%M", time.localtime(_last_used(ws))),
     }
+
+
+def versions() -> dict[str, str]:
+    """What this server runs: a running server keeps old code until the app restarts."""
+    return {"literary-critic": __version__, "doc-control": dc.version(), "python": sys.executable}
 
 
 def works_list(grant: Any) -> list[dict[str, Any]]:
@@ -649,8 +654,9 @@ def tools(grant: Any) -> list[Tool]:
     return [
         Tool(
             "works",
-            "List the writer's novels, most recently used first. " + WORK_HINT,
-            lambda a: {"works": works_list(grant), "hint": ADD_FOLDER_HINT},
+            "List the writer's novels, most recently used first, and the versions this "
+            "server runs (answer 'which version?' from them). " + WORK_HINT,
+            lambda a: {"works": works_list(grant), "hint": ADD_FOLDER_HINT, "versions": versions()},
         ),
         Tool(
             "resume",

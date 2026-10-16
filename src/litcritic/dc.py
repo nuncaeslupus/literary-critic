@@ -51,6 +51,17 @@ def _execute(op: str, request: dict[str, Any]) -> dict[str, Any]:
     return envelope
 
 
+def version() -> str:
+    """The installed doc-control's version, or ``""`` when it is not installed."""
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as installed
+
+    try:
+        return installed("doc-control")
+    except PackageNotFoundError:
+        return ""
+
+
 def check() -> None:
     """Refuse a doc-control whose API major version this code does not know, or one
     older than ``MIN_VERSION``."""
