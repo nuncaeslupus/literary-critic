@@ -24,7 +24,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
-from litcritic import __version__, change, dc, overview, plan, rounds, settings, structure, winblock
+from litcritic import (
+    __version__,
+    change,
+    dc,
+    docx_cli,
+    overview,
+    plan,
+    rounds,
+    settings,
+    structure,
+    winblock,
+)
 from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
@@ -454,14 +465,20 @@ def _work(grant: Any, work: str) -> Workspace | dict[str, Any]:
     return {"not_found": work, "works": works_list(grant), "hint": ADD_FOLDER_HINT}
 
 
+class _Help(Exception):
+    """``-h`` / ``--help``: argparse printed the usage and stopped."""
+
+
 def _parse(argv: list[str]) -> Any:
     from litcritic.cli import build_parser  # cli imports this module
 
-    err = io.StringIO()
+    out, err = io.StringIO(), io.StringIO()
     try:
-        with contextlib.redirect_stderr(err):
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             return build_parser().parse_args(argv)
-    except SystemExit:
+    except SystemExit as exc:
+        if exc.code in (0, None) and out.getvalue():
+            raise _Help(out.getvalue()) from None
         raise ToolError("bad_command", detail=err.getvalue().strip()) from None
 
 
@@ -485,9 +502,12 @@ def _run_argv(grant: Any, ws: Workspace, argv: list[str]) -> dict[str, Any]:
         if "/" in a or "\\" in a or a.startswith(".."):
             grant.confine(a, base=ws.root)
     try:
-        args = _parse([*argv, "--workspace", str(ws.root)])
-    except ToolError:
-        args = _parse(argv)  # a subcommand without --workspace (`codex questions`)
+        try:
+            args = _parse([*argv, "--workspace", str(ws.root)])
+        except ToolError:
+            args = _parse(argv)  # a subcommand without --workspace (`codex questions`)
+    except _Help as usage:  # the chat asked how a command is used: tell it
+        return {"exit": 0, "output": str(usage)[:RUN_OUTPUT_CAP]}
     out, err = io.StringIO(), io.StringIO()
     blocked: dict[str, Any] = {}
     try:
@@ -545,22 +565,76 @@ def places(grant: Any, work: str, targets: list[str]) -> dict[str, Any]:
     live = out.get("live")
     if out.get("status") != "ok" or not isinstance(live, dict):
         return out
-    shown: dict[str, Any] = {**live["arguments"], "writer": out.get("writer", "")}
+    shown: dict[str, Any] = {**live["arguments"], "writer": out.get("writer", ""), "work": work}
     if out.get("missing"):
         shown["missing"] = out["missing"]
     return shown
 
 
-def change_card(grant: Any, work: str, cid: str) -> dict[str, Any]:
-    """A proposed change as a card, rendered by the change page (Approve and Dismiss)."""
+def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
+    """Proposed changes as one card, rendered by the change page: Approve and Dismiss (for
+    all of them) and a "Show in Word" button for each. The changes are named (``change``,
+    or ``changes`` for a batch), or proposed here from ``quote`` and ``replace`` (as
+    ``lc change propose``) and shown in the same call."""
+    work = str(a.get("work") or "")
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return ws
+    ids = [str(c) for c in a.get("changes") or []]
+    if a.get("change"):
+        ids.insert(0, str(a["change"]))
+    try:
+        if not ids and a.get("quote") is not None and a.get("replace") is not None:
+            made = change.propose(
+                ws.root,
+                str(a["quote"]),
+                str(a["replace"]),
+                by=str(a.get("by") or "writer"),
+                why=str(a.get("why") or ""),
+                prefix=str(a.get("prefix") or ""),
+                suffix=str(a.get("suffix") or ""),
+            )
+            ids = [made["change"]]
+        if not ids:
+            raise ToolError("missing_arguments", missing=["change", "or quote and replace"])
+        rows = [change.status(ws.root, cid)["changes"][0] for cid in dict.fromkeys(ids)]
+    except plan.Refused as exc:
+        raise ToolError(exc.reason, message=exc.message) from None
+    except (OSError, ValueError, plan.PlanError) as exc:
+        raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
+    shown = [{"id": r["id"], "status": r["status"], "card": r["card"]} for r in rows]
+    return {**shown[0], "work": work, "changes": shown}
+
+
+def _go(grant: Any, work: str, ws: Workspace, cid: str) -> dict[str, Any]:
+    """Take Word to a change: its new wording once applied, the old one before. An edit in
+    the open document (not saved yet) is found there, not in the file; a document Word
+    does not have open is opened."""
+    from litcritic import word_live
+
+    where = change.spot(ws.root, cid)
+    text = str(where["text"])
+    try:
+        doc = change._document(ws.root, where.get("document"))
+    except (OSError, ValueError, docx_cli.CliError):
+        doc = None
+    if doc is not None and word_live.is_open(doc):
+        went = word_live.go(doc, text)
+        if went.get("status") == "done":
+            return went
+    return _json_run(grant, work, ["docx", "locate", "--quote", text, "--go"])
+
+
+def change_go(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
+    """The change page's "Show in Word" button: Word taken to the change."""
+    work, cid = str(args.get("work") or ""), str(args.get("change") or "")
     ws = _work(grant, work)
     if isinstance(ws, dict):
         return ws
     try:
-        one = change.status(ws.root, cid)["changes"][0]
+        return {"change": cid, "went": _go(grant, work, ws, cid)}
     except plan.Refused as exc:
         raise ToolError(exc.reason, message=exc.message) from None
-    return {"card": one["card"], "id": one["id"], "status": one["status"], "work": work}
 
 
 def change_status(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
@@ -577,7 +651,8 @@ def change_status(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
 
 
 def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
-    """The change page's Approve button: the id only. Applies it, then takes Word there."""
+    """The change page's Approve button: the id only. Applies it, then takes Word there
+    (unless ``go`` is false: a batch goes once, after the last)."""
     work, cid = str(args.get("work") or ""), str(args.get("change") or "")
     ws = _work(grant, work)
     if isinstance(ws, dict):
@@ -590,13 +665,8 @@ def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
     if code != 0:
         raise ToolError(str(out.get("reason") or "refused"), message=str(out.get("message") or ""))
-    locate = out.get("locate") or {}
-    if live := locate.get("live"):  # the edit is in the open Word, not yet in the file
-        from litcritic import word_live
-
-        out["went"] = word_live.go(Path(live["doc"]), str(live["find_phrase"]))
-    elif target := locate.get("target"):
-        out["went"] = _json_run(grant, work, ["docx", "locate", "--quote", target, "--go"])
+    if args.get("go", True) is not False:
+        out["went"] = _go(grant, work, ws, cid)
     return out
 
 
@@ -628,8 +698,23 @@ def plan_status(grant: Any, work: str) -> dict[str, Any]:
 SELECT_KEYS = ("at", "find_phrase", "find_phrase_across", "mode", "front")
 
 
-def select(args: dict[str, Any]) -> dict[str, Any]:
-    """The places page's button: doc-control's ``live.select`` in the open Word."""
+def _named_document(grant: Any, work: str, name: str) -> Path | None:
+    """The work's document called ``name`` (a bare file name), None when there is none."""
+    if not work:
+        return None
+    ws = _work(grant, work)
+    if isinstance(ws, dict):
+        return None
+    try:
+        doc = docx_cli._document(ws.root, name)
+    except (OSError, ValueError, docx_cli.CliError):
+        return None
+    return doc if doc.is_file() else None
+
+
+def select(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
+    """The places page's button: doc-control's ``live.select`` in the open Word. When Word
+    does not have the document open and the page named the work, it opens it first."""
     from litcritic import dc, word_live
 
     doc = str(args.get("doc") or "")
@@ -637,7 +722,13 @@ def select(args: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("not_allowed", detail="doc is the open document's file name")
     request = {"doc": doc, **{k: args[k] for k in SELECT_KEYS if k in args}}
     try:
-        return {"ok": True, "result": word_live.run("live.select", request)}
+        try:
+            return {"ok": True, "result": word_live.run("live.select", request)}
+        except dc.DocError:
+            path = _named_document(grant, str(args.get("work") or ""), doc)
+            if path is None or not word_live.open_if_closed(path):
+                raise
+            return {"ok": True, "result": word_live.run("live.select", request), "opened": True}
     except dc.DocError as exc:
         error = {"code": exc.code, "message": exc.message}
         return {"ok": False, "error": error, **winblock.advice(str(exc))}
@@ -748,17 +839,40 @@ def tools(grant: Any) -> list[Tool]:
         ),
         Tool(
             "change_card",
-            "Show a proposed change as a card with Approve and Dismiss buttons. Propose it "
-            "first (`run` with `change propose`), then show it; the writer's click decides.",
-            lambda a: change_card(grant, str(a.get("work") or ""), str(a.get("change") or "")),
-            {"work": WORK_ARG, "change": {"type": "string", "description": "e.g. C1"}},
-            ("work", "change"),
+            "The only way to change the manuscript: propose a change and show it as a card "
+            "with Approve and Dismiss buttons; the writer's click decides and the tool "
+            "writes it. Give quote (verbatim, with prefix/suffix when it is not unique), "
+            "replace, why and by (writer or assistant) to propose and show it in one call; "
+            "or name proposed changes: change, or changes for a batch (one card, one Show "
+            "in Word button per change). Never edit, open, save or close the document any "
+            "other way (no doc-control writes, no Word by hand).",
+            lambda a: change_card(grant, a),
+            {
+                "work": WORK_ARG,
+                "change": {"type": "string", "description": "e.g. C1"},
+                "changes": {"type": "array", "items": {"type": "string"}},
+                "quote": {"type": "string"},
+                "replace": {"type": "string"},
+                "why": {"type": "string"},
+                "by": {"enum": ["writer", "assistant"]},
+                "prefix": {"type": "string"},
+                "suffix": {"type": "string"},
+            },
+            ("work",),
             ui=CHANGE_URI,
         ),
         Tool(
             "change_approve",
             "Approve a proposed change (used by the change card's button).",
             lambda a: change_approve(grant, a),
+            {"work": WORK_ARG, "change": {"type": "string"}, "go": {"type": "boolean"}},
+            ("work", "change"),
+            app_only=True,
+        ),
+        Tool(
+            "change_go",
+            "Take Word to a change (used by the change card's Show in Word button).",
+            lambda a: change_go(grant, a),
             {"work": WORK_ARG, "change": {"type": "string"}},
             ("work", "change"),
             app_only=True,
@@ -782,9 +896,10 @@ def tools(grant: Any) -> list[Tool]:
         Tool(
             "select",
             "Put Word's cursor on a place (used by the places buttons).",
-            select,
+            lambda a: select(grant, a),
             {
                 "doc": {"type": "string"},
+                "work": {"type": "string"},
                 "at": {"type": "string"},
                 "find_phrase": {"type": "string"},
                 "find_phrase_across": {"type": "boolean"},

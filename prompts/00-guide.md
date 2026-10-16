@@ -73,9 +73,13 @@ One proposed change is one card, one per message (`lc change propose --workspace
 tool works the card out in the novel's language). Show it on the surface in
 front of you, and never write to the file before the writer approves:
 
-- **Desktop app (MCP):** call `change_card`; its page has Approve and Dismiss
-  buttons. Only a click on the page approves; say nothing more until it is
-  done, and read the plan if no message arrives.
+- **Desktop app (MCP):** call `change_card` (with `quote`, `replace`, `why`
+  and `by` it proposes and shows in one call); its page has Approve and
+  Dismiss buttons and a Show in Word button per change. One fix in several
+  places (a renamed name) is one card: `changes` lists them. Only a click on
+  the page approves; say nothing more until it is done, and read the plan if
+  no message arrives. Never write to the document another way (doc-control's
+  tools, Word by computer use); the buttons open Word when it is closed.
 - **A chat that can show a widget:** a small card with two buttons that send
   "Approve C1" and "Dismiss C1". On that message run
   `lc change approve C1 --workspace <slug>` or

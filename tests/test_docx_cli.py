@@ -407,11 +407,11 @@ def test_docx_cli_contracts(novel: tuple[Path, Path], capsys: pytest.CaptureFixt
     ck(any(quote.upper() in t for t in _texts(doc.read_bytes())))
     code, out = _edits(capsys, ws, edits)
     ck(code == 1 and out["status"] == "refused" and out["skipped"][0]["reason"] == "not found")
-    # the document no longer matches the ingested draft: no anchor locate, quotes still work
+    # the tool's own edit leaves the paragraphs one for one: anchors and locators still work
     code, out = _lc(capsys, "docx", "locate", "c01.s1.p1", *w)
-    ck(code == 1 and out["reason"] == "changed")
+    ck(code == 0 and out["locator"] is not None)
     code, out = _lc(capsys, "docx", "locate", quote.upper(), *w)
-    ck(code == 0 and out["locator"] is None)
+    ck(code == 0 and out["locator"] is not None)
     # a rename over a paragraph with an old tracked change is refused as `marked`
     code, out = _lc(capsys, "docx", "rename", "Choto", "Perro", "--dry-run", *w)
     ck(code == 1 and out["reason"] == "marked")
@@ -488,3 +488,43 @@ def test_places_one_by_one_match_whole_document(novel: tuple[Path, Path]) -> Non
         assert alone.find(at) == batch.find(at), at
         assert alone.locator(alone.ordinal_of[i]) == batch.locator(batch.ordinal_of[i]), at
     assert alone._rows is None
+
+
+def test_locators_survive_small_edits_but_not_a_new_draft(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    paras = [f"Paragraph number {i} of the story." for i in range(10)]
+    assert docx_cli._same_paragraphs(paras, paras)
+    edited = [*paras[:8], "Edited one.", "Edited two."]
+    assert docx_cli._same_paragraphs(edited, paras)  # 8 of 10 the same
+    assert not docx_cli._same_paragraphs([*paras[:7], "a", "b", "c"], paras)
+    assert not docx_cli._same_paragraphs([*paras, "added"], paras)
+
+    ws, doc = _workspace(tmp_path, _plain(*paras), anchor=True)
+    w = ("--workspace", str(ws))
+    doc.write_bytes(_plain(*paras[:9], "A paragraph the writer rewrote."))
+    code, out = _lc(capsys, "docx", "locate", "Paragraph number 3", *w)
+    assert code == 0 and out["locator"] is not None
+    doc.write_bytes(_plain("A new opening.", *paras))  # a paragraph added: a new draft
+    code, out = _lc(capsys, "docx", "locate", "Paragraph number 3", *w)
+    assert code == 0 and out["locator"] is None
+
+
+def test_a_read_refused_for_a_moment_is_tried_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = tmp_path / "N.docx"
+    doc.write_bytes(b"data")
+    monkeypatch.setattr(docx_cli, "READ_PAUSE", 0)
+    real, refusals = Path.read_bytes, [PermissionError("saving"), PermissionError("syncing")]
+
+    def flaky(self: Path) -> bytes:
+        if refusals:
+            raise refusals.pop()
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", flaky)
+    assert docx_cli._read(doc) == b"data" and not refusals
+    refusals.extend(PermissionError("locked") for _ in range(docx_cli.READ_TRIES))
+    with pytest.raises(PermissionError):
+        docx_cli._read(doc)

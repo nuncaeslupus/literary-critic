@@ -219,3 +219,21 @@ def test_old_doc_control_refused_not_tracked(
     assert code == 1 and out["status"] == "refused" and out["reason"] == "doc_control_too_old"
     assert sent and all(r["tracked"] is False for r in sent)  # never silently tracked
     assert doc.read_bytes() == before
+
+
+def test_spot_is_the_old_wording_before_approval_and_the_new_after(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from litcritic import change
+
+    ws, _doc = _novel(tmp_path)
+    code, out = _propose(capsys, ws, "fria", "fría", "--by", "writer", "--prefix", "tarde ")
+    assert code == 0 and out["card"]["buttons"]["go"] == "Ver en Word"
+    assert change.card({"quote": "a", "replace": "b"}, "xx")["buttons"]["go"] == "Show in Word"
+    spot = change.spot(ws, "C1")
+    assert spot["text"] == "tarde fria" and spot["status"] == "proposed"
+    assert spot["document"] == "MyNovel_v3.docx"
+    assert _lc(capsys, "approve", "C1", "--workspace", str(ws))[0] == 0
+    assert change.spot(ws, "C1")["text"] == "tarde fría"
+    with pytest.raises(change.ChangeRefused):
+        change.spot(ws, "C9")

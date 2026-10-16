@@ -322,9 +322,9 @@ def test_change_approve_tool_is_app_only_and_locates(
         assert tools[name]["_meta"]["ui"]["visibility"] == ["app"]
         assert "resourceUri" not in tools[name]["_meta"]["ui"]
     assert tools["change_card"]["_meta"]["ui"]["visibility"] == ["model", "app"]
-    # the id only: the work and the change, never text to write
+    # the id only: the work and the change (and whether Word goes there), never text
     schema = tools["change_approve"]["inputSchema"]
-    assert set(schema["properties"]) == {"work", "change"}
+    assert set(schema["properties"]) == {"work", "change", "go"}
     assert schema["required"] == ["work", "change"]
 
     ran: list[list[str]] = []
@@ -346,6 +346,124 @@ def test_change_approve_tool_is_app_only_and_locates(
     change.propose(ws, "street", "road", by="writer")
     dismissed = _call_raw(server, "change_dismiss", {"work": "mynovel", "change": "C2"})
     assert _text(dismissed)["status"] == "dismissed"
+
+
+def test_change_card_proposes_inline_and_shows_a_batch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server, _ws = _change_work(tmp_path, monkeypatch, propose=False)
+    made = _call_raw(
+        server,
+        "change_card",
+        {"work": "mynovel", "quote": "cold", "replace": "bitter", "why": "x", "by": "writer"},
+    )
+    assert not made["isError"], made
+    shown = made["structuredContent"]
+    assert shown["id"] == "C1" and shown["status"] == "proposed"
+    assert [c["id"] for c in shown["changes"]] == ["C1"]
+    assert set(shown["card"]["buttons"]) == {"approve", "dismiss", "go"}
+
+    _call_raw(server, "change_card", {"work": "mynovel", "quote": "street", "replace": "road"})
+    both = _call_raw(server, "change_card", {"work": "mynovel", "changes": ["C1", "C2"]})
+    assert [c["id"] for c in both["structuredContent"]["changes"]] == ["C1", "C2"]
+    assert "road" in both["structuredContent"]["changes"][1]["card"]["text"]
+
+    nothing = _call_raw(server, "change_card", {"work": "mynovel"})
+    assert nothing["isError"] and _text(nothing)["error"] == "missing_arguments"
+    refused = _call_raw(server, "change_card", {"work": "mynovel", "quote": "x", "replace": "x"})
+    assert refused["isError"] and _text(refused)["error"] == "invalid"
+
+
+def test_change_go_takes_word_to_the_change_before_and_after(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server, _ws = _change_work(tmp_path, monkeypatch)
+    tool = _listed(server)["change_go"]
+    assert tool["_meta"]["ui"]["visibility"] == ["app"]
+    ran: list[list[str]] = []
+
+    def fake_run(grant: Any, work: str, argv: list[str]) -> dict[str, Any]:
+        ran.append(argv)
+        return {"status": "done"}
+
+    monkeypatch.setattr(mcp, "_json_run", fake_run)
+    went = _text(_call_raw(server, "change_go", {"work": "mynovel", "change": "C1"}))
+    assert went["went"]["status"] == "done"
+    batch = {"work": "mynovel", "change": "C1", "go": False}
+    assert "went" not in _text(_call_raw(server, "change_approve", batch))  # a batch goes once
+    _call_raw(server, "change_go", {"work": "mynovel", "change": "C1"})
+    assert ran == [
+        ["docx", "locate", "--quote", "cold", "--go"],  # the old wording before approval
+        ["docx", "locate", "--quote", "bitter", "--go"],  # the new one after
+    ]
+    unknown = _call_raw(server, "change_go", {"work": "mynovel", "change": "C9"})
+    assert unknown["isError"] and _text(unknown)["error"] == "unknown_change"
+
+
+def test_change_go_finds_an_unsaved_edit_in_the_open_word(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import word_live
+
+    server, _ws = _change_work(tmp_path, monkeypatch)
+    went: list[tuple[Path, str]] = []
+    monkeypatch.setattr(word_live, "is_open", lambda doc: True)
+
+    def go(doc: Path, phrase: str) -> dict[str, str]:
+        went.append((doc, phrase))
+        return {"status": "done"}
+
+    monkeypatch.setattr(word_live, "go", go)
+    monkeypatch.setattr(mcp, "_json_run", lambda *a: pytest.fail("the file is not read"))
+    out = _text(_call_raw(server, "change_go", {"work": "mynovel", "change": "C1"}))
+    assert out["went"]["status"] == "done"
+    assert went[0][1] == "cold" and went[0][0].is_file()
+
+
+def test_select_opens_the_document_word_does_not_have_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import dc, word_live
+
+    server, ws = _change_work(tmp_path, monkeypatch, propose=False)
+    opened: list[Path] = []
+    tries: list[dict[str, Any]] = []
+
+    def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        tries.append(request)
+        if not opened:
+            raise dc.DocError("DOC_NOT_OPEN", "not open")
+        return {"selected": True}
+
+    monkeypatch.setattr(word_live, "run", run)
+
+    def open_if_closed(doc: Path) -> bool:
+        opened.append(doc)
+        return True
+
+    monkeypatch.setattr(word_live, "open_if_closed", open_if_closed)
+    args = {"doc": "MyNovel_v3.docx", "find_phrase": "cold", "mode": "cursor"}
+    out = _text(_call_raw(server, "select", {**args, "work": "mynovel"}))
+    assert out["ok"] and out["opened"] and opened == [ws.parent / "MyNovel_v3.docx"]
+    assert tries == [args, args]  # the work picks the file; Word gets the name alone
+
+    opened.clear()
+    monkeypatch.setattr(word_live, "open_if_closed", lambda doc: False)
+    out = _text(_call_raw(server, "select", {**args, "work": "mynovel"}))
+    assert not out["ok"] and out["error"]["code"] == "DOC_NOT_OPEN"
+    out = _text(_call_raw(server, "select", args))  # without the work: nothing to open
+    assert not out["ok"]
+
+
+def test_run_help_answers_with_the_usage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    server, _ws = _change_work(tmp_path, monkeypatch, propose=False)
+    for argv in (["change", "propose", "--help"], ["change", "-h"]):
+        res = _call_raw(server, "run", {"work": "mynovel", "command": argv})
+        out = _text(res)
+        assert not res["isError"] and out["exit"] == 0, out
+        assert "usage:" in out["output"] and "propose" in out["output"]
+    bad = _call_raw(server, "run", {"work": "mynovel", "command": ["change", "nope"]})
+    assert bad["isError"] and _text(bad)["error"] == "bad_command"
 
 
 def test_change_status_tool_is_app_only_and_live(
@@ -395,7 +513,7 @@ def test_change_page_renders_settled_changes_as_settled() -> None:
     assert words["applied"].startswith("✓") and words["dismissed"] == "Dismissed"
     assert "✗" not in "".join(words.values())
     # a refusal for a settled change shows the settled state, not the red error
-    assert 'why.code === "not_proposed" && settle(await liveStatus())' in html
+    assert 'why.code === "not_proposed" && settle(row, await liveStatus(row))' in html
     assert '$("buttons").hidden = true' in html
 
 

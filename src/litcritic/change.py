@@ -32,6 +32,11 @@ _CARD = {
     "en": ("Replace «{x}» with «{y}»?", "your words", "suggested by the assistant"),
     "es": ("¿Cambiar «{x}» por «{y}»?", "tus palabras", "sugerencia del asistente"),
 }
+# the card's buttons, in the novel's language
+_BUTTONS = {
+    "en": {"approve": "Approve", "dismiss": "Dismiss", "go": "Show in Word"},
+    "es": {"approve": "Aprobar", "dismiss": "Descartar", "go": "Ver en Word"},
+}
 
 
 class ChangeRefused(plan.Refused):
@@ -119,12 +124,29 @@ def card(c: dict[str, Any], lang: str) -> dict[str, Any]:
         "suggested": suggested,
         "why": c.get("why", ""),
         "where": c.get("where"),
+        "buttons": _BUTTONS.get(lang, _BUTTONS["en"]),
+    }
+
+
+def spot(root: Path, cid: str) -> dict[str, Any]:
+    """Where a change is in the document, for its card's "Show in Word" button: the text
+    to find there now (the new wording once applied, the old one before), with the words
+    around it that the proposal kept so the phrase is found once."""
+    c = _changes(root).get(cid)
+    if c is None:
+        raise ChangeRefused("unknown_change", f"no change {cid}")
+    text = c["replace"] if c["status"] == "applied" else c["quote"]
+    return {
+        "change": cid,
+        "status": c["status"],
+        "text": f"{c.get('prefix', '')}{text}{c.get('suffix', '')}",
+        "document": c.get("document"),
     }
 
 
 def _where(root: Path, doc: Path, at: str, quote: str, lang: str) -> dict[str, Any] | None:
     try:
-        places = docx_cli._Places(root, doc, doc.read_bytes(), lang, few=True)
+        places = docx_cli._Places(root, doc, docx_cli._read(doc), lang, few=True)
         hit = places.hit(at, quote)
     except (dc.DocError, OSError, ValueError, KeyError):
         return None

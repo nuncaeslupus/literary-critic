@@ -2,26 +2,36 @@
 <html>
 <head>
 <meta charset="utf-8">
-<!-- The MCP App behind literary-critic's `change_card` tool: one proposed change with exactly
-     two buttons. A click calls the extension's app-only `change_approve` / `change_dismiss`
-     tool through the host with the change id only (the page never sends text to write), so
-     approving takes one click and no assistant turn. On load it asks the app-only
-     `change_status` tool for the change's status now (the tool result is from when the card
-     was first shown), and a change already approved, dismissed or undone shows as settled
-     with no buttons. Afterwards it sends a `ui/message` when
-     the host advertises that capability. Self-contained (no CDN): hosts sandbox app frames. -->
+<!-- The MCP App behind literary-critic's `change_card` tool: one or more proposed changes (a
+     batch is one card) with two buttons for all of them, Approve and Dismiss, and a "Show in
+     Word" button per change. A click calls the extension's app-only `change_approve`,
+     `change_dismiss` or `change_go` tool through the host with the change id only (the page
+     never sends text to write), so approving takes one click and no assistant turn. A batch
+     approves each change without moving Word, then takes Word to the first. On load it asks
+     the app-only `change_status` tool for each change's status now (the tool result is from
+     when the card was first shown), and a change already approved, dismissed or undone shows
+     as settled; its Show in Word button stays. Afterwards it sends a `ui/message` when the
+     host advertises that capability. Self-contained (no CDN): hosts sandbox app frames. -->
 <style>
   :root { color-scheme: light dark; }
   body { font: 14px system-ui, sans-serif; margin: 8px; background: transparent; color: CanvasText; }
   #status { font-size: 12px; opacity: .7; margin-bottom: 4px; }
   #card { border: 1px solid #8886; border-radius: 8px; padding: 10px 12px; }
-  #text { margin: 0 0 6px; }
-  #meta { font-size: 12px; opacity: .75; margin: 2px 0; }
+  .change + .change { border-top: 1px solid #8884; margin-top: 8px; padding-top: 8px; }
+  .text { margin: 0 0 6px; }
+  .meta { font-size: 12px; opacity: .75; margin: 2px 0; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+  .state { font-size: 13px; flex: 1; }
+  .state.ok { color: #2a2; }
+  .state.err { color: #c33; }
+  .state.settled { opacity: .8; }
   #buttons { display: flex; gap: 8px; margin-top: 10px; }
   button {
-    flex: 1; padding: 8px 10px; border-radius: 8px; border: 1px solid #8886;
+    padding: 8px 10px; border-radius: 8px; border: 1px solid #8886;
     background: #8881; color: inherit; font: inherit; cursor: pointer;
   }
+  #buttons button { flex: 1; }
+  .go { padding: 4px 8px; font-size: 13px; }
   button:hover { background: #8882; }
   button:disabled { opacity: .6; cursor: default; }
   #result { margin-top: 8px; font-size: 13px; }
@@ -33,8 +43,7 @@
 <body>
 <div id="status">Loading the change…</div>
 <div id="card" hidden>
-  <p id="text"></p>
-  <div id="meta"></div>
+  <div id="list"></div>
   <div id="buttons">
     <button id="approve" type="button">Approve</button>
     <button id="dismiss" type="button">Dismiss</button>
@@ -46,7 +55,9 @@
 let nextId = 0;
 const pending = {};
 let canMessage = false;
-let shown = null;
+let work = null;
+let rows = [];  // {id, status, state (element), go (button)}
+let labels = { approve: "Approve", dismiss: "Dismiss", go: "Show in Word" };
 const $ = id => document.getElementById(id);
 const send = message => window.parent.postMessage(message, "*");
 
@@ -72,46 +83,90 @@ function result(text, cls) {
   resize();
 }
 
-function render(data) {
-  shown = { work: data.work, change: data.id };
-  const card = data.card || {};
-  $("text").textContent = card.text || "";
-  const meta = [];
-  if (card.words_by) meta.push(card.words_by);
-  if (card.why) meta.push(card.why);
-  $("meta").textContent = meta.join(" · ");
-  $("card").hidden = false;
-  $("status").textContent = "Change " + data.id;
+function mark(row, text, cls) {
+  row.state.textContent = text;
+  row.state.className = "state " + (cls || "");
   resize();
-  if (!settle(data.status)) {
-    // Hold the buttons until the server says whether the change is still proposed.
-    $("approve").disabled = $("dismiss").disabled = true;
-    liveStatus().then(status => {
-      if (!settle(status)) $("approve").disabled = $("dismiss").disabled = false;
+}
+
+function add(change) {
+  const card = change.card || {};
+  const box = document.createElement("div");
+  box.className = "change";
+  const text = document.createElement("p");
+  text.className = "text";
+  text.textContent = card.text || "";
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent = [card.words_by, card.why].filter(Boolean).join(" · ");
+  const line = document.createElement("div");
+  line.className = "row";
+  const state = document.createElement("span");
+  state.className = "state";
+  const go = document.createElement("button");
+  go.type = "button";
+  go.className = "go";
+  go.textContent = labels.go;
+  line.append(state, go);
+  box.append(text, meta, line);
+  $("list").append(box);
+  const row = { id: change.id, status: change.status, state, go };
+  go.onclick = () => show(row);
+  return row;
+}
+
+function render(data) {
+  work = data.work;
+  const changes = data.changes || [{ id: data.id, status: data.status, card: data.card }];
+  const first = (changes[0] || {}).card || {};
+  labels = { ...labels, ...(first.buttons || {}) };
+  $("approve").textContent = labels.approve;
+  $("dismiss").textContent = labels.dismiss;
+  $("list").textContent = "";
+  rows = changes.map(add);
+  $("card").hidden = false;
+  $("status").textContent = (rows.length > 1 ? "Changes " : "Change ") + rows.map(r => r.id).join(", ");
+  resize();
+  rows.forEach(row => settle(row, row.status));
+  if (live().length) {
+    // Hold the buttons until the server says whether the changes are still proposed.
+    hold(true);
+    Promise.all(live().map(async row => settle(row, await liveStatus(row)))).then(() => {
+      if (live().length) hold(false);
     });
   }
 }
 
 // A change no longer proposed (or refused, which can be approved again) is settled: say what
-// became of it in plain words and take the buttons away. Undefined for a live change.
+// became of it in plain words. Undefined for a live change.
 const SETTLED = {
   approved: "✓ Approved", applied: "✓ Approved", typed_by_writer: "✓ Approved: you type it in",
   dismissed: "Dismissed", undone: "Undone",
 };
 
-function settle(status) {
+const live = () => rows.filter(row => !row.settled);
+
+function hold(on) { $("approve").disabled = $("dismiss").disabled = on; }
+
+// Settle one change; once none is left to decide, take the Approve and Dismiss buttons away
+// (each change keeps its Show in Word button).
+function settle(row, status) {
   const words = SETTLED[status];
   if (!words) return false;
-  $("approve").disabled = $("dismiss").disabled = true;
-  $("buttons").hidden = true;
-  result(words, words.startsWith("✓") ? "ok" : "settled");
+  row.settled = true;
+  row.status = status;
+  mark(row, words, words.startsWith("✓") ? "ok" : "settled");
+  if (!live().length) {
+    hold(true);
+    $("buttons").hidden = true;
+  }
   return true;
 }
 
-// The change's status now; null when the server cannot say (the card then stays as shown).
+// A change's status now; null when the server cannot say (the card then stays as shown).
 // A host that never answers counts as "cannot say" after a few seconds.
-async function liveStatus() {
-  const call = request("tools/call", { name: "change_status", arguments: { ...shown } });
+async function liveStatus(row) {
+  const call = request("tools/call", { name: "change_status", arguments: { work, change: row.id } });
   const late = new Promise(resolve => setTimeout(() => resolve(null), 4000));
   try {
     const res = await Promise.race([call, late]);
@@ -128,35 +183,64 @@ function failure(res) {
   } catch (e) { return { code: "", text: "error" }; }
 }
 
-async function act(name, done) {
-  if (!shown) return;
-  $("approve").disabled = $("dismiss").disabled = true;
-  result("…");
+// One change: true when it was done (or turned out already settled).
+async function one(name, row, extra) {
+  mark(row, "…");
   try {
-    const res = await request("tools/call", { name, arguments: { ...shown } });
+    const res = await request("tools/call", { name, arguments: { work, change: row.id, ...extra } });
     if (res.isError) {
       const why = failure(res);
       // Already settled (approved, dismissed or undone elsewhere): say so, not an error.
-      if (why.code === "not_proposed" && settle(await liveStatus())) return;
-      // The card stays actionable after another refusal, so the writer can try again.
-      $("approve").disabled = $("dismiss").disabled = false;
-      result("✗ " + why.text, "err");
-      return;
+      if (why.code === "not_proposed" && settle(row, await liveStatus(row))) return false;
+      // The change stays actionable after another refusal, so the writer can try again.
+      mark(row, "✗ " + why.text, "err");
+      return false;
     }
-    result("✓ " + done, "ok");
-    if (canMessage) {
-      request("ui/message", {
-        role: "user", content: [{ type: "text", text: done + " " + shown.change }],
-      }).catch(() => {});
-    }
+    return true;
   } catch (e) {
-    $("approve").disabled = $("dismiss").disabled = false;
-    result("✗ " + ((e && e.message) || "error"), "err");
+    mark(row, "✗ " + ((e && e.message) || "error"), "err");
+    return false;
   }
 }
 
-$("approve").onclick = () => act("change_approve", "Approved");
-$("dismiss").onclick = () => act("change_dismiss", "Dismissed");
+async function act(name, done, status) {
+  const todo = live();
+  if (!todo.length) return;
+  hold(true);
+  result("…");
+  // A single change goes to its place as it is approved; a batch goes once, to the first.
+  const extra = name === "change_approve" && todo.length > 1 ? { go: false } : {};
+  const ok = [];
+  for (const row of todo) {
+    if (await one(name, row, extra)) {
+      ok.push(row);
+      settle(row, status);
+    }
+  }
+  if (live().length) hold(false);
+  result(ok.length ? "✓ " + done : "", ok.length ? "ok" : "");
+  if (extra.go === false && ok.length) show(ok[0]);
+  if (canMessage && ok.length) {
+    request("ui/message", {
+      role: "user", content: [{ type: "text", text: done + " " + ok.map(r => r.id).join(", ") }],
+    }).catch(() => {});
+  }
+}
+
+// Show in Word: Word opens the document when it is not open and goes to the change.
+async function show(row) {
+  row.go.disabled = true;
+  try {
+    const res = await request("tools/call", { name: "change_go", arguments: { work, change: row.id } });
+    if (res.isError) result("✗ " + failure(res).text, "err");
+  } catch (e) {
+    result("✗ " + ((e && e.message) || "error"), "err");
+  }
+  row.go.disabled = false;
+}
+
+$("approve").onclick = () => act("change_approve", "Approved", "applied");
+$("dismiss").onclick = () => act("change_dismiss", "Dismissed", "dismissed");
 
 window.addEventListener("message", event => {
   const m = event.data;
@@ -169,7 +253,7 @@ window.addEventListener("message", event => {
   }
   if (m.method === "ui/notifications/tool-result") {
     const sc = (m.params || {}).structuredContent;
-    if (sc && sc.card) render(sc);
+    if (sc && (sc.card || sc.changes)) render(sc);
     else $("status").textContent = "No change to show.";
   }
   if (m.method === "ping" && m.id !== undefined) send({ jsonrpc: "2.0", id: m.id, result: {} });
