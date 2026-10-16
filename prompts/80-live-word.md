@@ -105,19 +105,24 @@ Each place still shows its quoted first words, so the list reads on its own.
 
 ## Change the document (only what the writer approved)
 
-1. `lc docx status --workspace <ws>`. If `locked` is true, Word has the file
-   open: ask the writer whether to save it, then
-   `lc word close --payload '{"document": "<path>", "save": true}'` (done by
-   itself, or its `live` tool or `steps`), or ask the writer to save and close it. Never close Word with unsaved
-   changes without the writer's answer.
-2. If `changed_on_disk` is true, the writer saved since the tool last read the
-   file: run `lc ingest` on it first, then check the edit still applies.
-3. Write the approved edits to `edits.json` (the format is in `60-rounds.md`,
+In the desktop app a change goes only through `change_card` (`00-guide.md`,
+Change cards); its buttons write it and take Word there. Never write, save or
+close the document with doc-control's tools or by computer use: that edits
+past the writer's approval and the tool's history, and leaves the file the
+tool reads out of step.
+
+1. If `lc docx status --workspace <ws>` says `changed_on_disk`, the writer
+   saved since the tool last read the file: run `lc ingest` on it first, then
+   check the edit still applies.
+2. Write the approved edits to `edits.json` (the format is in `60-rounds.md`,
    step 5: `id`, `quote`, `prefix`, `suffix`, `replace`, `reason`) and run
    `lc docx edits --workspace <ws> --edits edits.json --dry-run`, then without
    `--dry-run`. For a name changed everywhere: `lc docx rename OLD NEW --workspace <ws> --dry-run`, then without it.
-4. Reopen the document (`lc word reopen --payload '{"document": "<path>"}'`)
-   and take the writer to the change (above). Tell them, in one short message:
+   When Word has the document open, edits go into the open document (the
+   writer saves it): leave Word open. A rename writes the file: if it answers
+   `locked`, ask the writer to save and close the document; never close Word
+   yourself.
+3. Take the writer to the change (above). Tell them, in one short message:
    what changed, where, and that they can ask you to take it back.
 
 If a command answers `refused`, nothing was written: explain the reason in

@@ -22,6 +22,7 @@ import hashlib
 import json
 import re
 import sys
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from itertools import pairwise
@@ -90,6 +91,31 @@ def _shown(ws_root: Path, doc: Path) -> str:
 # The Find box's own options for a quote counted as Word counts it: any case, any part
 # of a word (doc-control's ``query_word_options`` for that search).
 WORD_DEFAULTS = {"match_case": False, "whole_words": False}
+# Of the paragraphs, the share that must read as in the ingested draft for its index to
+# still place them: an approved change edits one paragraph, a rename a few, and neither
+# adds or removes one.
+SAME_SHARE = 0.8
+READ_TRIES, READ_PAUSE = 5, 0.4  # a file held for a moment (a save, a sync) is read again
+
+
+def _same_paragraphs(now: list[str], ingested: list[str]) -> bool:
+    """Whether the document's paragraphs are still the ingested draft's, one for one: the
+    same number, and nearly all with the same text (the tool's own edits change a few)."""
+    if len(now) != len(ingested):
+        return False
+    same = sum(a == b for a, b in zip(now, ingested, strict=True))
+    return same >= SAME_SHARE * len(now)
+
+
+def _read(doc: Path) -> bytes:
+    """The document's bytes. Windows refuses a read for a moment while Word saves the
+    file or OneDrive syncs it; try again a few times before giving up."""
+    for _ in range(READ_TRIES - 1):
+        try:
+            return doc.read_bytes()
+        except PermissionError:
+            time.sleep(READ_PAUSE)
+    return doc.read_bytes()
 
 
 class _Places:
@@ -97,8 +123,9 @@ class _Places:
     ``locate``: one call for the whole document, on the first spot asked for, or,
     with ``few`` (one spot will be asked for), a call for each spot's paragraph.
 
-    Locators are only given while the document still matches the latest ingested
-    draft (otherwise the chapter and page could be wrong): `lc ingest` it again.
+    Locators are only given while the document's paragraphs are still the latest
+    ingested draft's, one for one (``_same_paragraphs``: the tool's own edits keep
+    them); otherwise the chapter and page could be wrong: `lc ingest` it again.
     The document's paragraphs and addresses are the draft's when its bytes are the
     ingested ones; otherwise the document is read again and compared.
     """
@@ -125,7 +152,7 @@ class _Places:
                 draft = ingest.read(doc, data)
             except (OSError, ValueError, KeyError, ingest.IngestError):
                 return
-            if [p.text for p in draft.paragraphs] != ix.paragraphs:
+            if not _same_paragraphs([p.text for p in draft.paragraphs], ix.paragraphs):
                 return
             ats = [p.at for p in draft.paragraphs]
         if not ix.anchors:
@@ -276,7 +303,7 @@ def _resolve_live(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> 
 
 
 def _sha256(doc: Path) -> str:
-    return hashlib.sha256(doc.read_bytes()).hexdigest()
+    return hashlib.sha256(_read(doc)).hexdigest()
 
 
 def _why(exc: dc.DocError, doc: Path) -> tuple[str, str]:
@@ -394,7 +421,7 @@ def apply_edits(
     # The file as it is now, taken before the quotes are found in it: a save in Word
     # since the tool last read it is the writer's own work, and each quote must still be
     # there once; ``expect`` then guards only against a change during this call.
-    fresh = "" if live or dry_run else hashlib.sha256(doc.read_bytes()).hexdigest()
+    fresh = "" if live or dry_run else hashlib.sha256(_read(doc)).hexdigest()
     problems: dict[str, str] = {}
     spots: list[tuple[str, str, str]] = []  # (range, id, replacement)
     for eid, quote, replace, prefix, suffix in edits:
@@ -552,7 +579,7 @@ def _rename(args: argparse.Namespace, root: Path) -> int:
         return refused("edit", f"{args.old!r} does not appear in the document")
     hits = plan.get("preview", [])
     left: list[dict[str, Any]] = []
-    places = _Places(root, doc, doc.read_bytes(), args.lang)
+    places = _Places(root, doc, _read(doc), args.lang)
     if counts.get("skipped_unsupported") or counts.get("skipped_boundary"):
         # doc-control counts the occurrences it leaves alone; find says where they are.
         found = dc.run(
@@ -654,7 +681,7 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
     doc = _document(root, args.document)
     if not doc.is_file():
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
-    places = _Places(root, doc, doc.read_bytes(), args.lang, few=True)
+    places = _Places(root, doc, _read(doc), args.lang, few=True)
     found = _found(args, root, doc, places, args.target)
     if found["status"] != "ok":
         return _out(found, 1)
@@ -673,7 +700,7 @@ def _places(args: argparse.Namespace, root: Path) -> int:
     doc = _document(root, args.document)
     if not doc.is_file():
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
-    places = _Places(root, doc, doc.read_bytes(), args.lang, few=len(args.targets) <= 3)
+    places = _Places(root, doc, _read(doc), args.lang, few=len(args.targets) <= 3)
     shown, missing, lines = [], [], []
     for target in args.targets:
         found = _found(args, root, doc, places, target)

@@ -448,3 +448,58 @@ def test_go_takes_word_to_the_phrase_in_the_open_document(
     out = word_live.go(tmp_path / "N.docx", "fría")
     assert out == {"status": "done", "how": "live", "selected": "Una tarde fría."}
     assert word_live.go(tmp_path / "N.docx", "nada")["status"] == "failed"
+
+
+class _ClosedWord:
+    """A Word with nothing open: ``live.select`` fails until ``live.open`` opens the file."""
+
+    def __init__(self, opens: bool = True) -> None:
+        self.open: list[str] = []
+        self.calls: list[str] = []
+        self.opens = opens
+
+    def run(self, op: str, req: dict[str, Any]) -> dict[str, Any]:
+        self.calls.append(op)
+        if op == "live.status":
+            return {"documents": [{"path": p} for p in self.open]}
+        if op == "live.open":
+            if not self.opens:
+                raise dc.DocError("ENGINE_UNAVAILABLE", "no Word")
+            self.open.append(req["doc"])
+            return {"opened": True}
+        if op == "live.select":
+            if req["doc"] not in self.open:
+                raise dc.DocError("DOC_NOT_OPEN", "not open")
+            return {"at": "p1#ab", "selected": True, "text": "Una tarde fría."}
+        raise AssertionError(op)
+
+
+def test_a_click_opens_the_document_word_does_not_have_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = tmp_path / "N.docx"
+    doc.write_bytes(_plain("Una tarde fría."))
+    word = _ClosedWord()
+    monkeypatch.setattr(dc, "run", word.run)
+    assert word_live.go(doc, "fría")["status"] == "done"
+    assert word.calls == ["live.select", "live.status", "live.open", "live.select"]
+    assert word_live.open_if_closed(doc) is False  # open now: nothing to do
+
+    monkeypatch.setattr(word_live, "_live", LIVE)
+    word.open.clear()
+    out = word_live.call("locate", {**PAYLOADS["locate"], "path": str(doc)})
+    assert out["status"] == "done" and word.open == [str(doc)]
+
+
+def test_a_document_that_cannot_be_opened_is_not_retried(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    word = _ClosedWord(opens=False)
+    monkeypatch.setattr(dc, "run", word.run)
+    gone = tmp_path / "gone.docx"  # no such file: Word is not asked to open it
+    assert word_live.go(gone, "fría")["status"] == "failed"
+    assert word.calls == ["live.select"]
+    doc = tmp_path / "N.docx"
+    doc.write_bytes(_plain("Una tarde fría."))
+    assert word_live.go(doc, "fría")["status"] == "failed"
+    assert word.calls[1:] == ["live.select", "live.status", "live.open"]

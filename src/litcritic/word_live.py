@@ -358,16 +358,40 @@ def go(doc: Path, phrase: str) -> dict[str, Any]:
     written there, not yet in the file the index reads)."""
     request = {"doc": str(doc), "find_phrase": phrase, "match_level": "exact"}
     try:
-        got = _timed("live.select", request)
+        try:
+            got = _timed("live.select", request)
+        except dc.DocError:
+            if not open_if_closed(doc):
+                raise
+            got = _timed("live.select", request)
     except dc.DocError as exc:
         return {"status": "failed", "error": {"code": exc.code, "message": exc.message}}
     return {"status": "done", "how": "live", "selected": got.get("text", "")}
 
 
+def open_if_closed(doc: Path) -> bool:
+    """Open ``doc`` in Word when it is a file Word does not have open (a button the writer
+    clicked must land somewhere). True when it opened it; False when it was open already,
+    is no file here, or Word could not open it."""
+    if not doc.is_file() or is_open(doc):
+        return False
+    try:
+        _timed("live.open", {"doc": str(doc), "app": "word"})
+    except dc.DocError:
+        return False
+    return True
+
+
 def _live(op: str, request: dict[str, Any]) -> dict[str, Any]:
     """Run ``op`` in the open Word through doc-control (raises ``dc.DocError``, also when
-    Word takes longer than ``LIVE_TIMEOUT`` or a passage is not found)."""
-    result = _timed(LIVE[op], request)
+    Word takes longer than ``LIVE_TIMEOUT`` or a passage is not found). A ``locate`` on a
+    document Word does not have open opens it first, then goes there."""
+    try:
+        result = _timed(LIVE[op], request)
+    except dc.DocError:
+        if op != "locate" or not open_if_closed(Path(request["doc"])):
+            raise
+        result = _timed(LIVE[op], request)
     if op == "locate" and (not result.get("at") or result.get("selected") is False):
         raise dc.DocError("NOT_SELECTED", "Word did not go to the passage")
     return result

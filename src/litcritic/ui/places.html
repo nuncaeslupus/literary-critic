@@ -53,8 +53,9 @@ function envelope(result) {
   catch (e) { return { ok: false, error: { code: "NO_ENVELOPE", message: String(e) } }; }
 }
 
-async function select(doc, mode, place) {
-  const base = { doc, mode, front: true };
+async function select(doc, mode, place, work) {
+  // The work lets the server open the document when Word does not have it open.
+  const base = { doc, mode, front: true, ...(work ? { work } : {}) };
   const tries = [];
   if (place.at) tries.push({ ...base, at: place.at });
   if (place.find_phrase) {
@@ -86,7 +87,7 @@ function render(data) {
       button.className = "busy";
       mark.textContent = "…";
       try {
-        const reply = await select(data.doc, mode, place);
+        const reply = await select(data.doc, mode, place, data.work);
         button.className = reply.ok ? "ok" : "err";
         mark.textContent = reply.ok ? "✓" : "✗ " + ((reply.error || {}).code || "error");
         button.title = reply.ok ? button.title : ((reply.error || {}).message || "");
