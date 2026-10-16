@@ -12,7 +12,7 @@ DOCS = r"C:\Users\w\OneDrive\Documents\My Novel\literary-critic\analysis\overvie
 def _err(winerror: int | None, cls: type[OSError] = PermissionError) -> OSError:
     exc = cls(13, "Access is denied", DOCS)
     if winerror is not None:
-        exc.winerror = winerror  # type: ignore[misc]  # only Windows sets it
+        setattr(exc, "winerror", winerror)  # noqa: B010  # only Windows defines it
     return exc
 
 

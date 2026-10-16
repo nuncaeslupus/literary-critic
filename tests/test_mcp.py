@@ -474,7 +474,7 @@ def test_run_explains_a_windows_block_only_when_the_command_failed(
 
     def blocked(args: Any) -> int:
         exc = PermissionError(13, "Access is denied", r"C:\Users\w\Documents\n\x.json")
-        exc.winerror = 5  # type: ignore[misc]  # only Windows sets it
+        setattr(exc, "winerror", 5)  # noqa: B010  # only Windows defines it
         raise exc
 
     def open_in_word(args: Any) -> int:
