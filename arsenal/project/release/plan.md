@@ -4,7 +4,7 @@
 **Specification**: `arsenal/project/release/spec.md` (approved, revision 2)
 **Author**: Claude (with the owner)
 **Revision**: 1
-**Status**: draft
+**Status**: approved (2026-10-17, revision 1) — without annotations
 **Revision log**:
 - r1 — first draft, from the approved spec (Option C, both phases). The first
   chain (T1–T3) packs the bundle in CI, releases it, and runs the clean-PC
