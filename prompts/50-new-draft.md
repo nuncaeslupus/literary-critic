@@ -22,3 +22,7 @@
    the new text, and retire one (`lc codex retire <id> --workspace <slug>`)
    only when its evidence is gone or changed as intended. Tell the writer what
    still needs attention.
+6. A saved overview (`lc overview show --workspace <slug>`) is now for the
+   earlier draft (`stale`). Refresh it from itself, the diff and the issues
+   still open, reading only what changed, and save it again
+   (`00-guide.md` step 1).
