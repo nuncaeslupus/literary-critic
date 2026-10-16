@@ -391,6 +391,10 @@ def apply_edits(
         return refused("missing", f"{doc} does not exist")
     live = not dry_run and word_live.is_open(doc)
     resolve = _resolve_live if live else _resolve
+    # The file as it is now, taken before the quotes are found in it: a save in Word
+    # since the tool last read it is the writer's own work, and each quote must still be
+    # there once; ``expect`` then guards only against a change during this call.
+    fresh = "" if live or dry_run else hashlib.sha256(doc.read_bytes()).hexdigest()
     problems: dict[str, str] = {}
     spots: list[tuple[str, str, str]] = []  # (range, id, replacement)
     for eid, quote, replace, prefix, suffix in edits:
@@ -435,7 +439,7 @@ def apply_edits(
                 "changed_on_disk": st["changed_on_disk"],
                 **base,
             }, 0
-        result = dc.run("doc.batch", {**batch, "expect": {"sha256": last}})
+        result = dc.run("doc.batch", {**batch, "expect": {"sha256": fresh}})
     except dc.DocError as exc:
         reason, message = _why(exc, doc)
         para = str(exc.details.get("paragraph", ""))
@@ -443,7 +447,7 @@ def apply_edits(
         return refused(reason, message, named)
     log: dict[str, Any] = {"command": "edits", "edit_ids": ids}
     log["reasons"] = {eid: (reasons or {}).get(eid, "") for eid in ids}
-    backup = _written(root, doc, last, result, log)
+    backup = _written(root, doc, fresh, result, log)
     return {
         "status": "applied",
         "applied": ids,

@@ -277,7 +277,7 @@ def test_edit_refused_when_word_has_file_open(
     assert not _lc(capsys, "docx", "status", *w)[1]["locked"]
 
 
-def test_edit_refused_when_changed_since_read_or_never_read(
+def test_edit_applies_after_a_save_in_word_and_refuses_a_never_read_document(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     ws, doc = _workspace(tmp_path, _plain("Ya voy —dijo Pablo con voz cansada.", "Fin."))
@@ -286,8 +286,12 @@ def test_edit_refused_when_changed_since_read_or_never_read(
     doc.write_bytes(theirs)  # the writer saved in Word meanwhile
     code, out = _lc(capsys, "docx", "status", "--workspace", str(ws))
     assert code == 0 and out["changed_on_disk"]
-    code, out = _edits(capsys, ws, edit)
-    assert code == 1 and out["reason"] == "changed" and doc.read_bytes() == theirs
+    code, out = _edits(capsys, ws, edit)  # the quote is still there once: applied
+    assert code == 0 and (ws.parent / out["backup"]).read_bytes() == theirs
+    texts = _texts(doc.read_bytes())
+    assert any("susurró Pablo" in t for t in texts)
+    assert any("Lo que el escritor guardó." in t for t in texts)  # their save is kept
+    doc.write_bytes(theirs)
     other = doc.with_name("Other.docx")
     other.write_bytes(theirs)
     code, out = _edits(capsys, ws, edit, "--document", str(other))
