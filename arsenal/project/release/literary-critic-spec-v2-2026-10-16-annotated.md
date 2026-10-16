@@ -11,9 +11,16 @@
 **Date**: 2026-10-16
 **Ticket / PR**: workspace `release`
 **Author**: Claude (with the owner)
-**Revision**: 1
+**Revision**: 2
 **Status**: draft
 **Revision log**:
+- r2 — applied the owner's answers given in chat (2026-10-16), no notes
+  export. Option C chosen. Q-1: working state stays beside the novel, so it is
+  on OneDrive when the novel is (D-3 rewritten, chat D-10 kept). Q-2: "Update
+  automatically" can be turned off, and is on by default. Q-3: the installed
+  extension is the only version, with no dev entry (D-11). Q-4: no signing for
+  now. Added the app's per-tool approval questions (§3 B.7, Q-7). Corrected
+  §2: Controlled folder access is off by default.
 - r1 — first draft. Sources: the owner's request ("I want to install it and
   forget it. And if it can be autoupdated or at least say so when it is
   outdated, much better"), the `desktop` and `install` specs, doc-control's
@@ -55,14 +62,18 @@ A writer has no technical skills. They need to:
 - then forget it: either the tool updates itself, or the chat tells them in
   plain words when a newer version exists and how to get it in a click or two.
 
-The tool must also not trip Windows Security on a normal writer's PC. Two
-parts of it do:
+The tool must also not trip Windows Security. Two parts of it can:
 
-- **Controlled folder access** ("ransomware protection") blocks unknown
+- **Controlled folder access** ("ransomware protection") is off by default.
+  When the writer or whoever set up the PC turns it on, it blocks unknown
   programs from writing in Documents, Desktop and similar folders, and novels
   usually live in Documents.
 - **Defender and SmartScreen** flag unsigned executables, as they did with
   doc-control's.
+
+Using the tool must not mean a stream of questions either. Today the app asks
+the writer to approve each tool the first time the chat calls it, and those
+questions are technical ("literary-critic wants to use `locate`").
 
 A planned improvement. Without it the tool exists only on the developer's PC.
 
@@ -92,10 +103,18 @@ Sandbox or a fresh user account counts.
   the manuscript `.docx` or a file beside it. Every approved change reaches the
   manuscript through Word, via the live engine. Tested by a fake that records
   every write path, plus the clean-PC session above.
-- [ ] `writer_files_in_protected_folders == 0`: the tool's own files (working
-  state, backups, logs, caches) never go under a folder Controlled folder access
-  protects by default (`winblock.PROTECTED`). Tested by a unit test over every
-  path the tool resolves, with `Documents` and `OneDrive\Documents` layouts.
+- [ ] `state_beside_novel == 1.0`: a work's working state is in
+  `<novel>/literary-critic/`, so it is on OneDrive whenever the novel
+  is, in every case where Windows lets the tool write there. Tested over the
+  layouts `Documents`, `OneDrive\Documents`, `OneDrive\<other>` and a folder
+  outside both.
+- [ ] `cfa_fallback_correct == 1.0`: when Controlled folder access is on and
+  the novel's folder is protected, the tool never tries to write there (so
+  Windows shows no "unauthorized changes blocked" notice). It uses
+  `%OneDrive%\literary-critic\<work>\` when OneDrive is set up, otherwise
+  `%USERPROFILE%\literary-critic\<work>\`, and the chat says where, once.
+  Backups, logs and caches never go under a protected folder. Tested by unit
+  tests with Controlled folder access faked on and off over the same layouts.
 - [ ] `update_notice_hours <= 24`: after a release is published, the
   writer's first conversation more than 24 h later tells them a newer version
   exists. With auto-update (Option C) the measure is
@@ -103,7 +122,8 @@ Sandbox or a fresh user account counts.
   most one restart of the app, with no writer action.
 - [ ] `update_false_alarms == 0` over the scripted cases: installed version
   older, equal and newer than the latest release; offline; a source checkout
-  (the dev entry); a release that has no `.mcpb` asset.
+  (tests only, since there is no dev entry); a release that has no `.mcpb`
+  asset.
 - [ ] `update_check_added_ms <= 100` on any tool call. The check runs in the
   background, at most one network request a day, and says nothing on any
   failure. Measured with the network mocked slow (10 s) and refused.
@@ -134,10 +154,17 @@ Sandbox or a fresh user account counts.
   once, and the chat tells the writer in one plain sentence how to remove it.
   Fixtures: extension enabled, extension disabled, config entry, none. A
   disabled extension is not reported.
-- [ ] `dev_entry_silent == 1`: the developer's `literary-critic-dev` entry
-  never shows an update notice and is told apart from the installed extension
-  in `works` (`source: checkout` against `source: mcpb`). Judged on the
-  owner's PC.
+- [ ] `fix_to_owner_hours <= 24`: with no dev entry (D-11), a fix merged to
+  `main` that touches what the extension runs is released, and runs on the
+  owner's PC after at most one restart of the app, within a day of the merge.
+  When the owner asks the chat to update, the check runs at once, ignoring the
+  daily limit (`update_now_restarts <= 1`).
+- [ ] `approval_questions_after_setup == 0`: after the first session, the app
+  asks no per-tool approval question in an ordinary session (open a work,
+  locate, approve two changes, show places). The first session asks at most
+  one question per group the app offers, or one per tool if it offers no
+  groups, and the chat tells the writer beforehand, in plain words, which
+  answer to pick. Counted on the clean-PC test run (Q-7).
 
 <!-- -->
 
@@ -152,14 +179,14 @@ Sandbox or a fresh user account counts.
 | `scripts/pack_mcpb.py` (new) | Primary | Builds the `.mcpb` (stdlib `zipfile`) | Yes | Source, `prompts/`, `src/litcritic/ui/`, `uv.lock` and a `VERSION` stamp; no venv | Med |
 | `.github/workflows/release.yml` (new), `ci.yml` | Infrastructure | Builds, validates and smoke-tests the bundle; publishes the Release | Yes | Release on tag; manifest check and pack on every PR | Med |
 | `src/litcritic/kit.py` (`version_info`, `update_check`) | Primary | Version and update check | Yes | Source `mcpb`; reads the latest GitHub Release and its `.mcpb` asset, not tags; runs in the background | Med |
-| `src/litcritic/mcp.py` (`works`, `resume`) | Primary | Tells the chat about updates and a standalone doc-control | Yes | Additive fields; the guide gains the update and doc-control sentences | Med |
-| `src/litcritic/folders.py`, `workspace.py` | Primary | Where state and working folders live | Yes | Working state moves out of protected folders (Q-1); existing folders are copied once | High |
+| `src/litcritic/mcp.py` (`works`, `resume`, tool list) | Primary | Tells the chat about updates and a standalone doc-control; describes the tools to the app | Yes | Additive fields; the guide gains the update, doc-control and approval sentences; every tool gets read-only or write annotations | Med |
+| `src/litcritic/folders.py`, `workspace.py` | Primary | Where state and working folders live | Yes | Working state stays beside the novel; a fallback place when Controlled folder access protects that folder | Med |
 | `src/litcritic/docx_cli.py` (`apply_edits`) | Primary | The one write path for approved changes | Yes | With the document closed, open it in Word and apply live instead of writing the file | Med |
 | `src/litcritic/winblock.py` | Dependent | Explains a Windows refusal | Small | Stays as the last resort; should no longer fire | Low |
 | doc-control (PyPI, `>=0.8.3,<0.9`) | External dependency | Word engines, `live.*`, backup store | No (validation) | Used as published; `DOC_CONTROL_STORE=appdata` for any file write that remains | Med |
 | Claude desktop app | Host | Installs `.mcpb`, provides uv, runs the server | No (outside our control) | Its uv-type behaviour is undocumented in part (§2 facts) | High |
 | GitHub Releases of this repo | Shared resource | "Latest version" and the download | Yes | First release ever; the repo is public, so the unauthenticated API works | Med |
-| Owner's `claude_desktop_config.json` | Infrastructure | `literary-critic-dev` entry | Owner's choice (Q-3) | Kept beside the extension or not | Low |
+| Owner's `claude_desktop_config.json` | Infrastructure | `literary-critic-dev` entry | Yes (D-11) | Removed once the extension is installed; `folders.json` is shared, so nothing is lost | Low |
 | `desktop` plan tasks T1, T8, T10 | Dependent | Probes, packaging, test run | Yes | T8 is replaced by this spec's tasks; T1's probes and T10's test run happen on the released bundle | Med |
 
 **Facts this rests on** (checked 2026-10-16). Items marked *[app]* come from
@@ -223,9 +250,16 @@ verified but undocumented, and may change in any app release.
   reduce them but do not remove them. doc-control hit this on the owner's PC.
   The `uv` type runs no executable of ours, only uv's and the python.org-built
   standalone Python, both widely deployed.
-- **Controlled folder access** blocks writes by programs it does not trust in
-  Documents, Desktop, Pictures, Videos, Music and Favorites. With OneDrive
-  backing up Documents, that includes `OneDrive\Documents`. An allowed program
+- **Controlled folder access** is off by default on Windows 11; the writer,
+  or whoever manages the PC, turns it on in Windows Security. When on, it
+  blocks writes by programs it does not trust in Documents, Desktop, Pictures,
+  Videos, Music and Favorites, and in any folder added to its list. With
+  OneDrive backing up Documents, that includes `OneDrive\Documents`. The
+  OneDrive folder itself (`%OneDrive%`) is not on the default list, so it is
+  both backed up and writable. Whether it is on, and which folders it
+  protects, is in Defender's settings (`Get-MpPreference`, or the registry
+  under `Windows Defender Exploit Guard\Controlled Folder Access`); whether a
+  normal user can read them is a probe (Q-8). An allowed program
   is identified by its full path. Under the `uv` type that path is the
   uv-managed `python.exe`, which changes with each Python update, so an
   exception would have to be granted again and again. Word is trusted, so
@@ -242,9 +276,20 @@ verified but undocumented, and may change in any app release.
   | `folders.json`, `mcp.log` | `%APPDATA%\literary-critic\` (virtualised under MSIX) | no |
   | Update cache | the temp folder | no |
 
+- **Approval questions** (not verifiable from the app's local code, since the
+  chat screen is web code it loads; to confirm in Q-7). The app asks before a
+  chat uses a local tool for the first time, with "Allow once" and "Always
+  allow". Its connector settings list each server's tools, grouped as
+  read-only or write tools by the annotations the server declares
+  (`readOnlyHint`, `destructiveHint`), and can set a whole group to "Always
+  allow". A server cannot grant itself permission; the manifest has no field
+  for it. The app's code does hold per-tool policies (`always_allow`,
+  `always_ask`, `always_deny`) *[app]*. literary-critic declares no
+  annotations today, so every tool counts as a write tool.
+
 **Risk of inaction**: the tool runs only on the developer's PC. A writer who
-gets a copy some other way runs it without updates. On most writers' PCs its
-first write into Documents is blocked once Controlled folder access is on.
+gets a copy some other way runs it without updates. On a PC with Controlled
+folder access on, its first write into Documents is blocked.
 
 <!-- -->
 
@@ -279,12 +324,13 @@ Every option keeps:
     the writer the download link and "drag it onto this window".
   - Working folders stay beside the novel. When Windows blocks a write,
     `winblock` explains how to allow the program.
+  - Every tool still asks for approval the first time.
 - **Scope**: `extension/`, `scripts/pack_mcpb.py`, `release.yml`, `kit.py`,
   `mcp.py`.
 - **Effort**: Medium
 - **Tradeoffs**: Smallest change, no exe, nothing to sign. But it fails
-  `security_detections == 0` on most writer PCs: the first write into
-  Documents is blocked. The fix it offers is an exception for a `python.exe`
+  `security_detections == 0` on any PC with Controlled folder access on: the
+  first write into Documents is blocked. The fix it offers is an exception for a `python.exe`
   path that changes with updates, and that is the kind of step the writer
   cannot take. It also leaves updates manual.
 - **Compatibility**: Additive.
@@ -297,17 +343,24 @@ Every option keeps:
 ### Option B: Option A, plus no security exception and a pinned release flow (Recommended baseline)
 
 - **Description**: Option A, and:
-  1. **Nothing of ours in protected folders.**
-     - Working state moves to a per-user folder outside every protected
-       folder and outside the app's virtualised data (Q-1). The proposal is
-       `%USERPROFILE%\literary-critic\works\<work>\`, which survives
-       uninstalling the Claude app.
-     - A work is still found by its manuscript, so `works` and `resume` are
-       unchanged for the writer.
-     - An existing `<novel>/literary-critic/` folder is copied there once,
-       on first use, and left where it was.
-     - The comments copy goes to the working state, and the chat tells the
-       writer where it is.
+  1. **Working state beside the novel, never blocked** (Q-1 answered).
+     - The working state stays in `<novel>/literary-critic/` (chat
+       D-10), so it is on OneDrive whenever the novel is, and backed up with
+       it.
+     - Before the first write for a work, the tool asks Defender whether
+       Controlled folder access is on and whether the novel's folder is
+       protected. If both, it never tries that folder (no Windows notice) and
+       uses `%OneDrive%\literary-critic\<work>\` when OneDrive is set up,
+       otherwise `%USERPROFILE%\literary-critic\<work>\`. Both survive
+       uninstalling the Claude app. The chat says once, in plain words, where
+       the work's files are. If Defender's settings cannot be read, the tool
+       tries the novel's folder, and a refused write moves the work to the
+       same fallback without a second attempt.
+     - The choice is recorded per work in `folders.json`, so `works` and
+       `resume` find the work by its manuscript wherever its state is. If the
+       writer later turns Controlled folder access off, the work stays where
+       it is.
+     - The comments copy goes with the working state.
   2. **The manuscript is changed only by Word.** When an approved change
      targets a document that is not open, `apply_edits` asks the live engine
      to open it in Word, applies the change there, and lets the writer save
@@ -316,7 +369,8 @@ Every option keeps:
      where, and the writer types it.
   3. **Backups away from the novel.** The server starts doc-control with
      `DOC_CONTROL_STORE=appdata`, so no `.doc-control/` folder appears beside
-     the manuscript.
+     the manuscript. Live changes have no file backup anyway; Word's undo
+     takes them back.
   4. **A standalone doc-control is reported.** `resume` reads the app's
      `extensions-installations.json` and `claude_desktop_config.json` and adds
      `other_doc_control: {kind, name}`. The guide turns it into one
@@ -325,6 +379,10 @@ Every option keeps:
      change goes through your approval." A server cannot stop the chat from
      calling another server, so this is a report, not a block.
   5. **Release flow.**
+     - With no dev entry (D-11), every fix reaches the owner through a
+       release. So each merged PR that changes what the extension runs
+       (`src/`, `prompts/`, `pyproject.toml`, `uv.lock`, `extension/`) is
+       followed the same day by a patch release.
      - Merging a PR that bumps `pyproject.toml`'s version tags `vX.Y.Z`.
      - The tag runs `release.yml` on `windows-latest`:
        - `uv lock --check`;
@@ -348,28 +406,45 @@ Every option keeps:
        Release page, which one click opens in the browser; it is not a
        direct download.
      - Kept from install D-2: one plain sentence, once a conversation.
-- **Scope**: Option A, plus `folders.py`, `workspace.py` (with a one-time
-  copy), `docx_cli.apply_edits`, the doc-control environment in `mcp.py`, a
-  detection module, `.github/workflows/doccontrol-bump.yml`, the guide in
-  `prompts/01-chat-guide.md`, and tests for each.
+     - "Update now": when the writer or the owner asks the chat to update,
+       `works` with `check_update: true` checks at once, ignoring the daily
+       limit.
+  7. **Few approval questions.**
+     - Every tool declares MCP annotations: `readOnlyHint: true` on tools
+       that only read (`works`, `resume`, `locate`, `find`, `show`, `places`,
+       `ask`), and `destructiveHint: false` on the ones that write only the
+       tool's own state. `change_card` is a write tool; its card is the
+       writer's real approval of each change.
+     - At setup the chat warns, in plain words, that the app will ask
+       permission for the tool and that "Always allow" stops it asking
+       again, and says where the setting is in case the writer picked
+       "Allow once".
+     - No new tool is added for anything an existing one can carry as a
+       field.
+- **Scope**: Option A, plus `folders.py`, `workspace.py` (the fallback place),
+  a Controlled-folder-access reader beside `winblock.py`,
+  `docx_cli.apply_edits`, the doc-control environment and tool annotations in
+  `mcp.py`, a detection module, `.github/workflows/doccontrol-bump.yml`, the
+  guide in `prompts/01-chat-guide.md`, and tests for each.
 - **Effort**: Medium–Large
 - **Tradeoffs**:
   - It meets every criterion except auto-update: an update costs the writer
     three actions each time.
-  - It moves state away from the novel. That supersedes chat D-10. The
-    working state also loses OneDrive's backup unless Q-1 picks a backed-up
-    place that is not protected, and on Windows none is both by default.
+  - The working state stays beside the novel except on a PC that protects
+    the novel's folder; there it goes to OneDrive's root, which is backed up
+    and not protected. A writer who has no OneDrive and protects Documents
+    gets a folder with no backup, and the chat says where it is.
   - A closed document is opened in Word to apply a change, and the writer
     sees Word open. That is visible but honest: the writer saves it.
-- **Compatibility**: Additive for the server's tools. Old working folders are
-  copied, not moved, so a downgrade still finds them.
+- **Compatibility**: Additive for the server's tools. Existing working
+  folders stay where they are.
 
 <!-- -->
 
 > **✎ Notes** · `SPEC › Option B: Option A, plus no security exception and a pinned release flow (Recommended baseline)`
 > _(your notes here — replace this line)_
 
-### Option C: Option B, plus self-update (Recommended, in two phases)
+### Option C: Option B, plus self-update (Chosen, in two phases)
 
 - **Description**: Option B is phase 1. Phase 2 adds automatic updates of the
   tool's code. The app cannot do that for a privately distributed extension
@@ -393,9 +468,15 @@ Every option keeps:
   - **What it cannot update.** A release that changes the manifest (settings,
     server type, the launcher itself) sets `reinstall: true`, and the
     phase-1 notice asks the writer to install the `.mcpb`.
-  - **The writer's control.** An "Update automatically" setting in the
-    install dialog (Q-2). When it is on, the chat says once, afterwards, that
-    the tool was updated, in plain words.
+  - **The writer's control** (Q-2 answered). An "Update automatically"
+    checkbox (a boolean `user_config` setting) shows in the install dialog and
+    in the extension's settings. It is ticked by default, and the writer can
+    untick it; then phase 1's notice applies. When an update was applied, the
+    chat says so once, afterwards, in plain words.
+  - **Update now.** When the writer or the owner asks the chat to update,
+    staging runs at once instead of waiting for the daily check, and the chat
+    says to restart the app when the new version is ready. This is the
+    owner's path from a merged fix to testing it in a chat (D-11).
 - **Scope**: Option B, plus `extension/launch.py`, a staging module, release
   assets (wheel plus a hashed requirements file), and tests for staging,
   switching and rollback with fakes.
@@ -418,7 +499,7 @@ Every option keeps:
 
 <!-- -->
 
-> **✎ Notes** · `SPEC › Option C: Option B, plus self-update (Recommended, in two phases)`
+> **✎ Notes** · `SPEC › Option C: Option B, plus self-update (Chosen, in two phases)`
 > _(your notes here — replace this line)_
 
 ### Rejected: a frozen exe (binary type, like doc-control's packaging)
@@ -441,10 +522,10 @@ this, because no executable of ours runs.
 | | Option A | Option B | Option C |
 |---|---|---|---|
 | Effort | Medium | Medium–Large | Large (B + Medium) |
-| Risk | High usability risk (Windows blocks on most PCs) | Medium (moved state; Word opens for a closed document) | Medium–High (self-update depends on undocumented uv behaviour; a bad release spreads by itself) |
+| Risk | High usability risk (Windows blocks writes wherever Controlled folder access is on) | Medium (fallback place on protected PCs; Word opens for a closed document) | Medium–High (self-update depends on undocumented uv behaviour; a bad release spreads by itself) |
 | Completeness | Install and notice only; fails `security_detections` | Every criterion; updates take 3 writer actions | Every criterion; updates take 0 actions after phase 2 |
-| Compatibility | Additive | Additive; state copied once (supersedes chat D-10) | As B; one manual reinstall into phase 2 |
-| Maintenance | Release workflow | + bump workflow, detection | + launcher, staging, rollback, extra release assets |
+| Compatibility | Additive | Additive; state stays beside the novel (chat D-10 kept) | As B; one manual reinstall into phase 2 |
+| Maintenance | Release workflow | + bump workflow, detection, tool annotations | + launcher, staging, rollback, extra release assets |
 
 <!-- -->
 
@@ -453,11 +534,12 @@ this, because no executable of ours runs.
 
 ## §4 Recommendation
 
-**Recommended option**: Option C, built in two phases. Phase 1 is Option B and
-is worth shipping alone:
+**Chosen option** (owner, 2026-10-16): Option C, built in two phases. Phase 1
+is Option B and is worth shipping alone:
 
 - one drag installs everything, with no exe and nothing to sign;
-- nothing trips Windows Security;
+- nothing trips Windows Security, and the app stops asking for approval after
+  the first session;
 - doc-control stays pinned;
 - the writer is told about every release within a day.
 
@@ -465,65 +547,67 @@ Phase 2 adds what the owner asked for first, the tool updating itself. It goes
 after phase 1 because its launcher has to be in the bundle the writer installs
 once, and it rests on app behaviour (Q-5) that the clean-PC run checks first.
 
-**Immediate next action**: the owner answers Q-1 to Q-4, then `design` plans
-phase 1. Its first task packs the bundle in CI and runs the `desktop` T1 probe
-on the clean PC with that bundle. That gives Q-3 (no uv, no Python), desktop
-Q-8 (the install warnings), the reinstall check (settings kept) and Q-5 (uv
-reachable from the server) in one run.
+With no dev entry (D-11), phase 2 matters for the owner too: until it ships,
+every fix the owner tests in a chat costs a manual reinstall. So the plan
+keeps phase 1 short and starts phase 2 right after it.
+
+**Immediate next action**: the owner approves this revision, then `design`
+plans both phases. Its first task packs the bundle in CI and runs the
+`desktop` T1 probe on the clean PC with that bundle. That gives desktop Q-3
+(no uv, no Python), desktop Q-8 (the install warnings), Q-5, Q-6, Q-7 and Q-8
+in one run.
 
 **Open questions**:
-- [ ] **Q-1 (owner):** where does the working state live?
-  - Recommended: `%USERPROFILE%\literary-critic\` (survives uninstalling the
-    app; not protected; not backed up by OneDrive).
-  - `%LOCALAPPDATA%`: lost when the Claude app is uninstalled or reset, under
-    MSIX.
-  - Beside the novel, as today (needs an exception on most PCs).
-
-  Whichever is chosen, the chat can tell the writer where it is, and
-  `lc pack` makes a backup zip on request.
-- [ ] **Q-2 (owner):** in phase 2, is "Update automatically" on by default?
-  Recommended: on, as the owner's wording asks, with the setting in the
-  install dialog.
-- [ ] **Q-3 (owner):** the developer's own entry. Recommended:
-  - Keep `literary-critic-dev` (`uv run --directory <clone> lc mcp <folder>`)
-    beside the installed extension, so the dev PC also runs what writers run.
-  - Turn the extension off in Settings → Extensions while developing; two
-    servers with the same tools in one chat confuse the model.
-  - Turn it back on, and remove or rename the dev entry, for a test run.
-  - Give the dev entry its own state file (`LITCRITIC_FOLDERS`), so the two do
-    not share `folders.json`.
-  - The dev entry reports `source: checkout` and never sees an update notice.
-- [ ] **Q-4 (owner):** sign the `.mcpb`? Recommended: no, for now. A
-  self-signed signature changes nothing for a writer. A CA-issued signature
-  needs a private key the CA will not hand out as a file (§2). Revisit only if
-  the clean-PC run shows that signing removes a warning the writer must accept.
+- [x] **Q-1 (owner):** where does the working state live? Answered: beside
+  the novel, so on OneDrive when the novel is. A fallback place only where
+  Controlled folder access protects the novel's folder (§3 B.1, D-3).
+- [x] **Q-2 (owner):** is "Update automatically" on by default? Answered: it
+  can be turned off, and is on by default (D-8).
+- [x] **Q-3 (owner):** keep a developer entry? Answered: no. The installed
+  extension is the only version; feedback is gathered, fixed and tested in
+  chats (D-11).
+- [x] **Q-4 (owner):** sign the `.mcpb`? Answered: not yet (D-12). Revisit
+  only if the clean-PC run shows that signing removes a warning the writer
+  must accept.
 - [ ] **Q-5 (probe):** does the server's process see the uv the app
   installed (the `UV` variable, or a known path), so that phase 2 can build an
   environment without downloading uv again? If not, phase 2 downloads uv into
   its own runtime folder, with a pinned checksum, as the app does.
 - [ ] **Q-6 (probe):** does installing a newer `.mcpb` over the old one keep
-  the folder setting and the extension enabled? Inferred yes (§2). If not,
-  the update instructions add the folder step, and `writer_update_actions` is
-  re-counted.
+  the folder setting, the "Update automatically" choice and the extension
+  enabled? Inferred yes (§2). If not, the update instructions add the missing
+  step, and `writer_update_actions` is re-counted.
+- [ ] **Q-7 (probe):** which approval questions does the app ask for a local
+  extension's tools: per tool or per group, per chat or for good, and does
+  "Always allow" in the connector settings cover a whole group? The setup
+  sentence and `approval_questions_after_setup` follow what the probe shows.
+- [ ] **Q-8 (probe):** can a normal user's process read whether Controlled
+  folder access is on and which folders it protects? If not, the tool tries
+  the novel's folder once and falls back on refusal, and Windows shows its
+  notice that one time; `cfa_fallback_correct` then allows that single notice.
 
 **Decisions log**:
 
 | ID | Decision | Status | Date |
 |----|----------|--------|------|
-| chat D-10 | Working files in `<novel>/literary-critic/` | superseded by D-3, if approved | 2026-10-11 |
+| chat D-10 | Working files in `<novel>/literary-critic/` | agreed (kept by D-3) | 2026-10-11 |
 | install D-2 | The update check is a script, silent when it does not know; one plain sentence, never mid-change | agreed (kept; now reads Releases and runs in the background) | 2026-10-14 |
 | desktop D-5, D-13 | One `.mcpb`, installed by dragging it onto the app's window | agreed (kept) | 2026-10-14 |
 | desktop D-6 | doc-control is bundled as a library | agreed (kept) | 2026-10-14 |
 | doc-control D-P3 | doc-control ships its own exe unsigned | noted; literary-critic ships no exe (D-1) | 2026-10-14 |
-| D-1 | Server type `uv`; no executable of ours, so nothing for Authenticode to sign | proposed | 2026-10-16 |
-| D-2 | `uv.lock` ships in the bundle; CI fails when it does not match `pyproject.toml` | proposed | 2026-10-16 |
-| D-3 | No tool file under a protected folder; working state in a per-user folder (Q-1), copied once from the old place | proposed | 2026-10-16 |
-| D-4 | The manuscript is changed only through Word (live engine); the file engine never writes it | proposed | 2026-10-16 |
-| D-5 | A Release is cut by merging a version bump; a tag publishes the `.mcpb` and `SHA256SUMS` from CI | proposed | 2026-10-16 |
-| D-6 | A doc-control release inside the range reaches writers through an automatic bump PR and a patch release | proposed | 2026-10-16 |
-| D-7 | A standalone doc-control is reported once, in plain words; it is not blocked | proposed | 2026-10-16 |
-| D-8 | Self-update (phase 2): staged, self-tested, applied on the next start, with rollback; a manifest change still needs a reinstall | proposed | 2026-10-16 |
-| D-9 | This workspace replaces `desktop` T8; `desktop` T1 and T10 run on the released bundle | proposed | 2026-10-16 |
+| D-1 | Server type `uv`; no executable of ours, so nothing for Authenticode to sign | agreed | 2026-10-16 |
+| D-2 | `uv.lock` ships in the bundle; CI fails when it does not match `pyproject.toml` | agreed | 2026-10-16 |
+| D-3 | Working state beside the novel (on OneDrive when the novel is); where Controlled folder access protects that folder, `%OneDrive%\literary-critic\<work>` or else `%USERPROFILE%\literary-critic\<work>`, chosen before any write | agreed (r2; replaces r1's per-user folder) | 2026-10-16 |
+| D-4 | The manuscript is changed only through Word (live engine); the file engine never writes it | agreed | 2026-10-16 |
+| D-5 | A Release is cut by merging a version bump; a tag publishes the `.mcpb` and `SHA256SUMS` from CI; a merged fix to what the extension runs is released the same day | agreed | 2026-10-16 |
+| D-6 | A doc-control release inside the range reaches writers through an automatic bump PR and a patch release | agreed | 2026-10-16 |
+| D-7 | A standalone doc-control is reported once, in plain words; it is not blocked | agreed | 2026-10-16 |
+| D-8 | Self-update (phase 2): staged, self-tested, applied on the next start, with rollback; a manifest change still needs a reinstall; an "Update automatically" checkbox, ticked by default | agreed | 2026-10-16 |
+| D-9 | This workspace replaces `desktop` T8; `desktop` T1 and T10 run on the released bundle | agreed | 2026-10-16 |
+| D-10 | Option C chosen, in two phases | agreed | 2026-10-16 |
+| D-11 | No developer entry: the installed extension is the only version on every PC, the owner's included; the `literary-critic-dev` config entry is removed once the extension is installed | agreed | 2026-10-16 |
+| D-12 | The `.mcpb` is not signed for now | agreed | 2026-10-16 |
+| D-13 | Tools declare read-only or write annotations, and the setup guide tells the writer to answer "Always allow" once | proposed (r2) | 2026-10-16 |
 
 
 > Sections 5–6 (contracts, risks) are appended by `design`.
