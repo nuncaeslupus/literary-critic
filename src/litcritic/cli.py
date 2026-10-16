@@ -27,6 +27,7 @@ from litcritic import (
     locate,
     mcp,
     metrics,
+    overview,
     pack,
     plan,
     query,
@@ -604,6 +605,7 @@ def build_parser() -> argparse.ArgumentParser:
     docx_cli.register(sub)
     setup.register(sub)
     plan.register(sub)
+    overview.register(sub)
     change.register(sub)
     remove.register(sub)
     upgrade.register(sub)

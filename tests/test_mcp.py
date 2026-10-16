@@ -462,3 +462,31 @@ def test_setup_refuses_a_folder_outside_the_grant(tmp_path: Path) -> None:
     res = _call_raw(server, "setup", {"folder": str(tmp_path)})
     assert res["isError"]
     assert json.loads(res["content"][0]["text"])["error"] == "outside_granted_folders"
+
+
+def test_resume_returns_the_saved_overview_and_moves_on(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A saved overview reaches the next chat; it proposes the plan instead of reading again."""
+    server, ws = _change_work(tmp_path, monkeypatch, propose=False)
+    monkeypatch.setattr(mcp, "_index_state", lambda root: {"packets": 1, "todo": 0})
+    first = _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]
+    assert first["overview"] is None and first["next_step"]["step"] == "overview"
+    assert "lc overview save" in first["next_step"]["say"]
+
+    saved = _call_raw(
+        server,
+        "run",
+        {"work": "mynovel", "command": ["overview", "save", "--text", "Works. P1.", "--partial"]},
+    )
+    assert _text(saved)["exit"] == 0
+    shown = _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]
+    assert shown["overview"]["text"] == "Works. P1." and shown["overview"]["partial"] is True
+    assert shown["next_step"]["step"] == "propose_plan"
+
+    draft = shown["draft"]
+    nxt = f"v{int(draft[1:]) + 1:03d}"
+    (ws / "text" / f"{nxt}.txt").write_text("New draft.\n", encoding="utf-8")
+    stale = _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]
+    assert stale["overview"]["stale"] is True
+    assert stale["next_step"]["step"] == "overview_stale"

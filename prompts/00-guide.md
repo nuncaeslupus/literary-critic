@@ -34,6 +34,12 @@ sentences (what, why, how long), then let them **accept**, **change** or
 **reject** it; never start a step they did not accept. The usual order:
 
 1. Overview: what works, and the three biggest problems (structure first).
+   Record each problem as a Codex `issue` (`40-checks.md`), then save the
+   overview as you told it:
+   `lc overview save --workspace <slug> --text-file <file> --read c01,c23 --issues is-x`
+   (`--read all` when you read the whole draft, `--partial` when you did not;
+   tell the writer which). The next chat
+   gets it back from `resume` and must not read the novel again for it.
 2. A revision round (`60-rounds.md`): one action at a time.
 3. After the writer's changes, a new draft (`50-new-draft.md`) and what changed.
 
