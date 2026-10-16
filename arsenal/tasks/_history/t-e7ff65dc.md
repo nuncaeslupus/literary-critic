@@ -1,11 +1,12 @@
 ---
 id: t-e7ff65dc
-title: "T10: Walkthrough"
-label: "T10: Walkthrough"
+title: "T10: End-to-end run"
+label: "T10: End-to-end run"
 priority: 5
 deps: [t-c3d847c1, t-98eb6b03, t-00f6271d]
 requires: [human:gate]
 workspace: desktop
+status: cancelled
 ---
 
 ## Acceptance gate
