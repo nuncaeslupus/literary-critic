@@ -530,3 +530,23 @@ def test_resume_returns_the_saved_overview_and_moves_on(
     stale = _text(_call_raw(server, "resume", {"work": "mynovel"}))["work"]
     assert stale["overview"]["stale"] is True
     assert stale["next_step"]["step"] == "overview_stale"
+
+
+def test_a_failed_call_is_logged_with_its_arguments_and_answer(tmp_path: Path) -> None:
+    def fails(a: dict[str, Any]) -> Any:
+        raise mcp.ToolError("changed", detail="read it again first")
+
+    log = io.StringIO()
+    server = mcp.Server([mcp.Tool("approve", "", fails)], log=log)
+    _call_raw(server, "approve", {"card": "C1"})
+    line = log.getvalue().strip()
+    assert re.match(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d call approve error ", line)
+    assert '"C1"' in line and "read it again first" in line
+
+
+def test_the_log_file_keeps_one_old_log_once_too_big(tmp_path: Path) -> None:
+    state = tmp_path / "lc" / "folders.json"
+    path = mcp.log_file(state)
+    path.write_text("x" * (mcp.LOG_LIMIT + 1), encoding="utf-8")
+    assert mcp.log_file(state) == path
+    assert not path.exists() and path.with_name("mcp.log.1").exists()
