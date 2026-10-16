@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import folders, mcp
+from litcritic import __version__, folders, mcp
 from litcritic.cli import build_parser
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mcp"
@@ -136,6 +136,8 @@ def test_resume_named_work_returns_state_and_guide(
     assert second["work"]["next_step"]["step"] == "setup"
     listed = _call(server, "works", {})
     assert listed["works"][0]["title"] == "Second"  # most recent first
+    assert listed["versions"]["literary-critic"] == __version__
+    assert listed["versions"]["doc-control"]  # installed in the test environment
 
     missing = _call(server, "resume", {"work": "Unknown Book"})
     assert missing["not_found"] == "Unknown Book"
