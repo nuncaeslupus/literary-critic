@@ -87,7 +87,8 @@ class Server:
 
     def _note(self, *parts: object) -> None:
         if self.log is not None:
-            print(*parts, file=self.log, flush=True)
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+            print(stamp, *parts, file=self.log, flush=True)
 
     def handle(self, msg: Any) -> dict[str, Any] | None:
         """The response to one message, or None for a notification."""
@@ -151,7 +152,11 @@ class Server:
             out, is_error = {"error": "internal", "detail": repr(exc)}, True
             if blocked := winblock.advice(exc):
                 out = {"error": "windows_block", "detail": str(exc), **blocked}
-        self._note("call", name, "error" if is_error else "ok")
+        failed = isinstance(out, dict) and (out.get("exit") or out.get("status") == "refused")
+        if is_error or failed:  # the arguments and the answer, so it can be traced afterwards
+            self._note("call", name, "error", _brief(args), _brief(out, 2000))
+        else:
+            self._note("call", name, "ok", _brief(args))
         text = json.dumps(out, ensure_ascii=False, indent=1)
         result: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": is_error}
         if tool.ui and not is_error:
@@ -813,10 +818,46 @@ def tools(grant: Any) -> list[Tool]:
     ]
 
 
-def _cmd(args: Any) -> int:
-    from litcritic.folders import Grant  # folders imports ToolError from here
+def _brief(value: Any, limit: int = 300) -> str:
+    text = json.dumps(value, ensure_ascii=False)
+    return text if len(text) <= limit else text[:limit] + "…"
 
-    Server(tools(Grant(args.folders)), log=sys.stderr).serve(sys.stdin, sys.stdout)
+
+LOG_LIMIT = 1_000_000  # bytes; past it the log moves to ``mcp.log.1`` (one old log kept)
+
+
+class _Tee(io.TextIOBase):
+    """Writes to every stream: the app's stderr, which it may not keep, and the log file."""
+
+    def __init__(self, *streams: TextIO) -> None:
+        self.streams = streams
+
+    def write(self, text: str) -> int:
+        for s in self.streams:
+            with contextlib.suppress(OSError, ValueError):
+                s.write(text)
+                s.flush()
+        return len(text)
+
+
+def log_file(state: Path) -> Path:
+    """``mcp.log`` next to ``folders.json``, the old one moved aside once it is too big."""
+    path = state.parent / "mcp.log"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and path.stat().st_size > LOG_LIMIT:
+        path.replace(path.with_name("mcp.log.1"))
+    return path
+
+
+def _cmd(args: Any) -> int:
+    from litcritic.folders import Grant, state_file  # folders imports ToolError from here
+
+    log: Any = sys.stderr
+    with contextlib.suppress(OSError):  # no log file is no reason not to serve
+        log = _Tee(sys.stderr, log_file(state_file()).open("a", encoding="utf-8"))
+    server = Server(tools(Grant(args.folders)), log=log)
+    server._note("start", _brief(versions(), 1000), _brief(args.folders, 1000))
+    server.serve(sys.stdin, sys.stdout)
     return 0
 
 
