@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="9da9469c7188c067809fd9c602f82e059dd9ff21007c7aefb6e4b2d63502e6d2">
+<title>Literary Critic — Plan (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#5f5c56;--line:#e3ded4;
+  --card:#ffffff;--accent:#0f766e;--accent2:#9a4a0b;--chip:#e8efed;
+  --note:#fffaf0;--note-line:#d9a441;--note-fg:#7a3b06;--code:#f1eee8;--link:#0f766e;
+  --measure:70ch;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#ebe9e4;--muted:#aaa69f;--line:#34313a;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#24302f;
+    --note:#221d12;--note-line:#8a6a22;--note-fg:#fcd34d;--code:#26242b;--link:#7ff0dc;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:calc(var(--measure) + 120px);margin:0 auto;padding:0 16px}
+a{color:var(--link);text-underline-offset:2px}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;font-size:.88em;line-height:1.5}
+pre code{background:none;padding:0;font-size:1em}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#9a4a0b}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:26px 0 6px}
+.hero h1{font-size:1.75rem;line-height:1.2;margin:.1em 0 .3em;letter-spacing:-.01em}
+.hero p{color:var(--muted);margin:.3em 0;max-width:var(--measure)}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:30px 0}
+.part-title{font-size:1.45rem;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 10px}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+/* Two heading levels, told apart by size, weight and a rule: a ## section opens
+   with a full-width rule; a ### section sits indented under it on a side rule. */
+.sec{scroll-margin-top:72px}
+.sec.l2{padding:14px 0 4px;border-top:1px solid var(--line);margin-top:10px}
+.part>.sec.l2:first-of-type{border-top:none;margin-top:0}
+.sec.l3{margin:6px 0 6px 2px;padding:2px 0 2px 14px;border-left:3px solid var(--line)}
+.sec-h{margin:6px 0 8px;line-height:1.3}
+h3.sec-h{font-size:1.3rem;font-weight:750}
+h4.sec-h{font-size:1.08rem;font-weight:650;color:var(--fg)}
+.sec.bare>.sec-h{margin-bottom:2px}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+h4 .chip{font-size:11px;color:var(--muted)}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p,.sec-body li,.sec-body blockquote{max-width:var(--measure)}
+.sec-body p{margin:.6em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body h4,.sec-body h5,.sec-body h6{font-size:1em;margin:1em 0 .3em}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;font-size:13.5px;line-height:1.45;margin:.6em 0;
+  display:block;max-width:100%;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+/* The note field: the one thing on the page that is the reviewer's, so it must
+   not read as more document. Dashed while empty, solid once written in. */
+.note{max-width:var(--measure);background:var(--note);border:1.5px dashed var(--note-line);
+  border-left:4px solid var(--note-line);border-radius:10px;padding:8px 12px;margin:12px 0 18px}
+.note:focus-within{border-style:solid;box-shadow:0 0 0 3px color-mix(in srgb,var(--note-line) 30%,transparent)}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;cursor:text}
+.note-ico{color:var(--note-fg);font-weight:800}
+.note-label{font-size:11.5px;font-weight:800;color:var(--note-fg);text-transform:uppercase;letter-spacing:.06em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:16px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:1}
+.note.filled{border-style:solid}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+/* Phone width: smaller type, no floating column over the text, the hint dropped. */
+@media(max-width:600px){
+  body{font-size:16px;padding-bottom:76px}
+  .hero h1{font-size:1.45rem}
+  .part-title{font-size:1.25rem}
+  h3.sec-h{font-size:1.15rem}
+  h4.sec-h{font-size:1rem}
+  .sec.l3{padding-left:10px}
+  .statusbar .hint{display:none}
+  .fab{left:0;right:0;bottom:0;flex-direction:row;justify-content:flex-end;gap:6px;padding:8px 10px;
+    flex-wrap:wrap;background:var(--bg);border-top:1px solid var(--line)}
+  .fab .btn{box-shadow:none;padding:7px 9px}
+  .toast{bottom:64px}
+}
+@media print{.topbar,.statusbar,.fab,.help,.note:not(.filled){display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Plan<small>annotatable reader · 2026-10-17</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 11 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Plan</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Plan</summary><ul>
+<li><a href="#s-plan-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-plan-technical-solution">Technical solution</a></li>
+<li><a href="#s-plan-architecture-overview">Architecture overview</a></li>
+<li><a href="#s-plan-data-flow">Data flow</a></li>
+<li><a href="#s-plan-state-changes">State changes</a></li>
+<li><a href="#s-plan-technology-choices">Technology choices</a></li>
+<li><a href="#s-plan-out-of-scope">Out of scope</a></li>
+<li><a href="#s-plan-implementation-tasks">Implementation tasks</a></li>
+<li><a href="#s-plan-task-details">Task details</a></li>
+<li><a href="#s-plan-dependency-graph">Dependency graph</a></li>
+<li><a href="#s-plan-evidence-log">Evidence log</a></li>
+<li><a href="#s-plan-sign-off">Sign-off</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge plan">Plan</span>Plan</h2>
+<article class="sec l2" id="s-plan-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-17
+<strong>Specification</strong>: <code>arsenal/project/release/spec.md</code> (approved, revision 2)
+<strong>Author</strong>: Claude (with the owner)
+<strong>Revision</strong>: 1
+<strong>Status</strong>: approved (2026-10-17, revision 1) — without annotations
+<strong>Revision log</strong>:
+- r1 — first draft, from the approved spec (Option C, both phases). The first
+  chain (T1–T3) packs the bundle in CI, releases it, and runs the clean-PC
+  probe on that released bundle</p>
+<blockquote>
+<p>Review record, kept the way the spec keeps its own: each round of notes bumps
+<strong>Revision</strong> with a log line naming the <code>&lt;repo&gt;-plan-v&lt;N&gt;-&lt;date&gt;-notes.md</code>
+export it applied, committed beside this file in the same commit. Approval is
+<code>approved (YYYY-MM-DD, revision N)</code>, plus <code>— without annotations</code> when there
+were none.</p>
+</blockquote></div>
+<div class="note" data-for="s-plan-intro"><label class="note-head" for="n-s-plan-intro"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN · intro</span></label><textarea class="note-ta" data-key="s-plan-intro" id="n-s-plan-intro" data-label="Preamble &amp; scope" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2 bare" id="s-plan-technical-solution">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Technical solution</span></h3>
+</article>
+<article class="sec l3" id="s-plan-architecture-overview">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Architecture overview</span></h4>
+<div class="sec-body"><p>One <code>.mcpb</code> of server type <code>uv</code> (D-1). The app installs uv, runs <code>uv sync</code>
+against the bundled <code>uv.lock</code> (D-2), and starts <code>launch.py</code>, which starts
+<code>lc mcp</code>. The work comes in three blocks:</p>
+<ol>
+<li><strong>Bundle, release, probe</strong> (T1–T3). This is the spec's first action.<ul>
+<li>CI packs and validates the <code>.mcpb</code> on every PR.</li>
+<li>A version bump that is merged tags the commit, and the tag publishes the
+ Release.</li>
+<li>The owner then installs that released file on a clean PC. That one run
+ answers desktop Q-3 and Q-8 and spec Q-5 to Q-8.</li>
+<li>This replaces <code>desktop</code> T8, and runs <code>desktop</code> T1 on the real bundle
+ (D-9).</li>
+</ul>
+</li>
+<li><strong>Phase 1, Option B</strong> (T4–T10). These tasks are independent of each other
+   and can run in parallel.<ul>
+<li>The update check reads Releases, in the background.</li>
+<li>Working state stays beside the novel, with a fallback where Controlled
+ folder access protects the novel's folder.</li>
+<li>The manuscript is changed only through Word.</li>
+<li>A standalone doc-control is reported.</li>
+<li>The tools declare annotations, and the setup guide says which approval
+ answer to pick.</li>
+<li>A daily workflow bumps doc-control.</li>
+<li>The owner moves from the dev entry to the extension.</li>
+</ul>
+</li>
+<li><strong>Phase 2, self-update</strong> (T11–T13).<ul>
+<li>Releases carry a wheel and hashed requirements.</li>
+<li><code>launch.py</code> picks the newest healthy runtime, and rolls back.</li>
+<li>Staging builds new runtimes in the background. The "Update
+ automatically" checkbox controls it, and "update now" starts it at once.</li>
+<li>The phase-2 release is the one manual reinstall into self-update.</li>
+</ul>
+</li>
+</ol>
+<p>The test run on a clean PC (T14, <code>desktop</code> T10 on the released bundle) closes
+the workspace by measuring every §1 criterion.</p></div>
+<div class="note" data-for="s-plan-architecture-overview"><label class="note-head" for="n-s-plan-architecture-overview"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Architecture overview</span></label><textarea class="note-ta" data-key="s-plan-architecture-overview" id="n-s-plan-architecture-overview" data-label="Architecture overview" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-data-flow">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Data flow</span></h4>
+<div class="sec-body"><figure class="drawspec"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-0.75 -0.75 665.5 745.4" role="img" aria-labelledby="dsb2f4fc53ad-title"><title id="dsb2f4fc53ad-title">From a merged fix to the writer's chat</title><path d="M 332 48.85 L 332 96.85" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,96.85 328.4,88.85 335.6,88.85" fill="currentColor" stroke="none"/><path d="M 332 133.7 L 332 181.7" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,181.7 328.4,173.7 335.6,173.7" fill="currentColor" stroke="none"/><path d="M 332 233.4 L 332 281.4" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,281.4 328.4,273.4 335.6,273.4" fill="currentColor" stroke="none"/><path d="M 332 347.95 L 332 395.95" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,395.95 328.4,387.95 335.6,387.95" fill="currentColor" stroke="none"/><path d="M 332 447.65 L 332 495.65" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,495.65 328.4,487.65 335.6,487.65" fill="currentColor" stroke="none"/><path d="M 309.658 532.5 L 309.658 556.5 L 208.288 556.5 L 208.288 580.5" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="208.288,580.5 204.688,572.5 211.888,572.5" fill="currentColor" stroke="none"/><path d="M 208.288 632.2 L 208.288 680.2" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="208.288,680.2 204.688,672.2 211.888,672.2" fill="currentColor" stroke="none"/><path d="M 354.342 532.5 L 354.342 556.5 L 455.712 556.5 L 455.712 580.5" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="455.712,580.5 452.112,572.5 459.312,572.5" fill="currentColor" stroke="none"/><path d="M 455.712 632.2 L 455.712 687.625" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="455.712,687.625 452.112,679.625 459.312,679.625" fill="currentColor" stroke="none"/><rect x="220.288" y="495.65" width="223.423" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="516.883" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>Update automatically on?</tspan></text><rect x="220.288" y="395.95" width="223.423" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="417.183" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">server: daily background check</tspan></text><text x="332" y="432.033" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>(releases/latest)</tspan></text><rect x="220.288" y="281.4" width="223.423" height="66.55" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="302.633" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">GitHub Release</tspan></text><text x="332" y="317.483" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>.mcpb, SHA256SUMS, wheel,</tspan></text><text x="332" y="332.333" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>requirements, release.json</tspan></text><rect x="96.577" y="680.2" width="223.423" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="208.288" y="701.433" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">next app start:</tspan></text><text x="208.288" y="716.283" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>launch.py runs X.Y.Z</tspan></text><rect x="344" y="687.625" width="223.423" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="455.712" y="708.858" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>writer: click, drag, Install</tspan></text><rect x="344" y="580.5" width="223.423" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="455.712" y="601.733" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">resume/works: update.available</tspan></text><text x="455.712" y="616.583" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>one plain sentence</tspan></text><rect x="220.288" y="12" width="223.423" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="33.233" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>PR with version bump merged</tspan></text><rect x="220.288" y="181.7" width="223.423" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="202.933" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">release.yml: lock check, pack,</tspan></text><text x="332" y="217.783" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>validate, smoke test</tspan></text><rect x="96.577" y="580.5" width="223.423" height="51.7" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="208.288" y="601.733" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">stage runtime X.Y.Z</tspan></text><text x="208.288" y="616.583" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>+ self-test</tspan></text><rect x="220.288" y="96.85" width="223.423" height="36.85" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="118.083" font-family="'DejaVu Sans', sans-serif" font-size="11" fill="currentColor" text-anchor="middle"><tspan>tag vX.Y.Z</tspan></text><text x="336.75" y="260.862" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">all green</text><text x="336.75" y="475.112" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">newer</text><text x="223.578" y="570.532" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">yes, no reinstall flag</text><text x="368.928" y="549.392" font-family="'DejaVu Sans', sans-serif" font-size="10" fill="currentColor">no, or reinstall</text></svg></figure></div>
+<div class="note" data-for="s-plan-data-flow"><label class="note-head" for="n-s-plan-data-flow"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Data flow</span></label><textarea class="note-ta" data-key="s-plan-data-flow" id="n-s-plan-data-flow" data-label="Data flow" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-state-changes">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">State changes</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>Store</th>
+<th>Change</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Writer's profile</td>
+<td><code>%APPDATA%\literary-critic\folders.json</code></td>
+<td>UPDATE</td>
+<td>A <code>state</code> map for works whose state is in the fallback place (T5)</td>
+</tr>
+<tr>
+<td>Beside the novel</td>
+<td><code>&lt;novel&gt;/literary-critic/</code></td>
+<td>—</td>
+<td>Unchanged; still the default place (D-3)</td>
+</tr>
+<tr>
+<td>Fallback</td>
+<td><code>%OneDrive%\literary-critic\&lt;work&gt;\</code> or <code>%USERPROFILE%\literary-critic\&lt;work&gt;\</code></td>
+<td>CREATE</td>
+<td>Only where Controlled folder access protects the novel's folder (T5)</td>
+</tr>
+<tr>
+<td>Extension state</td>
+<td><code>&lt;state folder&gt;\update.json</code></td>
+<td>CREATE/UPDATE</td>
+<td>Cache for the daily check, replacing the tag cache (T4)</td>
+</tr>
+<tr>
+<td>doc-control</td>
+<td>its appdata store</td>
+<td>CREATE</td>
+<td>File backups move there via <code>DOC_CONTROL_STORE=appdata</code> (T6)</td>
+</tr>
+<tr>
+<td>Phase 2</td>
+<td><code>%LOCALAPPDATA%\literary-critic\runtime\&lt;X.Y.Z&gt;\</code>, <code>runtime\state.json</code></td>
+<td>CREATE/DELETE</td>
+<td>Staged runtimes; two are kept (T12, T13)</td>
+</tr>
+<tr>
+<td>Owner's app config</td>
+<td><code>claude_desktop_config.json</code></td>
+<td>DELETE</td>
+<td>The <code>literary-critic-dev</code> entry, once the extension is installed (T10)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-state-changes"><label class="note-head" for="n-s-plan-state-changes"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › State changes</span></label><textarea class="note-ta" data-key="s-plan-state-changes" id="n-s-plan-state-changes" data-label="State changes" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-technology-choices">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Technology choices</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Choice</th>
+<th>Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Server type <code>uv</code>, manifest 0.4</td>
+<td>D-1: no exe of ours, so nothing to sign; pywin32 arrives through <code>doc-control[live]</code></td>
+</tr>
+<tr>
+<td>Stdlib <code>zipfile</code> pack script plus <code>npx @anthropic-ai/mcpb validate</code> in CI</td>
+<td>Packing needs no Node; validation uses the official tool</td>
+</tr>
+<tr>
+<td>GitHub Actions on <code>windows-latest</code> for the release</td>
+<td>The smoke test must import pywin32 and run uv as the app does</td>
+</tr>
+<tr>
+<td>uv 0.9.7 in the smoke test</td>
+<td>The version the app downloads (§2)</td>
+</tr>
+<tr>
+<td><code>uv export --hashes</code> for phase-2 requirements</td>
+<td>Staging installs exactly the lock, with checked hashes</td>
+</tr>
+<tr>
+<td>Stdlib <code>launch.py</code></td>
+<td>It runs before any environment is chosen, so it can import nothing else</td>
+</tr>
+<tr>
+<td>PowerShell <code>Get-MpPreference</code>, then the registry, for Controlled folder access</td>
+<td>Read-only and present on every Windows 11; which one a normal user can read is Q-8</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-technology-choices"><label class="note-head" for="n-s-plan-technology-choices"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Technology choices</span></label><textarea class="note-ta" data-key="s-plan-technology-choices" id="n-s-plan-technology-choices" data-label="Technology choices" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-out-of-scope">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Out of scope</span></h4>
+<div class="sec-body"><ul>
+<li>Signing the <code>.mcpb</code> (D-12, Q-4).</li>
+<li>Mac, and listing in the extension directory.</li>
+<li>Blocking a standalone doc-control (D-7: reported only).</li>
+<li>Moving existing working folders. A work stays where its state already is.</li>
+<li>Self-updating the manifest or the launcher: those set <code>reinstall: true</code>.</li>
+<li>Any change to doc-control itself.</li>
+</ul></div>
+<div class="note" data-for="s-plan-out-of-scope"><label class="note-head" for="n-s-plan-out-of-scope"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Out of scope</span></label><textarea class="note-ta" data-key="s-plan-out-of-scope" id="n-s-plan-out-of-scope" data-label="Out of scope" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-plan-implementation-tasks">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Implementation tasks</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>T#</th>
+<th>Description</th>
+<th>Service</th>
+<th>Size</th>
+<th>Depends</th>
+<th>Gate</th>
+<th>Tests</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>Pack and CI check</td>
+<td><code>extension/</code>, <code>scripts/pack_mcpb.py</code>, <code>.github/workflows/ci.yml</code></td>
+<td>M</td>
+<td>—</td>
+<td><code>mcpb_validation_errors == 0</code></td>
+<td><code>test_pack_mcpb_contents_and_manifest</code> in <code>tests/test_mcpb.py</code> — the zip holds the manifest, <code>launch.py</code>, <code>pyproject.toml</code> and <code>uv.lock</code>, with no venv; the manifest is 0.4, type <code>uv</code>, with the two settings and the version from <code>pyproject.toml</code></td>
+</tr>
+<tr>
+<td>T2</td>
+<td>Release on tag</td>
+<td><code>.github/workflows/release.yml</code>, <code>scripts/smoke_mcpb.py</code></td>
+<td>M</td>
+<td>T1</td>
+<td><code>release_on_tag == 1</code></td>
+<td><code>test_smoke_versions_differ_from_lock_fails</code> in <code>tests/test_mcpb.py</code> — the smoke check fails when an installed version differs from <code>uv.lock</code>, and passes on a match</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>Clean-PC probe</td>
+<td>owner, <code>status/evidence/</code></td>
+<td>S</td>
+<td>T2</td>
+<td><code>probes_answered == 6</code></td>
+<td><code>test_release_probe_evidence_answers_open_questions</code> in <code>tests/test_status.py</code> — the evidence file answers desktop Q-3 and Q-8 and spec Q-5 to Q-8, each yes or no, and records VirusTotal for the first release</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>Update check</td>
+<td><code>src/litcritic/kit.py</code>, <code>mcp.py</code></td>
+<td>M</td>
+<td>T2</td>
+<td><code>update_false_alarms == 0</code></td>
+<td><code>test_update_check_cases_no_false_alarm</code> in <code>tests/test_kit.py</code> — older, equal, newer, offline, checkout and no-<code>.mcpb</code> cases give <code>yes</code> only for older; <code>test_update_check_slow_network_adds_under_100ms</code> in <code>tests/test_mcp.py</code> — with a 10 s network, <code>resume</code> returns within 100 ms</td>
+</tr>
+<tr>
+<td>T5</td>
+<td>State place</td>
+<td><code>src/litcritic/cfa.py</code> (new), <code>folders.py</code>, <code>workspace.py</code></td>
+<td>M</td>
+<td>T3</td>
+<td><code>cfa_fallback_correct == 1.0</code></td>
+<td><code>test_state_place_cfa_on_protected_uses_fallback</code> in <code>tests/test_folders.py</code> — with Controlled folder access faked on, nothing is written under the protected folder, OneDrive's root is used when set and the profile otherwise; <code>test_state_place_cfa_off_beside_novel</code> — off, the state is beside the novel in all four layouts</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>Word-only writes</td>
+<td><code>src/litcritic/docx_cli.py</code>, <code>mcp.py</code>, <code>dc.py</code></td>
+<td>M</td>
+<td>—</td>
+<td><code>manuscript_file_writes_by_server == 0</code></td>
+<td><code>test_apply_closed_document_opens_word_no_file_write</code> in <code>tests/test_docx_cli.py</code> — with a fake that records writes, a change to a closed document opens it through <code>live</code> and writes no file beside the manuscript; the server's environment has <code>DOC_CONTROL_STORE=appdata</code></td>
+</tr>
+<tr>
+<td>T7</td>
+<td>Other doc-control</td>
+<td><code>src/litcritic/mcp.py</code>, a detection module</td>
+<td>S</td>
+<td>—</td>
+<td><code>standalone_doccontrol_reported == 1.0</code></td>
+<td><code>test_resume_reports_standalone_doccontrol_once</code> in <code>tests/test_mcp.py</code> — enabled extension and config entry are reported once; disabled and none are not</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>Annotations</td>
+<td><code>src/litcritic/mcp.py</code>, <code>prompts/01-chat-guide.md</code></td>
+<td>S</td>
+<td>T3</td>
+<td><code>tools_annotated == 1.0</code></td>
+<td><code>test_tools_list_declares_annotations</code> in <code>tests/test_mcp.py</code> — every tool has the annotations in §5, and the read-only set is exactly the seven listed; <code>test_guide_names_always_allow</code> in <code>tests/test_prompts.py</code> — the setup part tells the writer the answer Q-7 found</td>
+</tr>
+<tr>
+<td>T9</td>
+<td>doc-control bump</td>
+<td><code>.github/workflows/doccontrol-bump.yml</code>, <code>scripts/doccontrol_bump.py</code></td>
+<td>S</td>
+<td>T2</td>
+<td><code>doccontrol_release_to_bump_pr_days &lt;= 1</code></td>
+<td><code>test_bump_in_range_pr_out_of_range_issue</code> in <code>tests/test_mcpb.py</code> — a newer version inside the range gives a lock upgrade plus a patch bump, and one outside gives an issue</td>
+</tr>
+<tr>
+<td>T10</td>
+<td>Owner switch</td>
+<td>owner, <code>docs/</code>, <code>status/evidence/</code></td>
+<td>S</td>
+<td>T8</td>
+<td><code>dev_config_entries == 0</code></td>
+<td><code>test_release_owner_switch_evidence</code> in <code>tests/test_status.py</code> — the evidence shows the extension installed, <code>literary-critic-dev</code> gone from the config, and works still found</td>
+</tr>
+<tr>
+<td>T11</td>
+<td>Staging assets</td>
+<td><code>release.yml</code>, <code>scripts/</code></td>
+<td>S</td>
+<td>T3</td>
+<td><code>release_assets_complete == 1</code></td>
+<td><code>test_release_assets_requirements_hashed</code> in <code>tests/test_mcpb.py</code> — the requirements file pins every package and the wheel by hash, and <code>release.json</code> carries the version and <code>reinstall</code></td>
+</tr>
+<tr>
+<td>T12</td>
+<td>Launcher</td>
+<td><code>extension/launch.py</code></td>
+<td>M</td>
+<td>T11</td>
+<td><code>rollback_correct == 1.0</code></td>
+<td><code>test_launch_two_failures_roll_back</code> in <code>tests/test_launch.py</code> — a runtime that fails to start twice is marked bad and the previous one runs; with no staged runtime the bundled one runs; two are kept</td>
+</tr>
+<tr>
+<td>T13</td>
+<td>Self-update</td>
+<td><code>src/litcritic/staging.py</code> (new), <code>mcp.py</code>, <code>prompts/</code></td>
+<td>L</td>
+<td>T4, T12</td>
+<td><code>auto_update_applied_restarts &lt;= 1</code></td>
+<td><code>test_staging_ready_after_selftest_applied_next_start</code> in <code>tests/test_staging.py</code> — with fake uv and fake Releases, a newer release is staged, self-tested and run at the next start; <code>auto_update</code> off or <code>reinstall: true</code> gives the notice instead; <code>check_update</code> stages at once</td>
+</tr>
+<tr>
+<td>T14</td>
+<td>Test run</td>
+<td>owner + Claude, <code>status/evidence/</code></td>
+<td>M</td>
+<td>T5, T6, T7, T10, T13</td>
+<td><code>install_actions_clean_pc &lt;= 3</code></td>
+<td><code>test_release_test_run_evidence_meets_gates</code> in <code>tests/test_status.py</code> — the record meets every §1 criterion measured on the test run</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-implementation-tasks"><label class="note-head" for="n-s-plan-implementation-tasks"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Implementation tasks</span></label><textarea class="note-ta" data-key="s-plan-implementation-tasks" id="n-s-plan-implementation-tasks" data-label="Implementation tasks" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-task-details">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Task details</span></h4>
+<div class="sec-body"><ul>
+<li><strong>T1 Pack and CI check</strong> (bundle, pack and CI check) (supersedes <code>desktop</code> T8):<ul>
+<li><code>extension/</code> holds the manifest (§5), an icon and <code>launch.py</code>. In phase 1,
+<code>launch.py</code> only runs <code>lc mcp</code> with the granted folders.</li>
+<li><code>scripts/pack_mcpb.py</code> zips the manifest, <code>launch.py</code>, <code>pyproject.toml</code>,
+<code>uv.lock</code>, <code>src/</code> and <code>prompts/</code>.</li>
+<li>The CI job runs <code>uv lock --check</code>, the pack and <code>mcpb validate</code>, and keeps
+the <code>.mcpb</code> as an artifact.</li>
+</ul>
+</li>
+<li><strong>T2 Release on tag</strong> (release on tag, with smoke test):<ul>
+<li>Merging a version bump tags <code>vX.Y.Z</code>.</li>
+<li>The tag runs <code>release.yml</code> on <code>windows-latest</code>. The job:</li>
+<li>checks that the tag matches <code>pyproject.toml</code>;</li>
+<li>packs and validates the bundle;</li>
+<li>runs <code>scripts/smoke_mcpb.py</code>: unzip, uv 0.9.7 <code>uv sync</code> with no system
+  Python, JSON-RPC <code>initialize</code>, <code>tools/list</code> and <code>works</code>, the installed
+  versions compared with <code>uv.lock</code>, and the pywin32 import;</li>
+<li>publishes the Release with the <code>.mcpb</code>, <code>SHA256SUMS</code> and plain notes.</li>
+<li>This task ends by cutting the first release.</li>
+</ul>
+</li>
+<li><strong>T3 Clean-PC probe</strong> (clean-PC probe on the released bundle) (<code>desktop</code> T1, run on the
+  real file):<ul>
+<li>The PC is Windows Sandbox or a fresh account, with Controlled folder
+access on and no Python or uv.</li>
+<li>The owner downloads the Release's <code>.mcpb</code>, drags it onto the app and
+presses Install.</li>
+<li>Records:</li>
+<li>each warning, word for word (desktop Q-8);</li>
+<li>whether the server starts and pywin32 imports (desktop Q-3);</li>
+<li>whether the server sees <code>UV</code> (Q-5);</li>
+<li>a reinstall of the same file, to see whether the settings are kept
+  (Q-6);</li>
+<li>every approval question the app asks, and whether a group allow exists
+  (Q-7);</li>
+<li>whether a normal user can read the Controlled folder access settings
+  (Q-8);</li>
+<li>the VirusTotal result.</li>
+<li>Evidence goes to <code>status/evidence/release-probe.md</code>, and the spec's open
+questions are updated.</li>
+<li>If the <code>uv</code> type fails, stop and revise the spec (D-1).</li>
+</ul>
+</li>
+<li><strong>T4 Update check</strong> (update check via Releases):<ul>
+<li><code>kit.update_check</code> reads <code>releases/latest</code> and needs a <code>.mcpb</code> asset.</li>
+<li>It runs in a thread started with the server, at most once a day, and
+writes <code>update.json</code>.</li>
+<li><code>resume</code> and <code>works</code> add <code>update</code>.</li>
+<li><code>works(check_update=true)</code> skips the daily limit.</li>
+<li>The guide keeps install D-2's sentence rules.</li>
+</ul>
+</li>
+<li><strong>T5 State place</strong> (working state with a Controlled folder access fallback):<ul>
+<li><code>cfa.py</code> reads whether Controlled folder access is on and which folders
+it protects, from PowerShell or the registry, with a fake for tests.</li>
+<li>Before the first write for a work, the place is chosen: beside the
+novel, or else the fallback. The choice is recorded in <code>folders.json</code>
+and returned once as <code>state_place</code>.</li>
+<li>If the settings cannot be read, the tool tries the novel's folder once
+and falls back if the write is refused (<code>winblock.kind</code>).</li>
+</ul>
+</li>
+<li><strong>T6 Word-only writes</strong> (manuscript only through Word):<ul>
+<li>When the document is closed, <code>apply_edits</code> asks the live engine to open
+it in Word, then applies the change. The file engine is never used on the
+manuscript.</li>
+<li>Without Word, the result is a card that describes the change.</li>
+<li><code>mcp.py</code> sets <code>DOC_CONTROL_STORE=appdata</code> before doc-control is loaded.</li>
+</ul>
+</li>
+<li><strong>T7 Other doc-control</strong> (report a standalone doc-control):<ul>
+<li>Read the app's <code>extensions-installations.json</code> (enabled entries only)
+and <code>claude_desktop_config.json</code>.</li>
+<li><code>resume</code> adds <code>other_doc_control</code> once per conversation, and the guide
+turns it into one sentence.</li>
+</ul>
+</li>
+<li><strong>T8 Annotations</strong> (tool annotations and the setup sentence):<ul>
+<li>The annotations in §5 are added to <code>Tool</code> and to <code>Tool.to_dict</code>.</li>
+<li>The guide's setup part says which answer to pick, in the words Q-7
+found.</li>
+</ul>
+</li>
+<li><strong>T9 doc-control bump</strong> (daily):<ul>
+<li>A scheduled workflow reads doc-control's PyPI JSON.</li>
+<li>For a version inside the range, it runs
+<code>uv lock --upgrade-package doc-control</code>, bumps the patch version and
+opens a PR. Merging the PR releases.</li>
+<li>For a version outside the range, it opens an issue.</li>
+</ul>
+</li>
+<li><strong>T10 Owner switch</strong> (owner moves to the extension) (D-11):<ul>
+<li>The owner installs the released <code>.mcpb</code> on their own PC and removes the
+<code>literary-critic-dev</code> entry. The works are found through the shared
+<code>folders.json</code>.</li>
+<li><code>docs/</code> drops the dev-entry instructions and says how a fix reaches the
+owner: a merge, then a release, then an update.</li>
+</ul>
+</li>
+<li><strong>T11 Staging assets</strong> (release assets for staging):<ul>
+<li><code>release.yml</code> also builds the wheel, <code>uv export --hashes</code> (with the wheel
+pinned by hash) and <code>release.json</code>.</li>
+<li><code>reinstall</code> is true when <code>extension/</code> changed since the last release.</li>
+</ul>
+</li>
+<li><strong>T12 Launcher</strong> (launcher with rollback):<ul>
+<li><code>launch.py</code> reads <code>runtime\state.json</code> and runs the newest ready runtime.</li>
+<li>It counts failed starts, which are exits within 10 s of start. After two,
+it marks the runtime bad and runs <code>previous</code>, or the bundled runtime.</li>
+<li>It keeps two runtimes and is stdlib only.</li>
+</ul>
+</li>
+<li><strong>T13 Self-update</strong> (staging, the checkbox and update now):<ul>
+<li><code>staging.py</code> checks after the update check. It uses <code>UV</code>, or a uv it
+downloads with a pinned checksum, as Q-5 decided.</li>
+<li>It builds <code>runtime\X.Y.Z\</code> with <code>--require-hashes</code>, self-tests with
+<code>initialize</code> and <code>tools/list</code>, and marks the runtime ready.</li>
+<li><code>LC_AUTO_UPDATE</code> turns it off.</li>
+<li><code>works(check_update=true)</code> stages at once and returns
+<code>restart_needed</code>.</li>
+<li>The first start on a new version returns <code>update.applied</code> once.</li>
+<li>The phase-2 release sets <code>reinstall: true</code>, so phase-1 installs are told
+to reinstall once.</li>
+</ul>
+</li>
+<li><strong>T14 Test run</strong> (test run on a clean PC) (<code>desktop</code> T10, run on the released
+  bundle):<ul>
+<li>Install the phase-2 release from its link.</li>
+<li>Run the scripted session from §1 with the novel in Documents and
+Controlled folder access on.</li>
+<li>Then publish a patch release and restart the app once.</li>
+<li>Read Windows Security's protection history.</li>
+<li>The transcripts and the history give every §1 criterion.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Status legend</strong>: ☐ not started · ◐ in progress · ☑ merged</p>
+<p><strong>Merge order</strong>:
+- T1, then T2, then T3. This is the first chain.
+- T6 and T7 can start at once, in parallel with that chain.
+- After T2: T4 and T9.
+- After T3: T5 (which needs Q-8), T8 (which needs Q-7) and T11. T10 after T8.
+- Phase 2 in a row after T3: T11, then T12, then T13 (which also waits for
+  T4).
+- T14 last. T9 is not needed for it and can land any time.</p>
+<p><strong>Branch pattern</strong>: <code>release-T&lt;N&gt;-description</code> from the default branch.</p></div>
+<div class="note" data-for="s-plan-task-details"><label class="note-head" for="n-s-plan-task-details"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Task details</span></label><textarea class="note-ta" data-key="s-plan-task-details" id="n-s-plan-task-details" data-label="Task details" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-plan-dependency-graph">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Dependency graph</span></h4>
+<div class="sec-body"><figure class="drawspec"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-0.75 -0.75 665.5 644.215" role="img" aria-labelledby="ds6e08f1d7ac-title"><title id="ds6e08f1d7ac-title">Task dependencies</title><path d="M 332 59.245 L 332 107.245" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,107.245 328.4,99.245 335.6,99.245" fill="currentColor" stroke="none"/><path d="M 315.699 154.49 L 315.699 178.49 L 199.33 178.49 L 199.33 202.49" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="199.33,202.49 195.73,194.49 202.93,194.49" fill="currentColor" stroke="none"/><path d="M 332 154.49 L 332 202.49" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,202.49 328.4,194.49 335.6,194.49" fill="currentColor" stroke="none"/><path d="M 183.029 249.735 L 183.029 273.735 L 66.659 273.735 L 66.659 297.735" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="66.659,297.735 63.059,289.735 70.259,289.735" fill="currentColor" stroke="none"/><path d="M 199.33 249.735 L 199.33 297.735" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="199.33,297.735 195.73,289.735 202.93,289.735" fill="currentColor" stroke="none"/><path d="M 348.301 154.49 L 348.301 184.49 L 464.67 184.49 L 464.67 202.49" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="464.67,202.49 461.07,194.49 468.27,194.49" fill="currentColor" stroke="none"/><path d="M 199.33 344.98 L 199.33 392.98" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="199.33,392.98 195.73,384.98 202.93,384.98" fill="currentColor" stroke="none"/><path d="M 215.63 249.735 L 215.63 279.735 L 332 279.735 L 332 297.735" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,297.735 328.4,289.735 335.6,289.735" fill="currentColor" stroke="none"/><path d="M 332 344.98 L 332 392.98" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,392.98 328.4,384.98 335.6,384.98" fill="currentColor" stroke="none"/><path d="M 332 249.735 L 332 291.735 L 265.665 291.735 L 265.665 464.225 L 321.133 464.225 L 321.133 488.225" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="321.133,488.225 317.533,480.225 324.733,480.225" fill="currentColor" stroke="none"/><path d="M 342.867 440.225 L 342.867 488.225" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="342.867,488.225 339.267,480.225 346.467,480.225" fill="currentColor" stroke="none"/><path d="M 66.659 344.98 L 66.659 553.47 L 310.266 553.47 L 310.266 583.47" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="310.266,583.47 306.666,575.47 313.866,575.47" fill="currentColor" stroke="none"/><path d="M 464.67 59.245 L 464.67 196.49 L 398.335 196.49 L 398.335 565.47 L 342.867 565.47 L 342.867 583.47" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="342.867,583.47 339.267,575.47 346.467,575.47" fill="currentColor" stroke="none"/><path d="M 597.341 59.245 L 597.341 553.47 L 353.734 553.47 L 353.734 583.47" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="353.734,583.47 350.134,575.47 357.334,575.47" fill="currentColor" stroke="none"/><path d="M 199.33 440.225 L 199.33 565.47 L 321.133 565.47 L 321.133 583.47" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="321.133,583.47 317.533,575.47 324.733,575.47" fill="currentColor" stroke="none"/><path d="M 332 535.47 L 332 583.47" fill="none" stroke="currentColor" stroke-width="1.5"/><polygon points="332,583.47 328.4,575.47 335.6,575.47" fill="currentColor" stroke="none"/><rect x="277.665" y="12" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="31.548" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T1</tspan></text><text x="332" y="44.171" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Pack and CI check</tspan></text><rect x="144.994" y="392.98" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="199.33" y="412.528" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T10</tspan></text><text x="199.33" y="425.151" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Owner switch</tspan></text><rect x="277.665" y="297.735" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="317.283" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T11</tspan></text><text x="332" y="329.906" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Staging assets</tspan></text><rect x="277.665" y="392.98" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="412.528" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T12</tspan></text><text x="332" y="425.151" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Launcher</tspan></text><rect x="277.665" y="488.225" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="507.773" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T13</tspan></text><text x="332" y="520.396" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Self-update</tspan></text><rect x="277.665" y="583.47" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="603.018" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T14</tspan></text><text x="332" y="615.641" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Test run</tspan></text><rect x="277.665" y="107.245" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="126.793" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T2</tspan></text><text x="332" y="139.416" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Release on tag</tspan></text><rect x="144.994" y="202.49" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="199.33" y="222.038" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T3</tspan></text><text x="199.33" y="234.661" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Clean-PC probe</tspan></text><rect x="277.665" y="202.49" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="332" y="222.038" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T4</tspan></text><text x="332" y="234.661" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Update check</tspan></text><rect x="12.324" y="297.735" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="66.659" y="317.283" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T5</tspan></text><text x="66.659" y="329.906" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>State place</tspan></text><rect x="410.335" y="12" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="464.67" y="31.548" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T6</tspan></text><text x="464.67" y="44.171" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Word-only writes</tspan></text><rect x="543.006" y="12" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="597.341" y="31.548" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T7</tspan></text><text x="597.341" y="44.171" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Other doc-control</tspan></text><rect x="144.994" y="297.735" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="199.33" y="317.283" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T8</tspan></text><text x="199.33" y="329.906" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>Annotations</tspan></text><rect x="410.335" y="202.49" width="108.67" height="47.245" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="464.67" y="222.038" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan font-weight="bold">T9</tspan></text><text x="464.67" y="234.661" font-family="'DejaVu Sans', sans-serif" font-size="9.35" fill="currentColor" text-anchor="middle"><tspan>doc-control bump</tspan></text></svg></figure></div>
+<div class="note" data-for="s-plan-dependency-graph"><label class="note-head" for="n-s-plan-dependency-graph"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Dependency graph</span></label><textarea class="note-ta" data-key="s-plan-dependency-graph" id="n-s-plan-dependency-graph" data-label="Dependency graph" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-plan-evidence-log">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Evidence log</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>T#</th>
+<th>Gate</th>
+<th>Measured</th>
+<th>Command</th>
+<th>SHA</th>
+<th>Env</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-plan-evidence-log"><label class="note-head" for="n-s-plan-evidence-log"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Evidence log</span></label><textarea class="note-ta" data-key="s-plan-evidence-log" id="n-s-plan-evidence-log" data-label="Evidence log" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-plan-sign-off">
+<h3 class="sec-h"><span class="chip">▸</span><span class="sec-title">Sign-off</span></h3>
+<div class="sec-body"><ul>
+<li>[ ] Plan reviewed by the owner</li>
+<li>[ ] Q-5 to Q-8 answered (T3)</li>
+<li>[ ] Ready for execution</li>
+</ul></div>
+<div class="note" data-for="s-plan-sign-off"><label class="note-head" for="n-s-plan-sign-off"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">PLAN › Sign-off</span></label><textarea class="note-ta" data-key="s-plan-sign-off" id="n-s-plan-sign-off" data-label="Sign-off" data-part="Plan" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-plan-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
+  function exportName(){return 'literary-critic-plan-v1-'+today()+'-notes.md';}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Plan notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var saved=download(exportName(),r.text);openModal(r.text);
+    // download() returning only means the download was REQUESTED; a browser can
+    // still block or drop it. So `dirty` — what arms the unload warning — is
+    // cleared only on a confirmed copy: the clipboard promise fulfilling.
+    var cp=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){cp=navigator.clipboard.writeText(r.text);}}catch(e){cp=null;}
+    if(cp&&typeof cp.then==='function'){cp.then(function(){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');},function(){});}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    setState('Download requested '+nowStamp(),'ok');
+    toast('Download requested — '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){if(ok){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');}
+                        toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download(exportName(),modalTa.value);toast('Download requested');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
