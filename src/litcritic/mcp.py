@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
-from litcritic import __version__, change, overview, plan, rounds, settings, structure
+from litcritic import __version__, change, overview, plan, rounds, settings, structure, winblock
 from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
@@ -149,6 +149,8 @@ class Server:
         except Exception as exc:
             self._note(traceback.format_exc())
             out, is_error = {"error": "internal", "detail": repr(exc)}, True
+            if blocked := winblock.advice(exc):
+                out = {"error": "windows_block", "detail": str(exc), **blocked}
         self._note("call", name, "error" if is_error else "ok")
         text = json.dumps(out, ensure_ascii=False, indent=1)
         result: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": is_error}
@@ -400,7 +402,7 @@ def setup_work(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
             "notice": settings.notice(lang),
         }
     except (setup.SetupError, settings.SettingsError, OSError, ValueError) as exc:
-        raise ToolError("setup_failed", message=str(exc)) from None
+        raise ToolError("setup_failed", message=str(exc), **winblock.advice(exc)) from None
     out["say"] = SETUP_NEXT
     return out
 
@@ -477,18 +479,26 @@ def _run_argv(grant: Any, ws: Workspace, argv: list[str]) -> dict[str, Any]:
     except ToolError:
         args = _parse(argv)  # a subcommand without --workspace (`codex questions`)
     out, err = io.StringIO(), io.StringIO()
+    blocked: dict[str, Any] = {}
     try:
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = args.func(args)
     except SystemExit as exc:
         code = exc.code if isinstance(exc.code, int) else 1
+    except OSError as exc:  # a command that let a failed save through
+        code, blocked = 2, winblock.advice(exc)
+        if not blocked:
+            raise
+        err.write(str(exc))
     text = out.getvalue()
     result: dict[str, Any] = {"exit": code or 0, "output": text[:RUN_OUTPUT_CAP]}
     if len(text) > RUN_OUTPUT_CAP:
         result["truncated"] = len(text)
     if err.getvalue().strip():
         result["errors"] = err.getvalue().strip()[:RUN_OUTPUT_CAP]
-    return result
+    if code and not blocked:  # only a failed command: the output may quote the novel
+        blocked = winblock.advice(f"{err.getvalue()}\n{text}")
+    return {**result, **blocked}
 
 
 WORK_HINT = (
@@ -507,6 +517,8 @@ def _json_run(grant: Any, work: str, argv: list[str]) -> dict[str, Any]:
         out: dict[str, Any] = json.loads(ran["output"])
     except ValueError:
         return ran
+    if "windows_block" in ran and isinstance(out, dict):
+        out["windows_block"] = ran["windows_block"]
     return out
 
 
@@ -565,7 +577,7 @@ def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
     except plan.Refused as exc:
         raise ToolError(exc.reason, message=exc.message) from None
     except (OSError, ValueError, plan.PlanError) as exc:
-        raise ToolError("error", message=str(exc)) from None
+        raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
     if code != 0:
         raise ToolError(str(out.get("reason") or "refused"), message=str(out.get("message") or ""))
     locate = out.get("locate") or {}
@@ -589,7 +601,7 @@ def change_dismiss(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
     except plan.Refused as exc:
         raise ToolError(exc.reason, message=exc.message) from None
     except (OSError, ValueError, plan.PlanError) as exc:
-        raise ToolError("error", message=str(exc)) from None
+        raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
 
 
 def plan_status(grant: Any, work: str) -> dict[str, Any]:
@@ -600,7 +612,7 @@ def plan_status(grant: Any, work: str) -> dict[str, Any]:
     try:
         return plan.status(ws.root)
     except (OSError, ValueError, plan.PlanError) as exc:
-        raise ToolError("error", message=str(exc)) from None
+        raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
 
 
 SELECT_KEYS = ("at", "find_phrase", "find_phrase_across", "mode", "front")
@@ -617,7 +629,8 @@ def select(args: dict[str, Any]) -> dict[str, Any]:
     try:
         return {"ok": True, "result": word_live.run("live.select", request)}
     except dc.DocError as exc:
-        return {"ok": False, "error": {"code": exc.code, "message": exc.message}}
+        error = {"code": exc.code, "message": exc.message}
+        return {"ok": False, "error": error, **winblock.advice(str(exc))}
 
 
 WORK_ARG = {"type": "string", "description": "the novel's title or folder name"}

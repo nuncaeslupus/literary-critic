@@ -274,6 +274,19 @@ were never packed. `--force` makes the workspace an exact copy of the zip.
 Damaged zips, unsafe names and unsafe paths are always rejected, and files are
 staged before the workspace is touched.
 
+## When Windows blocks a save
+
+Windows Security's ransomware protection (Controlled folder access) refuses
+writes from programs it does not know in Documents, Desktop, Pictures and the
+like, which is where novels often live. `winblock.py` tells that refusal
+(`WinError 5`) apart from a file open in Word (`WinError 32`, `33`), with a
+bare `Errno 13` as either. The MCP tools add `windows_block` (`kind`, `path`,
+`protected_folder`, `program`, `say`) to a failed save; `say` holds the clicks:
+Windows Security > Virus & threat protection > Manage ransomware protection >
+Allow an app through Controlled folder access > Add an allowed app > Recently
+blocked apps. The literary-critic extension's Python and doc-control's
+program each need allowing once, and again when an update moves them.
+
 ## Rules
 
 - `lc init` refuses a workspace inside this repo's work tree.

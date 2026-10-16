@@ -464,6 +464,44 @@ def test_setup_refuses_a_folder_outside_the_grant(tmp_path: Path) -> None:
     assert json.loads(res["content"][0]["text"])["error"] == "outside_granted_folders"
 
 
+def test_run_explains_a_windows_block_only_when_the_command_failed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed save comes back with the clicks to fix it; novel text quoting it does not."""
+    import argparse
+
+    server, _ws = _change_work(tmp_path, monkeypatch, propose=False)
+
+    def blocked(args: Any) -> int:
+        exc = PermissionError(13, "Access is denied", r"C:\Users\w\Documents\n\x.json")
+        setattr(exc, "winerror", 5)  # noqa: B010  # only Windows defines it
+        raise exc
+
+    def open_in_word(args: Any) -> int:
+        message = r"[WinError 32] being used by another process: 'C:\n\draft.docx'"
+        print(json.dumps({"status": "error", "message": message}))
+        return 2
+
+    def quoted(args: Any) -> int:
+        print("Access is denied, she said.")
+        return 0
+
+    def full_disk(args: Any) -> int:
+        raise OSError(28, "No space left on device")
+
+    def run(func: Any) -> dict[str, Any]:
+        monkeypatch.setattr(mcp, "_parse", lambda argv: argparse.Namespace(func=func))
+        return _call_raw(server, "run", {"work": "mynovel", "command": ["round", "status"]})
+
+    out = _text(run(blocked))
+    assert out["exit"] == 2 and out["windows_block"]["kind"] == "blocked"
+    assert out["windows_block"]["protected_folder"] is True
+    assert _text(run(open_in_word))["windows_block"]["kind"] == "open"
+    assert "windows_block" not in _text(run(quoted))
+    failed = run(full_disk)
+    assert failed["isError"] and _text(failed)["error"] == "internal"
+
+
 def test_resume_returns_the_saved_overview_and_moves_on(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
