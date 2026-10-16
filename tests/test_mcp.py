@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import __version__, folders, mcp
+from litcritic import __version__, claude_app, folders, mcp
 from litcritic.cli import build_parser
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mcp"
@@ -721,7 +721,7 @@ def test_resume_reports_standalone_doccontrol_once(
     for name, data in files.items():
         (app / name).parent.mkdir(parents=True, exist_ok=True)
         (app / name).write_text(json.dumps(data), encoding="utf-8")
-    monkeypatch.setenv(mcp.claude_app.APP_DIR_ENV, str(app))
+    monkeypatch.setenv(claude_app.APP_DIR_ENV, str(app))
     monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
     _novel(tmp_path, "Only", "Only")
     server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Only")])))
