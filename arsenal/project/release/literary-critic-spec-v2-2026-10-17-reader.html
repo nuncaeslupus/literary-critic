@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="arsenal-source-sha256" content="ce5a7dc50e06f7125615535c13ba1bf34df1d10422566a6dc8d02e6f5ba97cea">
+<meta name="arsenal-source-sha256" content="5fe63e60fdd5c19f8a294d377d146b13e12f60e866a38e8b83223b908b53eddc">
 <title>Literary Critic — Specification (annotatable)</title>
 <style>
 :root{
@@ -161,7 +161,7 @@ h4 .chip{font-size:11px;color:var(--muted)}
     <button class="btn primary" id="btn-export">Save / Export</button>
   </div>
 </div>
-<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 10 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 14 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
 <div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
 
 <div class="wrap">
@@ -192,6 +192,11 @@ h4 .chip{font-size:11px;color:var(--muted)}
 <li><a href="#s-spec-rejected-a-frozen-exe-binary-typ">Rejected: a frozen exe (binary type, like doc-control's packaging)</a></li>
 <li><a href="#s-spec-comparison">Comparison</a></li>
 <li><a href="#s-spec-4">§4 Recommendation</a></li>
+<li><a href="#s-spec-5">§5 Contracts</a></li>
+<li><a href="#s-spec-api-contracts">API contracts</a></li>
+<li><a href="#s-spec-inter-service-contracts">Inter-service contracts</a></li>
+<li><a href="#s-spec-database-migrations">Database migrations</a></li>
+<li><a href="#s-spec-6">§6 Risks &amp; Validation</a></li>
 </ul></details>
 </details>
   <section class="part">
@@ -1046,11 +1051,300 @@ in one run.</p>
 <td>2026-10-16</td>
 </tr>
 </tbody>
-</table>
-<blockquote>
-<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
-</blockquote></div>
+</table></div>
 <div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2 bare" id="s-spec-5">
+<h3 class="sec-h"><span class="chip">§5</span><span class="sec-title">Contracts</span></h3>
+</article>
+<article class="sec l3" id="s-spec-api-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">API contracts</span></h4>
+<div class="sec-body"><p>The extension's server speaks MCP over stdio. Its contracts are the manifest,
+the tools' inputs and results, and the files on GitHub Releases.</p>
+<h4>Manifest (<code>extension/manifest.json</code>, MCPB 0.4)</h4>
+<ul>
+<li><strong>Server</strong>: <code>"server": {"type": "uv", "entry_point": "launch.py"}</code>. In phase 1,
+  <code>launch.py</code> only starts <code>lc mcp</code>. In phase 2 it also picks the runtime (D-8).</li>
+<li><strong>Settings</strong>:
+  <code>json
+  "user_config": {
+    "novels_folder": {"type": "directory", "multiple": true, "required": false,
+                      "title": "Your novels' folder"},
+    "auto_update":   {"type": "boolean", "default": true,
+                      "title": "Update automatically"}
+  }</code></li>
+<li><strong>Environment passed to the server</strong>: <code>LC_AUTO_UPDATE=${user_config.auto_update}</code>
+  and <code>DOC_CONTROL_STORE=appdata</code>.</li>
+<li><strong>Version</strong>: taken from <code>pyproject.toml</code>. The pack script refuses a
+  mismatch.</li>
+<li><strong>Backwards compatible</strong>: a setting's key never changes once released, so a
+  reinstall keeps its value (Q-6).</li>
+</ul>
+<h4><code>works</code> and <code>resume</code> results: new fields</h4>
+<ul>
+<li><strong><code>works</code> input</strong>: <code>{"check_update": true}</code> is optional. It checks at once,
+  ignoring the daily limit, and in phase 2 it also stages at once.</li>
+<li><strong>Result (added keys)</strong>:
+  <code>json
+  {
+    "update": {"available": "yes", "url": "https://github.com/&lt;owner&gt;/literary-critic/releases/latest",
+               "applied": false, "restart_needed": false},
+    "other_doc_control": {"kind": "extension", "name": "doc-control"},
+    "state_place": {"where": "fallback", "path": "C:\\Users\\&lt;user&gt;\\OneDrive\\literary-critic\\&lt;work&gt;",
+                    "say_once": true}
+  }</code><ul>
+<li><code>update.available</code> is <code>yes</code>, <code>no</code> or <code>unknown</code>. The writer is told only
+about <code>yes</code>.</li>
+<li><code>applied: true</code> means this start runs a version that phase 2 staged.</li>
+<li><code>restart_needed: true</code> means a staged version is waiting for a restart.</li>
+<li><code>other_doc_control</code> is absent when there is none. Its <code>kind</code> is
+<code>extension</code> or <code>config</code>.</li>
+<li><code>state_place</code> appears only the first time a work's state is not beside
+the novel.</li>
+</ul>
+</li>
+<li><strong>Errors</strong>: none new. If the check, the detection or the staging fails, the
+  result leaves that key out or sets it to <code>unknown</code>. The tool call never
+  fails because of it.</li>
+<li><strong>Backwards compatible</strong>: yes; keys are only added.</li>
+</ul>
+<h4>Tool annotations (<code>tools/list</code>)</h4>
+<ul>
+<li><code>{"readOnlyHint": true}</code> on <code>works</code>, <code>resume</code>, <code>locate</code>, <code>find</code>, <code>show</code>,
+  <code>places</code> and <code>ask</code>.</li>
+<li><code>{"readOnlyHint": false, "destructiveHint": false}</code> on the tools that write
+  only the tool's own state: <code>setup</code>, <code>plan</code>, <code>add_folder</code>, <code>select</code> and
+  <code>run</code>.</li>
+<li><code>change_card</code>: <code>{"readOnlyHint": false, "destructiveHint": false}</code>. Its card
+  is the writer's approval of each change.</li>
+<li><strong>Backwards compatible</strong>: yes; older clients ignore the field.</li>
+</ul>
+<h4>GitHub Releases (read by the update check)</h4>
+<ul>
+<li><strong>The request</strong>: <code>GET https://api.github.com/repos/&lt;owner&gt;/literary-critic/releases/latest</code>.<ul>
+<li>No auth, a 5 s timeout, at most once a day; the answer is cached in the
+extension's state folder.</li>
+<li>A release counts only when it has an asset named
+<code>literary-critic-&lt;X.Y.Z&gt;.mcpb</code>.</li>
+</ul>
+</li>
+<li><strong>Release assets</strong>:
+  | Asset | Phase | Use |
+  |-------|-------|-----|
+  | <code>literary-critic-X.Y.Z.mcpb</code> | 1 | What the writer installs |
+  | <code>SHA256SUMS</code> | 1 | Checksums of every asset |
+  | <code>literary_critic-X.Y.Z-py3-none-any.whl</code> | 2 | The code staging installs |
+  | <code>requirements-X.Y.Z.txt</code> | 2 | <code>uv export --hashes</code> of the lock, with the wheel pinned by hash |
+  | <code>release.json</code> | 2 | <code>{"version": "X.Y.Z", "reinstall": false}</code> |</li>
+<li><strong>Failure handling</strong>: an HTTP error, a timeout, a missing asset or bad JSON
+  gives <code>unknown</code>, and nothing is said.</li>
+</ul></div>
+<div class="note" data-for="s-spec-api-contracts"><label class="note-head" for="n-s-spec-api-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › API contracts</span></label><textarea class="note-ta" data-key="s-spec-api-contracts" id="n-s-spec-api-contracts" data-label="API contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-inter-service-contracts">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Inter-service contracts</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Caller</th>
+<th>Callee</th>
+<th>Protocol</th>
+<th>Contract</th>
+<th>Failure handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Claude app</td>
+<td><code>launch.py</code>, then <code>lc mcp</code></td>
+<td>MCP over stdio</td>
+<td><code>initialize</code>, <code>tools/list</code> and <code>tools/call</code>, as today</td>
+<td>The app shows the server as failed; the launcher logs to <code>mcp.log</code></td>
+</tr>
+<tr>
+<td><code>lc mcp</code></td>
+<td>doc-control</td>
+<td>In-process <code>doc_control.api.run</code>, through <code>dc.py</code></td>
+<td><code>DOC_CONTROL_STORE=appdata</code>; only <code>live.*</code> writes the manuscript</td>
+<td>A closed document is opened in Word first; without Word, the card describes the change</td>
+</tr>
+<tr>
+<td><code>lc mcp</code></td>
+<td>Windows Defender settings</td>
+<td>Read <code>Get-MpPreference</code> or the registry</td>
+<td><code>EnableControlledFolderAccess</code> and <code>ControlledFolderAccessProtectedFolders</code></td>
+<td>If unreadable, try the novel's folder once and fall back on refusal (Q-8)</td>
+</tr>
+<tr>
+<td><code>lc mcp</code></td>
+<td>The Claude app's files</td>
+<td>Read <code>extensions-installations.json</code> and <code>claude_desktop_config.json</code></td>
+<td>Finds a standalone doc-control</td>
+<td>If unreadable, report nothing</td>
+</tr>
+<tr>
+<td>Staging (phase 2)</td>
+<td>uv</td>
+<td>Subprocess: the <code>UV</code> env var, or its own pinned uv (Q-5)</td>
+<td><code>uv venv</code>, then <code>uv pip install --require-hashes -r requirements-X.Y.Z.txt</code>, into <code>runtime\X.Y.Z\</code></td>
+<td>Any failure leaves the runtime not ready; it is retried the next day</td>
+</tr>
+<tr>
+<td><code>launch.py</code> (phase 2)</td>
+<td>The runtime folder</td>
+<td><code>runtime\state.json</code></td>
+<td><code>{"current": "X.Y.Z", "previous": "X.Y.W", "failures": {"X.Y.Z": 0}}</code></td>
+<td>Two failed starts mark the runtime <code>bad</code>; the launcher goes back to <code>previous</code> or to the bundled runtime</td>
+</tr>
+<tr>
+<td><code>release.yml</code></td>
+<td>GitHub</td>
+<td>A pushed <code>vX.Y.Z</code> tag</td>
+<td>Publishes the assets above, after the smoke test</td>
+<td>If any step fails, no Release is published</td>
+</tr>
+<tr>
+<td><code>doccontrol-bump.yml</code></td>
+<td>PyPI JSON API</td>
+<td>Daily schedule</td>
+<td>A new version inside the range opens a bump PR; one outside it opens an issue</td>
+<td>A failed run is retried the next day</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-inter-service-contracts"><label class="note-head" for="n-s-spec-inter-service-contracts"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Inter-service contracts</span></label><textarea class="note-ta" data-key="s-spec-inter-service-contracts" id="n-s-spec-inter-service-contracts" data-label="Inter-service contracts" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-database-migrations">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Database migrations</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Database</th>
+<th>Change</th>
+<th>Reversible</th>
+<th>Forward-compatible</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>folders.py</code></td>
+<td><code>%APPDATA%\literary-critic\folders.json</code></td>
+<td>Add <code>"state": {"&lt;manuscript key&gt;": "&lt;state folder&gt;"}</code> for each work whose state is not beside the novel</td>
+<td>Yes: without the key, the work looks beside the novel again</td>
+<td>Yes: older versions ignore the key</td>
+</tr>
+<tr>
+<td>Phase 2</td>
+<td><code>%LOCALAPPDATA%\literary-critic\runtime\state.json</code></td>
+<td>New file</td>
+<td>Yes: without it, the bundled runtime runs</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Update check</td>
+<td><code>&lt;state folder&gt;\update.json</code></td>
+<td><code>{"at", "latest", "url"}</code>, replacing the tag cache</td>
+<td>Yes</td>
+<td>Yes</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-database-migrations"><label class="note-head" for="n-s-spec-database-migrations"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Database migrations</span></label><textarea class="note-ta" data-key="s-spec-database-migrations" id="n-s-spec-database-migrations" data-label="Database migrations" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-6">
+<h3 class="sec-h"><span class="chip">§6</span><span class="sec-title">Risks &amp; Validation</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+<th>Validation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The <code>uv</code> server type fails on a PC without Python (pywin32, or the Python download)</td>
+<td>Med</td>
+<td>High</td>
+<td>The probe (T3) runs the released bundle on a clean PC before any feature work depends on it. The rejected <code>binary</code> type is the fallback</td>
+<td>Manual (clean-PC probe)</td>
+</tr>
+<tr>
+<td>SmartScreen or Defender flags the <code>.mcpb</code></td>
+<td>Low</td>
+<td>High</td>
+<td>We ship no exe. Every release goes through VirusTotal. Signing (Q-4) is reopened only if the probe shows a warning</td>
+<td>Security (probe, VirusTotal)</td>
+</tr>
+<tr>
+<td>A normal user cannot read the Controlled folder access settings (Q-8)</td>
+<td>Med</td>
+<td>Med</td>
+<td>Try the novel's folder once and fall back on refusal. The criterion allows that one Windows notice</td>
+<td>Unit (faked Defender), plus manual</td>
+</tr>
+<tr>
+<td>A broken release reaches every writer through self-update</td>
+<td>Med</td>
+<td>High</td>
+<td>The release smoke test, the staged runtime's self-test, rollback after two failed starts, and <code>reinstall: true</code> for manifest changes</td>
+<td>Unit (fakes), plus integration (smoke test)</td>
+</tr>
+<tr>
+<td>The server cannot see the <code>UV</code> variable (Q-5)</td>
+<td>Med</td>
+<td>Med</td>
+<td>Staging downloads its own uv, checked against a pinned checksum</td>
+<td>Manual (probe), plus unit</td>
+</tr>
+<tr>
+<td>A reinstall loses the folder setting or the checkbox (Q-6)</td>
+<td>Low</td>
+<td>Med</td>
+<td>Settings keep their keys. If the probe says they are lost, the update guide adds the step and the action count is redone</td>
+<td>Manual (probe)</td>
+</tr>
+<tr>
+<td>The app still asks approval for each tool in every chat, despite the annotations (Q-7)</td>
+<td>Med</td>
+<td>Med</td>
+<td>The setup sentence follows what the probe shows. The gate is measured on the test run</td>
+<td>Manual (test run)</td>
+</tr>
+<tr>
+<td>Word opening a closed document surprises the writer</td>
+<td>Med</td>
+<td>Low</td>
+<td>The card says Word will open, and the writer saves</td>
+<td>Manual (test run)</td>
+</tr>
+<tr>
+<td>A doc-control release breaks the live engine</td>
+<td>Low</td>
+<td>High</td>
+<td>The bump PR runs the full CI and the release smoke test before anything is released</td>
+<td>Integration</td>
+</tr>
+<tr>
+<td>Same-day releases flood writers with notices</td>
+<td>Med</td>
+<td>Low</td>
+<td>The notice is given once per conversation, and phase 2 makes updates silent</td>
+<td>Judged on the test run</td>
+</tr>
+<tr>
+<td>The update check slows a tool call</td>
+<td>Low</td>
+<td>Med</td>
+<td>It runs in a background thread and is cached for a day</td>
+<td>Perf (network mocked slow)</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-6"><label class="note-head" for="n-s-spec-6"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §6</span></label><textarea class="note-ta" data-key="s-spec-6" id="n-s-spec-6" data-label="§6 Risks &amp; Validation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
 </article>
 </section>
 </div>

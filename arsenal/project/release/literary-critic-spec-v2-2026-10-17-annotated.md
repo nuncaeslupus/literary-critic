@@ -609,11 +609,148 @@ in one run.
 | D-12 | The `.mcpb` is not signed for now | agreed | 2026-10-16 |
 | D-13 | Tools declare read-only or write annotations, and the setup guide tells the writer to answer "Always allow" once | proposed (r2) | 2026-10-16 |
 
-
-> Sections 5–6 (contracts, risks) are appended by `design`.
-
 <!-- -->
 
 > **✎ Notes** · `SPEC §4`
+> _(your notes here — replace this line)_
+
+## §5 Contracts
+
+### API contracts
+
+The extension's server speaks MCP over stdio. Its contracts are the manifest,
+the tools' inputs and results, and the files on GitHub Releases.
+
+#### Manifest (`extension/manifest.json`, MCPB 0.4)
+
+- **Server**: `"server": {"type": "uv", "entry_point": "launch.py"}`. In phase 1,
+  `launch.py` only starts `lc mcp`. In phase 2 it also picks the runtime (D-8).
+- **Settings**:
+  ```json
+  "user_config": {
+    "novels_folder": {"type": "directory", "multiple": true, "required": false,
+                      "title": "Your novels' folder"},
+    "auto_update":   {"type": "boolean", "default": true,
+                      "title": "Update automatically"}
+  }
+  ```
+- **Environment passed to the server**: `LC_AUTO_UPDATE=${user_config.auto_update}`
+  and `DOC_CONTROL_STORE=appdata`.
+- **Version**: taken from `pyproject.toml`. The pack script refuses a
+  mismatch.
+- **Backwards compatible**: a setting's key never changes once released, so a
+  reinstall keeps its value (Q-6).
+
+#### `works` and `resume` results: new fields
+
+- **`works` input**: `{"check_update": true}` is optional. It checks at once,
+  ignoring the daily limit, and in phase 2 it also stages at once.
+- **Result (added keys)**:
+  ```json
+  {
+    "update": {"available": "yes", "url": "https://github.com/<owner>/literary-critic/releases/latest",
+               "applied": false, "restart_needed": false},
+    "other_doc_control": {"kind": "extension", "name": "doc-control"},
+    "state_place": {"where": "fallback", "path": "C:\\Users\\<user>\\OneDrive\\literary-critic\\<work>",
+                    "say_once": true}
+  }
+  ```
+  - `update.available` is `yes`, `no` or `unknown`. The writer is told only
+    about `yes`.
+  - `applied: true` means this start runs a version that phase 2 staged.
+  - `restart_needed: true` means a staged version is waiting for a restart.
+  - `other_doc_control` is absent when there is none. Its `kind` is
+    `extension` or `config`.
+  - `state_place` appears only the first time a work's state is not beside
+    the novel.
+- **Errors**: none new. If the check, the detection or the staging fails, the
+  result leaves that key out or sets it to `unknown`. The tool call never
+  fails because of it.
+- **Backwards compatible**: yes; keys are only added.
+
+#### Tool annotations (`tools/list`)
+
+- `{"readOnlyHint": true}` on `works`, `resume`, `locate`, `find`, `show`,
+  `places` and `ask`.
+- `{"readOnlyHint": false, "destructiveHint": false}` on the tools that write
+  only the tool's own state: `setup`, `plan`, `add_folder`, `select` and
+  `run`.
+- `change_card`: `{"readOnlyHint": false, "destructiveHint": false}`. Its card
+  is the writer's approval of each change.
+- **Backwards compatible**: yes; older clients ignore the field.
+
+#### GitHub Releases (read by the update check)
+
+- **The request**: `GET https://api.github.com/repos/<owner>/literary-critic/releases/latest`.
+  - No auth, a 5 s timeout, at most once a day; the answer is cached in the
+    extension's state folder.
+  - A release counts only when it has an asset named
+    `literary-critic-<X.Y.Z>.mcpb`.
+- **Release assets**:
+  | Asset | Phase | Use |
+  |-------|-------|-----|
+  | `literary-critic-X.Y.Z.mcpb` | 1 | What the writer installs |
+  | `SHA256SUMS` | 1 | Checksums of every asset |
+  | `literary_critic-X.Y.Z-py3-none-any.whl` | 2 | The code staging installs |
+  | `requirements-X.Y.Z.txt` | 2 | `uv export --hashes` of the lock, with the wheel pinned by hash |
+  | `release.json` | 2 | `{"version": "X.Y.Z", "reinstall": false}` |
+- **Failure handling**: an HTTP error, a timeout, a missing asset or bad JSON
+  gives `unknown`, and nothing is said.
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › API contracts`
+> _(your notes here — replace this line)_
+
+### Inter-service contracts
+
+| Caller | Callee | Protocol | Contract | Failure handling |
+|--------|--------|----------|----------|-----------------|
+| Claude app | `launch.py`, then `lc mcp` | MCP over stdio | `initialize`, `tools/list` and `tools/call`, as today | The app shows the server as failed; the launcher logs to `mcp.log` |
+| `lc mcp` | doc-control | In-process `doc_control.api.run`, through `dc.py` | `DOC_CONTROL_STORE=appdata`; only `live.*` writes the manuscript | A closed document is opened in Word first; without Word, the card describes the change |
+| `lc mcp` | Windows Defender settings | Read `Get-MpPreference` or the registry | `EnableControlledFolderAccess` and `ControlledFolderAccessProtectedFolders` | If unreadable, try the novel's folder once and fall back on refusal (Q-8) |
+| `lc mcp` | The Claude app's files | Read `extensions-installations.json` and `claude_desktop_config.json` | Finds a standalone doc-control | If unreadable, report nothing |
+| Staging (phase 2) | uv | Subprocess: the `UV` env var, or its own pinned uv (Q-5) | `uv venv`, then `uv pip install --require-hashes -r requirements-X.Y.Z.txt`, into `runtime\X.Y.Z\` | Any failure leaves the runtime not ready; it is retried the next day |
+| `launch.py` (phase 2) | The runtime folder | `runtime\state.json` | `{"current": "X.Y.Z", "previous": "X.Y.W", "failures": {"X.Y.Z": 0}}` | Two failed starts mark the runtime `bad`; the launcher goes back to `previous` or to the bundled runtime |
+| `release.yml` | GitHub | A pushed `vX.Y.Z` tag | Publishes the assets above, after the smoke test | If any step fails, no Release is published |
+| `doccontrol-bump.yml` | PyPI JSON API | Daily schedule | A new version inside the range opens a bump PR; one outside it opens an issue | A failed run is retried the next day |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Inter-service contracts`
+> _(your notes here — replace this line)_
+
+### Database migrations
+
+| Service | Database | Change | Reversible | Forward-compatible |
+|---------|----------|--------|------------|-------------------|
+| `folders.py` | `%APPDATA%\literary-critic\folders.json` | Add `"state": {"<manuscript key>": "<state folder>"}` for each work whose state is not beside the novel | Yes: without the key, the work looks beside the novel again | Yes: older versions ignore the key |
+| Phase 2 | `%LOCALAPPDATA%\literary-critic\runtime\state.json` | New file | Yes: without it, the bundled runtime runs | Yes |
+| Update check | `<state folder>\update.json` | `{"at", "latest", "url"}`, replacing the tag cache | Yes | Yes |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC › Database migrations`
+> _(your notes here — replace this line)_
+
+## §6 Risks & Validation
+
+| Risk | Likelihood | Impact | Mitigation | Validation |
+|------|-----------|--------|------------|------------|
+| The `uv` server type fails on a PC without Python (pywin32, or the Python download) | Med | High | The probe (T3) runs the released bundle on a clean PC before any feature work depends on it. The rejected `binary` type is the fallback | Manual (clean-PC probe) |
+| SmartScreen or Defender flags the `.mcpb` | Low | High | We ship no exe. Every release goes through VirusTotal. Signing (Q-4) is reopened only if the probe shows a warning | Security (probe, VirusTotal) |
+| A normal user cannot read the Controlled folder access settings (Q-8) | Med | Med | Try the novel's folder once and fall back on refusal. The criterion allows that one Windows notice | Unit (faked Defender), plus manual |
+| A broken release reaches every writer through self-update | Med | High | The release smoke test, the staged runtime's self-test, rollback after two failed starts, and `reinstall: true` for manifest changes | Unit (fakes), plus integration (smoke test) |
+| The server cannot see the `UV` variable (Q-5) | Med | Med | Staging downloads its own uv, checked against a pinned checksum | Manual (probe), plus unit |
+| A reinstall loses the folder setting or the checkbox (Q-6) | Low | Med | Settings keep their keys. If the probe says they are lost, the update guide adds the step and the action count is redone | Manual (probe) |
+| The app still asks approval for each tool in every chat, despite the annotations (Q-7) | Med | Med | The setup sentence follows what the probe shows. The gate is measured on the test run | Manual (test run) |
+| Word opening a closed document surprises the writer | Med | Low | The card says Word will open, and the writer saves | Manual (test run) |
+| A doc-control release breaks the live engine | Low | High | The bump PR runs the full CI and the release smoke test before anything is released | Integration |
+| Same-day releases flood writers with notices | Med | Low | The notice is given once per conversation, and phase 2 makes updates silent | Judged on the test run |
+| The update check slows a tool call | Low | Med | It runs in a background thread and is cached for a day | Perf (network mocked slow) |
+
+<!-- -->
+
+> **✎ Notes** · `SPEC §6`
 > _(your notes here — replace this line)_
 
