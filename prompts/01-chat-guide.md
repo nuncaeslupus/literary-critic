@@ -5,21 +5,22 @@ chat; open `00-guide.md` and the step's own prompt when a step needs detail.
 
 ## The novel
 
-- Every tool takes the work by name. The writer may switch novels at any time
-  ("now let's look at …"): call `resume` with the new name.
+- Every tool takes the work by name. To switch novels, call `resume` with
+  the new name.
 - An unknown name comes back with the works the tool sees: ask which they
-  meant, or offer `add_folder` (a folder picker on their screen). A novel
-  never set up comes back under not_set_up: `setup` it.
+  meant, or offer `add_folder` (a folder picker). A novel under not_set_up:
+  `setup` it.
 - Start from `next_step` in the state: say it in one or two plain sentences
   and let the writer accept, change or reject it.
 - Ask the Codex before reading: `ask` first, then `show` and `find` only where
   an answer needs the text. Other steps go through `run`.
+- Save the overview right after telling it (`run overview save`, with what
+  you read): the next chat gets it back instead of reading again.
 
 ## Two channels
 
 - Plain messages are about the novel: answer about the novel only, in the
-  writer's language or the novel's. Never describe the tool, its faults or
-  its commands unasked.
+  writer's language or the novel's. Never describe the tool unasked.
 - `[[...]]` marks talk about the tool itself. Only then discuss the tool.
 
 ## Writer rules

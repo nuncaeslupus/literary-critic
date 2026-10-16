@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TextIO
 
-from litcritic import __version__, change, plan, rounds, settings, structure, winblock
+from litcritic import __version__, change, overview, plan, rounds, settings, structure, winblock
 from litcritic.workspace import Workspace, repo_root
 
 PROTOCOL_VERSION = "2025-06-18"  # answered when the client names none
@@ -208,7 +208,13 @@ NEXT_STEPS = {
     "(20-codex-items.md).",
     "round": "Continue the open revision round with the next pending action (60-rounds.md).",
     "overview": "Offer an overview: what works and the three biggest problems "
-    "(30-orientation.md, 40-checks.md).",
+    "(30-orientation.md, 40-checks.md). Save it as soon as you have told it "
+    "(lc overview save), so no later chat reads the novel again for it.",
+    "overview_stale": "The saved overview is for an earlier draft: offer to refresh it for "
+    "this one, starting from it and the changes (50-new-draft.md), then save it again.",
+    "propose_plan": "The overview is saved (overview, below): recall it in a few lines, "
+    "never read the novel again for it, and propose the plan (00-guide.md, lc plan init). "
+    "If it is partial, say what it did not cover and offer to complete it.",
     "plan": "Follow the work plan: carry on with the active part, or propose the next one "
     "and wait for the writer's word (00-guide.md).",
     "next_round": "Ask whether there is a new draft (50-new-draft.md) or start the next "
@@ -306,6 +312,7 @@ def state(ws: Workspace) -> dict[str, Any]:
     except (OSError, ValueError, rounds.RoundError):
         out["round"] = None
     out["plan"] = _plan_state(ws.root)
+    out["overview"] = overview.load(ws.root, overview.TEXT_CAP)
     notes = sorted((ws.root / "log").glob("*.md")) if (ws.root / "log").is_dir() else []
     out["last_notes"] = notes[-1].name if notes else None
     if out["draft"] is None:
@@ -317,7 +324,13 @@ def state(ws: Workspace) -> dict[str, Any]:
     elif out["round"] and out["round"]["by_status"].get("pending"):
         step = "round"
     elif out["round"] is None:
-        step = "overview"
+        saved = out["overview"]
+        if saved is None:
+            step = "overview"
+        elif saved["stale"]:
+            step = "overview_stale"
+        else:
+            step = "propose_plan"
     else:
         step = "next_round"
     out["next_step"] = {"step": step, "say": NEXT_STEPS[step]}
@@ -415,6 +428,7 @@ RUN_ALLOWED = (
     "report",
     "plan",
     "change",
+    "overview",
 )
 RUN_OUTPUT_CAP = 20000  # characters of output returned to the chat
 
