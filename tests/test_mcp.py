@@ -408,9 +408,12 @@ def test_change_go_finds_an_unsaved_edit_in_the_open_word(
     server, _ws = _change_work(tmp_path, monkeypatch)
     went: list[tuple[Path, str]] = []
     monkeypatch.setattr(word_live, "is_open", lambda doc: True)
-    monkeypatch.setattr(
-        word_live, "go", lambda doc, phrase: went.append((doc, phrase)) or {"status": "done"}
-    )
+
+    def go(doc: Path, phrase: str) -> dict[str, str]:
+        went.append((doc, phrase))
+        return {"status": "done"}
+
+    monkeypatch.setattr(word_live, "go", go)
     monkeypatch.setattr(mcp, "_json_run", lambda *a: pytest.fail("the file is not read"))
     out = _text(_call_raw(server, "change_go", {"work": "mynovel", "change": "C1"}))
     assert out["went"]["status"] == "done"
@@ -433,7 +436,12 @@ def test_select_opens_the_document_word_does_not_have_open(
         return {"selected": True}
 
     monkeypatch.setattr(word_live, "run", run)
-    monkeypatch.setattr(word_live, "open_if_closed", lambda doc: opened.append(doc) or True)
+
+    def open_if_closed(doc: Path) -> bool:
+        opened.append(doc)
+        return True
+
+    monkeypatch.setattr(word_live, "open_if_closed", open_if_closed)
     args = {"doc": "MyNovel_v3.docx", "find_phrase": "cold", "mode": "cursor"}
     out = _text(_call_raw(server, "select", {**args, "work": "mynovel"}))
     assert out["ok"] and out["opened"] and opened == [ws.parent / "MyNovel_v3.docx"]
