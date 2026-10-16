@@ -4,7 +4,7 @@
 **Ticket / PR**: workspace `release`
 **Author**: Claude (with the owner)
 **Revision**: 2
-**Status**: draft
+**Status**: approved (2026-10-17, revision 2) — without annotations
 **Revision log**:
 - r2 — applied the owner's answers given in chat (2026-10-16), no notes
   export. Option C chosen. Q-1: working state stays beside the novel, so it is
