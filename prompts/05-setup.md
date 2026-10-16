@@ -23,6 +23,17 @@ only what is missing and needed. Facts to give when asked:
   uploads the manuscript, you analyse it and hand back a commented copy to
   download; they make the changes themselves.
 
+### Windows blocks a save
+
+On Windows, ransomware protection ("Controlled folder access") stops programs
+it does not know from saving in Documents, Desktop and similar folders. It
+looks like a locked file but is not Word: an error carrying `windows_block`
+(or "Access is denied" from doc-control) means give the writer its `say`, one
+step at a time. The fix is one click path in Windows Security, ending in
+"Recently blocked apps": allow literary-critic, and doc-control too if it was
+blocked; again if an update moves the program. `kind` `open` is different:
+the file is open in Word; closing it is enough.
+
 ### Updates
 
 `lc doctor --json` says `update_available`. Only when it is `"yes"`, and only at
