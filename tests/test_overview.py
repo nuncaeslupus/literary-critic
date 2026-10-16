@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -55,7 +56,7 @@ def test_long_text_is_capped_when_asked(tmp_path: Path) -> None:
         ({"text": "Overview.", "issues": ["is-nothere"]}, "Codex"),
     ],
 )
-def test_save_refuses_bad_input(tmp_path: Path, kwargs: dict, message: str) -> None:
+def test_save_refuses_bad_input(tmp_path: Path, kwargs: dict[str, Any], message: str) -> None:
     root = _work(tmp_path)
     with pytest.raises(overview.OverviewError, match=message):
         overview.save(root, **kwargs)
