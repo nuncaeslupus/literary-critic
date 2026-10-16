@@ -52,7 +52,7 @@ REASONS = {  # doc-control error code -> the stable reason `lc docx` reports
 MARKED = "this passage still has a marked change from before; accept or reject it in Word first"
 TOO_OLD = (
     "the installed doc-control is too old to write changes plainly; "
-    "update it (pip install -U 'doc-control>=0.7.2,<0.8')"
+    "update it (pip install -U 'doc-control>=0.8.2,<0.9')"
 )
 BY_HAND = "inside a field, link or note mark; change it by hand"
 

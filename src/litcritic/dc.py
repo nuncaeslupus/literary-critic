@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 7, 2)  # plain writes in the live engines
-INSTALL_HINT = "install doc-control 0.7.2 (API 1.x): pip install 'doc-control>=0.7.2,<0.8'"
+MIN_VERSION = (0, 8, 2)  # OneDrive folders with a comma in live Word
+INSTALL_HINT = "install doc-control 0.8.2 (API 1.x): pip install 'doc-control>=0.8.2,<0.9'"
 
 
 class DocError(Exception):
