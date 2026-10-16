@@ -378,7 +378,7 @@ name = "literary-critic"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "doc-control" },
+    { name = "doc-control", extra = ["live"] },
 ]
 
 [package.optional-dependencies]
@@ -397,7 +397,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "doc-control", specifier = ">=0.8.3,<0.9" },
+    { name = "doc-control", extras = ["live"], specifier = ">=0.8.3,<0.9" },
     { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.8.3,<0.9" },
 ]
 provides-extras = ["live"]

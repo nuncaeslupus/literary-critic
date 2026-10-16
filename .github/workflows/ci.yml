@@ -29,3 +29,21 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - run: uv sync
       - run: uv run pytest -q
+  mcpb:  # the desktop extension: lock in step, packs, and the official validator accepts it
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv lock --check
+      - run: python3 scripts/pack_mcpb.py --out dist
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: |
+          mkdir dist/unpacked
+          unzip -q dist/literary-critic-*.mcpb -d dist/unpacked
+          npx -y @anthropic-ai/mcpb@2.1.2 validate dist/unpacked/manifest.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb
+          path: dist/*.mcpb

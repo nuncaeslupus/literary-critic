@@ -1,0 +1,38 @@
+{
+  "manifest_version": "0.4",
+  "name": "literary-critic",
+  "display_name": "Literary Critic",
+  "version": "0.0.0",
+  "description": "Reads your novel, tells you what works and what to revise, and takes you to each passage in Word.",
+  "author": {"name": "nuncaeslupus", "url": "https://github.com/nuncaeslupus"},
+  "repository": {"type": "git", "url": "https://github.com/nuncaeslupus/literary-critic"},
+  "homepage": "https://github.com/nuncaeslupus/literary-critic",
+  "license": "Apache-2.0",
+  "icon": "icon.png",
+  "server": {
+    "type": "uv",
+    "entry_point": "launch.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": ["run", "--directory", "${__dirname}", "--frozen", "launch.py", "${user_config.novels_folder}"],
+      "env": {"LC_AUTO_UPDATE": "${user_config.auto_update}", "DOC_CONTROL_STORE": "appdata"}
+    }
+  },
+  "user_config": {
+    "novels_folder": {
+      "type": "directory",
+      "title": "Your novels' folder",
+      "description": "The folder that holds your novels. You can add more later from the chat.",
+      "multiple": true,
+      "required": false
+    },
+    "auto_update": {
+      "type": "boolean",
+      "title": "Update automatically",
+      "description": "Install new versions in the background; they start the next time you open the app.",
+      "default": true
+    }
+  },
+  "compatibility": {"platforms": ["win32"], "runtimes": {"python": ">=3.11"}},
+  "keywords": ["writing", "novel", "manuscript", "editing", "word"]
+}
