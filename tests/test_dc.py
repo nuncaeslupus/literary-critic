@@ -25,14 +25,14 @@ def test_dc_check_rejects_other_major(monkeypatch: pytest.MonkeyPatch) -> None:
     assert err.value.code == "API_UNSUPPORTED" and "pip install" in err.value.hint
 
 
-def test_dc_check_rejects_a_release_before_the_0_7_names(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dc_check_rejects_a_release_before_the_minimum(monkeypatch: pytest.MonkeyPatch) -> None:
     def fake(op: str, request: dict[str, Any]) -> dict[str, Any]:
-        return {"api": "1.0", "ok": True, "op": op, "result": {"version": "0.6.4"}}
+        return {"api": "1.0", "ok": True, "op": op, "result": {"version": "0.8.1"}}
 
     monkeypatch.setattr(dc, "_execute", fake)
     with pytest.raises(dc.DocError) as err:
         dc.check()
-    assert err.value.code == "API_UNSUPPORTED" and "0.7" in err.value.hint
+    assert err.value.code == "API_UNSUPPORTED" and "0.8.2" in err.value.hint
 
 
 def test_dc_source_names_how_a_text_file_was_read(tmp_path: Path) -> None:
