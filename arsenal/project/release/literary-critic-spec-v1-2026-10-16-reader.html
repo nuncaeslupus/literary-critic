@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="arsenal-source-sha256" content="5bf17bbe7e4822b2af3a3b88a2fb82af850de4b03432dcf43196bf9dfbe05ded">
+<title>Literary Critic — Specification (annotatable)</title>
+<style>
+:root{
+  --bg:#fbfaf7;--fg:#1d1c1a;--muted:#5f5c56;--line:#e3ded4;
+  --card:#ffffff;--accent:#0f766e;--accent2:#9a4a0b;--chip:#e8efed;
+  --note:#fffaf0;--note-line:#d9a441;--note-fg:#7a3b06;--code:#f1eee8;--link:#0f766e;
+  --measure:70ch;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#16151a;--fg:#ebe9e4;--muted:#aaa69f;--line:#34313a;
+    --card:#1e1d23;--accent:#5eead4;--accent2:#fbbf24;--chip:#24302f;
+    --note:#221d12;--note-line:#8a6a22;--note-fg:#fcd34d;--code:#26242b;--link:#7ff0dc;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--fg);
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding-bottom:96px;
+}
+.wrap{max-width:calc(var(--measure) + 120px);margin:0 auto;padding:0 16px}
+a{color:var(--link);text-underline-offset:2px}
+code{background:var(--code);padding:.08em .35em;border-radius:5px;font-size:.86em;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+pre{background:var(--code);padding:12px;border-radius:8px;overflow:auto;font-size:.88em;line-height:1.5}
+pre code{background:none;padding:0;font-size:1em}
+.topbar{position:sticky;top:0;z-index:30;background:var(--bg);
+  border-bottom:1px solid var(--line);backdrop-filter:saturate(120%) blur(6px)}
+.topbar .wrap{display:flex;align-items:center;gap:8px;padding-top:10px;padding-bottom:10px}
+.brand{font-weight:700;font-size:16px;margin-right:auto;letter-spacing:.2px;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brand small{font-weight:500;color:var(--muted);display:block;font-size:11px;letter-spacing:0}
+.btn{appearance:none;border:1px solid var(--line);background:var(--card);color:var(--fg);
+  border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media(prefers-color-scheme:dark){.btn.primary{color:#06201d}}
+.count{font-size:12px;color:var(--muted);white-space:nowrap;font-weight:600}
+.savestate{font-size:12px;font-weight:700;white-space:nowrap;transition:color .2s}
+.savestate.ok{color:var(--accent)}
+.savestate.warn{color:#9a4a0b}
+@media(prefers-color-scheme:dark){.savestate.warn{color:#fbbf24}}
+.statusbar{border-bottom:1px solid var(--line);background:var(--card)}
+.statusbar .wrap{padding:7px 16px;font-size:12px;color:var(--muted)}
+#warnbar{display:none;background:#fff4e5;border-bottom:1px solid var(--note-line);color:#7c2d12}
+#warnbar .wrap{padding:10px 16px;font-size:13px;line-height:1.45}
+@media(prefers-color-scheme:dark){#warnbar{background:#3a2a0e;color:#fde68a;border-color:#6b531c}}
+.hero{padding:26px 0 6px}
+.hero h1{font-size:1.75rem;line-height:1.2;margin:.1em 0 .3em;letter-spacing:-.01em}
+.hero p{color:var(--muted);margin:.3em 0;max-width:var(--measure)}
+.help{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.help summary{cursor:pointer;font-weight:600;padding:10px 0}
+.help ul{margin:.2em 0 1em;padding-left:1.2em}
+.help li{margin:.3em 0}
+.toc{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:4px 14px;margin:14px 0}
+.toc>summary{cursor:pointer;font-weight:700;padding:11px 0;font-size:15px}
+.toc-part{margin:2px 0;border-top:1px solid var(--line)}
+.toc-part>summary{cursor:pointer;padding:9px 2px;font-weight:600;font-size:14px}
+.toc-part ul{margin:.1em 0 .7em;padding-left:1.1em}
+.toc-part li{margin:.22em 0;font-size:13.5px;line-height:1.4}
+.toc-part a{text-decoration:none}
+.toc-part a:hover{text-decoration:underline}
+.part{margin:30px 0}
+.part-title{font-size:1.45rem;line-height:1.25;border-bottom:2px solid var(--accent);
+  padding-bottom:8px;margin:18px 0 10px}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;
+  vertical-align:middle;padding:3px 7px;border-radius:6px;margin-right:8px}
+.badge.spec,.badge.plan{background:var(--chip);color:var(--accent)}
+.badge.workspace{background:var(--chip);color:var(--accent2)}
+/* Two heading levels, told apart by size, weight and a rule: a ## section opens
+   with a full-width rule; a ### section sits indented under it on a side rule. */
+.sec{scroll-margin-top:72px}
+.sec.l2{padding:14px 0 4px;border-top:1px solid var(--line);margin-top:10px}
+.part>.sec.l2:first-of-type{border-top:none;margin-top:0}
+.sec.l3{margin:6px 0 6px 2px;padding:2px 0 2px 14px;border-left:3px solid var(--line)}
+.sec-h{margin:6px 0 8px;line-height:1.3}
+h3.sec-h{font-size:1.3rem;font-weight:750}
+h4.sec-h{font-size:1.08rem;font-weight:650;color:var(--fg)}
+.sec.bare>.sec-h{margin-bottom:2px}
+.chip{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:12px;font-weight:700;
+  color:var(--accent);background:var(--chip);border-radius:6px;padding:2px 7px;margin-right:8px;vertical-align:middle}
+h4 .chip{font-size:11px;color:var(--muted)}
+.sec-title{vertical-align:middle}
+.sec-body{margin:.2em 0 .4em}
+.sec-body p,.sec-body li,.sec-body blockquote{max-width:var(--measure)}
+.sec-body p{margin:.6em 0}
+.sec-body ul,.sec-body ol{margin:.5em 0;padding-left:1.35em}
+.sec-body li{margin:.3em 0}
+.sec-body h4,.sec-body h5,.sec-body h6{font-size:1em;margin:1em 0 .3em}
+.sec-body blockquote{margin:.7em 0;padding:.5em .9em;border-left:3px solid var(--accent);
+  background:var(--code);border-radius:0 8px 8px 0;color:var(--fg)}
+.sec-body blockquote p{margin:.3em 0}
+.sec-body figure.drawspec{margin:.8em 0;overflow-x:auto}
+.sec-body figure.drawspec svg{display:block;max-width:100%;height:auto;margin:0 auto}
+.sec-body table{border-collapse:collapse;font-size:13.5px;line-height:1.45;margin:.6em 0;
+  display:block;max-width:100%;overflow-x:auto}
+.sec-body th,.sec-body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+.sec-body th{background:var(--chip);font-weight:700}
+.sec-body strong{font-weight:700}
+/* The note field: the one thing on the page that is the reviewer's, so it must
+   not read as more document. Dashed while empty, solid once written in. */
+.note{max-width:var(--measure);background:var(--note);border:1.5px dashed var(--note-line);
+  border-left:4px solid var(--note-line);border-radius:10px;padding:8px 12px;margin:12px 0 18px}
+.note:focus-within{border-style:solid;box-shadow:0 0 0 3px color-mix(in srgb,var(--note-line) 30%,transparent)}
+.note-head{display:flex;align-items:center;gap:8px;margin-bottom:2px;cursor:text}
+.note-ico{color:var(--note-fg);font-weight:800}
+.note-label{font-size:11.5px;font-weight:800;color:var(--note-fg);text-transform:uppercase;letter-spacing:.06em}
+.note-ref{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.note-ta{width:100%;border:none;background:transparent;color:var(--fg);font:inherit;font-size:16px;
+  resize:none;outline:none;line-height:1.5;padding:2px 0;overflow:hidden;min-height:1.6em}
+.note-ta::placeholder{color:var(--muted);opacity:1}
+.note.filled{border-style:solid}
+.fab{position:fixed;right:14px;bottom:16px;z-index:40;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.fab .btn{box-shadow:0 4px 14px #0003}
+.modal{position:fixed;inset:0;z-index:60;background:#0008;display:none;align-items:center;justify-content:center;padding:16px}
+.modal.open{display:flex}
+.modal-card{background:var(--card);border:1px solid var(--line);border-radius:14px;max-width:680px;width:100%;
+  max-height:86vh;display:flex;flex-direction:column;padding:16px}
+.modal-card h3{margin:.1em 0 .5em}
+.modal-card p{color:var(--muted);font-size:13.5px;margin:.2em 0 .6em}
+.modal-card textarea{width:100%;flex:1;min-height:220px;border:1px solid var(--line);border-radius:8px;
+  background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,monospace;padding:10px;resize:vertical}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.hidden-input{display:none}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:84px;z-index:70;background:#111;color:#fff;
+  padding:9px 14px;border-radius:9px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:.96}
+/* Phone width: smaller type, no floating column over the text, the hint dropped. */
+@media(max-width:600px){
+  body{font-size:16px;padding-bottom:76px}
+  .hero h1{font-size:1.45rem}
+  .part-title{font-size:1.25rem}
+  h3.sec-h{font-size:1.15rem}
+  h4.sec-h{font-size:1rem}
+  .sec.l3{padding-left:10px}
+  .statusbar .hint{display:none}
+  .fab{left:0;right:0;bottom:0;flex-direction:row;justify-content:flex-end;gap:6px;padding:8px 10px;
+    flex-wrap:wrap;background:var(--bg);border-top:1px solid var(--line)}
+  .fab .btn{box-shadow:none;padding:7px 9px}
+  .toast{bottom:64px}
+}
+@media print{.topbar,.statusbar,.fab,.help,.note:not(.filled){display:none}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">Literary Critic — Specification<small>annotatable reader · 2026-10-16</small></div>
+    <span class="savestate ok" id="savestate">✓ Auto-saving</span>
+    <button class="btn primary" id="btn-export">Save / Export</button>
+  </div>
+</div>
+<div class="statusbar"><div class="wrap"><span class="count" id="count">0 / 10 notes</span><span class="hint"> · notes save automatically; <strong>Save / Export</strong> keeps a file you can send back</span></div></div>
+<div id="warnbar"><div class="wrap"><strong>Heads up —</strong> this browser isn't storing your notes automatically (private/incognito mode or restricted file view). Tap <strong>Save / Export</strong> regularly.</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <h1>Literary Critic — Specification</h1>
+    <p>Read at your own pace and leave a note on any point you want to discuss.</p>
+  </div>
+  <details class="help">
+    <summary>How to annotate (tap)</summary>
+    <ul>
+      <li>Tap the note field under any section and type. Each note is tagged so your feedback maps to an exact point.</li>
+      <li><strong>Notes save automatically</strong> in this browser as you type.</li>
+      <li><strong>Save / Export</strong> downloads a Markdown file of your notes — the copy to send back. Tap whenever you pause, especially on a phone.</li>
+      <li><strong>Import</strong> reloads notes from a file you exported earlier (after clearing the browser or switching devices).</li>
+      <li><strong>Clear</strong> erases every note in this browser. Export first.</li>
+    </ul>
+  </details>
+  <details class="toc" open><summary>Contents</summary>
+<details class="toc-part">
+<summary>Spec</summary><ul>
+<li><a href="#s-spec-intro">Preamble &amp; scope</a></li>
+<li><a href="#s-spec-1">§1 Problem statement</a></li>
+<li><a href="#s-spec-2">§2 Systems &amp; Impact</a></li>
+<li><a href="#s-spec-3">§3 Options</a></li>
+<li><a href="#s-spec-option-a-a-uv-bundle-with-an-upd">Option A: a uv bundle with an update notice (Conservative)</a></li>
+<li><a href="#s-spec-option-b-option-a-plus-no-securi">Option B: Option A, plus no security exception and a pinned release flow (Recommended baseline)</a></li>
+<li><a href="#s-spec-option-c-option-b-plus-self-upda">Option C: Option B, plus self-update (Recommended, in two phases)</a></li>
+<li><a href="#s-spec-rejected-a-frozen-exe-binary-typ">Rejected: a frozen exe (binary type, like doc-control's packaging)</a></li>
+<li><a href="#s-spec-comparison">Comparison</a></li>
+<li><a href="#s-spec-4">§4 Recommendation</a></li>
+</ul></details>
+</details>
+  <section class="part">
+<h2 class="part-title"><span class="badge spec">Specification</span>Spec</h2>
+<article class="sec l2" id="s-spec-intro">
+<h3 class="sec-h"><span class="chip">overview</span><span class="sec-title">Preamble &amp; scope</span></h3>
+<div class="sec-body"><p><strong>Date</strong>: 2026-10-16
+<strong>Ticket / PR</strong>: workspace <code>release</code>
+<strong>Author</strong>: Claude (with the owner)
+<strong>Revision</strong>: 1
+<strong>Status</strong>: draft
+<strong>Revision log</strong>:
+- r1 — first draft. Sources: the owner's request ("I want to install it and
+  forget it. And if it can be autoupdated or at least say so when it is
+  outdated, much better"), the <code>desktop</code> and <code>install</code> specs, doc-control's
+  <code>PACKAGE</code> spec, the MCPB documentation and a reading of the installed Claude
+  desktop app (2026-10-16).</p>
+<blockquote>
+<p>Review record. Each round of reviewer notes makes a new revision: bump
+<strong>Revision</strong>, add a log line naming the export it applied
+(<code>- r2 — applied `&lt;repo&gt;-spec-v1-&lt;date&gt;-notes.md`</code>), and commit that
+export beside this file in the same commit. On approval set
+<strong>Status</strong> to <code>approved (YYYY-MM-DD, revision N)</code> and, when the reviewer sent
+no notes for that revision, add <code>— without annotations</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-intro"><label class="note-head" for="n-s-spec-intro"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC · intro</span></label><textarea class="note-ta" data-key="s-spec-intro" id="n-s-spec-intro" data-label="Preamble &amp; scope" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-1">
+<h3 class="sec-h"><span class="chip">§1</span><span class="sec-title">Problem statement</span></h3>
+<div class="sec-body"><p>The <code>desktop</code> workspace built <code>lc mcp</code>, the server behind a literary-critic
+desktop extension (<code>works</code>, <code>resume</code>, <code>locate</code>, <code>places</code>, <code>change_card</code> and the
+rest). It planned the extension's packaging as T8 but never built it, so
+nothing installs the tool on a writer's PC today. The Claude desktop app
+starts the server from the developer's clone with
+<code>uv run --directory &lt;clone&gt; lc mcp &lt;folder&gt;</code>, under the name
+<code>literary-critic-dev</code>. literary-critic has no package, release, tag or
+installer, and its version has been 0.1.0 since the start.</p>
+<p>doc-control, the generic Word tool literary-critic imports as a library
+(pinned <code>&gt;=0.8.3,&lt;0.9</code> in <code>pyproject.toml</code> and <code>uv.lock</code>), ships its own
+PyInstaller exe, installer and <code>.mcpb</code>. On the owner's PC that route ran into
+permission errors and antivirus threat detections.</p>
+<p>A writer has no technical skills. They need to:</p>
+<ul>
+<li>install one file once, with no Python, terminal, config file or security
+  exception;</li>
+<li>then forget it: either the tool updates itself, or the chat tells them in
+  plain words when a newer version exists and how to get it in a click or two.</li>
+</ul>
+<p>The tool must also not trip Windows Security on a normal writer's PC. Two
+parts of it do:</p>
+<ul>
+<li><strong>Controlled folder access</strong> ("ransomware protection") blocks unknown
+  programs from writing in Documents, Desktop and similar folders, and novels
+  usually live in Documents.</li>
+<li><strong>Defender and SmartScreen</strong> flag unsigned executables, as they did with
+  doc-control's.</li>
+</ul>
+<p>A planned improvement. Without it the tool exists only on the developer's PC.</p>
+<p><strong>Success criteria (measurable)</strong></p>
+<p>The clean PC below is Windows 11 with default Windows Security plus
+Controlled folder access turned on, Word, and the Claude desktop app signed in.
+It has never had Python, uv, doc-control or literary-critic on it. Windows
+Sandbox or a fresh user account counts.</p>
+<ul>
+<li>[ ] <code>install_actions_clean_pc &lt;= 3</code>: click the download link, drag the
+  <code>.mcpb</code> onto the app's window, press Install. Accepting the folder picker's
+  default is inside the third action. A security exception, a config file, a
+  terminal or a separate Python, uv or doc-control install fails the criterion;
+  it is not counted as an action. Each install warning the writer must accept
+  counts as one more action (desktop Q-8). Counted on a recorded test run.</li>
+<li>[ ] <code>security_detections == 0</code>: zero Defender detections, zero SmartScreen
+  prompts and zero Controlled folder access blocks on the clean PC. Counted
+  over download, install, first start and a scripted session: set up a novel
+  kept in Documents, ingest, write Codex entries, approve a change with the
+  document open in Word, approve one with it closed, and write the comments
+  copy. Read from Windows Security's protection history.</li>
+<li>[ ] <code>virustotal_detections_mcpb == 0</code> for every released <code>.mcpb</code>, recorded
+  in the release's evidence (gated only on the first release; later releases
+  are recorded, and a detection opens an issue).</li>
+<li>[ ] <code>manuscript_file_writes_by_server == 0</code>: the server process never writes
+  the manuscript <code>.docx</code> or a file beside it. Every approved change reaches the
+  manuscript through Word, via the live engine. Tested by a fake that records
+  every write path, plus the clean-PC session above.</li>
+<li>[ ] <code>writer_files_in_protected_folders == 0</code>: the tool's own files (working
+  state, backups, logs, caches) never go under a folder Controlled folder access
+  protects by default (<code>winblock.PROTECTED</code>). Tested by a unit test over every
+  path the tool resolves, with <code>Documents</code> and <code>OneDrive\Documents</code> layouts.</li>
+<li>[ ] <code>update_notice_hours &lt;= 24</code>: after a release is published, the
+  writer's first conversation more than 24 h later tells them a newer version
+  exists. With auto-update (Option C) the measure is
+  <code>auto_update_applied_restarts &lt;= 1</code> instead: the new version runs after at
+  most one restart of the app, with no writer action.</li>
+<li>[ ] <code>update_false_alarms == 0</code> over the scripted cases: installed version
+  older, equal and newer than the latest release; offline; a source checkout
+  (the dev entry); a release that has no <code>.mcpb</code> asset.</li>
+<li>[ ] <code>update_check_added_ms &lt;= 100</code> on any tool call. The check runs in the
+  background, at most one network request a day, and says nothing on any
+  failure. Measured with the network mocked slow (10 s) and refused.</li>
+<li>[ ] <code>writer_update_actions &lt;= 3</code> when the writer updates by hand: click the
+  link the chat gives, drag the file onto the window, press Install. The
+  folders, the settings and every work's state are still there afterwards
+  (<code>state_kept_after_update == 1.0</code>).</li>
+<li>[ ] <code>update_notice_plain == 1</code> (install D-2 kept): at most 40 words, no
+  version numbers, file names or commands unless the writer asks with
+  <code>[[...]]</code>, once per conversation, never while a change is being applied.
+  Judged on the test run.</li>
+<li>[ ] <code>bundle_lock_exact == 1</code>: in the installed extension, the versions of
+  doc-control, pywin32 and every other package equal the ones in the
+  release's <code>uv.lock</code>. CI checks <code>uv lock --check</code>, and the release smoke test
+  compares the installed versions with the lock.</li>
+<li>[ ] <code>live_engine_ready == 1</code>: on the clean PC, pywin32 imports in the
+  installed environment and doc-control's <code>live.status</code> answers with Word
+  open.</li>
+<li>[ ] <code>release_on_tag == 1</code>: a <code>vX.Y.Z</code> tag whose version matches
+  <code>pyproject.toml</code> produces a GitHub Release. It carries
+  <code>literary-critic-X.Y.Z.mcpb</code> and <code>SHA256SUMS</code>, and it is built and
+  smoke-tested by CI with no human step. <code>mcpb validate</code> reports 0 errors.</li>
+<li>[ ] <code>doccontrol_release_to_bump_pr_days &lt;= 1</code>: a new doc-control release
+  inside the pinned range opens a bump PR within a day. A release outside the
+  range opens an issue instead.</li>
+<li>[ ] <code>standalone_doccontrol_reported == 1.0</code>: when the doc-control extension
+  or a doc-control entry in the app's config is present, <code>resume</code> reports it
+  once, and the chat tells the writer in one plain sentence how to remove it.
+  Fixtures: extension enabled, extension disabled, config entry, none. A
+  disabled extension is not reported.</li>
+<li>[ ] <code>dev_entry_silent == 1</code>: the developer's <code>literary-critic-dev</code> entry
+  never shows an update notice and is told apart from the installed extension
+  in <code>works</code> (<code>source: checkout</code> against <code>source: mcpb</code>). Judged on the
+  owner's PC.</li>
+</ul></div>
+<div class="note" data-for="s-spec-1"><label class="note-head" for="n-s-spec-1"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §1</span></label><textarea class="note-ta" data-key="s-spec-1" id="n-s-spec-1" data-label="§1 Problem statement" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-2">
+<h3 class="sec-h"><span class="chip">§2</span><span class="sec-title">Systems &amp; Impact</span></h3>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th>System</th>
+<th>Type</th>
+<th>Role</th>
+<th>Needs changes?</th>
+<th>Impact</th>
+<th>Severity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>extension/</code> (new): <code>manifest.json</code>, icon, the bundle's <code>pyproject.toml</code></td>
+<td>Primary</td>
+<td>What the app installs</td>
+<td>Yes</td>
+<td>Server type <code>uv</code>; one <code>directory</code> setting; the version stamped from the tag</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>scripts/pack_mcpb.py</code> (new)</td>
+<td>Primary</td>
+<td>Builds the <code>.mcpb</code> (stdlib <code>zipfile</code>)</td>
+<td>Yes</td>
+<td>Source, <code>prompts/</code>, <code>src/litcritic/ui/</code>, <code>uv.lock</code> and a <code>VERSION</code> stamp; no venv</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>.github/workflows/release.yml</code> (new), <code>ci.yml</code></td>
+<td>Infrastructure</td>
+<td>Builds, validates and smoke-tests the bundle; publishes the Release</td>
+<td>Yes</td>
+<td>Release on tag; manifest check and pack on every PR</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/kit.py</code> (<code>version_info</code>, <code>update_check</code>)</td>
+<td>Primary</td>
+<td>Version and update check</td>
+<td>Yes</td>
+<td>Source <code>mcpb</code>; reads the latest GitHub Release and its <code>.mcpb</code> asset, not tags; runs in the background</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/mcp.py</code> (<code>works</code>, <code>resume</code>)</td>
+<td>Primary</td>
+<td>Tells the chat about updates and a standalone doc-control</td>
+<td>Yes</td>
+<td>Additive fields; the guide gains the update and doc-control sentences</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/folders.py</code>, <code>workspace.py</code></td>
+<td>Primary</td>
+<td>Where state and working folders live</td>
+<td>Yes</td>
+<td>Working state moves out of protected folders (Q-1); existing folders are copied once</td>
+<td>High</td>
+</tr>
+<tr>
+<td><code>src/litcritic/docx_cli.py</code> (<code>apply_edits</code>)</td>
+<td>Primary</td>
+<td>The one write path for approved changes</td>
+<td>Yes</td>
+<td>With the document closed, open it in Word and apply live instead of writing the file</td>
+<td>Med</td>
+</tr>
+<tr>
+<td><code>src/litcritic/winblock.py</code></td>
+<td>Dependent</td>
+<td>Explains a Windows refusal</td>
+<td>Small</td>
+<td>Stays as the last resort; should no longer fire</td>
+<td>Low</td>
+</tr>
+<tr>
+<td>doc-control (PyPI, <code>&gt;=0.8.3,&lt;0.9</code>)</td>
+<td>External dependency</td>
+<td>Word engines, <code>live.*</code>, backup store</td>
+<td>No (validation)</td>
+<td>Used as published; <code>DOC_CONTROL_STORE=appdata</code> for any file write that remains</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Claude desktop app</td>
+<td>Host</td>
+<td>Installs <code>.mcpb</code>, provides uv, runs the server</td>
+<td>No (outside our control)</td>
+<td>Its uv-type behaviour is undocumented in part (§2 facts)</td>
+<td>High</td>
+</tr>
+<tr>
+<td>GitHub Releases of this repo</td>
+<td>Shared resource</td>
+<td>"Latest version" and the download</td>
+<td>Yes</td>
+<td>First release ever; the repo is public, so the unauthenticated API works</td>
+<td>Med</td>
+</tr>
+<tr>
+<td>Owner's <code>claude_desktop_config.json</code></td>
+<td>Infrastructure</td>
+<td><code>literary-critic-dev</code> entry</td>
+<td>Owner's choice (Q-3)</td>
+<td>Kept beside the extension or not</td>
+<td>Low</td>
+</tr>
+<tr>
+<td><code>desktop</code> plan tasks T1, T8, T10</td>
+<td>Dependent</td>
+<td>Probes, packaging, test run</td>
+<td>Yes</td>
+<td>T8 is replaced by this spec's tasks; T1's probes and T10's test run happen on the released bundle</td>
+<td>Med</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Facts this rests on</strong> (checked 2026-10-16). Items marked <em>[app]</em> come from
+reading the installed app's code (<code>app.asar</code>, version 2.42304). They are
+verified but undocumented, and may change in any app release.</p>
+<ul>
+<li><strong>Server types.</strong> The MCPB manifest
+  (<a href="https://github.com/modelcontextprotocol/mcpb/blob/main/MANIFEST.md">MANIFEST.md</a>)
+  has four server types:<ul>
+<li><code>node</code>: Node.js ships with the app.</li>
+<li><code>python</code>: every dependency is bundled under <code>server/lib</code> or <code>server/venv</code>,
+and the user's own Python runs it.</li>
+<li><code>binary</code>: self-contained.</li>
+<li><code>uv</code> (manifest 0.4 and later): the bundle carries <code>pyproject.toml</code>, must
+not carry a venv, and "the host manages execution".</li>
+</ul>
+</li>
+<li><strong>The <code>uv</code> type on Windows</strong> <em>[app]</em>: at install the app downloads uv 0.9.7
+  from uv's GitHub releases (with a pinned checksum) and runs <code>uv sync</code> in the
+  unpacked extension folder. uv fetches a managed Python unless a feature flag
+  says to use the system one. The install dialog says it needs "to fetch a few
+  dependencies". So the writer needs internet at install, and nothing else.
+  This answers the documentation half of desktop Q-3. The clean-PC run (desktop
+  T1) is still the proof.</li>
+<li><strong>The <code>python</code> type</strong> <em>[app]</em> needs a system Python matching
+  <code>compatibility.runtimes.python</code>. Otherwise it reports "no-python-installed".
+  So it costs the writer a Python install.</li>
+<li><strong>pywin32.</strong> Under <code>uv</code> it installs as a normal wheel into a real venv, and
+  its <code>.pth</code> start-up file sets up its DLLs. Under <code>python</code> with <code>server/lib</code> on
+  <code>PYTHONPATH</code>, that file is not processed (inferred from how Python handles
+  <code>.pth</code> files), so it would need hand-made DLL set-up.</li>
+<li><strong>Updates.</strong> "Extensions from the official directory update automatically
+  by default"; a privately distributed <code>.mcpb</code> is updated by installing the
+  newer file
+  (<a href="https://support.claude.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop">help article</a>).
+  The manifest has no update URL and no private registry field. The directory
+  no longer accepts local-server extensions (desktop r5, doc-control D-P5). An
+  organisation owner can "Upload new version" of a custom extension for the
+  organisation, which does not apply to a writer on a personal plan.</li>
+<li><strong>Reinstall</strong> <em>[app]</em>: extensions are stored by id
+  (<code>local.mcpb.&lt;author&gt;.&lt;name&gt;</code>), with their settings in a separate file,
+  <code>Claude Extensions Settings\&lt;id&gt;.json</code>. A newer <code>.mcpb</code> with the same <code>name</code>
+  should replace the old one and keep its settings. That is inferred, to be
+  confirmed on the clean PC.</li>
+<li><strong>Where it unpacks</strong> <em>[app]</em>: <code>%APPDATA%\Claude\Claude Extensions\&lt;id&gt;\</code>.
+  On the packaged (MSIX) app, every <code>%APPDATA%</code> and <code>%LOCALAPPDATA%</code> write by
+  the app and its child processes goes to
+  <code>%LOCALAPPDATA%\Packages\Claude_&lt;id&gt;\LocalCache\…</code>
+  (<a href="https://github.com/anthropics/claude-code/issues/27041">claude-code#27041</a>).
+  The owner's <code>mcp.log</code> lives there too. Windows deletes that folder when the
+  app is uninstalled or reset, so it must never hold the writer's work.</li>
+<li><strong>Signing.</strong> <code>mcpb sign</code> appends a PKCS#7 signature
+  (<a href="https://github.com/modelcontextprotocol/mcpb/blob/main/CLI.md">CLI.md</a>)
+  and needs the certificate's private key as a PEM file. The app records each
+  bundle as <code>signed</code>, <code>self-signed</code> or <code>unsigned</code> <em>[app]</em>, and refuses an
+  unsigned one only under an organisation policy. The owner saw several
+  warnings when installing an unsigned probe (desktop r4). The documentation
+  does not say which ones signing removes. Since 2023, public code-signing
+  keys must live on hardware or a cloud HSM, so a PEM key for a CA-issued
+  certificate is not normally obtainable (inferred).</li>
+<li><strong>Antivirus.</strong> PyInstaller executables are a common source of Defender
+  machine-learning false positives (unsigned bootloader). Onedir and signing
+  reduce them but do not remove them. doc-control hit this on the owner's PC.
+  The <code>uv</code> type runs no executable of ours, only uv's and the python.org-built
+  standalone Python, both widely deployed.</li>
+<li><strong>Controlled folder access</strong> blocks writes by programs it does not trust in
+  Documents, Desktop, Pictures, Videos, Music and Favorites. With OneDrive
+  backing up Documents, that includes <code>OneDrive\Documents</code>. An allowed program
+  is identified by its full path. Under the <code>uv</code> type that path is the
+  uv-managed <code>python.exe</code>, which changes with each Python update, so an
+  exception would have to be granted again and again. Word is trusted, so
+  Word's own saves are never blocked.</li>
+<li><strong>What literary-critic writes today:</strong></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Write</th>
+<th>Where</th>
+<th>Protected when the novel is in Documents?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Working state: Codex, index, rounds, <code>log/edits.jsonl</code>, <code>.cache</code></td>
+<td><code>&lt;novel&gt;/literary-critic/</code> (chat D-10)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Comments copy</td>
+<td><code>&lt;novel&gt;/literary-critic/revisions/round-NN/</code></td>
+<td>yes</td>
+</tr>
+<tr>
+<td>An approved change, document open in Word</td>
+<td>Word, through <code>live.*</code>; Word saves</td>
+<td>no (Word is trusted)</td>
+</tr>
+<tr>
+<td>An approved change, document closed</td>
+<td>the <code>.docx</code> itself, by doc-control's file engine</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>doc-control's backup of that change</td>
+<td><code>&lt;novel&gt;/.doc-control/</code> (doc-control's default "adjacent" store)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td><code>folders.json</code>, <code>mcp.log</code></td>
+<td><code>%APPDATA%\literary-critic\</code> (virtualised under MSIX)</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Update cache</td>
+<td>the temp folder</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Risk of inaction</strong>: the tool runs only on the developer's PC. A writer who
+gets a copy some other way runs it without updates. On most writers' PCs its
+first write into Documents is blocked once Controlled folder access is on.</p></div>
+<div class="note" data-for="s-spec-2"><label class="note-head" for="n-s-spec-2"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §2</span></label><textarea class="note-ta" data-key="s-spec-2" id="n-s-spec-2" data-label="§2 Systems &amp; Impact" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-3">
+<h3 class="sec-h"><span class="chip">§3</span><span class="sec-title">Options</span></h3>
+<div class="sec-body"><p>Every option keeps:</p>
+<ul>
+<li>desktop D-5 and D-13: one <code>.mcpb</code>, installed by dragging it onto the app's
+  window;</li>
+<li>desktop D-6: doc-control bundled as a library, so the writer installs
+  nothing else;</li>
+<li>install D-2: the update check is a script, silent when it does not know;</li>
+<li>the change card (#227) as the only way to change the manuscript.</li>
+</ul></div>
+<div class="note" data-for="s-spec-3"><label class="note-head" for="n-s-spec-3"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §3</span></label><textarea class="note-ta" data-key="s-spec-3" id="n-s-spec-3" data-label="§3 Options" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-a-a-uv-bundle-with-an-upd">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option A: a <code>uv</code> bundle with an update notice (Conservative)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>:<ul>
+<li>The <code>.mcpb</code> uses server type <code>uv</code>. It carries the source, <code>prompts/</code>,
+the places page, <code>pyproject.toml</code> with <code>doc-control[live]</code> on Windows, and
+<code>uv.lock</code>, so the app's <code>uv sync</code> installs exactly the locked versions.</li>
+<li>A tag builds and publishes it (the release flow below).</li>
+<li><code>kit.update_check</code> learns the <code>mcpb</code> source and reads the latest GitHub
+Release. When a newer <code>.mcpb</code> exists, <code>resume</code> says so, and the chat gives
+the writer the download link and "drag it onto this window".</li>
+<li>Working folders stay beside the novel. When Windows blocks a write,
+<code>winblock</code> explains how to allow the program.</li>
+</ul>
+</li>
+<li><strong>Scope</strong>: <code>extension/</code>, <code>scripts/pack_mcpb.py</code>, <code>release.yml</code>, <code>kit.py</code>,
+  <code>mcp.py</code>.</li>
+<li><strong>Effort</strong>: Medium</li>
+<li><strong>Tradeoffs</strong>: Smallest change, no exe, nothing to sign. But it fails
+  <code>security_detections == 0</code> on most writer PCs: the first write into
+  Documents is blocked. The fix it offers is an exception for a <code>python.exe</code>
+  path that changes with updates, and that is the kind of step the writer
+  cannot take. It also leaves updates manual.</li>
+<li><strong>Compatibility</strong>: Additive.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-a-a-uv-bundle-with-an-upd"><label class="note-head" for="n-s-spec-option-a-a-uv-bundle-with-an-upd"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option A: a uv bundle with an update notice (Conservative)</span></label><textarea class="note-ta" data-key="s-spec-option-a-a-uv-bundle-with-an-upd" id="n-s-spec-option-a-a-uv-bundle-with-an-upd" data-label="Option A: a uv bundle with an update notice (Conservative)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-b-option-a-plus-no-securi">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option B: Option A, plus no security exception and a pinned release flow (Recommended baseline)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Option A, and:<ol>
+<li><strong>Nothing of ours in protected folders.</strong>
+ - Working state moves to a per-user folder outside every protected
+   folder and outside the app's virtualised data (Q-1). The proposal is
+   <code>%USERPROFILE%\literary-critic\works\&lt;work&gt;\</code>, which survives
+   uninstalling the Claude app.
+ - A work is still found by its manuscript, so <code>works</code> and <code>resume</code> are
+   unchanged for the writer.
+ - An existing <code>&lt;novel&gt;/literary-critic/</code> folder is copied there once,
+   on first use, and left where it was.
+ - The comments copy goes to the working state, and the chat tells the
+   writer where it is.</li>
+<li><strong>The manuscript is changed only by Word.</strong> When an approved change
+ targets a document that is not open, <code>apply_edits</code> asks the live engine
+ to open it in Word, applies the change there, and lets the writer save
+ it, which needs no exception. The file engine never writes the
+ manuscript. If Word is missing, the change card says what to change and
+ where, and the writer types it.</li>
+<li><strong>Backups away from the novel.</strong> The server starts doc-control with
+ <code>DOC_CONTROL_STORE=appdata</code>, so no <code>.doc-control/</code> folder appears beside
+ the manuscript.</li>
+<li><strong>A standalone doc-control is reported.</strong> <code>resume</code> reads the app's
+ <code>extensions-installations.json</code> and <code>claude_desktop_config.json</code> and adds
+ <code>other_doc_control: {kind, name}</code>. The guide turns it into one
+ sentence: "You also have a separate doc-control extension. This tool
+ already includes it; please remove it in Settings → Extensions so every
+ change goes through your approval." A server cannot stop the chat from
+ calling another server, so this is a report, not a block.</li>
+<li><strong>Release flow.</strong>
+ - Merging a PR that bumps <code>pyproject.toml</code>'s version tags <code>vX.Y.Z</code>.
+ - The tag runs <code>release.yml</code> on <code>windows-latest</code>:
+   - <code>uv lock --check</code>;
+   - pack and <code>mcpb validate</code>;
+   - a smoke test that unpacks the bundle, runs uv 0.9.7's <code>uv sync</code> with
+     no system Python, and drives <code>initialize</code>, <code>tools/list</code> and <code>works</code>
+     over JSON-RPC;
+   - the installed versions compared with <code>uv.lock</code>;
+   - the Release published with the <code>.mcpb</code> and <code>SHA256SUMS</code>, and release
+     notes in plain words.
+ - A daily workflow watches doc-control on PyPI. A new version inside the
+   range runs <code>uv lock --upgrade-package doc-control</code> and opens a bump PR
+   that also bumps the patch version, so merging it releases. A version
+   outside the range opens an issue (the range is a code decision).</li>
+<li><strong>The update notice, made dependable.</strong>
+ - The check runs in a background thread when the server starts, at most
+   once a day, and adds nothing to any tool call.
+ - It reads <code>releases/latest</code> and needs a <code>.mcpb</code> asset, so a tag without
+   a published bundle is never announced.
+ - <code>resume</code> and <code>works</code> return <code>update: {available, url}</code>. <code>url</code> is the
+   Release page, which one click opens in the browser; it is not a
+   direct download.
+ - Kept from install D-2: one plain sentence, once a conversation.</li>
+</ol>
+</li>
+<li><strong>Scope</strong>: Option A, plus <code>folders.py</code>, <code>workspace.py</code> (with a one-time
+  copy), <code>docx_cli.apply_edits</code>, the doc-control environment in <code>mcp.py</code>, a
+  detection module, <code>.github/workflows/doccontrol-bump.yml</code>, the guide in
+  <code>prompts/01-chat-guide.md</code>, and tests for each.</li>
+<li><strong>Effort</strong>: Medium–Large</li>
+<li><strong>Tradeoffs</strong>:<ul>
+<li>It meets every criterion except auto-update: an update costs the writer
+three actions each time.</li>
+<li>It moves state away from the novel. That supersedes chat D-10. The
+working state also loses OneDrive's backup unless Q-1 picks a backed-up
+place that is not protected, and on Windows none is both by default.</li>
+<li>A closed document is opened in Word to apply a change, and the writer
+sees Word open. That is visible but honest: the writer saves it.</li>
+</ul>
+</li>
+<li><strong>Compatibility</strong>: Additive for the server's tools. Old working folders are
+  copied, not moved, so a downgrade still finds them.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-b-option-a-plus-no-securi"><label class="note-head" for="n-s-spec-option-b-option-a-plus-no-securi"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option B: Option A, plus no security exception and a pinned release flow (Recommended baseline)</span></label><textarea class="note-ta" data-key="s-spec-option-b-option-a-plus-no-securi" id="n-s-spec-option-b-option-a-plus-no-securi" data-label="Option B: Option A, plus no security exception and a pinned release flow (Recommended baseline)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-option-c-option-b-plus-self-upda">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Option C: Option B, plus self-update (Recommended, in two phases)</span></h4>
+<div class="sec-body"><ul>
+<li><strong>Description</strong>: Option B is phase 1. Phase 2 adds automatic updates of the
+  tool's code. The app cannot do that for a privately distributed extension
+  (§2), so the extension does it itself:<ul>
+<li><strong>Launcher.</strong> The bundle's entry point is a small standard-library
+launcher, <code>extension/launch.py</code>. It starts the newest healthy runtime: the
+one the app installed, or a newer one the extension staged earlier.</li>
+<li><strong>Staging.</strong> After start, at most once a day, the server checks the
+latest Release. If it is newer and does not set <code>reinstall: true</code>, it
+builds a fresh environment with the uv that runs it (the <code>UV</code> variable uv
+sets for its children; to be confirmed, Q-5) in
+<code>%LOCALAPPDATA%\literary-critic\runtime\&lt;X.Y.Z&gt;\</code>. That environment is
+installed from the Release's pinned requirements, with hashes: the
+literary-critic wheel attached to the Release, and doc-control and
+pywin32 from PyPI. It then runs a self-test (<code>initialize</code> and
+<code>tools/list</code>) and only then marks the environment ready. Nothing changes
+in the running server.</li>
+<li><strong>Switching.</strong> The next time the app starts the server, the launcher
+runs the ready runtime. If it fails to start twice, the launcher marks it
+bad and goes back to the previous one. Two runtimes are kept.</li>
+<li><strong>What it cannot update.</strong> A release that changes the manifest (settings,
+server type, the launcher itself) sets <code>reinstall: true</code>, and the
+phase-1 notice asks the writer to install the <code>.mcpb</code>.</li>
+<li><strong>The writer's control.</strong> An "Update automatically" setting in the
+install dialog (Q-2). When it is on, the chat says once, afterwards, that
+the tool was updated, in plain words.</li>
+</ul>
+</li>
+<li><strong>Scope</strong>: Option B, plus <code>extension/launch.py</code>, a staging module, release
+  assets (wheel plus a hashed requirements file), and tests for staging,
+  switching and rollback with fakes.</li>
+<li><strong>Effort</strong>: Large (phase 2 alone is Medium)</li>
+<li><strong>Tradeoffs</strong>:<ul>
+<li>It is the only option that gives "install it and forget it":
+<code>auto_update_applied_restarts &lt;= 1</code> with no writer action.</li>
+<li>It runs code the install dialog never showed. That is the same trust as
+the manual path, since the writer would install whatever the Release
+holds, but nobody looks first. A broken release reaches every writer at
+their next restart, so the self-test and rollback are what limits the
+damage.</li>
+<li>The staged runtimes live in the app's virtualised data, which is
+disposable. Losing them falls back to the bundled runtime.</li>
+<li>It depends on undocumented app behaviour (uv in the environment). An
+extension that updates its own code would also likely be refused by any
+future directory listing (inferred).</li>
+</ul>
+</li>
+<li><strong>Compatibility</strong>: Phase 1 releases can be updated to phase 2 only by
+  reinstalling once. Every release after that updates itself.</li>
+</ul></div>
+<div class="note" data-for="s-spec-option-c-option-b-plus-self-upda"><label class="note-head" for="n-s-spec-option-c-option-b-plus-self-upda"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Option C: Option B, plus self-update (Recommended, in two phases)</span></label><textarea class="note-ta" data-key="s-spec-option-c-option-b-plus-self-upda" id="n-s-spec-option-c-option-b-plus-self-upda" data-label="Option C: Option B, plus self-update (Recommended, in two phases)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-rejected-a-frozen-exe-binary-typ">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Rejected: a frozen exe (<code>binary</code> type, like doc-control's packaging)</span></h4>
+<div class="sec-body"><p>Every option avoids it. It would bring the Defender false positives the owner
+already met with doc-control. Removing them needs Authenticode signing:
+Azure Trusted Signing at about $10 a month after identity validation, or an
+OV or EV certificate at a few hundred dollars a year with the key on a
+hardware token or cloud HSM (doc-control <code>PACKAGE</code> §3). Even signed, a new
+file builds SmartScreen reputation only over time. The <code>uv</code> type needs none of
+this, because no executable of ours runs.</p></div>
+<div class="note" data-for="s-spec-rejected-a-frozen-exe-binary-typ"><label class="note-head" for="n-s-spec-rejected-a-frozen-exe-binary-typ"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Rejected: a frozen exe (binary type, like doc-control's packaging)</span></label><textarea class="note-ta" data-key="s-spec-rejected-a-frozen-exe-binary-typ" id="n-s-spec-rejected-a-frozen-exe-binary-typ" data-label="Rejected: a frozen exe (binary type, like doc-control's packaging)" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l3" id="s-spec-comparison">
+<h4 class="sec-h"><span class="chip">▸</span><span class="sec-title">Comparison</span></h4>
+<div class="sec-body"><table>
+<thead>
+<tr>
+<th></th>
+<th>Option A</th>
+<th>Option B</th>
+<th>Option C</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Effort</td>
+<td>Medium</td>
+<td>Medium–Large</td>
+<td>Large (B + Medium)</td>
+</tr>
+<tr>
+<td>Risk</td>
+<td>High usability risk (Windows blocks on most PCs)</td>
+<td>Medium (moved state; Word opens for a closed document)</td>
+<td>Medium–High (self-update depends on undocumented uv behaviour; a bad release spreads by itself)</td>
+</tr>
+<tr>
+<td>Completeness</td>
+<td>Install and notice only; fails <code>security_detections</code></td>
+<td>Every criterion; updates take 3 writer actions</td>
+<td>Every criterion; updates take 0 actions after phase 2</td>
+</tr>
+<tr>
+<td>Compatibility</td>
+<td>Additive</td>
+<td>Additive; state copied once (supersedes chat D-10)</td>
+<td>As B; one manual reinstall into phase 2</td>
+</tr>
+<tr>
+<td>Maintenance</td>
+<td>Release workflow</td>
+<td>+ bump workflow, detection</td>
+<td>+ launcher, staging, rollback, extra release assets</td>
+</tr>
+</tbody>
+</table></div>
+<div class="note" data-for="s-spec-comparison"><label class="note-head" for="n-s-spec-comparison"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC › Comparison</span></label><textarea class="note-ta" data-key="s-spec-comparison" id="n-s-spec-comparison" data-label="Comparison" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+<article class="sec l2" id="s-spec-4">
+<h3 class="sec-h"><span class="chip">§4</span><span class="sec-title">Recommendation</span></h3>
+<div class="sec-body"><p><strong>Recommended option</strong>: Option C, built in two phases. Phase 1 is Option B and
+is worth shipping alone:</p>
+<ul>
+<li>one drag installs everything, with no exe and nothing to sign;</li>
+<li>nothing trips Windows Security;</li>
+<li>doc-control stays pinned;</li>
+<li>the writer is told about every release within a day.</li>
+</ul>
+<p>Phase 2 adds what the owner asked for first, the tool updating itself. It goes
+after phase 1 because its launcher has to be in the bundle the writer installs
+once, and it rests on app behaviour (Q-5) that the clean-PC run checks first.</p>
+<p><strong>Immediate next action</strong>: the owner answers Q-1 to Q-4, then <code>design</code> plans
+phase 1. Its first task packs the bundle in CI and runs the <code>desktop</code> T1 probe
+on the clean PC with that bundle. That gives Q-3 (no uv, no Python), desktop
+Q-8 (the install warnings), the reinstall check (settings kept) and Q-5 (uv
+reachable from the server) in one run.</p>
+<p><strong>Open questions</strong>:
+- [ ] <strong>Q-1 (owner):</strong> where does the working state live?
+    - Recommended: <code>%USERPROFILE%\literary-critic\</code> (survives uninstalling the
+    app; not protected; not backed up by OneDrive).
+    - <code>%LOCALAPPDATA%</code>: lost when the Claude app is uninstalled or reset, under
+    MSIX.
+    - Beside the novel, as today (needs an exception on most PCs).</p>
+<p>Whichever is chosen, the chat can tell the writer where it is, and
+  <code>lc pack</code> makes a backup zip on request.
+- [ ] <strong>Q-2 (owner):</strong> in phase 2, is "Update automatically" on by default?
+  Recommended: on, as the owner's wording asks, with the setting in the
+  install dialog.
+- [ ] <strong>Q-3 (owner):</strong> the developer's own entry. Recommended:
+    - Keep <code>literary-critic-dev</code> (<code>uv run --directory &lt;clone&gt; lc mcp &lt;folder&gt;</code>)
+    beside the installed extension, so the dev PC also runs what writers run.
+    - Turn the extension off in Settings → Extensions while developing; two
+    servers with the same tools in one chat confuse the model.
+    - Turn it back on, and remove or rename the dev entry, for a test run.
+    - Give the dev entry its own state file (<code>LITCRITIC_FOLDERS</code>), so the two do
+    not share <code>folders.json</code>.
+    - The dev entry reports <code>source: checkout</code> and never sees an update notice.
+- [ ] <strong>Q-4 (owner):</strong> sign the <code>.mcpb</code>? Recommended: no, for now. A
+  self-signed signature changes nothing for a writer. A CA-issued signature
+  needs a private key the CA will not hand out as a file (§2). Revisit only if
+  the clean-PC run shows that signing removes a warning the writer must accept.
+- [ ] <strong>Q-5 (probe):</strong> does the server's process see the uv the app
+  installed (the <code>UV</code> variable, or a known path), so that phase 2 can build an
+  environment without downloading uv again? If not, phase 2 downloads uv into
+  its own runtime folder, with a pinned checksum, as the app does.
+- [ ] <strong>Q-6 (probe):</strong> does installing a newer <code>.mcpb</code> over the old one keep
+  the folder setting and the extension enabled? Inferred yes (§2). If not,
+  the update instructions add the folder step, and <code>writer_update_actions</code> is
+  re-counted.</p>
+<p><strong>Decisions log</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>ID</th>
+<th>Decision</th>
+<th>Status</th>
+<th>Date</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chat D-10</td>
+<td>Working files in <code>&lt;novel&gt;/literary-critic/</code></td>
+<td>superseded by D-3, if approved</td>
+<td>2026-10-11</td>
+</tr>
+<tr>
+<td>install D-2</td>
+<td>The update check is a script, silent when it does not know; one plain sentence, never mid-change</td>
+<td>agreed (kept; now reads Releases and runs in the background)</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>desktop D-5, D-13</td>
+<td>One <code>.mcpb</code>, installed by dragging it onto the app's window</td>
+<td>agreed (kept)</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>desktop D-6</td>
+<td>doc-control is bundled as a library</td>
+<td>agreed (kept)</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>doc-control D-P3</td>
+<td>doc-control ships its own exe unsigned</td>
+<td>noted; literary-critic ships no exe (D-1)</td>
+<td>2026-10-14</td>
+</tr>
+<tr>
+<td>D-1</td>
+<td>Server type <code>uv</code>; no executable of ours, so nothing for Authenticode to sign</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-2</td>
+<td><code>uv.lock</code> ships in the bundle; CI fails when it does not match <code>pyproject.toml</code></td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-3</td>
+<td>No tool file under a protected folder; working state in a per-user folder (Q-1), copied once from the old place</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-4</td>
+<td>The manuscript is changed only through Word (live engine); the file engine never writes it</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-5</td>
+<td>A Release is cut by merging a version bump; a tag publishes the <code>.mcpb</code> and <code>SHA256SUMS</code> from CI</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-6</td>
+<td>A doc-control release inside the range reaches writers through an automatic bump PR and a patch release</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-7</td>
+<td>A standalone doc-control is reported once, in plain words; it is not blocked</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-8</td>
+<td>Self-update (phase 2): staged, self-tested, applied on the next start, with rollback; a manifest change still needs a reinstall</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+<tr>
+<td>D-9</td>
+<td>This workspace replaces <code>desktop</code> T8; <code>desktop</code> T1 and T10 run on the released bundle</td>
+<td>proposed</td>
+<td>2026-10-16</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Sections 5–6 (contracts, risks) are appended by <code>design</code>.</p>
+</blockquote></div>
+<div class="note" data-for="s-spec-4"><label class="note-head" for="n-s-spec-4"><span class="note-ico" aria-hidden="true">✎</span><span class="note-label">Your note</span><span class="note-ref">SPEC §4</span></label><textarea class="note-ta" data-key="s-spec-4" id="n-s-spec-4" data-label="§4 Recommendation" data-part="Spec" rows="1" placeholder="Add a note on this section…"></textarea></div>
+</article>
+</section>
+</div>
+
+<div class="fab">
+  <button class="btn" id="btn-top" title="Back to top">↑ Top</button>
+  <button class="btn" id="btn-import">Import</button>
+  <button class="btn" id="btn-clear">Clear</button>
+  <button class="btn primary" id="btn-export2">💾 Save / Export</button>
+</div>
+<input type="file" id="file-import" class="hidden-input" accept=".md,.markdown,.json,text/markdown,application/json">
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3>Your notes</h3>
+    <p>Downloaded as a Markdown file. You can also copy the text below and paste it back.</p>
+    <textarea id="modal-ta" readonly></textarea>
+    <div class="modal-actions">
+      <button class="btn primary" id="modal-copy">Copy</button>
+      <button class="btn" id="modal-dl">Download again</button>
+      <button class="btn" id="modal-close">Close</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>var SPEC_SEED_NOTES={};</script>
+<script>
+(function(){
+  var NS = 'literary-critic-spec-v1:';
+  var tas = Array.prototype.slice.call(document.querySelectorAll('.note-ta'));
+
+  function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+  function setFilled(t){var box=t.closest('.note');if(box){box.classList.toggle('filled',t.value.trim()!=='');}}
+  function updateCount(){
+    var n=0;tas.forEach(function(t){if(t.value.trim()!=='')n++;});
+    var el=document.getElementById('count');if(el){el.textContent=n+' / '+tas.length+' notes';}
+    return n;
+  }
+  var lsOK=true,dirty=false;
+  try{localStorage.setItem('__vs__','1');localStorage.removeItem('__vs__');}catch(e){lsOK=false;}
+  var WARN='⚠ Not saving — tap Save / Export';
+  function nowStamp(){var d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());}
+  function setState(txt,cls){var el=document.getElementById('savestate');if(el){el.textContent=txt;el.className='savestate '+(cls||'');}}
+  window.addEventListener('beforeunload',function(e){if(!lsOK&&dirty){e.preventDefault();e.returnValue='';}});
+
+  var saveTimers={};
+  function save(t){
+    if(!lsOK){dirty=true;setState(WARN,'warn');return;}
+    var k=NS+t.dataset.key;
+    try{
+      // An empty note is stored as "", not removed: a missing key means "never
+      // touched" and the loader falls back to the seed, so removing it brought a
+      // seeded note back after the reviewer had deliberately cleared it (#477).
+      localStorage.setItem(k,t.value.trim()===''?'':t.value);
+      dirty=true;setState('✓ Saved '+nowStamp(),'ok');
+    }catch(e){dirty=true;lsOK=false;document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+  }
+  var SEED=(typeof SPEC_SEED_NOTES!=='undefined')?SPEC_SEED_NOTES:{};
+  tas.forEach(function(t){
+    // Seed first, then let storage override it. With the read inside the same
+    // try as the seed, a throwing localStorage skipped the seed too and the
+    // reader came up empty exactly when it could save nothing (#477).
+    if(Object.prototype.hasOwnProperty.call(SEED,t.dataset.key)){
+      var sv=SEED[t.dataset.key];if(typeof sv==='string'){t.value=sv;}}
+    try{var v=localStorage.getItem(NS+t.dataset.key);if(v!=null){t.value=v;}}catch(e){}
+    autoGrow(t);setFilled(t);
+    t.addEventListener('input',function(){
+      autoGrow(t);setFilled(t);updateCount();
+      clearTimeout(saveTimers[t.dataset.key]);
+      saveTimers[t.dataset.key]=setTimeout(function(){save(t);},350);
+    });
+    t.addEventListener('blur',function(){save(t);});
+  });
+  updateCount();
+  if(lsOK){setState('✓ Auto-saving','ok');}else{document.getElementById('warnbar').style.display='block';setState(WARN,'warn');}
+
+  function toast(msg){var el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(function(){el.classList.remove('show');},1900);}
+  function pad(n){return n<10?'0'+n:''+n;}
+  function today(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  // Named like the reader, <repo>-<doc>-v<N>-<date>-notes.md, the date being the export's.
+  function exportName(){return 'literary-critic-spec-v1-'+today()+'-notes.md';}
+
+  function buildExport(){
+    var byPart={},order=[],data={},n=0;
+    tas.forEach(function(t){
+      var v=t.value.trim();if(v==='')return;n++;
+      data[t.dataset.key]=t.value;
+      var part=t.dataset.part||'Other';
+      if(!byPart[part]){byPart[part]=[];order.push(part);}
+      byPart[part].push({label:t.dataset.label,ref:keyFromDom(t.dataset.key,t),note:t.value});
+    });
+    var lines=['# Specification notes','','_Exported '+today()+' · '+n+' note'+(n===1?'':'s')+'._','',
+      '> Send this file back to continue the review. Notes are embedded as data at the bottom','> so importing this file restores them in the reader.',''];
+    order.forEach(function(part){
+      lines.push('## '+part,'');
+      byPart[part].forEach(function(it){
+        lines.push('**'+it.label+'**  `'+it.ref+'`');
+        it.note.split('\n').forEach(function(ln){lines.push('> '+ln);});
+        lines.push('');
+      });
+    });
+    lines.push('<!-- SPEC-NOTES-DATA');
+    lines.push(JSON.stringify(data));
+    lines.push('-->');
+    return{text:lines.join('\n'),n:n};
+  }
+  function keyFromDom(domkey,t){var box=t.closest('.note');var r=box?box.querySelector('.note-ref'):null;return r?r.textContent:domkey;}
+
+  function download(name,text){
+    try{var blob=new Blob([text],{type:'text/markdown'});var url=URL.createObjectURL(blob);
+        var a=document.createElement('a');a.href=url;a.download=name;
+        document.body.appendChild(a);a.click();
+        setTimeout(function(){URL.revokeObjectURL(url);a.remove();},1500);return true;}catch(e){return false;}
+  }
+
+  var modal=document.getElementById('modal');
+  var modalTa=document.getElementById('modal-ta');
+  function openModal(text){modalTa.value=text;modal.classList.add('open');}
+  function closeModal(){modal.classList.remove('open');}
+
+  document.getElementById('btn-export').addEventListener('click',function(){
+    var r=buildExport();
+    if(r.n===0){toast('No notes yet — add some first.');return;}
+    var saved=download(exportName(),r.text);openModal(r.text);
+    // download() returning only means the download was REQUESTED; a browser can
+    // still block or drop it. So `dirty` — what arms the unload warning — is
+    // cleared only on a confirmed copy: the clipboard promise fulfilling.
+    var cp=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){cp=navigator.clipboard.writeText(r.text);}}catch(e){cp=null;}
+    if(cp&&typeof cp.then==='function'){cp.then(function(){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');},function(){});}
+    if(!saved){setState('⚠ Download blocked — copy the notes from this box','warn');
+               toast('Download blocked — copy the notes before leaving');return;}
+    setState('Download requested '+nowStamp(),'ok');
+    toast('Download requested — '+r.n+' note'+(r.n===1?'':'s'));
+  });
+  document.getElementById('btn-export2').addEventListener('click',function(){document.getElementById('btn-export').click();});
+
+  document.getElementById('modal-copy').addEventListener('click',function(){
+    // Success is reported only once a copy actually happened: the legacy
+    // execCommand returned true, or the clipboard promise fulfilled. Claiming it
+    // before writeText settled told the reviewer a rejected copy had worked (#477).
+    function report(ok){if(ok){dirty=false;setState('✓ Copied to clipboard '+nowStamp(),'ok');}
+                        toast(ok?'Copied to clipboard':'Select the text and copy');}
+    modalTa.select();var legacy=false;try{legacy=document.execCommand('copy')===true;}catch(e){}
+    if(legacy){report(true);return;}
+    var p=null;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){p=navigator.clipboard.writeText(modalTa.value);}}catch(e){p=null;}
+    if(p&&typeof p.then==='function'){p.then(function(){report(true);},function(){report(false);});}
+    else{report(false);}
+  });
+  document.getElementById('modal-dl').addEventListener('click',function(){download(exportName(),modalTa.value);toast('Download requested');});
+  document.getElementById('modal-close').addEventListener('click',closeModal);
+  modal.addEventListener('click',function(e){if(e.target===modal)closeModal();});
+
+  // buildExport only ever writes strings, but an import takes whatever the file
+  // holds: an object arrives as "[object Object]", an array joins on commas,
+  // null becomes "null" — each then persisted over notes the reviewer wrote.
+  // The realistic trigger is a hand-edited or truncated export, not an attack;
+  // it just fails in the least useful way, silently and destructively. Skip
+  // anything that is not a string and say how many were skipped.
+  function applyData(obj){
+    var applied=0,skipped=0;
+    tas.forEach(function(t){
+      if(!Object.prototype.hasOwnProperty.call(obj,t.dataset.key))return;
+      var v=obj[t.dataset.key];
+      if(typeof v!=='string'){skipped++;return;}
+      t.value=v;save(t);autoGrow(t);setFilled(t);applied++;
+    });
+    updateCount();return{applied:applied,skipped:skipped};
+  }
+  document.getElementById('file-import').addEventListener('change',function(e){
+    var f=e.target.files[0];if(!f)return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      var txt=String(rd.result||'');var obj=null;
+      // Last LINE-ANCHORED marker. A plain lastIndexOf lands inside the JSON
+      // string of a note that mentions the marker, and the import then reads as
+      // a corrupt file — the same defect the Python seeder had (#239).
+      var mk=/^[ \t]*<!--[ \t]*SPEC-NOTES-DATA/gm,mm=null,mx;
+      while((mx=mk.exec(txt))!==null){mm=mx;}
+      try{
+        if(mm){var after=txt.slice(mm.index+mm[0].length);var jstart=after.indexOf('{');var jend=after.lastIndexOf('}');
+                  if(jstart>=0&&jend>jstart){obj=JSON.parse(after.slice(jstart,jend+1));}}
+        else{obj=JSON.parse(txt);}
+      }catch(err){obj=null;}
+      if(!obj){toast('Could not read notes from that file');return;}
+      var r=applyData(obj);
+      toast('Imported '+r.applied+' note'+(r.applied===1?'':'s')+
+            (r.skipped?' ('+r.skipped+' skipped — not text)':''));
+    };
+    rd.readAsText(f);e.target.value='';
+  });
+  document.getElementById('btn-import').addEventListener('click',function(){document.getElementById('file-import').click();});
+
+  document.getElementById('btn-clear').addEventListener('click',function(){
+    if(!confirm('Clear ALL notes from this browser? Export first if you want to keep them.'))return;
+    tas.forEach(function(t){t.value='';save(t);autoGrow(t);setFilled(t);});
+    updateCount();toast('All notes cleared');
+  });
+
+  document.getElementById('btn-top').addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+})();
+</script>
+</body>
+</html>
