@@ -89,3 +89,21 @@ def test_smoke_versions_differ_from_lock_fails() -> None:
         "left-pad 1.0 installed, lock has nothing",
         "doc-control not installed",
     ]
+
+
+doccontrol_bump = _script("doccontrol_bump")
+
+
+def test_bump_in_range_pr_out_of_range_issue() -> None:
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    pinned = doccontrol_bump.pinned_range(pyproject)
+    current = doccontrol_bump.locked((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    assert doccontrol_bump.decide(current, current, *pinned) == "none"
+    low, high = "0.8.3", "0.9"
+    assert doccontrol_bump.decide("0.8.3", "0.8.4", low, high) == "pr"
+    assert doccontrol_bump.decide("0.8.3", "0.9.0", low, high) == "issue"
+    assert doccontrol_bump.decide("0.8.3", "1.0", low, high) == "issue"
+    assert doccontrol_bump.decide("0.8.3", "0.8.3", low, high) == "none"
+    assert doccontrol_bump.decide("0.8.4", "0.8.3", low, high) == "none"
+    bumped, new = doccontrol_bump.bump_patch('[project]\nname = "x"\nversion = "0.1.9"\n')
+    assert new == "0.1.10" and 'version = "0.1.10"' in bumped
