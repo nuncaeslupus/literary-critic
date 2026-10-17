@@ -5,6 +5,7 @@ label: "release State place"
 priority: 5
 deps: [t-b50ea0c6]
 workspace: release
+status: merged
 ---
 
 ## Acceptance gate

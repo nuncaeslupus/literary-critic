@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -118,10 +119,10 @@ def _from_powershell(run: Runner) -> Status | None:
 
 
 def _from_registry() -> Status | None:
-    try:
-        import winreg  # type: ignore[import-not-found,unused-ignore]
-    except ImportError:
+    if sys.platform != "win32":
         return None
+    import winreg
+
     try:
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, REGISTRY) as key:
             mode, _ = winreg.QueryValueEx(key, "EnableControlledFolderAccess")
