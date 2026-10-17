@@ -9,11 +9,14 @@ platform by running a tiny pipeline in a temporary folder.
 
 from __future__ import annotations
 
+import base64
 import contextlib
 import importlib.util
 import json
 import os
 import re
+import ssl
+import subprocess
 import sys
 import tempfile
 import time
@@ -88,14 +91,65 @@ def _cache_file() -> Path:
     return state_file().parent / "update.json"
 
 
+def _cert_unverified(exc: BaseException) -> bool:
+    """urlopen's failure was the server certificate (urllib wraps it in ``URLError``)."""
+    return isinstance(exc, ssl.SSLCertVerificationError) or isinstance(
+        getattr(exc, "reason", None), ssl.SSLCertVerificationError
+    )
+
+
+# Windows PowerShell 5.1 fetches through SChannel; base64 keeps stdout free of codepages.
+WINDOWS_FETCH = (
+    "$ProgressPreference='SilentlyContinue';"
+    "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;"
+    "$r=Invoke-WebRequest -UseBasicParsing -TimeoutSec {secs} -Uri '{url}'"
+    " -Headers @{{'User-Agent'='literary-critic'}};"
+    "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($r.Content))"
+)
+
+
+def _windows_fetch(url: str, timeout: float) -> bytes | None:
+    """``url``'s body read through Windows' own TLS, or None. On a fresh Windows the store
+    lacks roots that Windows installs only when its own TLS asks; CPython reads the store
+    but never asks, so this one fetch also lets later urllib calls verify."""
+    if sys.platform != "win32" or timeout <= 1:
+        return None
+    exe = Path(os.environ.get("SYSTEMROOT", r"C:\Windows"))
+    exe = exe / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
+    script = WINDOWS_FETCH.format(secs=max(1, int(timeout) - 1), url=url)
+    try:
+        done = subprocess.run(
+            [str(exe), "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True,
+            timeout=timeout,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        return (
+            base64.b64decode(done.stdout.strip(), validate=True) if done.returncode == 0 else None
+        )
+    except Exception:  # missing, blocked or slow: the check stays "unknown"
+        return None
+
+
 def _fetch_release(timeout: float) -> dict[str, Any] | None:
     """The newest published Release (``tag_name``, ``html_url``, ``assets``), or None on
-    any failure (offline, slow, refused, no release)."""
+    any failure (offline, slow, refused, no release). A certificate Python cannot verify
+    on Windows is retried once through Windows' own TLS, within the same ``timeout``."""
+    started = time.monotonic()
     req = urllib.request.Request(RELEASE_URL, headers={"User-Agent": "literary-critic"})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            got = json.loads(resp.read().decode("utf-8"))
-            return got if isinstance(got, dict) else None
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                body = resp.read()
+        except Exception as exc:
+            if not _cert_unverified(exc):
+                return None
+            fallback = _windows_fetch(RELEASE_URL, timeout - (time.monotonic() - started))
+            if fallback is None:
+                return None
+            body = fallback
+        got = json.loads(body.decode("utf-8"))
+        return got if isinstance(got, dict) else None
     except Exception:  # any failure means "unknown", never an error for the writer
         return None
 
