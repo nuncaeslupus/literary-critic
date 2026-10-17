@@ -67,6 +67,14 @@ make ci          # lint, typecheck, tests, content guard
 
 Rules for contributors and assistants: [`AGENTS.md`](AGENTS.md).
 
+**How a fix reaches a writer** (the owner included — there is no separate dev
+entry in the app's config): merge the PR, then release it (a merged PR that
+raises `version` publishes the `.mcpb`), then the installed extension updates.
+With *Update automatically* on (the default) it gets the release ready in the
+background and runs it at the next start of the app; asking Claude to update
+gets it ready at once. A release that needs the `.mcpb` reinstalled says so
+instead.
+
 ## Related projects
 
 Built with [claude-arsenal](https://github.com/nuncaeslupus/claude-arsenal), the
