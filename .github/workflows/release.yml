@@ -57,10 +57,13 @@ jobs:
           rm -rf dist/unpacked
       - if: steps.version.outputs.skip != '1'
         run: python scripts/smoke_mcpb.py "dist/literary-critic-${{ steps.version.outputs.version }}.mcpb"
+      - if: steps.version.outputs.skip != '1'
+        run: python scripts/release_assets.py --out dist/assets
       - if: steps.version.outputs.skip != '1' && github.event_name != 'pull_request'
         run: |
           v=${{ steps.version.outputs.version }}
-          (cd dist && sha256sum literary-critic-$v.mcpb > SHA256SUMS)
+          cp dist/assets/* dist/
+          (cd dist && sha256sum literary-critic-$v.mcpb *.whl requirements-$v.txt release.json > SHA256SUMS)
           cat > dist/notes.md <<NOTES
           To install: download literary-critic-$v.mcpb below, then drag it onto the
           Claude app's window (Settings → Extensions) and press Install. Your novels,
