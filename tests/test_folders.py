@@ -35,7 +35,7 @@ def _link(link: Path, target: Path) -> None:
             pytest.skip("symlinks not available")
         import _winapi
 
-        _winapi.CreateJunction(str(target), str(link))  # type: ignore[attr-defined]
+        _winapi.CreateJunction(str(target), str(link))  # type: ignore[attr-defined,unused-ignore]
 
 
 def test_confine_outside_paths_refused(tmp_path: Path) -> None:
@@ -196,7 +196,7 @@ def test_state_place_cfa_on_protected_uses_fallback(
     assert wrote[0].parent == drive / "literary-critic"
     # unreadable settings: beside first, the fallback once Windows refuses
     refused = PermissionError(13, "denied")
-    setattr(refused, "winerror", 5)
+    refused.winerror = 5  # type: ignore[attr-defined,unused-ignore]
     calls: list[Path] = []
 
     def run(root: Path) -> dict[str, object]:
