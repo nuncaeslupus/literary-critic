@@ -74,12 +74,19 @@ class Tool:
     required: tuple[str, ...] = ()
     ui: str = ""  # the ``ui://`` page that renders this tool's result (MCP Apps)
     app_only: bool = False  # hidden from the model: only an MCP App page may call it
+    read_only: bool = False  # the app groups tools by these hints for "Always allow"
 
     def listing(self) -> dict[str, Any]:
         schema: dict[str, Any] = {"type": "object", "properties": self.properties}
         if self.required:
             schema["required"] = list(self.required)
         out = {"name": self.name, "description": self.description, "inputSchema": schema}
+        # Writes are the tool's own state, or a change the writer approved on its card.
+        out["annotations"] = (
+            {"readOnlyHint": True}
+            if self.read_only
+            else {"readOnlyHint": False, "destructiveHint": False}
+        )
         if self.app_only:
             out["_meta"] = {"ui": {"visibility": ["app"]}}
         elif self.ui:
@@ -806,6 +813,7 @@ def tools(grant: Any) -> list[Tool]:
                     "description": "check for a new version now (the writer asked to update)",
                 }
             },
+            read_only=True,
         ),
         Tool(
             "resume",
@@ -815,6 +823,7 @@ def tools(grant: Any) -> list[Tool]:
             "switches novels.",
             lambda a: resume(grant, str(a.get("work") or ""), reported),
             {"work": {"type": "string", "description": "the novel's title or folder name"}},
+            read_only=True,
         ),
         Tool(
             "show",
@@ -823,6 +832,7 @@ def tools(grant: Any) -> list[Tool]:
             lambda a: run_lc(grant, str(a.get("work") or ""), ["show", *_opt(a, "unit")]),
             {"work": WORK_ARG, "unit": {"type": "string"}},
             ("work",),
+            read_only=True,
         ),
         Tool(
             "find",
@@ -834,6 +844,7 @@ def tools(grant: Any) -> list[Tool]:
             ),
             {"work": WORK_ARG, "query": {"type": "string"}, "within": {"type": "string"}},
             ("work", "query"),
+            read_only=True,
         ),
         Tool(
             "ask",
@@ -855,6 +866,7 @@ def tools(grant: Any) -> list[Tool]:
                 "params": {"type": "array", "items": {"type": "string"}},
             },
             ("work", "question"),
+            read_only=True,
         ),
         Tool(
             "run",
@@ -873,6 +885,7 @@ def tools(grant: Any) -> list[Tool]:
             ),
             {"work": WORK_ARG, "target": {"type": "string"}, "go": {"type": "boolean"}},
             ("work", "target"),
+            read_only=True,
         ),
         Tool(
             "places",
@@ -881,6 +894,7 @@ def tools(grant: Any) -> list[Tool]:
             {"work": WORK_ARG, "targets": {"type": "array", "items": {"type": "string"}}},
             ("work", "targets"),
             ui=PLACES_URI,
+            read_only=True,
         ),
         Tool(
             "plan",
