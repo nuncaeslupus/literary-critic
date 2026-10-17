@@ -6,6 +6,7 @@ priority: 10
 deps: [t-c778734c]
 requires: [human:gate]
 workspace: release
+status: merged
 ---
 
 ## Acceptance gate

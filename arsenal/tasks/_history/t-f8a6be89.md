@@ -5,6 +5,7 @@ label: "undo marks change undone"
 priority: 10
 deps: [t-9c184d28]
 workspace: workplan
+status: merged
 ---
 
 ## Acceptance gate
