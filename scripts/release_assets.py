@@ -61,7 +61,7 @@ def requirements_text(exported: str, wheel: Path) -> str:
     ]
     if unhashed:
         raise SystemExit(f"packages without a hash: {unhashed[0].split()[0]}")
-    own = f"literary-critic @ ./{wheel.name} \\n    --hash=sha256:{sha256(wheel)}"
+    own = f"literary-critic @ ./{wheel.name} \\\n    --hash=sha256:{sha256(wheel)}"
     return f"{body}\n{own}\n"
 
 
