@@ -443,7 +443,7 @@ def _not_set_up(grant: Any, name: str) -> list[dict[str, str]]:
 def setup_work(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     """`lc setup` on a granted folder: find the manuscript and prepare the working folder,
     or record the writer's choices on a work already set up."""
-    from litcritic import settings, setup
+    from litcritic import folders, settings, setup
 
     if not str(a.get("folder") or "").strip():
         raise ToolError("missing_arguments", missing=["folder"])
@@ -453,15 +453,20 @@ def setup_work(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     prose = a.get("prose_suggestions")
     edit = a.get("edit_in_place")
     try:
-        out = setup.setup(
+        out = folders.with_state_place(
+            grant,
             folder,
-            "" if prose is None else str(prose).lower(),
-            bool(a.get("ack_ai_notice")),
-            chosen,
-            "" if edit is None else ("yes" if edit in (True, "yes") else "no"),
+            lambda root: setup.setup(
+                folder,
+                "" if prose is None else str(prose).lower(),
+                bool(a.get("ack_ai_notice")),
+                chosen,
+                "" if edit is None else ("yes" if edit in (True, "yes") else "no"),
+                root,
+            ),
         )
     except settings.NoticeRequired as exc:
-        lang = setup._language(folder / setup.WORKSPACE_DIR)
+        lang = setup._language(grant.state_root(folder) or folder / setup.WORKSPACE_DIR)
         return {
             "status": "refused",
             "reason": "ai_notice",

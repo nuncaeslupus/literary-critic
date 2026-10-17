@@ -17,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from litcritic import cfa, winblock
 from litcritic.mcp import ToolError
 from litcritic.setup import FORMATS, WORKSPACE_DIR
 from litcritic.workspace import MANIFEST, Workspace
@@ -52,6 +53,14 @@ def state_file() -> Path:
     return Path(base) / "litcritic" / "folders.json"
 
 
+def _load() -> dict[str, object]:
+    try:
+        data = json.loads(state_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def _real(path: Path) -> Path:
     """The path with every link and junction followed, as the OS will open it."""
     return Path(os.path.realpath(path))
@@ -80,12 +89,8 @@ class Grant:
     install: list[str] = field(default_factory=list)
 
     def added(self) -> list[str]:
-        try:
-            data = json.loads(state_file().read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return []
-        folders = data.get("folders") if isinstance(data, dict) else None
-        return [f for f in folders or [] if isinstance(f, str)]
+        folders = _load().get("folders")
+        return [f for f in (folders if isinstance(folders, list) else []) if isinstance(f, str)]
 
     def add(self, folder: str | Path) -> Path:
         """Store a folder the writer picked; returns it as stored."""
@@ -94,11 +99,37 @@ class Grant:
             raise ToolError("not_a_folder", path=str(folder))
         known = self.added()
         if not any(_key(Path(k)) == _key(path) for k in known):
-            out = state_file()
-            out.parent.mkdir(parents=True, exist_ok=True)
-            text = json.dumps({"folders": [*known, str(path)]}, ensure_ascii=False, indent=1)
-            out.write_text(text + "\n", encoding="utf-8")
+            self._save({"folders": [*known, str(path)]})
         return path
+
+    def _save(self, change: dict[str, object]) -> None:
+        """Write ``change`` into ``folders.json``, keeping its other keys."""
+        data = _load()
+        data.update(change)
+        out = state_file()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+
+    def state(self) -> dict[str, str]:
+        """Where each novel's working state was placed: novel folder -> state folder."""
+        raw = _load().get("state")
+        if not isinstance(raw, dict):
+            return {}
+        return {k: v for k, v in raw.items() if isinstance(k, str) and isinstance(v, str)}
+
+    def state_root(self, novel: Path) -> Path | None:
+        """The state folder recorded for this novel, or None."""
+        want = _key(_real(novel))
+        for k, v in self.state().items():
+            if os.path.normcase(k) == want:
+                return Path(v)
+        return None
+
+    def record_state(self, novel: Path, root: Path) -> None:
+        """Keep the place chosen for a novel, so later calls never ask again."""
+        known = self.state()
+        known[str(_real(novel))] = str(root)
+        self._save({"state": known})
 
     def roots(self) -> list[Path]:
         """Existing granted folders, links followed, each once."""
@@ -142,6 +173,14 @@ class Grant:
                         except ToolError:
                             continue  # a link out of the granted folders
                         found.setdefault(_key(real), real)
+        for novel, state in self.state().items():
+            cand = Path(state)
+            if cand.name != WORKSPACE_DIR and (cand / MANIFEST).is_file():
+                try:
+                    self.confine(novel)  # a novel no longer granted is not found
+                except ToolError:
+                    continue
+                found.setdefault(_key(_real(cand)), _real(cand))
         return [Workspace(p) for p in sorted(found.values())]
 
     def unset(self) -> list[Path]:
@@ -158,6 +197,8 @@ class Grant:
                     continue
                 if (d / WORKSPACE_DIR / MANIFEST).is_file() or not _has_manuscript(d):
                     continue
+                if (kept := self.state_root(d)) is not None and (kept / MANIFEST).is_file():
+                    continue
                 found.setdefault(_key(d), d)
         return sorted(found.values())
 
@@ -171,6 +212,9 @@ class Grant:
             except (OSError, ValueError):
                 meta = {}
             novel = ws.root.parent if ws.root.name == WORKSPACE_DIR else ws.root
+            for k, v in self.state().items():  # state placed away from its novel
+                if os.path.normcase(v) == _key(ws.root):
+                    novel = Path(k)
             names = [meta.get(k) for k in ("title", "slug", "id")] + [novel.name, ws.root.name]
             if any(isinstance(n, str) and _fold(n) == want for n in names):
                 hits.append(ws)
@@ -233,4 +277,92 @@ def add_folder(grant: Grant, run: Runner = subprocess.run) -> dict[str, object]:
     out: dict[str, object] = {"added": str(folder), "works": titles}
     if fresh := grant.unset():
         out["not_set_up"] = [{"name": d.name, "folder": str(d)} for d in fresh]
+    return out
+
+
+@dataclass(frozen=True)
+class Place:
+    """Where a novel's working state goes. ``kind`` is ``beside`` (``<novel>/literary-critic``),
+    ``fallback`` (OneDrive's root or the profile, because Controlled folder access protects
+    the novel's folder) or ``unknown`` (the settings could not be read: try beside, and fall
+    back if Windows refuses). ``new`` marks a choice made now, not one kept."""
+
+    root: Path
+    kind: str
+    new: bool = False
+
+
+def fallback_place(
+    grant: Grant, novel: Path, home: Path | None = None, onedrive: Path | None = None
+) -> Place:
+    """``<OneDrive or profile>/literary-critic/<novel>``; a second novel with the same
+    folder name gets a short suffix, so two works never share state."""
+    from litcritic.setup import _slug
+
+    base = cfa.fallback_base(home, onedrive)
+    mine = os.path.normcase(str(_real(novel)))
+    owners = {os.path.normcase(v): os.path.normcase(k) for k, v in grant.state().items()}
+    root = base / (_slug(novel.name) or "work")
+    if owners.get(os.path.normcase(str(root)), mine) != mine:
+        root = root.with_name(f"{root.name}-{abs(hash(mine)) % 0xFFFFFF:06x}")
+    return Place(root, "fallback", True)
+
+
+def choose_place(
+    grant: Grant,
+    novel: Path,
+    reader: Callable[[], cfa.Status | None] = cfa.read,
+    home: Path | None = None,
+    onedrive: Path | None = None,
+) -> Place:
+    """The state place for a novel: the one kept, a work already beside the novel, else a
+    choice from Controlled folder access. Nothing is written here."""
+    beside = novel / WORKSPACE_DIR
+    if (kept := grant.state_root(novel)) is not None:
+        return Place(kept, "beside" if _key(kept) == _key(beside) else "fallback")
+    if (beside / MANIFEST).is_file():
+        return Place(beside, "beside")
+    status = reader()
+    if status is None:
+        return Place(beside, "unknown", True)
+    if status.protects(_real(novel), home, onedrive):
+        return fallback_place(grant, novel, home, onedrive)
+    return Place(beside, "beside", True)
+
+
+def say_place(place: Place) -> dict[str, object]:
+    """``state_place`` for the chat; the sentence only when the state is not beside the novel."""
+    out: dict[str, object] = {"kind": place.kind, "path": str(place.root)}
+    if place.kind == "fallback":
+        out["say"] = (
+            "Windows Security protects this folder, so the working files of this novel are "
+            f"kept in {place.root}. Nothing was written next to the manuscript."
+        )
+    return out
+
+
+def with_state_place(
+    grant: Grant,
+    novel: Path,
+    run: Callable[[Path], dict[str, object]],
+    reader: Callable[[], cfa.Status | None] = cfa.read,
+    home: Path | None = None,
+    onedrive: Path | None = None,
+) -> dict[str, object]:
+    """Run ``run(state_root)`` in the chosen place, keep the choice, return it once.
+
+    With the settings unreadable the novel's folder is tried once; a refusal by Windows
+    moves the state to the fallback and runs again.
+    """
+    place = choose_place(grant, novel, reader, home, onedrive)
+    try:
+        out = run(place.root)
+    except OSError as exc:
+        if place.kind != "unknown" or winblock.kind(exc) not in ("blocked", "blocked_or_open"):
+            raise
+        place = fallback_place(grant, novel, home, onedrive)
+        out = run(place.root)
+    if place.new:
+        grant.record_state(novel, place.root)
+        out["state_place"] = say_place(place)
     return out
