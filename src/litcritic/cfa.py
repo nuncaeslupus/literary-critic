@@ -38,7 +38,7 @@ TIMEOUT = 20  # seconds
 
 
 def _parts(path: str | Path) -> list[str]:
-    return [p for p in os.path.normcase(str(path)).replace("\\", "/").split("/") if p]
+    return [p for p in str(path).casefold().replace("\\", "/").split("/") if p]
 
 
 def _inside(path: str | Path, root: str | Path) -> bool:
