@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -34,7 +35,7 @@ def _link(link: Path, target: Path) -> None:
             pytest.skip("symlinks not available")
         import _winapi
 
-        _winapi.CreateJunction(str(target), str(link))  # type: ignore[attr-defined]
+        _winapi.CreateJunction(str(target), str(link))  # type: ignore[attr-defined,unused-ignore]
 
 
 def test_confine_outside_paths_refused(tmp_path: Path) -> None:
@@ -125,3 +126,115 @@ def test_add_folder_tool_listed(tmp_path: Path) -> None:
     from litcritic import mcp
 
     assert "add_folder" in [t.name for t in mcp.tools(folders.Grant([str(tmp_path)]))]
+
+
+# --- the state place (Controlled folder access) -------------------------------------
+
+from litcritic import cfa  # noqa: E402
+
+
+def _layouts(tmp_path: Path) -> tuple[Path, Path, dict[str, Path]]:
+    home = tmp_path / "Users" / "me"
+    drive = home / "OneDrive"
+    novels = {
+        "Documents": home / "Documents" / "Novel",
+        "OneDrive-Documents": drive / "Documents" / "Novel",
+        "OneDrive-other": drive / "Books" / "Novel",
+        "outside": tmp_path / "Work" / "Novel",
+    }
+    for p in novels.values():
+        p.mkdir(parents=True)
+    return home, drive, novels
+
+
+def _place(
+    grant: folders.Grant, novel: Path, status: cfa.Status | None, home: Path, drive: Path | None
+) -> tuple[dict[str, object], list[Path]]:
+    wrote: list[Path] = []
+
+    def run(root: Path) -> dict[str, object]:
+        root.mkdir(parents=True, exist_ok=True)
+        (root / MANIFEST).write_text('id = "n-1"\n', encoding="utf-8")
+        wrote.append(root)
+        return {"status": "ready"}
+
+    return folders.with_state_place(grant, novel, run, lambda: status, home, drive), wrote
+
+
+def test_state_place_cfa_on_protected_uses_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in ("OneDrive", "OneDriveConsumer", "OneDriveCommercial"):
+        monkeypatch.delenv(name, raising=False)
+    home, drive, novels = _layouts(tmp_path)
+    on = cfa.Status(True)
+    for layout, novel in novels.items():
+        protected = layout in ("Documents", "OneDrive-Documents")
+        for onedrive, base in ((drive, drive), (None, home)):
+            if onedrive is None and layout.startswith("OneDrive"):
+                continue  # no OneDrive, no such layout
+            grant = folders.Grant([str(novel.parent)])
+            folders.state_file().unlink(missing_ok=True)
+            out, wrote = _place(grant, novel, on, home, onedrive)
+            assert len(wrote) == 1
+            if protected:
+                assert wrote[0].parent == base / "literary-critic", layout
+                assert not (novel / "literary-critic").exists(), layout
+                assert out["state_place"]["kind"] == "fallback"  # type: ignore[index]
+                assert grant.state_root(novel) == wrote[0]
+                assert [w.root for w in grant.works()] == [wrote[0].resolve()]
+                # kept: the second call neither re-chooses nor reports again
+                again, _ = _place(grant, novel, on, home, onedrive)
+                assert "state_place" not in again
+            else:
+                assert wrote[0] == novel / "literary-critic", layout
+            shutil.rmtree(wrote[0])
+    folders.state_file().unlink(missing_ok=True)
+    # a folder the user added to the list is protected too
+    extra = cfa.Status(True, (str(novels["outside"]),))
+    out, wrote = _place(folders.Grant([]), novels["outside"], extra, home, drive)
+    assert wrote[0].parent == drive / "literary-critic"
+    # unreadable settings: beside first, the fallback once Windows refuses
+    refused = PermissionError(13, "denied")
+    refused.winerror = 5  # type: ignore[attr-defined,unused-ignore]
+    calls: list[Path] = []
+
+    def run(root: Path) -> dict[str, object]:
+        calls.append(root)
+        if len(calls) == 1:
+            raise refused
+        return {"status": "ready"}
+
+    grant = folders.Grant([])
+    novel = novels["Documents"]
+    out = folders.with_state_place(grant, novel, run, lambda: None, home, None)
+    assert calls == [novel / "literary-critic", home / "literary-critic" / "novel"]
+    assert grant.state_root(novel) == calls[1]
+    assert out["state_place"]["kind"] == "fallback"  # type: ignore[index]
+
+
+def test_state_place_cfa_off_beside_novel(tmp_path: Path) -> None:
+    home, drive, novels = _layouts(tmp_path)
+    for status in (cfa.Status(False), cfa.Status(False, (str(novels["outside"]),))):
+        for layout, novel in novels.items():
+            grant = folders.Grant([str(novel.parent)])
+            out, wrote = _place(grant, novel, status, home, drive)
+            assert wrote == [novel / "literary-critic"], layout
+            assert out["state_place"]["kind"] == "beside"  # type: ignore[index]
+            assert "say" not in out["state_place"]  # type: ignore[operator]
+            shutil.rmtree(wrote[0])
+            folders.state_file().unlink(missing_ok=True)
+
+
+def test_cfa_read_parses_powershell() -> None:
+    def fake(*_a: object, **_k: object) -> subprocess.CompletedProcess[bytes]:
+        out = (
+            b'{"EnableControlledFolderAccess":1,'
+            b'"ControlledFolderAccessProtectedFolders":["D:/Books"]}'
+        )
+        return subprocess.CompletedProcess([], 0, out, b"")
+
+    status = cfa.read(fake)
+    assert status == cfa.Status(True, ("D:/Books",))
+    audit = subprocess.CompletedProcess([], 0, b'{"EnableControlledFolderAccess":2}', b"")
+    assert cfa.read(lambda *a, **k: audit) == cfa.Status(False)

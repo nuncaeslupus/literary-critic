@@ -251,20 +251,22 @@ def setup(
     ack: bool = False,
     manuscript: Path | None = None,
     edit_in_place: str = "",
+    state_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run discovery, create or reuse the workspace, ingest and anchor.
 
     ``manuscript`` overrides the file discovery picked, and is remembered until
     a draft is saved after it. ``prose`` ("on"/"off") changes the prose-suggestion
     setting (on needs ``ack``); ``edit_in_place`` ("yes"/"no") records whether
-    approved changes may go into the writer's file.
+    approved changes may go into the writer's file. ``state_root`` puts the working folder
+    elsewhere than beside the novel (where Controlled folder access protects the novel).
     """
     folder = folder.expanduser().resolve()
     if not folder.is_dir():
         raise SetupError(f"{folder} is not a folder")
     settings.check(prose, ack)
     found = discover(folder)
-    root = folder / WORKSPACE_DIR
+    root = state_root if state_root is not None else folder / WORKSPACE_DIR
     if manuscript is not None:
         path = manuscript.expanduser()
         path = path if path.is_absolute() else folder / path
@@ -281,8 +283,8 @@ def setup(
             _slug(folder.name),
             _title(doc),
             detect_language(found.manuscript.sample),
-            base=folder,
-            folder=WORKSPACE_DIR,
+            base=root.parent,
+            folder=root.name,
         )
     if manuscript is not None:
         (ws.root / CHOICE).parent.mkdir(parents=True, exist_ok=True)
