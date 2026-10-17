@@ -740,3 +740,37 @@ def test_resume_reports_standalone_doccontrol_once(
         assert "Settings → Extensions" in first["other_doc_control"]["say"]
         assert "other_doc_control" not in second  # standalone_doccontrol_reported: once
     assert "other_doc_control" in first["guide"]
+
+
+def test_update_check_slow_network_adds_under_100ms(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import threading
+    import time
+
+    from litcritic import kit
+
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "update.json")
+    monkeypatch.setattr(kit, "version_info", lambda: {"version": "0.1.0", "source": "package"})
+    monkeypatch.setattr(mcp, "UPDATE", {"available": "unknown", "url": kit.RELEASES_PAGE})
+    release = threading.Event()
+
+    def slow(timeout: float) -> dict[str, Any]:
+        release.wait(10)  # a 10 s network
+        name = "literary-critic-0.2.0.mcpb"
+        return {"tag_name": "v0.2.0", "html_url": "page", "assets": [{"name": name}]}
+
+    monkeypatch.setattr(kit, "_fetch_release", slow)
+    _novel(tmp_path, "Only", "Only")
+    server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Only")])))
+    thread = mcp.start_update_check()
+    started = time.perf_counter()
+    out = _call(server, "resume", {})
+    assert time.perf_counter() - started < 0.1  # the check adds nothing to the call
+    assert out["update"]["available"] == "unknown"
+    release.set()
+    thread.join(5)
+    assert _call(server, "resume", {})["update"] == {"available": "yes", "url": "page"}
+    listed = _call(server, "works", {"check_update": True})  # "update now": no daily limit
+    assert listed["update"]["available"] == "yes"

@@ -292,7 +292,16 @@ def test_guide_prompt_names_channels_rules_and_done() -> None:
     assert "one call" in guide and '"Done."' in guide
     names = {t.name for t in mcp.tools(None)}
     for tool in re.findall(r"`([a-z_]+)`", guide):
-        fields = ("next_step", "prose_suggestions", "windows_block", "say", "other_doc_control")
+        fields = (
+            "next_step",
+            "prose_suggestions",
+            "windows_block",
+            "say",
+            "other_doc_control",
+            "update",
+            "url",
+            "yes",
+        )
         if tool in (*fields, "false", "true", "go"):
             continue
         assert tool in names, tool

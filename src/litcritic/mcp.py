@@ -18,6 +18,7 @@ import io
 import json
 import os
 import sys
+import threading
 import time
 import traceback
 from collections.abc import Callable, Iterable
@@ -31,6 +32,7 @@ from litcritic import (
     claude_app,
     dc,
     docx_cli,
+    kit,
     overview,
     plan,
     rounds,
@@ -360,10 +362,40 @@ def state(ws: Workspace) -> dict[str, Any]:
     return out
 
 
+# The latest update check: unknown until the background check started with the server
+# answers. Read by resume and works, which never wait for the network.
+UPDATE: dict[str, str] = {"available": "unknown", "url": kit.RELEASES_PAGE}
+
+
+def check_update(force: bool = False) -> dict[str, str]:
+    """Check GitHub Releases now (at most once a day unless ``force``) and remember it."""
+    with contextlib.suppress(Exception):  # a failed check stays "unknown", never an error
+        got = kit.update_check(kit.version_info(), force=force)
+        UPDATE.update(available=str(got["update_available"]), url=str(got["url"]))
+    return dict(UPDATE)
+
+
+def start_update_check() -> threading.Thread:
+    thread = threading.Thread(target=check_update, name="update-check", daemon=True)
+    thread.start()
+    return thread
+
+
+def works(grant: Any, check: bool = False) -> dict[str, Any]:
+    return {
+        "works": works_list(grant),
+        "hint": ADD_FOLDER_HINT,
+        "versions": versions(),
+        "update": check_update(force=True) if check else dict(UPDATE),
+    }
+
+
 def resume(grant: Any, work: str = "", reported: set[str] | None = None) -> dict[str, Any]:
     """The named work's state and the guide; with no name, the only work there. A standalone
     doc-control is added once per server (``reported`` remembers it)."""
     out = _resume(grant, work)
+    if "work" in out:
+        out["update"] = dict(UPDATE)
     if reported is not None and "work" in out and "other_doc_control" not in reported:
         other = claude_app.other_doc_control()
         if other:
@@ -766,7 +798,13 @@ def tools(grant: Any) -> list[Tool]:
             "works",
             "List the writer's novels, most recently used first, and the versions this "
             "server runs (answer 'which version?' from them). " + WORK_HINT,
-            lambda a: {"works": works_list(grant), "hint": ADD_FOLDER_HINT, "versions": versions()},
+            lambda a: works(grant, a.get("check_update") is True),
+            {
+                "check_update": {
+                    "type": "boolean",
+                    "description": "check for a new version now (the writer asked to update)",
+                }
+            },
         ),
         Tool(
             "resume",
@@ -987,6 +1025,7 @@ def _cmd(args: Any) -> int:
     from litcritic.folders import Grant, state_file  # folders imports ToolError from here
 
     os.environ.update(SERVER_ENV)  # before any doc-control call
+    start_update_check()
 
     log: Any = sys.stderr
     with contextlib.suppress(OSError):  # no log file is no reason not to serve
