@@ -272,6 +272,11 @@ def _change_work(
     ws, _doc = _workspace(tmp_path, _plain(p1, "The street stayed empty."))
     if propose:
         change.propose(ws, "cold", "bitter", by="writer", why="stronger word")
+    # No Word here: the file engine stands in for it (word-only is test_docx_cli's).
+    approve = change.approve
+    monkeypatch.setattr(
+        change, "approve", lambda root, cid, **kw: approve(root, cid, **{**kw, "word_only": False})
+    )
     return mcp.Server(mcp.tools(folders.Grant([str(tmp_path)]))), ws
 
 

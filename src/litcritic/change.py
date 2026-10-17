@@ -23,7 +23,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from litcritic import dc, docx_cli, ingest, plan, rounds, settings, workspace
+from litcritic import dc, docx_cli, ingest, plan, rounds, settings, word_live, workspace
 
 DEFAULT_DISMISS = "dismissed in the chat"
 LIVE = ("proposed", "refused")
@@ -248,8 +248,16 @@ def _locate_call(text: str) -> dict[str, Any]:
 
 
 def approve(
-    root: Path, cid: str, *, closes: bool = False, document: str | None = None
+    root: Path,
+    cid: str,
+    *,
+    closes: bool = False,
+    document: str | None = None,
+    word_only: bool = False,
 ) -> tuple[dict[str, Any], int]:
+    """Record the writer's approval and apply the change. ``word_only`` (the desktop
+    extension) writes only through Word: when Word cannot open the document, the card
+    describes the change for the writer to type, as when edits in place are off."""
     c = _live(root, cid)
     refs = _refs(root, cid)
     closes = closes or bool(c.get("closes"))
@@ -258,7 +266,16 @@ def approve(
         raise ChangeRefused("invalid", "--closes needs the round action: --action A1")
     doc = _document(root, document)
     in_place = settings.load(root)["edit_in_place"]
-    if in_place is False or doc is None or doc.suffix.lower() != ".docx":
+    word_only = word_only or docx_cli.word_only_env()
+    if doc is None or doc.suffix.lower() != ".docx":
+        doc = None
+    no_word = (
+        word_only
+        and in_place is not False
+        and doc is not None
+        and not (word_live.is_open(doc) or word_live.open_if_closed(doc))
+    )
+    if in_place is False or doc is None or no_word:
         plan.record(
             root, "change.approved", "writer", change=cid, data={"typed_by": "writer"}, refs=refs
         )
@@ -271,7 +288,8 @@ def approve(
         }, 0
     plan.record(root, "change.approved", "writer", change=cid, refs=refs)
     edit = (cid, c["quote"], c["replace"], c.get("prefix", ""), c.get("suffix", ""))
-    payload, code = docx_cli.apply_edits(root, doc, [edit], {cid: str(c.get("why", ""))})
+    why = {cid: str(c.get("why", ""))}
+    payload, code = docx_cli.apply_edits(root, doc, [edit], why, word_only=word_only)
     if code != 0:
         plan.record(
             root,

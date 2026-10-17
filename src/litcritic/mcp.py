@@ -16,6 +16,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import sys
 import time
 import traceback
@@ -670,7 +671,7 @@ def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
     if isinstance(ws, dict):
         return ws
     try:
-        out, code = change.approve(ws.root, cid)
+        out, code = change.approve(ws.root, cid, word_only=True)
     except plan.Refused as exc:
         raise ToolError(exc.reason, message=exc.message) from None
     except (OSError, ValueError, plan.PlanError) as exc:
@@ -977,8 +978,15 @@ def log_file(state: Path) -> Path:
     return path
 
 
+# doc-control keeps its backups in the app's data folder, never beside the manuscript, and
+# the manuscript changes only through Word (release T6).
+SERVER_ENV = {"DOC_CONTROL_STORE": "appdata", docx_cli.WORD_ONLY_ENV: "1"}
+
+
 def _cmd(args: Any) -> int:
     from litcritic.folders import Grant, state_file  # folders imports ToolError from here
+
+    os.environ.update(SERVER_ENV)  # before any doc-control call
 
     log: Any = sys.stderr
     with contextlib.suppress(OSError):  # no log file is no reason not to serve
