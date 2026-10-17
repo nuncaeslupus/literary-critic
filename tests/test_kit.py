@@ -300,8 +300,8 @@ def test_windows_fetch_runs_hidden_powershell_and_decodes(
         seen.update(cmd=cmd, **kw)
         return subprocess.CompletedProcess(cmd, 0, base64.b64encode('{"ñ": 1}'.encode()) + b"\r\n")
 
-    monkeypatch.setattr(kit.sys, "platform", "win32")
-    monkeypatch.setattr(kit.subprocess, "run", run)
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setattr(subprocess, "run", run)
     assert kit._windows_fetch(kit.RELEASE_URL, 4.5) == '{"ñ": 1}'.encode()
     cmd = seen["cmd"]
     assert isinstance(cmd, list) and cmd[0].lower().endswith("powershell.exe")
@@ -311,15 +311,15 @@ def test_windows_fetch_runs_hidden_powershell_and_decodes(
     def failed(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[bytes]:
         return subprocess.CompletedProcess(cmd, 1, b"", b"error")
 
-    monkeypatch.setattr(kit.subprocess, "run", failed)
+    monkeypatch.setattr(subprocess, "run", failed)
     assert kit._windows_fetch(kit.RELEASE_URL, 4.5) is None
 
     def slow(cmd: list[str], **kw: object) -> None:
         raise subprocess.TimeoutExpired(cmd, 4.5)
 
-    monkeypatch.setattr(kit.subprocess, "run", slow)
+    monkeypatch.setattr(subprocess, "run", slow)
     assert kit._windows_fetch(kit.RELEASE_URL, 4.5) is None
     assert kit._windows_fetch(kit.RELEASE_URL, 0.5) is None  # no time left: no retry
-    monkeypatch.setattr(kit.sys, "platform", "linux")
-    monkeypatch.setattr(kit.subprocess, "run", lambda *a, **k: pytest.fail("not Windows"))
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: pytest.fail("not Windows"))
     assert kit._windows_fetch(kit.RELEASE_URL, 4.5) is None
