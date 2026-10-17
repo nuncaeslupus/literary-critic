@@ -25,3 +25,10 @@ def test_release_probe_evidence_answers_open_questions() -> None:
         assert re.search(r"\*\*Answer: (yes|no)\b", section), q
     virustotal = text.split("\n## VirusTotal", 1)[1].split("\n## ", 1)[0]
     assert re.search(r"\b\d+ / \d+\b", virustotal)
+
+
+def test_release_owner_switch_evidence() -> None:
+    text = (EVIDENCE / "release-owner-switch.md").read_text(encoding="utf-8")
+    assert "**Installed: yes**" in text
+    assert re.search(r"^dev_config_entries: 0$", text, re.M)
+    assert int(re.search(r"^works_found: (\d+)$", text, re.M).group(1)) >= 1  # type: ignore[union-attr]
