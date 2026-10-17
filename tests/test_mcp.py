@@ -765,6 +765,8 @@ def test_update_check_slow_network_adds_under_100ms(
     from litcritic import kit
 
     monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    monkeypatch.setenv("LC_RUNTIME_DIR", str(tmp_path / "runtime"))
+    monkeypatch.delenv("LC_AUTO_UPDATE", raising=False)
     monkeypatch.setattr(kit, "CACHE", tmp_path / "update.json")
     monkeypatch.setattr(kit, "version_info", lambda: {"version": "0.1.0", "source": "package"})
     monkeypatch.setattr(mcp, "UPDATE", {"available": "unknown", "url": kit.RELEASES_PAGE})
@@ -785,7 +787,8 @@ def test_update_check_slow_network_adds_under_100ms(
     assert out["update"]["available"] == "unknown"
     release.set()
     thread.join(5)
-    assert _call(server, "resume", {})["update"] == {"available": "yes", "url": "page"}
+    resumed = _call(server, "resume", {})["update"]
+    assert resumed == {"available": "yes", "url": "page", "applied": False, "restart_needed": False}
     listed = _call(server, "works", {"check_update": True})  # "update now": no daily limit
     assert listed["update"]["available"] == "yes"
 

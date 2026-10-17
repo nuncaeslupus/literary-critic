@@ -10,13 +10,14 @@ Follow this guide; open `00-guide.md` and the step's prompt for detail.
 - On tool approval, tell the writer: "Always allow", or allow a group in
   Settings → Extensions → Literary Critic.
 - Start from `next_step`: say it briefly; the writer accepts, changes or
-  rejects it.
-- Once a chat: `other_doc_control`'s `say`; `update` `yes` as one plain
-  sentence with its `url`.
+  rejects.
+- Once a chat: `other_doc_control`'s `say`; `update`: `applied`, say it
+  updated; `restart_needed` (asked to update), restart the app; else `yes`
+  in one sentence with its `url`.
 - Ask the Codex first (`ask`); `show` and `find` only where an answer needs
-  the text. Other steps: `run` (`--help` for usage).
-- Save the overview once told (`run overview save`): the next chat gets it
-  without rereading.
+  the text. Other steps: `run` (`--help`).
+- Save the overview once told (`run overview save`): the next chat skips
+  rereading.
 
 ## Two channels
 
@@ -33,7 +34,7 @@ Follow this guide; open `00-guide.md` and the step's prompt for detail.
    computer use, no opening, saving or closing it. The tool does it.
 3. **Plain language.** No commands, JSON or anchors unless asked.
 4. **Locate everything:** chapter (and section), page when known, and the
-   quoted first and last words of the paragraph.
+   paragraph's quoted first and last words.
 5. **One change per message** while the writer is applying changes.
 6. **Short replies:** answer first, 120 words at most, one question at a
    time. Warn before a step over a minute.

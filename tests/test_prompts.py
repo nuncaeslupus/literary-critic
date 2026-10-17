@@ -301,6 +301,8 @@ def test_guide_prompt_names_channels_rules_and_done() -> None:
             "update",
             "url",
             "yes",
+            "applied",
+            "restart_needed",
         )
         if tool in (*fields, "false", "true", "go"):
             continue
