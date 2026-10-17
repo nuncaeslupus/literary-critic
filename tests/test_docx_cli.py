@@ -1,5 +1,7 @@
+import argparse
 import io
 import json
+import os
 import random
 import re
 import sys
@@ -528,3 +530,63 @@ def test_a_read_refused_for_a_moment_is_tried_again(
     refusals.extend(PermissionError("locked") for _ in range(docx_cli.READ_TRIES))
     with pytest.raises(PermissionError):
         docx_cli._read(doc)
+
+
+def test_apply_closed_document_opens_word_no_file_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import change, folders, mcp, word_live
+
+    p1 = "It was a cold afternoon and nobody left the house."
+    ws, doc = _workspace(tmp_path, _plain(p1, "The street stayed empty."))
+    before = {p: p.stat().st_mtime_ns for p in doc.parent.iterdir() if p.is_file()}
+    opened: list[Path] = []
+    batches: list[dict[str, Any]] = []
+    monkeypatch.setattr(word_live, "is_open", lambda d: d in opened)
+
+    def open_if_closed(d: Path) -> bool:
+        opened.append(d)
+        return True
+
+    def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        assert op == "live.select"
+        return {"text": p1, "at": "p1"}
+
+    read = dc.run
+
+    def file_engine(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        assert op != "doc.batch", "the file engine wrote the manuscript"
+        return read(op, request)
+
+    monkeypatch.setattr(word_live, "open_if_closed", open_if_closed)
+    monkeypatch.setattr(word_live, "run", run)
+    monkeypatch.setattr(word_live, "write", batches.append)
+    monkeypatch.setattr(dc, "run", file_engine)
+
+    change.propose(ws, "cold", "bitter", by="writer", why="stronger word")
+    out, code = change.approve(ws, "C1", word_only=True)
+    assert code == 0 and out["status"] == "applied", out
+    assert opened == [doc]  # closed: Word opened it, then the edit went in there
+    assert batches[0]["ops"] == [{"op": "text.replace", "at": "p1:9-13", "text": "bitter"}]
+    after = {p: p.stat().st_mtime_ns for p in doc.parent.iterdir() if p.is_file()}
+    assert after == before  # manuscript_file_writes_by_server == 0: nothing beside it
+
+    # Without Word, the card describes the change; the file engine is never the fallback.
+    opened.clear()
+    monkeypatch.setattr(word_live, "open_if_closed", lambda d: False)
+    change.propose(ws, "street", "road", by="writer", why="plainer")
+    out, code = change.approve(ws, "C2", word_only=True)
+    assert code == 0 and out["status"] == "typed_by_writer" and out["locate"]
+    edit = ("E1", "street", "road", "", "")
+    refused, code = docx_cli.apply_edits(ws, doc, [edit], word_only=True)
+    assert code == 1 and refused["reason"] == "word_needed"
+
+    # The server runs word-only, with doc-control's backups in the app's data folder.
+    for name in mcp.SERVER_ENV:  # set first, so teardown removes what _cmd sets
+        monkeypatch.setenv(name, "")
+        monkeypatch.delenv(name)
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    assert mcp._cmd(argparse.Namespace(folders=[])) == 0
+    assert os.environ["DOC_CONTROL_STORE"] == "appdata"
+    assert docx_cli.word_only_env()

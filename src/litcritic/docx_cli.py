@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -396,16 +397,28 @@ def _edits(args: argparse.Namespace, root: Path) -> int:
 Edit = tuple[str, str, str, str, str]  # id, quote, replace, prefix, suffix
 
 
+WORD_NEEDED = "Word could not open the document, so nothing was written: the writer types it"
+WORD_ONLY_ENV = "LITCRITIC_WORD_ONLY"  # set by the desktop extension's server (lc mcp)
+
+
+def word_only_env() -> bool:
+    """Whether this process may change the manuscript only through Word."""
+    return os.environ.get(WORD_ONLY_ENV) == "1"
+
+
 def apply_edits(
     root: Path,
     doc: Path,
     edits: list[Edit],
     reasons: dict[str, str] | None = None,
     dry_run: bool = False,
+    word_only: bool = False,
 ) -> tuple[dict[str, Any], int]:
     """The one write path for approved edits: resolve each quote once, then one plain
     batch with backup, ``expect.sha256`` and verify-and-restore, and a line in
-    ``log/edits.jsonl``. Returns the answer and its exit code (0 applied, 1 refused)."""
+    ``log/edits.jsonl``. Returns the answer and its exit code (0 applied, 1 refused).
+    ``word_only`` (the desktop extension) never writes the file: a closed document is
+    opened in Word first, and without Word the edit is refused (``word_needed``)."""
     ids = [e[0] for e in edits]
     base = {"document": _shown(root, doc), "author": AUTHOR}
 
@@ -417,6 +430,10 @@ def apply_edits(
     if not doc.is_file():
         return refused("missing", f"{doc} does not exist")
     live = not dry_run and word_live.is_open(doc)
+    if (word_only or word_only_env()) and not dry_run and not live:
+        live = word_live.open_if_closed(doc) and word_live.is_open(doc)
+        if not live:
+            return refused("word_needed", WORD_NEEDED)
     resolve = _resolve_live if live else _resolve
     # The file as it is now, taken before the quotes are found in it: a save in Word
     # since the tool last read it is the writer's own work, and each quote must still be
