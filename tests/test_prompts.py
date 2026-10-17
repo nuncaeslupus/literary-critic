@@ -303,6 +303,7 @@ def test_guide_prompt_names_channels_rules_and_done() -> None:
             "yes",
             "applied",
             "restart_needed",
+            "staging",
         )
         if tool in (*fields, "false", "true", "go"):
             continue

@@ -1,6 +1,6 @@
 # Chat guide
 
-Follow this guide; open `00-guide.md` and the step's prompt for detail.
+Follow this guide; open `00-guide.md` and the step's prompt as needed.
 
 ## The novel
 
@@ -12,8 +12,8 @@ Follow this guide; open `00-guide.md` and the step's prompt for detail.
 - Start from `next_step`: say it briefly; the writer accepts, changes or
   rejects.
 - Once a chat: `other_doc_control`'s `say`; `update`: `applied`, say it
-  updated; `restart_needed` (asked to update), restart the app; else `yes`
-  in one sentence with its `url`.
+  updated; else `yes` with `url`. Asked to update: `works`
+  check_update; `restart_needed`: restart, else `staging` is why.
 - Ask the Codex first (`ask`); `show` and `find` only where an answer needs
   the text. Other steps: `run` (`--help`).
 - Save the overview once told (`run overview save`): the next chat skips
