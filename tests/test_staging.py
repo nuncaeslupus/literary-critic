@@ -121,10 +121,18 @@ def test_staging_failed_selftest_names_nothing_and_waits_a_day(root: Path) -> No
     broken = Release(healthy=False)
     assert staging.stage(NEW, fetch=broken.fetch, run=broken.run) == "failed"
     assert "current" not in staging.load(root) and not (root / NEW).exists()
+    assert staging.load(root)["errors"][NEW] == "the self-test failed"  # why, for support
     assert staging.stage(NEW, fetch=broken.fetch, run=broken.run) == "failed"
     assert len(broken.fetched) == 3  # retried the next day, not now
+
+    def offline(url: str) -> bytes:
+        raise OSError("no route to host")
+
+    assert staging.stage(NEW, force=True, fetch=offline, run=broken.run) == "failed"
+    assert staging.load(root)["errors"][NEW] == "OSError: no route to host"
     healthy = Release()
     assert staging.stage(NEW, force=True, fetch=healthy.fetch, run=healthy.run) == "staged"
+    assert NEW not in staging.load(root)["errors"]
 
 
 def test_staging_one_at_a_time(root: Path) -> None:
