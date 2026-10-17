@@ -73,3 +73,19 @@ def test_launch_drops_unset_folder_placeholder() -> None:
     spec.loader.exec_module(launch)
     assert launch.folders(["${user_config.novels_folder}"]) == []
     assert launch.folders([r"C:\Novels", "", r"D:\More"]) == [r"C:\Novels", r"D:\More"]
+
+
+smoke_mcpb = _script("smoke_mcpb")
+
+
+def test_smoke_versions_differ_from_lock_fails() -> None:
+    lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
+    locked = smoke_mcpb.lock_versions(lock)
+    installed = {"doc_control": locked["doc-control"], "literary-critic": pack_mcpb.version(ROOT)}
+    assert smoke_mcpb.version_problems(installed, lock) == []
+    drifted = smoke_mcpb.version_problems({**installed, "doc_control": "0.0.1"}, lock)
+    assert drifted == [f"doc-control 0.0.1 installed, lock has {locked['doc-control']}"]
+    assert smoke_mcpb.version_problems({"left-pad": "1.0"}, lock) == [
+        "left-pad 1.0 installed, lock has nothing",
+        "doc-control not installed",
+    ]
