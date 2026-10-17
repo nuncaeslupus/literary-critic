@@ -17,6 +17,7 @@ import contextlib
 import io
 import json
 import os
+import shutil
 import sys
 import threading
 import time
@@ -1032,6 +1033,8 @@ def _cmd(args: Any) -> int:
         log = _Tee(sys.stderr, log_file(state_file()).open("a", encoding="utf-8"))
     server = Server(tools(Grant(args.folders)), log=log)
     server._note("start", _brief(versions(), 1000), _brief(args.folders, 1000))
+    # Which uv the app gave this process (release Q-5: can staging reuse it?)
+    server._note("uv", _brief({"UV": os.environ.get("UV"), "path": shutil.which("uv")}, 500))
     server.serve(sys.stdin, sys.stdout)
     return 0
 
