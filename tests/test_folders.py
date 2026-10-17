@@ -196,7 +196,7 @@ def test_state_place_cfa_on_protected_uses_fallback(
     assert wrote[0].parent == drive / "literary-critic"
     # unreadable settings: beside first, the fallback once Windows refuses
     refused = PermissionError(13, "denied")
-    refused.winerror = 5  # type: ignore[attr-defined]
+    setattr(refused, "winerror", 5)
     calls: list[Path] = []
 
     def run(root: Path) -> dict[str, object]:
