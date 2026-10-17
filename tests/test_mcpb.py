@@ -123,9 +123,9 @@ def test_release_assets_requirements_hashed(tmp_path: Path) -> None:
     wheel = tmp_path / "literary_critic-1.2.3-py3-none-any.whl"
     wheel.write_bytes(b"wheel bytes")
     exported = (
-        "colorama==0.4.6 ; sys_platform == 'win32' \\n"
-        "    --hash=sha256:aaaa \\n    --hash=sha256:bbbb\n"
-        "doc-control==1.0 \\n    --hash=sha256:cccc\n"
+        "colorama==0.4.6 ; sys_platform == 'win32' \\\n"
+        "    --hash=sha256:aaaa \\\n    --hash=sha256:bbbb\n"
+        "doc-control==1.0 \\\n    --hash=sha256:cccc\n"
     )
     text = ra.requirements_text(exported, wheel)
     entries = [e for e in re.split(r"\n(?=\S)", text.strip()) if e]
@@ -134,6 +134,10 @@ def test_release_assets_requirements_hashed(tmp_path: Path) -> None:
     own = entries[-1]
     assert own.startswith("literary-critic @ ./" + wheel.name)
     assert f"--hash=sha256:{ra.sha256(wheel)}" in own
+    # pip joins a line ending in a backslash with the next; a literal "\n" breaks the path
+    logical = text.replace("\\\n", " ").splitlines()
+    assert "\\n" not in text and len(logical) == 3
+    assert logical[-1].split()[:3] == ["literary-critic", "@", "./" + wheel.name]
 
     with pytest.raises(SystemExit):
         ra.requirements_text("doc-control==1.0\n", wheel)
