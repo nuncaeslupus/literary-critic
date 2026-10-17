@@ -219,6 +219,7 @@ def _build(version: str, root: Path, uv: str, fetch: Fetch, run: Run) -> str:
         state["previous"] = old if isinstance(old, str) else None
     state["current"] = version
     (state.get("failures") or {}).pop(version, None)
+    (state.get("errors") or {}).pop(version, None)
     save(root, state)
     return "staged"
 
@@ -254,7 +255,24 @@ def stage(
         state.setdefault("tried", {})[latest] = time.time()
         save(root, state)
         try:
-            return _build(latest, root, uv, fetch, run)
-        except Exception:  # offline, a bad hash, a uv error: try again tomorrow
+            outcome = _build(latest, root, uv, fetch, run)
+        except Exception as exc:  # offline, a bad hash, a uv error: try again tomorrow
             shutil.rmtree(root / latest, ignore_errors=True)
+            _note(root, latest, _why(exc))
             return "failed"
+        if outcome == "failed":
+            _note(root, latest, "the self-test failed")
+        return outcome
+
+
+def _note(root: Path, version: str, why: str) -> None:
+    state = load(root)
+    state.setdefault("errors", {})[version] = why
+    save(root, state)
+
+
+def _why(exc: Exception) -> str:
+    """One line saying why staging failed, kept in ``state.json`` for a support check."""
+    out = getattr(exc, "stderr", None) or getattr(exc, "output", None) or b""
+    tail = out.decode(errors="replace") if isinstance(out, bytes) else str(out)
+    return f"{type(exc).__name__}: {exc} {tail[-500:]}".strip()
