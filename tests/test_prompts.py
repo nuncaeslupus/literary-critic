@@ -363,3 +363,12 @@ def test_writer_texts_have_no_tracked_wording(tmp_path: Path) -> None:
         name for name, text in texts.items() if TRACKED_WORDING.search(text)
     ]
     assert tracked_wording_in_writer_texts == []
+
+
+def test_guide_names_always_allow() -> None:
+    """The setup part gives the answer the clean-PC probe found (spec Q-7)."""
+    from litcritic import mcp
+
+    guide = " ".join(mcp.guide().split())
+    assert '"Always allow"' in guide
+    assert "Settings → Extensions → Literary Critic" in guide
