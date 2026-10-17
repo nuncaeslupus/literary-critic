@@ -1,5 +1,12 @@
 # Handover
 
+**Last session (2026-10-17, evening, Windows):** release phase 2. Merged: T12 launcher (#260: `extension/launch.py` runs the newest healthy runtime under `%LOCALAPPDATA%\literary-criticuntime`, marks a version bad after two error exits within 10 s and falls back; two runtimes kept) and T13 self-update (#261: `src/litcritic/staging.py` builds a newer release with the app's `UV`, self-tests it and names it `current`; `update` gains `applied` and `restart_needed`).
+
+- **Only human-gated tasks remain:** Owner switch (t-3898860e: owner installs the `.mcpb`, removes the `literary-critic-dev` entry; docs drop the dev entry), then release Test run (t-ca32957d, T14, clean PC); T7: Walkthrough (t-d62e7735, needs a Mac too); workplan walkthrough (t-748f8656).
+- **Board warning:** t-98eb6b03 and t-e7ff65dc depend on cancelled t-5a55f89e (blocked for good): drop the dep or cancel them.
+- **Not yet run for real:** staging and the launcher have only run with fakes; the first real self-update is the test run's job (publish 0.1.2, then 0.1.3, and watch `runtime/state.json`).
+- Windows checkout: the `$TEMP/lc-*` venvs break; use `UV_PROJECT_ENVIRONMENT="$LOCALAPPDATA/lc-t12-venv"`.
+
 **Last session (2026-10-17, day, Windows):** release workspace, the Windows tasks. Merged: T3 clean-PC probe (#254, `status/evidence/release-probe.md`), T8 tool annotations + "Always allow" in the chat guide (#255), T11 staging assets (#256), update check retried through Windows' own TLS + versions in `resume` (#257), T5 state place with Controlled folder access (#258).
 
 - **Unblocked next:** Owner switch (t-3898860e, after T8) and Launcher (t-f35c980f, after T11).
