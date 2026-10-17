@@ -5,6 +5,7 @@ label: "plain writes, file engine"
 priority: 5
 deps: [t-9c184d28, t-d0b8bc39]
 workspace: workplan
+status: merged
 ---
 
 Blocked outside this repo until doc-control ships `tracked: false` in the file engine: https://github.com/nuncaeslupus/doc-control/issues/318

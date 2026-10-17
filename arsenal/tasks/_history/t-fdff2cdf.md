@@ -5,6 +5,7 @@ label: "plan status and next"
 priority: 5
 deps: [t-5593b8bc, t-778cdc99]
 workspace: workplan
+status: merged
 ---
 
 ## Acceptance gate

@@ -5,6 +5,7 @@ label: "prompts for plan and cards"
 priority: 5
 deps: [t-94f4925f]
 workspace: workplan
+status: merged
 ---
 
 ## Acceptance gate

@@ -1,21 +1,22 @@
-# Chat guide: the novel in a plain desktop chat
+# Chat guide
 
-`resume` returns this guide with the novel's state. Follow it; open
-`00-guide.md` and the step's prompt for detail.
+Follow this guide; open `00-guide.md` and the step's prompt for detail.
 
 ## The novel
 
 - Tools take the work by name; switch novels with `resume`.
-- An unknown name returns the known works: ask which they meant, or offer
+- An unknown name lists the known works: ask which, or offer
   `add_folder`. A novel under not_set_up: `setup` it.
+- On tool approval, tell the writer: "Always allow", or allow a group in
+  Settings → Extensions → Literary Critic.
 - Start from `next_step`: say it briefly; the writer accepts, changes or
   rejects it.
 - Once a chat: `other_doc_control`'s `say`; `update` `yes` as one plain
   sentence with its `url`.
 - Ask the Codex first (`ask`); `show` and `find` only where an answer needs
   the text. Other steps: `run` (`--help` for usage).
-- Save the overview once told (`run overview save`, with what you read): the
-  next chat gets it back without rereading.
+- Save the overview once told (`run overview save`): the next chat gets it
+  without rereading.
 
 ## Two channels
 
@@ -49,5 +50,5 @@ yes or no."
 
 ## Taking the writer to a passage
 
-A jump is one call (`locate` with `go`, or `places` for a list with one button
-each). Then say "Done." unless it failed.
+A jump is one call (`locate` with `go`, or `places` for a list with buttons). Then say
+"Done." unless it failed.
