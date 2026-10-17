@@ -395,6 +395,7 @@ def resume(grant: Any, work: str = "", reported: set[str] | None = None) -> dict
     """The named work's state and the guide; with no name, the only work there. A standalone
     doc-control is added once per server (``reported`` remembers it)."""
     out = _resume(grant, work)
+    out["versions"] = versions()  # "which version?" asked before or after opening a novel
     if "work" in out:
         out["update"] = dict(UPDATE)
     if reported is not None and "work" in out and "other_doc_control" not in reported:
@@ -809,7 +810,8 @@ def tools(grant: Any) -> list[Tool]:
         ),
         Tool(
             "resume",
-            "Open a novel: where it stands, the next step, and the guide for this chat. "
+            "Open a novel: where it stands, the next step, the guide for this chat, and the "
+            "versions this server runs (answer 'which version?' from them). "
             + WORK_HINT
             + " Call it first in a chat, and again with the new name when the writer "
             "switches novels.",

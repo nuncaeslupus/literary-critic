@@ -1,10 +1,13 @@
+import base64
 import json
 import os
 import re
+import ssl
 import stat
 import subprocess
 import sys
 import tomllib
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -251,3 +254,72 @@ def test_update_check_no_network_and_failures_stay_silent(
 
     monkeypatch.setattr(urllib.request, "urlopen", boom)
     assert fetch(0.1) is None
+
+
+def _cert_failure(url: object, timeout: float) -> None:
+    raise urllib.error.URLError(ssl.SSLCertVerificationError(1, "unable to get local issuer"))
+
+
+def test_fetch_release_retries_a_certificate_failure_through_windows_tls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # a fresh Windows: Python cannot verify GitHub until Windows' own TLS installs the root
+    asked: list[tuple[str, float]] = []
+
+    def windows(url: str, timeout: float) -> bytes:
+        asked.append((url, timeout))
+        return json.dumps(_release("v0.2.0")).encode("utf-8")
+
+    monkeypatch.setattr(urllib.request, "urlopen", _cert_failure)
+    monkeypatch.setattr(kit, "_windows_fetch", windows)
+    assert kit._fetch_release(5.0) == _release("v0.2.0")
+    assert asked[0][0] == kit.RELEASE_URL and 0 < asked[0][1] <= 5.0  # within the budget
+
+
+def test_fetch_release_fallback_failures_stay_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(urllib.request, "urlopen", _cert_failure)
+    monkeypatch.setattr(kit, "_windows_fetch", lambda url, timeout: None)
+    assert kit._fetch_release(5.0) is None
+    monkeypatch.setattr(kit, "_windows_fetch", lambda url, timeout: b"not json")
+    assert kit._fetch_release(5.0) is None
+
+    def offline(url: object, timeout: float) -> None:
+        raise urllib.error.URLError(OSError("offline"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", offline)  # not a certificate: no retry
+    monkeypatch.setattr(kit, "_windows_fetch", lambda url, timeout: pytest.fail("retried"))
+    assert kit._fetch_release(5.0) is None
+
+
+def test_windows_fetch_runs_hidden_powershell_and_decodes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: dict[str, object] = {}
+
+    def run(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[bytes]:
+        seen.update(cmd=cmd, **kw)
+        return subprocess.CompletedProcess(cmd, 0, base64.b64encode('{"ñ": 1}'.encode()) + b"\r\n")
+
+    monkeypatch.setattr(kit.sys, "platform", "win32")
+    monkeypatch.setattr(kit.subprocess, "run", run)
+    assert kit._windows_fetch(kit.RELEASE_URL, 4.5) == '{"ñ": 1}'.encode()
+    cmd = seen["cmd"]
+    assert isinstance(cmd, list) and cmd[0].lower().endswith("powershell.exe")
+    assert "-NoProfile" in cmd and kit.RELEASE_URL in cmd[-1] and "-TimeoutSec 3" in cmd[-1]
+    assert seen["timeout"] == 4.5
+
+    def failed(cmd: list[str], **kw: object) -> subprocess.CompletedProcess[bytes]:
+        return subprocess.CompletedProcess(cmd, 1, b"", b"error")
+
+    monkeypatch.setattr(kit.subprocess, "run", failed)
+    assert kit._windows_fetch(kit.RELEASE_URL, 4.5) is None
+
+    def slow(cmd: list[str], **kw: object) -> None:
+        raise subprocess.TimeoutExpired(cmd, 4.5)
+
+    monkeypatch.setattr(kit.subprocess, "run", slow)
+    assert kit._windows_fetch(kit.RELEASE_URL, 4.5) is None
+    assert kit._windows_fetch(kit.RELEASE_URL, 0.5) is None  # no time left: no retry
+    monkeypatch.setattr(kit.sys, "platform", "linux")
+    monkeypatch.setattr(kit.subprocess, "run", lambda *a, **k: pytest.fail("not Windows"))
+    assert kit._windows_fetch(kit.RELEASE_URL, 4.5) is None

@@ -131,6 +131,7 @@ def test_resume_named_work_returns_state_and_guide(
     assert work["prose_suggestions"] is False
     assert len(out["guide"].split()) <= 400
     assert "[[...]]" in out["guide"]
+    assert out["versions"] == mcp.versions()  # "which version?" answered from resume too
 
     second = _call(server, "resume", {"work": "second"})
     assert second["work"]["next_step"]["step"] == "setup"
@@ -146,6 +147,19 @@ def test_resume_named_work_returns_state_and_guide(
 
     several = _call(server, "resume", {})
     assert len(several["choose"]) == 2
+    assert (
+        several["versions"]["literary-critic"]
+        == __version__
+        == missing["versions"]["literary-critic"]
+    )
+    tool = next(
+        t
+        for t in _replay(server, [{"jsonrpc": "2.0", "id": 2, "method": "tools/list"}])[0][
+            "result"
+        ]["tools"]
+        if t["name"] == "resume"
+    )
+    assert "which version?" in tool["description"]
 
 
 def test_resume_without_name_opens_the_only_work(
