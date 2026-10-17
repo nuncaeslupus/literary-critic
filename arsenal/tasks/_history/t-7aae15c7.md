@@ -5,6 +5,7 @@ label: "release Annotations"
 priority: 10
 deps: [t-b50ea0c6]
 workspace: release
+status: merged
 ---
 
 ## Acceptance gate

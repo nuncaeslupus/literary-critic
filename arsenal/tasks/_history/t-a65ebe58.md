@@ -5,6 +5,7 @@ label: "T6: One-click offer"
 priority: 10
 deps: [t-89939b56, t-a5caf3a0]
 workspace: install
+status: merged
 ---
 
 ## Acceptance gate

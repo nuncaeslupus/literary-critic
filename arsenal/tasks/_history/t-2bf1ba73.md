@@ -6,6 +6,7 @@ priority: 10
 deps: [t-94f4925f]
 requires: [human:gate]
 workspace: workplan
+status: merged
 ---
 
 ## Acceptance gate

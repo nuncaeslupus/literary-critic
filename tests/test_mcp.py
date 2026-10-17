@@ -788,3 +788,13 @@ def test_update_check_slow_network_adds_under_100ms(
     assert _call(server, "resume", {})["update"] == {"available": "yes", "url": "page"}
     listed = _call(server, "works", {"check_update": True})  # "update now": no daily limit
     assert listed["update"]["available"] == "yes"
+
+
+def test_tools_list_declares_annotations() -> None:
+    """Every tool says whether it only reads, so the app can group it for "Always allow"."""
+    listing = [t.listing() for t in mcp.tools(None)]
+    read_only = {t["name"] for t in listing if t["annotations"] == {"readOnlyHint": True}}
+    assert read_only == {"works", "resume", "locate", "find", "show", "places", "ask"}
+    for tool in listing:
+        if tool["name"] not in read_only:
+            assert tool["annotations"] == {"readOnlyHint": False, "destructiveHint": False}
