@@ -518,22 +518,21 @@ in one run.
 - [x] **Q-4 (owner):** sign the `.mcpb`? Answered: not yet (D-12). Revisit
   only if the clean-PC run shows that signing removes a warning the writer
   must accept.
-- [ ] **Q-5 (probe):** does the server's process see the uv the app
-  installed (the `UV` variable, or a known path), so that phase 2 can build an
-  environment without downloading uv again? If not, phase 2 downloads uv into
-  its own runtime folder, with a pinned checksum, as the app does.
-- [ ] **Q-6 (probe):** does installing a newer `.mcpb` over the old one keep
+- [x] **Q-5 (probe):** does the server's process see the uv the app
+  installed? Answered: yes, `UV` names the app's uv 0.9.7; it is not on
+  `PATH` (`status/evidence/release-probe.md`).
+- [x] **Q-6 (probe):** does installing a newer `.mcpb` over the old one keep
   the folder setting, the "Update automatically" choice and the extension
-  enabled? Inferred yes (§2). If not, the update instructions add the missing
-  step, and `writer_update_actions` is re-counted.
-- [ ] **Q-7 (probe):** which approval questions does the app ask for a local
-  extension's tools: per tool or per group, per chat or for good, and does
-  "Always allow" in the connector settings cover a whole group? The setup
-  sentence and `approval_questions_after_setup` follow what the probe shows.
-- [ ] **Q-8 (probe):** can a normal user's process read whether Controlled
-  folder access is on and which folders it protects? If not, the tool tries
-  the novel's folder once and falls back on refusal, and Windows shows its
-  notice that one time; `cfa_fallback_correct` then allows that single notice.
+  enabled? Answered: yes (folder, enabled state and allowed tools kept; the
+  running server is replaced at once). The update takes five actions.
+- [x] **Q-7 (probe):** which approval questions does the app ask? Answered:
+  one per tool, with "Permitir siempre" lasting across chats and updates; the
+  extension's settings page sets a whole group to allow.
+- [x] **Q-8 (probe):** can a normal user's process read whether Controlled
+  folder access is on? Answered: yes, `Get-MpPreference` reads it; the default
+  protected folders are not listed, so the tool treats them as protected when
+  it is on. The fallback itself is checked on a real PC (Sandbox has no
+  Defender).
 
 **Decisions log**:
 
