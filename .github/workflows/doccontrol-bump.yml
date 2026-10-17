@@ -1,0 +1,47 @@
+name: doc-control bump
+# Daily: a new doc-control inside the pinned range becomes a PR that upgrades the lock and
+# bumps the patch version (merging it releases); one outside the range becomes an issue.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - id: check
+        run: python3 scripts/doccontrol_bump.py --apply
+      - if: steps.check.outputs.action == 'pr'
+        run: |
+          latest=${{ steps.check.outputs.latest }}
+          branch="bot/doc-control-$latest"
+          if git ls-remote --exit-code origin "refs/heads/$branch" >/dev/null; then
+            echo "$branch exists already"; exit 0
+          fi
+          uv lock --upgrade-package doc-control
+          uv sync
+          make ci  # a PR opened with the workflow token runs no CI of its own
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "build(deps): doc-control $latest, release ${{ steps.check.outputs.version }}"
+          git push origin "$branch"
+          body="doc-control $latest is out, inside the pinned range. This upgrades the lock and bumps the patch version, so merging it releases ${{ steps.check.outputs.version }}. The suite passed in the bump job (make ci); the release job smoke-tests the bundle on Windows before publishing."
+          gh pr create --head "$branch" --title "build(deps): doc-control $latest" --body "$body" \
+            || gh issue create --title "doc-control $latest: bump ready on $branch" \
+                 --body "$body Opening the PR failed (the repository may not let Actions open PRs): open it from $branch."
+      - if: steps.check.outputs.action == 'issue'
+        run: |
+          title="doc-control ${{ steps.check.outputs.latest }} is outside the pinned range"
+          if gh issue list --state open --search "\"$title\" in:title" --json number --jq length | grep -qv '^0$'; then
+            echo "already reported"; exit 0
+          fi
+          gh issue create --title "$title" --body "pyproject.toml pins doc-control>=${{ steps.check.outputs.range }}. Moving the range is a code decision: check doc-control's changelog, widen the range in both dependency lines, run uv lock and the suite."
