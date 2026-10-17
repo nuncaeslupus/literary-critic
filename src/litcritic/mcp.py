@@ -38,6 +38,7 @@ from litcritic import (
     plan,
     rounds,
     settings,
+    staging,
     structure,
     winblock,
 )
@@ -375,12 +376,19 @@ def state(ws: Workspace) -> dict[str, Any]:
 UPDATE: dict[str, str] = {"available": "unknown", "url": kit.RELEASES_PAGE}
 
 
-def check_update(force: bool = False) -> dict[str, str]:
-    """Check GitHub Releases now (at most once a day unless ``force``) and remember it."""
+def check_update(force: bool = False) -> dict[str, Any]:
+    """Check GitHub Releases now (at most once a day unless ``force``) and remember it; a
+    newer release is staged for the next start (release phase 2)."""
     with contextlib.suppress(Exception):  # a failed check stays "unknown", never an error
         got = kit.update_check(kit.version_info(), force=force)
         UPDATE.update(available=str(got["update_available"]), url=str(got["url"]))
-    return dict(UPDATE)
+        if got["update_available"] == "yes":
+            staging.stage(got["latest"], force=force)
+    return update()
+
+
+def update() -> dict[str, Any]:
+    return {**UPDATE, **staging.status()}
 
 
 def start_update_check() -> threading.Thread:
@@ -394,7 +402,7 @@ def works(grant: Any, check: bool = False) -> dict[str, Any]:
         "works": works_list(grant),
         "hint": ADD_FOLDER_HINT,
         "versions": versions(),
-        "update": check_update(force=True) if check else dict(UPDATE),
+        "update": check_update(force=True) if check else update(),
     }
 
 
@@ -404,7 +412,7 @@ def resume(grant: Any, work: str = "", reported: set[str] | None = None) -> dict
     out = _resume(grant, work)
     out["versions"] = versions()  # "which version?" asked before or after opening a novel
     if "work" in out:
-        out["update"] = dict(UPDATE)
+        out["update"] = update()
     if reported is not None and "work" in out and "other_doc_control" not in reported:
         other = claude_app.other_doc_control()
         if other:
@@ -816,7 +824,7 @@ def tools(grant: Any) -> list[Tool]:
             {
                 "check_update": {
                     "type": "boolean",
-                    "description": "check for a new version now (the writer asked to update)",
+                    "description": "check for a new version now and get it ready (asked to update)",
                 }
             },
             read_only=True,
