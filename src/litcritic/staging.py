@@ -34,6 +34,7 @@ RETRY_SECONDS = kit.CACHE_SECONDS  # a failed staging is retried the next day
 LOCK_SECONDS = 3600  # an older lock was left by a server that died mid-staging
 STEP_TIMEOUT = 900  # seconds for each uv step; installing pulls pywin32 from PyPI
 SELFTEST_TIMEOUT = 120
+PRIME_TIMEOUT = 60.0  # seconds for the Windows TLS fetch that installs a missing root
 OFF = {"", "0", "false", "no", "off"}
 
 Fetch = Callable[[str], bytes]
@@ -119,11 +120,24 @@ def status() -> dict[str, bool]:
         return {"applied": False, "restart_needed": False}
 
 
-def download(url: str) -> bytes:
+def _get(url: str) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "literary-critic"})
     with urllib.request.urlopen(req, timeout=120) as resp:
         body: bytes = resp.read()
         return body
+
+
+def download(url: str) -> bytes:
+    """``url``'s body. The assets redirect to another host than the update check reads,
+    whose root a fresh Windows may lack too: one fetch through Windows' own TLS installs
+    it (its answer is not used: it cannot carry a binary body), then urllib tries again."""
+    try:
+        return _get(url)
+    except Exception as exc:
+        if not kit._cert_unverified(exc):
+            raise
+        kit._windows_fetch(url, PRIME_TIMEOUT)
+        return _get(url)
 
 
 @contextlib.contextmanager

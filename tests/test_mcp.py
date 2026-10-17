@@ -788,7 +788,13 @@ def test_update_check_slow_network_adds_under_100ms(
     release.set()
     thread.join(5)
     resumed = _call(server, "resume", {})["update"]
-    assert resumed == {"available": "yes", "url": "page", "applied": False, "restart_needed": False}
+    assert resumed == {
+        "available": "yes",
+        "url": "page",
+        "staging": "off",  # LC_AUTO_UPDATE unset: the chat can say why nothing is ready
+        "applied": False,
+        "restart_needed": False,
+    }
     listed = _call(server, "works", {"check_update": True})  # "update now": no daily limit
     assert listed["update"]["available"] == "yes"
 

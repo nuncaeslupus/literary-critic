@@ -378,12 +378,14 @@ UPDATE: dict[str, str] = {"available": "unknown", "url": kit.RELEASES_PAGE}
 
 def check_update(force: bool = False) -> dict[str, Any]:
     """Check GitHub Releases now (at most once a day unless ``force``) and remember it; a
-    newer release is staged for the next start (release phase 2)."""
+    newer release is staged for the next start (release phase 2), its outcome kept as
+    ``staging`` (``staging.stage``)."""
     with contextlib.suppress(Exception):  # a failed check stays "unknown", never an error
         got = kit.update_check(kit.version_info(), force=force)
         UPDATE.update(available=str(got["update_available"]), url=str(got["url"]))
-        if got["update_available"] == "yes":
-            staging.stage(got["latest"], force=force)
+        UPDATE.pop("staging", None)
+        if got["update_available"] == "yes":  # why it is not ready: off, failed, reinstall…
+            UPDATE["staging"] = staging.stage(got["latest"], force=force)
     return update()
 
 

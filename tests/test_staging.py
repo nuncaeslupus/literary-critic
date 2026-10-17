@@ -156,3 +156,43 @@ def update_now_stages_at_once(root: Path, tmp_path: Path, monkeypatch: pytest.Mo
     update = mcp.works(folders.Grant([]), check=True)["update"]
     assert update["available"] == "yes" and update["restart_needed"] is True
     assert staging.load(root)["current"] == NEW
+
+
+def test_download_installs_a_missing_root_through_windows_tls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A fresh Windows: the assets' host has a root Python cannot verify until Windows'
+    # own TLS asks for it once; the retry then reads the (binary) body through urllib.
+    import ssl
+    import urllib.error
+    import urllib.request
+
+    primed: list[str] = []
+
+    class Body:
+        def __enter__(self) -> Body:
+            return self
+
+        def __exit__(self, *exc: object) -> None:
+            return None
+
+        def read(self) -> bytes:
+            return b"\x00wheel"
+
+    def urlopen(req: Any, timeout: float) -> Body:
+        if not primed:
+            raise urllib.error.URLError(ssl.SSLCertVerificationError(1, "local issuer"))
+        return Body()
+
+    monkeypatch.setattr(urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(kit, "_windows_fetch", lambda url, timeout: primed.append(url))
+    url = staging.DOWNLOAD.format(v=NEW, name="release.json")
+    assert staging.download(url) == b"\x00wheel" and primed == [url]
+
+    def offline(req: Any, timeout: float) -> Body:
+        raise urllib.error.URLError(OSError("offline"))
+
+    monkeypatch.setattr(urllib.request, "urlopen", offline)  # not a certificate: no retry
+    monkeypatch.setattr(kit, "_windows_fetch", lambda url, timeout: pytest.fail("primed"))
+    with pytest.raises(urllib.error.URLError):
+        staging.download(url)
