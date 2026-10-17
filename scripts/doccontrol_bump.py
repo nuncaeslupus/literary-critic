@@ -62,6 +62,12 @@ def bump_patch(pyproject: str) -> tuple[str, str]:
     return pyproject[: m.start()] + f'version = "{new}"' + pyproject[m.end() :], new
 
 
+def set_dunder_version(init: str, version: str) -> str:
+    return re.sub(
+        r'^__version__ = "[^"]*"', f'__version__ = "{version}"', init, count=1, flags=re.M
+    )
+
+
 def latest_on_pypi() -> str:
     with urllib.request.urlopen(PYPI, timeout=30) as resp:
         return str(json.loads(resp.read().decode("utf-8"))["info"]["version"])
@@ -77,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
     if action == "pr" and "--apply" in args:
         text, version = bump_patch(pyproject)
         (ROOT / "pyproject.toml").write_text(text, encoding="utf-8")
+        init = ROOT / "src" / "litcritic" / "__init__.py"  # pack_mcpb refuses a mismatch
+        init.write_text(set_dunder_version(init.read_text("utf-8"), version), "utf-8")
     lines = [f"action={action}", f"latest={latest}", f"version={version}", f"range={low},<{high}"]
     print("\n".join(lines))
     if os.environ.get("GITHUB_OUTPUT"):

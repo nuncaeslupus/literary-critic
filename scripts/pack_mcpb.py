@@ -44,6 +44,9 @@ def manifest(root: Path = ROOT) -> dict[str, object]:
     want = version(root)
     if data.get("version") not in ("0.0.0", want):
         raise PackError(f"manifest version {data.get('version')} is not pyproject's {want}")
+    init = (root / "src" / "litcritic" / "__init__.py").read_text(encoding="utf-8")
+    if f'__version__ = "{want}"' not in init:
+        raise PackError(f"src/litcritic/__init__.py's __version__ is not pyproject's {want}")
     data["version"] = want
     return data
 

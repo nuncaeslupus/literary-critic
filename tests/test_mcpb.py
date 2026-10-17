@@ -107,3 +107,11 @@ def test_bump_in_range_pr_out_of_range_issue() -> None:
     assert doccontrol_bump.decide("0.8.4", "0.8.3", low, high) == "none"
     bumped, new = doccontrol_bump.bump_patch('[project]\nname = "x"\nversion = "0.1.9"\n')
     assert new == "0.1.10" and 'version = "0.1.10"' in bumped
+    init = '"""Doc."""\n\n__version__ = "0.1.9"\n'
+    assert doccontrol_bump.set_dunder_version(init, new).endswith('__version__ = "0.1.10"\n')
+
+
+def test_package_version_matches_pyproject() -> None:
+    from litcritic import __version__
+
+    assert __version__ == pack_mcpb.version(ROOT)  # else a release calls itself outdated
