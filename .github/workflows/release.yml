@@ -1,0 +1,67 @@
+name: release
+# Merging a version bump to main releases it: the job tags vX.Y.Z and publishes the
+# Release. A vX.Y.Z tag pushed by hand releases too, once it matches pyproject.toml.
+on:
+  push:
+    branches: [main]
+    paths: [pyproject.toml]
+    tags: ["v*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: windows-latest  # pywin32 must import, with uv as the app runs it
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        run: |
+          v=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* && "$GITHUB_REF_NAME" != "v$v" ]]; then
+            echo "tag $GITHUB_REF_NAME does not match pyproject.toml's $v"; exit 1
+          fi
+          if gh release view "v$v" >/dev/null 2>&1; then
+            echo "v$v is already released"; echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.skip != '1'
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.9.7"  # the uv the Claude app downloads
+      - if: steps.version.outputs.skip != '1'
+        run: uv lock --check
+      - if: steps.version.outputs.skip != '1'
+        run: python scripts/pack_mcpb.py --out dist
+      - if: steps.version.outputs.skip != '1'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - if: steps.version.outputs.skip != '1'
+        run: |
+          mkdir dist/unpacked
+          unzip -q dist/literary-critic-*.mcpb -d dist/unpacked
+          npx -y @anthropic-ai/mcpb@2.1.2 validate dist/unpacked/manifest.json
+          rm -rf dist/unpacked
+      - if: steps.version.outputs.skip != '1'
+        run: python scripts/smoke_mcpb.py "dist/literary-critic-${{ steps.version.outputs.version }}.mcpb"
+      - if: steps.version.outputs.skip != '1'
+        run: |
+          v=${{ steps.version.outputs.version }}
+          (cd dist && sha256sum literary-critic-$v.mcpb > SHA256SUMS)
+          cat > dist/notes.md <<NOTES
+          To install: download literary-critic-$v.mcpb below, then drag it onto the
+          Claude app's window (Settings → Extensions) and press Install. Your novels,
+          notes and settings stay as they are.
+          NOTES
+          gh release create "v$v" "dist/literary-critic-$v.mcpb" dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "literary-critic $v" --notes-file dist/notes.md
