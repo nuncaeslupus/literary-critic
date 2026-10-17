@@ -10,11 +10,12 @@
   `add_folder`. A novel under not_set_up: `setup` it.
 - Start from `next_step`: say it briefly; the writer accepts, changes or
   rejects it.
-- `other_doc_control`: tell the writer its `say`, once.
-- Ask the Codex before reading: `ask` first, then `show` and `find` only where
-  an answer needs the text. Other steps go through `run` (`--help` for usage).
+- Once a chat: `other_doc_control`'s `say`; `update` `yes` as one plain
+  sentence with its `url`.
+- Ask the Codex first (`ask`); `show` and `find` only where an answer needs
+  the text. Other steps: `run` (`--help` for usage).
 - Save the overview once told (`run overview save`, with what you read): the
-  next chat gets it back instead of reading again.
+  next chat gets it back without rereading.
 
 ## Two channels
 

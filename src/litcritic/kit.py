@@ -72,19 +72,30 @@ def version_info(root: Path | None = None) -> dict[str, Any]:
     return {"version": __version__, "built": None, "source": source}
 
 
-TAGS_URL = "https://api.github.com/repos/nuncaeslupus/literary-critic/tags?per_page=100"
+RELEASE_URL = "https://api.github.com/repos/nuncaeslupus/literary-critic/releases/latest"
+RELEASES_PAGE = "https://github.com/nuncaeslupus/literary-critic/releases/latest"
 TAG = re.compile(r"v(\d+)\.(\d+)\.(\d+)")
-UPDATE_TIMEOUT = 3.0  # seconds; past it the check says nothing
-CACHE = Path(tempfile.gettempdir()) / "litcritic-latest.json"  # one network read a day
-CACHE_SECONDS = 24 * 3600
+UPDATE_TIMEOUT = 5.0  # seconds; past it the check says nothing
+CACHE: Path | None = None  # tests; else update.json beside folders.json
+CACHE_SECONDS = 24 * 3600  # one network read a day
 
 
-def _fetch_tags(timeout: float) -> list[str] | None:
-    """The repository's tag names, or None on any failure (offline, slow, refused)."""
-    req = urllib.request.Request(TAGS_URL, headers={"User-Agent": "literary-critic"})
+def _cache_file() -> Path:
+    if CACHE is not None:
+        return CACHE
+    from litcritic.folders import state_file  # folders imports mcp, which imports kit
+
+    return state_file().parent / "update.json"
+
+
+def _fetch_release(timeout: float) -> dict[str, Any] | None:
+    """The newest published Release (``tag_name``, ``html_url``, ``assets``), or None on
+    any failure (offline, slow, refused, no release)."""
+    req = urllib.request.Request(RELEASE_URL, headers={"User-Agent": "literary-critic"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            return [str(t["name"]) for t in json.loads(resp.read().decode("utf-8"))]
+            got = json.loads(resp.read().decode("utf-8"))
+            return got if isinstance(got, dict) else None
     except Exception:  # any failure means "unknown", never an error for the writer
         return None
 
@@ -94,34 +105,50 @@ def _parse(version: str) -> tuple[int, ...] | None:
     return tuple(int(n) for n in m.groups()) if m else None
 
 
-def _latest() -> str | None:
-    """The newest ``vX.Y.Z`` release tag without its ``v``, read at most once a day."""
-    with contextlib.suppress(OSError, ValueError, KeyError):
-        cached = json.loads(CACHE.read_text(encoding="utf-8"))
-        if time.time() - float(cached["at"]) < CACHE_SECONDS:
-            return str(cached["latest"]) if cached["latest"] else None
-    tags = _fetch_tags(UPDATE_TIMEOUT)
-    if tags is None:
+def _released(release: dict[str, Any]) -> str | None:
+    """The release's version, only when it carries its ``.mcpb``: a tag without a
+    published bundle is never announced."""
+    tag = str(release.get("tag_name") or "")
+    if not TAG.fullmatch(tag):
         return None
-    found = [v for v in (_parse(t) for t in tags if TAG.fullmatch(t)) if v]
-    latest = ".".join(map(str, max(found))) if found else None
+    names = {str(a.get("name")) for a in release.get("assets") or [] if isinstance(a, dict)}
+    return tag[1:] if f"literary-critic-{tag[1:]}.mcpb" in names else None
+
+
+def _latest(force: bool = False) -> tuple[str, str] | None:
+    """``(version, page)`` of the newest release with a bundle, read at most once a day
+    unless ``force``."""
+    cache = _cache_file()
+    if not force:
+        with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+            cached = json.loads(cache.read_text(encoding="utf-8"))
+            if time.time() - float(cached["at"]) < CACHE_SECONDS:
+                return (str(cached["latest"]), str(cached["url"])) if cached["latest"] else None
+    release = _fetch_release(UPDATE_TIMEOUT)
+    if release is None:
+        return None
+    latest = _released(release)
+    url = str(release.get("html_url") or RELEASES_PAGE)
     with contextlib.suppress(OSError):
-        CACHE.write_text(json.dumps({"at": time.time(), "latest": latest}), encoding="utf-8")
-    return latest
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(json.dumps({"at": time.time(), "latest": latest, "url": url}), "utf-8")
+    return (latest, url) if latest else None
 
 
-def update_check(info: dict[str, Any], network: bool = True) -> dict[str, Any]:
-    """``latest`` and ``update_available`` (``yes``, ``no`` or ``unknown``) for a copy
-    described by ``version_info``. ``yes`` only when its version is older than the
-    newest release; a source checkout, no network or any failure is ``unknown``."""
-    latest = _latest() if network and info.get("source") != "checkout" else None
+def update_check(info: dict[str, Any], network: bool = True, force: bool = False) -> dict[str, Any]:
+    """``latest``, ``url`` and ``update_available`` (``yes``, ``no`` or ``unknown``) for a
+    copy described by ``version_info``. ``yes`` only when its version is older than the
+    newest release with a bundle; a source checkout, no network or any failure is
+    ``unknown``."""
+    found = _latest(force) if network and info.get("source") != "checkout" else None
     mine = _parse(str(info.get("version", "")))
-    newest = _parse(latest) if latest else None
+    newest = _parse(found[0]) if found else None
     if info.get("source") == "checkout" or mine is None or newest is None:
         state = "unknown"
     else:
         state = "yes" if mine < newest else "no"
-    return {"latest": latest, "update_available": state}
+    latest, url = found or (None, RELEASES_PAGE)
+    return {"latest": latest, "url": url, "update_available": state}
 
 
 SKILL = Path(".claude") / "skills" / "litcritic" / "SKILL.md"

@@ -184,54 +184,65 @@ def test_version_matches_pyproject() -> None:
     assert meta["project"]["version"] == __version__
 
 
+def _release(tag: str, bundle: bool = True) -> dict[str, object]:
+    assets = [{"name": f"literary-critic-{tag[1:]}.mcpb"}] if bundle else []
+    page = f"https://github.com/nuncaeslupus/literary-critic/releases/tag/{tag}"
+    return {"tag_name": tag, "html_url": page, "assets": [*assets, {"name": "SHA256SUMS"}]}
+
+
 @pytest.mark.parametrize(
-    ("version", "source", "tags", "want"),
+    ("version", "source", "release", "want"),
     [
-        ("0.1.0", "kit", ["v0.2.0", "v0.1.0"], "yes"),  # older, online
-        ("0.2.0", "skill", ["v0.2.0", "v0.1.0", "nightly"], "no"),  # current
-        ("0.3.0", "kit", ["v0.2.0"], "no"),  # a development build is never out of date
-        ("0.1.0", "kit", None, "unknown"),  # offline or timed out
-        ("0.1.0", "checkout", ["v0.2.0"], "unknown"),  # a source checkout
+        ("0.1.0", "package", _release("v0.2.0"), "yes"),  # older, online
+        ("0.2.0", "package", _release("v0.2.0"), "no"),  # current
+        ("0.3.0", "package", _release("v0.2.0"), "no"),  # a development build is never out of date
+        ("0.1.0", "package", None, "unknown"),  # offline or timed out
+        ("0.1.0", "checkout", _release("v0.2.0"), "unknown"),  # a source checkout
+        ("0.1.0", "package", _release("v0.2.0", bundle=False), "unknown"),  # tag, no .mcpb
     ],
-    ids=["older-online", "current", "dev-newer", "offline", "checkout"],
+    ids=["older", "equal", "newer", "offline", "checkout", "no-mcpb"],
 )
-def test_update_check_cases(
+def test_update_check_cases_no_false_alarm(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     version: str,
     source: str,
-    tags: list[str] | None,
+    release: dict[str, object] | None,
     want: str,
 ) -> None:
-    monkeypatch.setattr(kit, "CACHE", tmp_path / "latest.json")
-    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: tags)
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "update.json")
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: release)
     got = kit.update_check({"version": version, "built": None, "source": source})
-    assert got["update_available"] == want
-    assert got["latest"] == (None if tags is None or source == "checkout" else "0.2.0")
+    assert got["update_available"] == want  # update_false_alarms == 0
+    if want == "yes":
+        assert got["latest"] == "0.2.0" and got["url"].endswith("/tag/v0.2.0")
 
 
 def test_update_check_older_online_says_yes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(kit, "CACHE", tmp_path / "latest.json")
-    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: ["v9.9.9"])
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "update.json")
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: _release("v9.9.9"))
     monkeypatch.setattr(
         kit, "version_info", lambda root=None: {"version": "0.1.0", "built": None, "source": "kit"}
     )
     assert main(["doctor", "--json"]) == 0
     got = json.loads(capsys.readouterr().out)
     assert got["latest"] == "9.9.9" and got["update_available"] == "yes"
-    # cached for the day: no second network read
-    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: pytest.fail("fetched twice"))
+    # cached for the day: no second network read, unless forced
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: pytest.fail("fetched twice"))
     assert kit.update_check({"version": "0.1.0", "source": "kit"})["latest"] == "9.9.9"
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: _release("v9.9.10"))
+    forced = kit.update_check({"version": "0.1.0", "source": "kit"}, force=True)
+    assert forced["latest"] == "9.9.10"
 
 
 def test_update_check_no_network_and_failures_stay_silent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    fetch = kit._fetch_tags
-    monkeypatch.setattr(kit, "CACHE", tmp_path / "latest.json")
-    monkeypatch.setattr(kit, "_fetch_tags", lambda timeout: pytest.fail("network used"))
+    fetch = kit._fetch_release
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "update.json")
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: pytest.fail("network used"))
     assert main(["doctor", "--json", "--no-network"]) == 0
     assert json.loads(capsys.readouterr().out)["update_available"] == "unknown"
 
