@@ -27,6 +27,7 @@ from typing import Any, TextIO
 from litcritic import (
     __version__,
     change,
+    claude_app,
     dc,
     docx_cli,
     overview,
@@ -358,8 +359,19 @@ def state(ws: Workspace) -> dict[str, Any]:
     return out
 
 
-def resume(grant: Any, work: str = "") -> dict[str, Any]:
-    """The named work's state and the guide; with no name, the only work there."""
+def resume(grant: Any, work: str = "", reported: set[str] | None = None) -> dict[str, Any]:
+    """The named work's state and the guide; with no name, the only work there. A standalone
+    doc-control is added once per server (``reported`` remembers it)."""
+    out = _resume(grant, work)
+    if reported is not None and "work" in out and "other_doc_control" not in reported:
+        other = claude_app.other_doc_control()
+        if other:
+            reported.add("other_doc_control")
+            out["other_doc_control"] = other
+    return out
+
+
+def _resume(grant: Any, work: str) -> dict[str, Any]:
     if work.strip():
         hits = grant.lookup(work)
     else:
@@ -747,6 +759,7 @@ def _opt(a: dict[str, Any], key: str, flag: str = "") -> list[str]:
 def tools(grant: Any) -> list[Tool]:
     """The tools over the granted folders (``folders.Grant``); each task of the desktop plan
     adds its own."""
+    reported: set[str] = set()
     return [
         Tool(
             "works",
@@ -760,7 +773,7 @@ def tools(grant: Any) -> list[Tool]:
             + WORK_HINT
             + " Call it first in a chat, and again with the new name when the writer "
             "switches novels.",
-            lambda a: resume(grant, str(a.get("work") or "")),
+            lambda a: resume(grant, str(a.get("work") or ""), reported),
             {"work": {"type": "string", "description": "the novel's title or folder name"}},
         ),
         Tool(

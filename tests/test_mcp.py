@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import __version__, folders, mcp
+from litcritic import __version__, claude_app, folders, mcp
 from litcritic.cli import build_parser
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mcp"
@@ -668,3 +668,70 @@ def test_the_log_file_keeps_one_old_log_once_too_big(tmp_path: Path) -> None:
     path.write_text("x" * (mcp.LOG_LIMIT + 1), encoding="utf-8")
     assert mcp.log_file(state) == path
     assert not path.exists() and path.with_name("mcp.log.1").exists()
+
+
+@pytest.mark.parametrize(
+    ("files", "kind"),
+    [
+        (
+            {
+                "extensions-installations.json": {
+                    "extensions": {
+                        "local.mcpb.someone.doc-control": {"manifest": {"name": "doc-control"}}
+                    }
+                },
+                "Claude Extensions Settings/local.mcpb.someone.doc-control.json": {
+                    "isEnabled": True
+                },
+            },
+            "extension",
+        ),
+        (
+            {
+                "extensions-installations.json": {
+                    "extensions": {
+                        "local.mcpb.someone.doc-control": {"manifest": {"name": "doc-control"}}
+                    }
+                },
+                "Claude Extensions Settings/local.mcpb.someone.doc-control.json": {
+                    "isEnabled": False
+                },
+            },
+            None,
+        ),
+        (
+            {
+                "claude_desktop_config.json": {
+                    "mcpServers": {
+                        "docs": {"command": "uvx", "args": ["--from", "doc-control[live]", "x"]},
+                        "literary-critic-dev": {"command": "lc", "args": ["mcp", "doc-control"]},
+                    }
+                }
+            },
+            "config",
+        ),
+        ({"claude_desktop_config.json": {"mcpServers": {}}}, None),
+    ],
+    ids=["extension-enabled", "extension-disabled", "config-entry", "none"],
+)
+def test_resume_reports_standalone_doccontrol_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, files: dict[str, Any], kind: str | None
+) -> None:
+    app = tmp_path / "Claude"
+    for name, data in files.items():
+        (app / name).parent.mkdir(parents=True, exist_ok=True)
+        (app / name).write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setenv(claude_app.APP_DIR_ENV, str(app))
+    monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
+    _novel(tmp_path, "Only", "Only")
+    server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Only")])))
+
+    first = _call(server, "resume", {})
+    second = _call(server, "resume", {})
+    if kind is None:
+        assert "other_doc_control" not in first
+    else:
+        assert first["other_doc_control"]["kind"] == kind
+        assert "Settings → Extensions" in first["other_doc_control"]["say"]
+        assert "other_doc_control" not in second  # standalone_doccontrol_reported: once
+    assert "other_doc_control" in first["guide"]

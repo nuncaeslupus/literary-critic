@@ -5,11 +5,12 @@
 
 ## The novel
 
-- Tools take the work by name; to switch novels, `resume` the new name.
+- Tools take the work by name; switch novels with `resume`.
 - An unknown name returns the known works: ask which they meant, or offer
   `add_folder`. A novel under not_set_up: `setup` it.
-- Start from `next_step`: say it in a sentence or two and let the writer
-  accept, change or reject it.
+- Start from `next_step`: say it briefly; the writer accepts, changes or
+  rejects it.
+- `other_doc_control`: tell the writer its `say`, once.
 - Ask the Codex before reading: `ask` first, then `show` and `find` only where
   an answer needs the text. Other steps go through `run` (`--help` for usage).
 - Save the overview once told (`run overview save`, with what you read): the
