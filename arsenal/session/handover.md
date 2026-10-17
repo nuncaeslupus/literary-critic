@@ -1,6 +1,6 @@
 # Handover
 
-**Last session (2026-10-17, evening, Windows):** release phase 2. Merged: T12 launcher (#260: `extension/launch.py` runs the newest healthy runtime under `%LOCALAPPDATA%\literary-criticuntime`, marks a version bad after two error exits within 10 s and falls back; two runtimes kept) and T13 self-update (#261: `src/litcritic/staging.py` builds a newer release with the app's `UV`, self-tests it and names it `current`; `update` gains `applied` and `restart_needed`).
+**Last session (2026-10-17, evening, Windows):** release phase 2. Merged: T12 launcher (#260: `extension/launch.py` runs the newest healthy runtime under `%LOCALAPPDATA%\literary-critic\runtime`, marks a version bad after two error exits within 10 s and falls back; two runtimes kept) and T13 self-update (#261: `src/litcritic/staging.py` builds a newer release with the app's `UV`, self-tests it and names it `current`; `update` gains `applied` and `restart_needed`).
 
 - **Only human-gated tasks remain:** Owner switch (t-3898860e: owner installs the `.mcpb`, removes the `literary-critic-dev` entry; docs drop the dev entry), then release Test run (t-ca32957d, T14, clean PC); T7: Walkthrough (t-d62e7735, needs a Mac too); workplan walkthrough (t-748f8656).
 - **Board warning:** t-98eb6b03 and t-e7ff65dc depend on cancelled t-5a55f89e (blocked for good): drop the dep or cancel them.
