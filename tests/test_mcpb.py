@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import re
 import shutil
 import sys
 import tomllib
@@ -115,3 +116,28 @@ def test_package_version_matches_pyproject() -> None:
     from litcritic import __version__
 
     assert __version__ == pack_mcpb.version(ROOT)  # else a release calls itself outdated
+
+
+def test_release_assets_requirements_hashed(tmp_path: Path) -> None:
+    ra = _script("release_assets")
+    wheel = tmp_path / "literary_critic-1.2.3-py3-none-any.whl"
+    wheel.write_bytes(b"wheel bytes")
+    exported = (
+        "colorama==0.4.6 ; sys_platform == 'win32' \\n"
+        "    --hash=sha256:aaaa \\n    --hash=sha256:bbbb\n"
+        "doc-control==1.0 \\n    --hash=sha256:cccc\n"
+    )
+    text = ra.requirements_text(exported, wheel)
+    entries = [e for e in re.split(r"\n(?=\S)", text.strip()) if e]
+    assert len(entries) == 3
+    assert all("--hash=sha256:" in e for e in entries)
+    own = entries[-1]
+    assert own.startswith("literary-critic @ ./" + wheel.name)
+    assert f"--hash=sha256:{ra.sha256(wheel)}" in own
+
+    with pytest.raises(SystemExit):
+        ra.requirements_text("doc-control==1.0\n", wheel)
+
+    meta = json.loads(ra.release_json("1.2.3", True))
+    assert meta == {"version": "1.2.3", "reinstall": True}
+    assert ra.changed_since(None) is False
