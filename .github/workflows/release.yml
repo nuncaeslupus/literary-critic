@@ -69,5 +69,6 @@ jobs:
           Claude app's window (Settings → Extensions) and press Install. Your novels,
           notes and settings stay as they are.
           NOTES
-          gh release create "v$v" "dist/literary-critic-$v.mcpb" dist/SHA256SUMS \
+          gh release create "v$v" "dist/literary-critic-$v.mcpb" dist/SHA256SUMS dist/*.whl \
+            "dist/requirements-$v.txt" dist/release.json \
             --target "$GITHUB_SHA" --title "literary-critic $v" --notes-file dist/notes.md
