@@ -1,5 +1,12 @@
 # Handover
 
+**Last session (2026-10-17, day, Windows):** release workspace, the Windows tasks. Merged: T3 clean-PC probe (#254, `status/evidence/release-probe.md`), T8 tool annotations + "Always allow" in the chat guide (#255), T11 staging assets (#256), update check retried through Windows' own TLS + versions in `resume` (#257), T5 state place with Controlled folder access (#258).
+
+- **Unblocked next:** Owner switch (t-3898860e, after T8) and Launcher (t-f35c980f, after T11).
+- **Follow-ups from the probe, not yet tasks:** the app starts the server twice per install or update; installing takes 5 writer actions, not the spec's 3 (drag onto a chat attaches the file; double-click has no association; Settings → Extensions → drop works); the model mixes in account memory from another PC; the CFA fallback has only run with fakes and needs a fresh account on a real PC (Sandbox cannot run Defender).
+- **Remind the owner:** Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests" (daily doc-control bump).
+- Windows checkout: `make` is missing and `.venv` is locked by the dev MCP server; use `UV_PROJECT_ENVIRONMENT="$TEMP/lc-venv" uv run ...`. `open_task_pr.sh` then fails its host gate, so archive the task file by hand and open the PR with `gh pr create`. CI's Linux typecheck catches Windows-only typeshed gaps (`winreg`, `OSError.winerror`); `os.path.normcase` only lowercases on Windows.
+
 **Last session (2026-10-17, overnight, cloud):** release workspace, every task that needs no Windows. Merged: T7 other doc-control (#246), T1 pack + CI check (#247), T6 Word-only writes (#248), T2 release on tag (#249), T4 update check via Releases (#250), T9 daily doc-control bump (#251). **v0.1.0 is published** (Releases, `.mcpb` + `SHA256SUMS`); the PR carrying this note bumps to 0.1.1, which releases on merge and ships T4.
 
 - **Remind the owner (they asked, 2026-10-17):** turn on Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests", so the daily doc-control bump opens its PR itself. Decided with the owner: keep the daily check; silent updates are Phase 2 (T11–T13), since the directory no longer takes `.mcpb` and plugin local servers do not run in chat.
