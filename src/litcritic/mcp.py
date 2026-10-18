@@ -409,12 +409,13 @@ def state(ws: Workspace) -> dict[str, Any]:
 UPDATE: dict[str, str] = {"available": "unknown", "url": kit.RELEASES_PAGE}
 
 
-def check_update(force: bool = False) -> dict[str, Any]:
-    """Check GitHub Releases now (at most once a day unless ``force``) and remember it; a
-    newer release is staged for the next start (release phase 2), its outcome kept as
-    ``staging`` (``staging.stage``)."""
+def check_update(force: bool = False, fresh: bool = False) -> dict[str, Any]:
+    """Check GitHub Releases now (at most once a day unless ``force`` or ``fresh``) and
+    remember it; a newer release is staged for the next start (release phase 2), its outcome
+    kept as ``staging`` (``staging.stage``). ``fresh`` reads the release again but keeps
+    staging's retry limit; ``force`` ("update now") lifts both."""
     with contextlib.suppress(Exception):  # a failed check stays "unknown", never an error
-        got = kit.update_check(kit.version_info(), force=force)
+        got = kit.update_check(kit.version_info(), force=force or fresh)
         UPDATE.update(available=str(got["update_available"]), url=str(got["url"]))
         UPDATE.pop("staging", None)
         if got["update_available"] == "yes":  # why it is not ready: off, failed, reinstall…
@@ -427,7 +428,10 @@ def update() -> dict[str, Any]:
 
 
 def start_update_check() -> threading.Thread:
-    thread = threading.Thread(target=check_update, name="update-check", daemon=True)
+    # Every start reads the release again: a restart after a release must see it that day.
+    thread = threading.Thread(
+        target=check_update, kwargs={"fresh": True}, name="update-check", daemon=True
+    )
     thread.start()
     return thread
 

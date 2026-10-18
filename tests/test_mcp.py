@@ -811,6 +811,10 @@ def test_update_check_slow_network_adds_under_100ms(
         return {"tag_name": "v0.2.0", "html_url": "page", "assets": [{"name": name}]}
 
     monkeypatch.setattr(kit, "_fetch_release", slow)
+    # read this morning, before the release: a start reads it again all the same
+    (tmp_path / "update.json").write_text(
+        json.dumps({"at": time.time(), "latest": "0.1.0", "url": "page"}), "utf-8"
+    )
     _novel(tmp_path, "Only", "Only")
     server = mcp.Server(mcp.tools(folders.Grant([str(tmp_path / "Only")])))
     thread = mcp.start_update_check()
