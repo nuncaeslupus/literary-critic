@@ -32,10 +32,18 @@ _CARD = {
     "en": ("Replace «{x}» with «{y}»?", "your words", "suggested by the assistant"),
     "es": ("¿Cambiar «{x}» por «{y}»?", "tus palabras", "sugerencia del asistente"),
 }
-# the card's buttons, in the novel's language
+# the card's buttons and settled words, in the novel's language
 _BUTTONS = {
-    "en": {"approve": "Approve", "dismiss": "Dismiss", "go": "Show in Word"},
-    "es": {"approve": "Aprobar", "dismiss": "Descartar", "go": "Ver en Word"},
+    "en": {
+        "approve": "Approve", "dismiss": "Dismiss", "go": "Show in Word",
+        "approved": "✓ Approved", "typed": "✓ Approved: you type it in",
+        "dismissed": "Dismissed", "undone": "Undone", "change": "Change", "changes": "Changes",
+    },
+    "es": {
+        "approve": "Aprobar", "dismiss": "Descartar", "go": "Ver en Word",
+        "approved": "✓ Aprobado", "typed": "✓ Aprobado: lo escribes tú",
+        "dismissed": "Descartado", "undone": "Deshecho", "change": "Cambio", "changes": "Cambios",
+    },
 }
 
 

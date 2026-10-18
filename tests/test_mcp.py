@@ -325,7 +325,8 @@ def test_change_card_result_links_ui_resource(
     assert html.count("<button") == 2
     assert ">Approve</button>" in html and ">Dismiss</button>" in html
     assert '"change_approve"' in html and '"change_dismiss"' in html
-    assert "hostCapabilities" in html  # ui/message only when the host advertises it
+    assert "ui/message" not in html  # one click approves: no chat message to send
+    assert "updateModelContext" in html  # the outcome reaches the model only when the host takes it
 
     assert _call_raw(server, "change_card", {"work": "mynovel", "change": "C9"})["isError"]
 
@@ -380,7 +381,8 @@ def test_change_card_proposes_inline_and_shows_a_batch(
     shown = made["structuredContent"]
     assert shown["id"] == "C1" and shown["status"] == "proposed"
     assert [c["id"] for c in shown["changes"]] == ["C1"]
-    assert set(shown["card"]["buttons"]) == {"approve", "dismiss", "go"}
+    buttons = set(shown["card"]["buttons"])
+    assert {"approve", "dismiss", "go", "approved", "dismissed", "undone"} <= buttons
 
     _call_raw(server, "change_card", {"work": "mynovel", "quote": "street", "replace": "road"})
     both = _call_raw(server, "change_card", {"work": "mynovel", "changes": ["C1", "C2"]})
@@ -523,14 +525,18 @@ def test_change_page_renders_settled_changes_as_settled() -> None:
 
     html = (Path(mcp.__file__).parent / "ui" / "change.html").read_text(encoding="utf-8")
     assert '"change_status"' in html  # asked on load, the tool result may be stale
-    block = re.search(r"const SETTLED = \{(.*?)\};", html, re.S)
+    block = re.search(r"const SETTLED = \(\) => \(\{(.*?)\}\);", html, re.S)
     assert block, "the page names every settled status"
-    words = dict(re.findall(r"(\w+): \"([^\"]+)\"", block.group(1)))
+    keys = dict(re.findall(r"(\w+): labels\.(\w+)", block.group(1)))
     # every status a change can reach that is no longer actionable, and none that is
-    assert set(words) == {"approved", "applied", "typed_by_writer", "dismissed", "undone"}
-    assert not set(words) & {"proposed", *change.LIVE}
-    assert words["applied"].startswith("✓") and words["dismissed"] == "Dismissed"
-    assert "✗" not in "".join(words.values())
+    assert set(keys) == {"approved", "applied", "typed_by_writer", "dismissed", "undone"}
+    assert not set(keys) & {"proposed", *change.LIVE}
+    # the words come from the card, in the novel's language, with English in the page
+    for lang in ("en", "es"):
+        words = {status: change._BUTTONS[lang][key] for status, key in keys.items()}
+        assert words["applied"].startswith("✓") and not words["dismissed"].startswith("✓")
+        assert "✗" not in "".join(words.values())
+        assert all(f'{key}: "{change._BUTTONS["en"][key]}"' in html for key in keys.values())
     # a refusal for a settled change shows the settled state, not the red error
     assert 'why.code === "not_proposed" && settle(row, await liveStatus(row))' in html
     assert '$("buttons").hidden = true' in html
