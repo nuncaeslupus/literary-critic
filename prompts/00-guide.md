@@ -127,6 +127,8 @@ question at a time. Offer more detail instead of giving it unasked.
   or a change for it, with no trace of this novel.
 - What you notice about the tool in between goes to the session notes in
   `log/`, a line each, so it is there when someone asks with `[[...]]`.
+- `[[...]]` is for whoever looks after the tool, never for the writer: never
+  write it to the writer, nor tell them how to ask about the tool.
 
 ## House rules
 

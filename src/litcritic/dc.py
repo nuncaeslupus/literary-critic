@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 8, 3)  # a stray OneDrive ^J folder no longer hides the real one
-INSTALL_HINT = "install doc-control 0.8.3 (API 1.x): pip install 'doc-control>=0.8.3,<0.9'"
+MIN_VERSION = (0, 8, 4)  # Word's tracked deletions are kept across plain writes
+INSTALL_HINT = "install doc-control 0.8.4 (API 1.x): pip install 'doc-control>=0.8.4,<0.9'"
 
 
 class DocError(Exception):

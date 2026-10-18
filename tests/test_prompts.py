@@ -259,6 +259,9 @@ def test_tool_talk_waits_for_the_tool_channel() -> None:
     """A writer hears about the novel: the tool is discussed only when asked with [[...]]."""
     guide = " ".join((repo_root() / "prompts" / "00-guide.md").read_text(encoding="utf-8").split())
     assert "Unasked, never describe the tool's faults" in guide
+    for name in ("00-guide.md", "01-chat-guide.md"):
+        text = " ".join((repo_root() / "prompts" / name).read_text(encoding="utf-8").split())
+        assert re.search(r"never writ(e it|ten) to the writer", text), name  # [[...]] is the maintainer's
     for path in _documents():
         for sentence in re.split(r"(?<=[.:;])\s+", " ".join(path.read_text("utf-8").split())):
             if re.search(r"\bpropose\b", sentence) and "[[" in sentence:
