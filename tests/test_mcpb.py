@@ -2,6 +2,7 @@ import importlib.util
 import json
 import re
 import shutil
+import subprocess
 import sys
 import tomllib
 import zipfile
@@ -145,3 +146,22 @@ def test_release_assets_requirements_hashed(tmp_path: Path) -> None:
     meta = json.loads(ra.release_json("1.2.3", True))
     assert meta == {"version": "1.2.3", "reinstall": True}
     assert ra.changed_since(None) is False
+
+
+def test_wheel_alone_reads_the_guide_and_schemas(tmp_path: Path) -> None:
+    # A staged update installs only the wheel: no source tree around the package.
+    ra = _script("release_assets")
+    wheel = ra.build_wheel(tmp_path / "dist")
+    with zipfile.ZipFile(wheel) as z:
+        z.extractall(tmp_path / "site")
+    code = (
+        "import sys; sys.path.insert(0, sys.argv[1]);"
+        "from litcritic import mcp, validate, workspace;"
+        "assert workspace.repo_root() == workspace.TREE, workspace.repo_root();"
+        "print(len(mcp.guide()), validate.schema_dir().is_dir())"
+    )
+    out = subprocess.run(
+        [sys.executable, "-c", code, str(tmp_path / "site")],
+        capture_output=True, text=True, check=True, cwd=tmp_path,
+    ).stdout.split()  # fmt: skip
+    assert int(out[0]) > 1000 and out[1] == "True"

@@ -59,9 +59,14 @@ def register(root: Path) -> None:
         reg.write_text("\n".join([*known, str(root)]) + "\n", encoding="utf-8")
 
 
+TREE = Path(__file__).resolve().parent / "_tree"  # the wheel's copy of prompts, schemas, ...
+
+
 def repo_root() -> Path:
-    """Root of this tool's source tree."""
-    return Path(__file__).resolve().parents[2]
+    """Root of this tool's source tree: a checkout or kit, else the installed wheel's
+    ``_tree`` (a staged update has no source tree around the package)."""
+    source = Path(__file__).resolve().parents[2]
+    return source if (source / "prompts").is_dir() or not TREE.is_dir() else TREE
 
 
 def _git_toplevel(path: Path) -> Path | None:

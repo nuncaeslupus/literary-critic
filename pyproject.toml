@@ -1,6 +1,6 @@
 [project]
 name = "literary-critic"
-version = "0.1.7"
+version = "0.1.8"
 description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
 license = "Apache-2.0"
@@ -23,6 +23,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/litcritic"]
+
+# A staged update installs the wheel alone: it carries the tree files the tool reads.
+[tool.hatch.build.targets.wheel.force-include]
+"prompts" = "litcritic/_tree/prompts"
+"schemas" = "litcritic/_tree/schemas"
+"checklist" = "litcritic/_tree/checklist"
+"docs/codex" = "litcritic/_tree/docs/codex"
 
 [tool.ruff]
 line-length = 100
