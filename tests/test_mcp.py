@@ -698,6 +698,21 @@ def test_a_failed_call_is_logged_with_its_arguments_and_answer(tmp_path: Path) -
     assert '"C1"' in line and "read it again first" in line
 
 
+def test_the_log_says_whether_the_host_draws_cards_and_fetches_them() -> None:
+    log = io.StringIO()
+    server = mcp.Server([], log=log)
+    ext = {"extensions": {mcp.UI_EXTENSION: {"mimeTypes": [mcp.UI_MIME]}}}
+    init = {"clientInfo": {"name": "host"}, "capabilities": ext}
+    server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": init})
+    server.handle({"jsonrpc": "2.0", "id": 2, "method": "initialize", "params": {}})
+    read = {"uri": mcp.PLACES_URI}
+    server.handle({"jsonrpc": "2.0", "id": 3, "method": "resources/read", "params": read})
+    lines = log.getvalue().splitlines()
+    assert lines[0].endswith(" ui") and '"host"' in lines[0]
+    assert lines[1].endswith(" no-ui")
+    assert lines[2].endswith("page " + mcp.PLACES_URI)
+
+
 def test_the_log_file_keeps_one_old_log_once_too_big(tmp_path: Path) -> None:
     state = tmp_path / "lc" / "folders.json"
     path = mcp.log_file(state)

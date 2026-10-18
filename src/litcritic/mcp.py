@@ -124,6 +124,11 @@ class Server:
             return None
         if method == "initialize":
             self.client = params if isinstance(params, dict) else {}
+            caps = self.client.get("capabilities") or {}
+            ext = caps.get("extensions") if isinstance(caps, dict) else None
+            ui = isinstance(ext, dict) and UI_EXTENSION in ext
+            info = self.client.get("clientInfo") or {}
+            self._note("client", _brief(info), "ui" if ui else "no-ui")  # can it draw cards?
             result: dict[str, Any] = {
                 "protocolVersion": self.client.get("protocolVersion") or PROTOCOL_VERSION,
                 "capabilities": {
@@ -152,6 +157,7 @@ class Server:
             if uri not in UI_PAGES:
                 return _error(msg_id, -32002, f"resource not found: {uri}")
             text = UI_PAGES[uri].read_text(encoding="utf-8")
+            self._note("page", uri)  # the host fetched a card page
             contents = [{"uri": uri, "mimeType": UI_MIME, "text": text}]
             return _result(msg_id, {"contents": contents})
         return _error(msg_id, -32601, f"method not found: {method}")
