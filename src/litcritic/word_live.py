@@ -353,9 +353,16 @@ def write(request: dict[str, Any]) -> dict[str, Any]:
     return run("doc.batch", {**request, "engine": "live"})
 
 
-def go(doc: Path, phrase: str) -> dict[str, Any]:
+def go(doc: Path, phrase: str, at: str = "") -> dict[str, Any]:
     """Take Word to the paragraph holding ``phrase`` in the open document (an edit just
-    written there, not yet in the file the index reads)."""
+    written there, not yet in the file the index reads); to the paragraph at ``at`` when
+    it still reads as written, since a short phrase may be in many paragraphs."""
+    if at:
+        try:
+            got = _timed("live.select", {"doc": str(doc), "at": at})
+            return {"status": "done", "how": "live", "selected": got.get("text", "")}
+        except dc.DocError:
+            pass  # edited since, or Word closed it: find it by its words
     request = {"doc": str(doc), "find_phrase": phrase, "match_level": "exact"}
     try:
         try:

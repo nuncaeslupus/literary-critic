@@ -51,6 +51,16 @@ def _execute(op: str, request: dict[str, Any]) -> dict[str, Any]:
     return envelope
 
 
+def fingerprint(text: str) -> str:
+    """The fingerprint doc-control puts in a paragraph address (``p142#<fp>``) for a
+    paragraph reading ``text``."""
+    try:
+        from doc_control.model.address import fingerprint as fp
+    except ImportError as exc:
+        raise _missing() from exc
+    return str(fp(text))
+
+
 def version() -> str:
     """The installed doc-control's version, or ``""`` when it is not installed."""
     from importlib.metadata import PackageNotFoundError

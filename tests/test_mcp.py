@@ -411,6 +411,28 @@ def test_change_card_proposes_inline_and_shows_a_batch(
     assert refused["isError"] and _text(refused)["error"] == "invalid"
 
 
+def test_change_card_proposes_several_edits_in_one_box(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Several changes are one call and one box, never a box each and then the batch; an
+    edit that cannot be proposed is said, the others still shown."""
+    server, _ws = _change_work(tmp_path, monkeypatch, propose=False)
+    edits = [
+        {"quote": "cold", "replace": "bitter", "why": "stronger"},
+        {"quote": "street", "replace": "road", "why": "plainer"},
+        {"quote": "no such words", "replace": "x"},
+    ]
+    res = _call_raw(server, "change_card", {"work": "mynovel", "edits": edits, "by": "writer"})
+    assert not res["isError"], res
+    shown = res["structuredContent"]
+    assert [c["id"] for c in shown["changes"]] == ["C1", "C2"]
+    assert [n["quote"] for n in shown["not_proposed"]] == ["no such words"]
+    none = _call_raw(server, "change_card", {"work": "mynovel", "edits": edits[2:] * 2})
+    assert none["isError"] and _text(none)["error"] == "not_proposed"
+    described = _listed(server)["change_card"]["description"]
+    assert "edits" in described and "never say card" in described.replace("\n", " ")
+
+
 def test_change_go_takes_word_to_the_change_before_and_after(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -451,7 +473,7 @@ def test_change_go_finds_an_unsaved_edit_in_the_open_word(
     went: list[tuple[Path, str]] = []
     monkeypatch.setattr(word_live, "is_open", lambda doc: True)
 
-    def go(doc: Path, phrase: str) -> dict[str, str]:
+    def go(doc: Path, phrase: str, at: str = "") -> dict[str, str]:
         went.append((doc, phrase))
         return {"status": "done"}
 

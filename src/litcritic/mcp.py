@@ -704,7 +704,9 @@ def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     """Proposed changes as one card, rendered by the change page: Approve, Dismiss and
     "Show in Word" for each change, and in a batch Approve all and Dismiss all.
     The changes are named (``change``, or ``changes`` for a batch), or proposed here from
-    ``quote`` and ``replace`` (as ``lc change propose``) and shown in the same call."""
+    ``quote`` and ``replace`` (as ``lc change propose``), or from each of ``edits``, and
+    shown in the same call: several changes are one card, never one card each and then
+    the batch. An edit that cannot be proposed is left out and said in ``not_proposed``."""
     work = str(a.get("work") or "")
     ws = _work(grant, work)
     if isinstance(ws, dict):
@@ -712,18 +714,36 @@ def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     ids = [str(c) for c in a.get("changes") or []]
     if a.get("change"):
         ids.insert(0, str(a["change"]))
+    edits = [e for e in a.get("edits") or [] if isinstance(e, dict)]
+    if not ids and not edits and a.get("quote") is not None and a.get("replace") is not None:
+        edits = [a]
+    not_proposed: list[dict[str, Any]] = []
     try:
-        if not ids and a.get("quote") is not None and a.get("replace") is not None:
-            made = change.propose(
-                ws.root,
-                str(a["quote"]),
-                str(a["replace"]),
-                by=str(a.get("by") or "writer"),
-                why=str(a.get("why") or ""),
-                prefix=str(a.get("prefix") or ""),
-                suffix=str(a.get("suffix") or ""),
+        for e in edits:
+            try:
+                made = change.propose(
+                    ws.root,
+                    str(e.get("quote") or ""),
+                    str(e.get("replace") or ""),
+                    by=str(e.get("by") or a.get("by") or "writer"),
+                    why=str(e.get("why") or ""),
+                    prefix=str(e.get("prefix") or ""),
+                    suffix=str(e.get("suffix") or ""),
+                )
+            except plan.Refused as exc:
+                if len(edits) == 1:
+                    raise
+                not_proposed.append(
+                    {"quote": e.get("quote"), "reason": exc.reason, "message": exc.message}
+                )
+                continue
+            ids.append(made["change"])
+        if not ids and not_proposed:
+            raise ToolError(
+                "not_proposed",
+                message="none of the edits could be proposed",
+                not_proposed=not_proposed,
             )
-            ids = [made["change"]]
         if not ids:
             raise ToolError("missing_arguments", missing=["change", "or quote and replace"])
         rows = [change.status(ws.root, cid)["changes"][0] for cid in dict.fromkeys(ids)]
@@ -732,7 +752,10 @@ def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     except (OSError, ValueError, plan.PlanError) as exc:
         raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
     shown = [{"id": r["id"], "status": r["status"], "card": r["card"]} for r in rows]
-    return {**shown[0], "work": work, "changes": shown}
+    out = {**shown[0], "work": work, "changes": shown}
+    if not_proposed:
+        out["not_proposed"] = not_proposed
+    return out
 
 
 def _go(grant: Any, work: str, ws: Workspace, cid: str) -> dict[str, Any]:
@@ -748,7 +771,7 @@ def _go(grant: Any, work: str, ws: Workspace, cid: str) -> dict[str, Any]:
     except (OSError, ValueError, docx_cli.CliError):
         doc = None
     if doc is not None and word_live.is_open(doc):
-        went = word_live.go(doc, text)
+        went = word_live.go(doc, text, str(where.get("at") or ""))
         if went.get("status") == "done":
             return went
     return _json_run(grant, work, ["docx", "locate", "--quote", text, "--go"])
@@ -1006,18 +1029,37 @@ def tools(grant: Any) -> list[Tool]:
         ),
         Tool(
             "change_card",
-            "The only way to change the manuscript: propose a change and show it as a card "
-            "with Approve and Dismiss buttons; the writer's click decides and the tool "
-            "writes it. Give quote (verbatim, with prefix/suffix when it is not unique), "
-            "replace, why and by (writer or assistant) to propose and show it in one call; "
-            "or name proposed changes: change, or changes for a batch (one card; each change "
-            "has its own buttons, plus Approve all and Dismiss all). Never edit, open, save "
-            "or close the document any other way (no doc-control writes, no Word by hand).",
+            "The only way to change the manuscript: propose changes and show them with "
+            "Approve and Dismiss buttons; the writer's click decides and the tool writes it. "
+            "Give quote (verbatim, with prefix/suffix when it is not unique), replace, why "
+            "and by (writer or assistant) to propose and show one change in one call. "
+            "Several changes go in ONE call as edits (each with quote, replace, why, "
+            "prefix, suffix): one box where each change has its own buttons, plus Approve "
+            "all and Dismiss all. Never one call per change and then another for them all. "
+            "Or name changes already proposed: change, or changes. To the writer, never say "
+            "card or tarjeta: say the change is below with its buttons. Never edit, open, "
+            "save or close the document any other way (no doc-control writes, no Word by "
+            "hand).",
             lambda a: change_card(grant, a),
             {
                 "work": WORK_ARG,
                 "change": {"type": "string", "description": "e.g. C1"},
                 "changes": {"type": "array", "items": {"type": "string"}},
+                "edits": {
+                    "type": "array",
+                    "description": "Several changes to propose and show together.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "quote": {"type": "string"},
+                            "replace": {"type": "string"},
+                            "why": {"type": "string"},
+                            "prefix": {"type": "string"},
+                            "suffix": {"type": "string"},
+                        },
+                        "required": ["quote", "replace"],
+                    },
+                },
                 "quote": {"type": "string"},
                 "replace": {"type": "string"},
                 "why": {"type": "string"},
