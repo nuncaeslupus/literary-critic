@@ -100,6 +100,8 @@ def _changes(root: Path) -> dict[str, dict[str, Any]]:
                 row["status"] = "typed_by_writer"
             if ev.get("reason"):
                 row["reason"] = ev["reason"]
+            if kind == "applied":  # where it was written: its paragraph as the write left it
+                row["at"] = str((ev.get("data") or {}).get("at") or "")
     return out
 
 
@@ -162,15 +164,15 @@ def card(c: dict[str, Any], lang: str) -> dict[str, Any]:
 
 _SAID = {
     "en": {
-        "moved": "Nothing was written: the text at that place is not as it was when the "
-        "card was shown (it was edited or moved). Ask for the card again.",
+        "moved": "Nothing was written: the text at that place has changed since this change "
+        "was proposed (it was edited or moved). Ask for the change again.",
         "unconfirmed": "The change was written, but reading that place back did not find "
         "it as expected. Check it in Word; Ctrl+Z undoes it.",
         "not_found": "Could not find that place in Word.",
     },
     "es": {
         "moved": "No se ha cambiado nada: el texto en ese sitio ya no es el que había "
-        "cuando se mostró la tarjeta (se ha editado o movido). Pide la tarjeta de nuevo.",
+        "cuando se propuso el cambio (se ha editado o movido). Pide el cambio de nuevo.",
         "unconfirmed": "El cambio se ha escrito, pero al releer ese sitio no aparece como "
         "se esperaba. Revísalo en Word; Ctrl+Z lo deshace.",
         "not_found": "No he encontrado ese sitio en Word.",
@@ -204,6 +206,7 @@ def spot(root: Path, cid: str) -> dict[str, Any]:
         "change": cid,
         "status": c["status"],
         "text": f"{before}{text}{after}",
+        "at": c.get("at", "") if c["status"] == "applied" else "",
         "document": c.get("document"),
     }
 
@@ -381,18 +384,14 @@ def approve(
             "reason": payload.get("reason"),
             "message": payload.get("message"),
         }, 1
-    # Read the place back: the new wording, between the same words as before.
+    # Read the place back: the very paragraph written, as the change leaves it (its new
+    # wording alone may well be in the novel many times, as a one-word heading is).
     phrase = before + c["replace"] + after
     live = payload.get("how") == "live"
-    confirmed = not pinned or docx_cli.confirm(doc, phrase, live)
-    plan.record(
-        root,
-        "change.applied",
-        "tool",
-        change=cid,
-        data={"backup": payload.get("backup"), "edit_id": cid, "confirmed": confirmed},
-        refs=refs,
-    )
+    at = str((payload.get("places") or {}).get(cid, ""))
+    confirmed = not pinned or (bool(at) and docx_cli.confirm(doc, at, live))
+    data = {"backup": payload.get("backup"), "edit_id": cid, "confirmed": confirmed, "at": at}
+    plan.record(root, "change.applied", "tool", change=cid, data=data, refs=refs)
     if not confirmed:
         return {
             "status": "unconfirmed",
@@ -410,6 +409,8 @@ def approve(
     if payload.get("how"):
         out["how"] = payload["how"]  # "live": in the open document, the writer saves
         out["locate"]["live"] = {"doc": str(doc), "find_phrase": phrase}
+        if at:
+            out["locate"]["live"] = {"doc": str(doc), "at": at}
     if closes:
         out["action"] = rounds.mark(root, action, "done")
     return out, 0

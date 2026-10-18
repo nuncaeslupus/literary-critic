@@ -260,5 +260,5 @@ def test_change_approve_refuses_when_the_place_was_edited_since_the_card(
     doc.write_bytes(_plain("Era una mañana gris y nadie salía.", "Llegó la noche fria."))
     edited = doc.read_bytes()
     code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
-    assert code == 1 and out["reason"] == "moved" and "tarjeta" in out["message"]
+    assert code == 1 and out["reason"] == "moved" and "Pide el cambio de nuevo" in out["message"]
     assert doc.read_bytes() == edited

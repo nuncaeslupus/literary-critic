@@ -8,7 +8,7 @@ import pytest
 from doc_control.model.address import Address, fingerprint
 from test_docx_cli import _corpus_docx, _plain, _workspace
 
-from litcritic import dc, plan, word_live
+from litcritic import change, dc, plan, word_live
 from litcritic.cli import main
 
 LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
@@ -300,6 +300,13 @@ class _FakeLive:
     def run(self, op: str, req: dict[str, Any]) -> dict[str, Any]:
         if op == "live.status":
             return {"documents": [{"path": str(self.doc)}]}
+        if op == "live.select" and "at" in req:  # stale unless the paragraph reads so
+            n, fp = req["at"][1:].split("#")
+            text = self.texts[int(n) - 1] if int(n) <= len(self.texts) else ""
+            if fingerprint(text) != fp:
+                raise dc.DocError("STALE_ADDRESS", "")
+            self.selected.append(req["at"])
+            return {"text": text, "at": req["at"]}
         if op == "live.select":
             hits = [t for t in self.texts if req["find_phrase"].lower() in t.lower()]
             if len(hits) != 1:
@@ -427,10 +434,11 @@ def test_live_approve_finds_the_quote_in_the_open_document(
     start = open_text.index("fria")
     at = f"{Address(1, fingerprint(open_text))}:{start}-{start + 4}"
     assert fake.batches[0]["ops"][0]["at"] == at
-    # Read back and gone to by the words around it: the whole short paragraph here.
+    # Read back and gone to at the very paragraph written, as the write left it.
     assert fake.texts[0] == open_text.replace("fria", "fría")
-    assert out["locate"]["live"] == {"doc": str(doc), "find_phrase": fake.texts[0]}
-    assert fake.selected[-1] == fake.texts[0]
+    written = str(Address(1, fingerprint(fake.texts[0])))
+    assert out["locate"]["live"] == {"doc": str(doc), "at": written}
+    assert fake.selected[-1] == written
 
 
 def test_live_approve_refuses_a_quote_gone_from_the_open_document(
@@ -446,7 +454,7 @@ def test_live_approve_refuses_a_quote_gone_from_the_open_document(
     capsys.readouterr()
     assert main(["change", "approve", "C1", "--workspace", str(ws)]) == 1
     out = json.loads(capsys.readouterr().out)
-    assert out["reason"] == "moved" and "Pide la tarjeta de nuevo" in out["message"]
+    assert out["reason"] == "moved" and "Pide el cambio de nuevo" in out["message"]
     assert fake.batches == []
 
 
@@ -494,6 +502,28 @@ def test_live_approve_says_so_when_the_write_is_not_read_back(
     assert out["status"] == "unconfirmed" and "Ctrl+Z" in out["message"]
     applied = [e for e in plan.read_log(ws) if e["event"] == "change.applied"]
     assert applied[-1]["data"]["confirmed"] is False
+
+
+def test_live_approve_reads_back_a_one_word_heading_at_its_own_paragraph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A heading that is one word: its new wording is in the novel many times, so the
+    write is read back, and Word taken back to it, at the paragraph it went into."""
+    texts = ["Guixado", "Guiado por ella, el chico siguió.", "Iba guiado."]
+    ws, doc = _workspace(tmp_path, _plain(*texts))
+    fake = _FakeLive(doc, texts=list(texts))
+    monkeypatch.setattr(dc, "run", fake.run)
+    args = ["change", "propose", "--workspace", str(ws), "--quote", "Guixado", "--replace"]
+    assert main([*args, "Guiado", "--by", "writer"]) == 0
+    capsys.readouterr()
+    assert main(["change", "approve", "C1", "--workspace", str(ws)]) == 0
+    out = json.loads(capsys.readouterr().out)
+    written = str(Address(1, fingerprint("Guiado")))
+    assert out["status"] == "applied" and out["locate"]["live"]["at"] == written
+    assert change.spot(ws, "C1")["at"] == written  # "Show in Word" goes there too
+    fake.selected.clear()
+    assert word_live.go(doc, "Guiado", written)["status"] == "done"
+    assert fake.selected == [written]
 
 
 def test_go_takes_word_to_the_phrase_in_the_open_document(

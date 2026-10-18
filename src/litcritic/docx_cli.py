@@ -319,18 +319,38 @@ PIN = 40  # characters kept on each side of a change's quote to pin its place
 FIND_MAX = 250  # Word's Find takes at most 255 characters
 
 
-def _resolve_pinned(live: bool) -> Callable[[Path, str, str, str], str]:
-    """A resolver that finds ``before + quote + after`` exactly once, all of it: a place
-    whose words around the quote were edited is not found, rather than another place
-    holding the same quote."""
-    base = _resolve_live if live else _resolve
+def _place(doc: Path, quote: str, before: str, after: str, live: bool) -> tuple[str, str, int]:
+    """(paragraph address, its text, start of ``quote`` in it) of the one place holding
+    ``before + quote + after``, all of it: a place whose words around the quote were
+    edited is not found, rather than another place holding the same quote."""
+    phrase = before + quote + after
+    if live:
+        text, at, start = _live_spot(doc, phrase)
+    else:
+        at, span = _resolve(doc, phrase).rsplit(":", 1)
+        text = str(dc.run("para.get", {"doc": str(doc), "at": at}).get("text") or "")
+        start = int(span.split("-")[0])
+    return at, text, start + len(before)
 
-    def resolve(doc: Path, quote: str, before: str = "", after: str = "") -> str:
-        para, span = base(doc, before + quote + after).rsplit(":", 1)
-        start = int(span.split("-")[0]) + len(before)
-        return f"{para}:{start}-{start + len(quote)}"
 
-    return resolve
+def _rewritten(spots: list[tuple[str, str, str]], texts: dict[str, str]) -> dict[str, str]:
+    """Each written edit's paragraph address once the batch is in: the paragraph number
+    with the fingerprint of its text as the edits leave it."""
+    out: dict[str, str] = {}
+    for para, text in texts.items():
+        mine = sorted(
+            (
+                (int(m.group(3)), int(m.group(4)), eid, replace)
+                for at, eid, replace in spots
+                if at.rsplit(":", 1)[0] == para and (m := ADDRESS.fullmatch(at))
+            ),
+            reverse=True,
+        )
+        for start, end, _eid, replace in mine:
+            text = text[:start] + replace + text[end:]
+        new = f"{para.split('#')[0]}#{dc.fingerprint(text)}"
+        out.update({eid: new for _s, _e, eid, _r in mine})
+    return out
 
 
 def _around(text: str, start: int, end: int, wide: int) -> tuple[str, str]:
@@ -366,17 +386,21 @@ def pin(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> tuple[str,
         text = str(dc.run("para.get", {"doc": str(doc), "at": para}).get("text") or "")
         start = int(span.split("-")[0])
     before, after = _around(text, start, start + len(quote), wide)
-    _resolve_pinned(live)(doc, quote, before, after)  # the pinned words are once too
+    _place(doc, quote, before, after, live)  # the pinned words are once too
     return before, after
 
 
-def confirm(doc: Path, text: str, live: bool) -> bool:
-    """Whether ``text`` is in the document exactly once now: a write read back."""
-    if not text.strip():
-        return True
+def confirm(doc: Path, at: str, live: bool) -> bool:
+    """Whether the paragraph at ``at`` reads as the address says (its number, and the
+    fingerprint of its text): a write read back at the very place it went."""
     try:
-        (_resolve_live if live else _resolve)(doc, text)
-    except (NotOnce, dc.DocError):
+        if live:
+            word_live.run(
+                "live.select", {"doc": str(doc), "at": at, "mode": "cursor", "front": False}
+            )
+        else:
+            dc.run("para.get", {"doc": str(doc), "at": at, "limit": 1})
+    except dc.DocError:
         return False
     return True
 
@@ -515,7 +539,14 @@ def apply_edits(
         live = word_live.open_if_closed(doc) and word_live.is_open(doc)
         if not live:
             return refused("word_needed", WORD_NEEDED)
-    resolve = _resolve_pinned(live) if pinned else _resolve_live if live else _resolve
+    texts: dict[str, str] = {}  # pinned: each paragraph's text as found, by address
+
+    def resolve_pinned(doc: Path, quote: str, before: str = "", after: str = "") -> str:
+        at, text, start = _place(doc, quote, before, after, live)
+        texts[at] = text
+        return f"{at}:{start}-{start + len(quote)}"
+
+    resolve = resolve_pinned if pinned else _resolve_live if live else _resolve
     # The file as it is now, taken before the quotes are found in it: a save in Word
     # since the tool last read it is the writer's own work, and each quote must still be
     # there once; ``expect`` then guards only against a change during this call.
@@ -547,7 +578,10 @@ def apply_edits(
     ops = [{"op": "text.replace", "at": at, "text": replace} for at, _, replace in spots]
     batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": False}
     if live:
-        return _apply_live(root, doc, batch, ids, reasons, base, refused)
+        answer, code = _apply_live(root, doc, batch, ids, reasons, base, refused)
+        if code == 0 and pinned:
+            answer["places"] = _rewritten(spots, texts)
+        return answer, code
     last = ingest.last_read(root, doc)
     if not dry_run and not last:
         return refused(*_unread(doc))
@@ -573,14 +607,17 @@ def apply_edits(
     log: dict[str, Any] = {"command": "edits", "edit_ids": ids}
     log["reasons"] = {eid: (reasons or {}).get(eid, "") for eid in ids}
     backup = _written(root, doc, fresh, result, log)
-    return {
+    done: dict[str, Any] = {
         "status": "applied",
         "applied": ids,
         "skipped": [],
         "backup": _shown(root, backup),
         "revisions": len(ids),
         **base,
-    }, 0
+    }
+    if pinned:
+        done["places"] = _rewritten(spots, texts)
+    return done, 0
 
 
 def _apply_live(

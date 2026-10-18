@@ -75,9 +75,11 @@ front of you, and never write to the file before the writer approves:
 
 - **Desktop app (MCP):** call `change_card` (with `quote`, `replace`, `why`
   and `by` it proposes and shows in one call); its page has Approve and
-  Dismiss buttons and a Show in Word button per change. One fix in several
-  places (a renamed name) is one card: `changes` lists them, each with its
-  own Approve and Dismiss, plus Approve all and Dismiss all. Only a click on
+  Dismiss buttons and a Show in Word button per change. Several changes (one
+  fix in several places, a few fixes found together) are one call with
+  `edits`, never one call per change: one box, each change with its own
+  Approve and Dismiss, plus Approve all and Dismiss all. To the writer these
+  are changes with buttons, never "cards". Only a click on
   the page approves; say nothing more until it is done, and read the plan if
   no message arrives. Never write to the document another way (doc-control's
   tools, Word by computer use); the buttons open Word when it is closed.

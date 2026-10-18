@@ -551,7 +551,8 @@ def test_apply_closed_document_opens_word_no_file_write(
     def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
         assert op == "live.select"
         written = [o["text"] for b in batches for o in b["ops"]]  # read back after the write
-        return {"text": p1.replace("cold", written[0]) if written else p1, "at": "p1"}
+        text = p1.replace("cold", written[0]) if written else p1
+        return {"text": text, "at": f"p1#{dc.fingerprint(text)}"}
 
     read = dc.run
 
@@ -568,7 +569,8 @@ def test_apply_closed_document_opens_word_no_file_write(
     out, code = change.approve(ws, "C1", word_only=True)
     assert code == 0 and out["status"] == "applied", out
     assert opened == [doc]  # closed: Word opened it, then the edit went in there
-    assert batches[0]["ops"] == [{"op": "text.replace", "at": "p1:9-13", "text": "bitter"}]
+    at = f"p1#{dc.fingerprint(p1)}:9-13"
+    assert batches[0]["ops"] == [{"op": "text.replace", "at": at, "text": "bitter"}]
     after = {p: p.stat().st_mtime_ns for p in doc.parent.iterdir() if p.is_file()}
     assert after == before  # manuscript_file_writes_by_server == 0: nothing beside it
 
