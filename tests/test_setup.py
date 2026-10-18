@@ -436,7 +436,7 @@ def test_a_manuscript_held_open_says_so(tmp_path: Path, monkeypatch: pytest.Monk
         raise ingest.IngestError("not a readable .docx: [Errno 13] Permission denied")
 
     monkeypatch.setattr(ingest, "read", held)
-    monkeypatch.setattr(setup.time, "sleep", lambda _: None)
+    monkeypatch.setattr("litcritic.setup.time.sleep", lambda _: None)
     with pytest.raises(setup.SetupError, match=r"another program has .*MyNovel_v3.docx.* open"):
         setup.setup(folder)
     assert tries.count(folder / "MyNovel_v3.docx") == setup.TRIES

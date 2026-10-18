@@ -748,7 +748,12 @@ def test_the_log_says_whether_the_host_draws_cards_and_fetches_them() -> None:
 def test_cowork_gets_only_the_way_back_to_a_normal_chat() -> None:
     log = io.StringIO()
     ran: list[str] = []
-    server = mcp.Server([mcp.Tool("resume", "", lambda a: ran.append("x") or {})], log=log)
+
+    def resume(_: dict[str, Any]) -> dict[str, Any]:
+        ran.append("x")
+        return {}
+
+    server = mcp.Server([mcp.Tool("resume", "", resume)], log=log)
     init = {"clientInfo": {"name": "local-agent-mode-Literary Critic"}}
     server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": init})
     out = _call_raw(server, "resume", {"work": "x"})
