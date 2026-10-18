@@ -276,31 +276,109 @@ def _resolve(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
         raise
 
 
-def _resolve_live(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
-    """The range of ``quote`` in the document open in Word, which may hold edits not yet
-    saved: ``live.select`` finds its paragraph (by the quote, or with its context when
-    the quote alone is not once) and answers that paragraph's text and address."""
+def _live_paragraph(doc: Path, phrase: str) -> tuple[str, str]:
+    """(text, address) of the one paragraph holding ``phrase`` in the document open in
+    Word, found by ``live.select`` without bringing Word to the front."""
+    request = {"doc": str(doc), "find_phrase": phrase, "match_level": "exact"}
+    try:
+        got = word_live.run("live.select", {**request, "mode": "cursor", "front": False})
+    except dc.DocError as exc:
+        if exc.code == "ANCHOR_NOT_FOUND":
+            raise NotOnce(0) from exc
+        if exc.code == "ANCHOR_AMBIGUOUS":
+            raise NotOnce(2) from exc
+        raise
+    return str(got.get("text") or ""), str(got.get("at") or "")
+
+
+def _live_spot(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> tuple[str, str, int]:
+    """(paragraph text, address, start of ``quote`` in it) in the document open in Word,
+    which may hold edits not yet saved: the paragraph is found by the quote, or with its
+    context when the quote alone is not once."""
     context = prefix + quote + suffix
-    for phrase in dict.fromkeys((quote, context)):
-        request = {"doc": str(doc), "find_phrase": phrase, "match_level": "exact"}
-        try:
-            got = word_live.run("live.select", {**request, "mode": "cursor", "front": False})
-            break
-        except dc.DocError as exc:
-            if exc.code == "ANCHOR_NOT_FOUND":
-                raise NotOnce(0) from exc
-            if exc.code != "ANCHOR_AMBIGUOUS":
-                raise
-    else:
-        raise NotOnce(2)
-    text, at = str(got.get("text") or ""), str(got.get("at") or "")
+    try:
+        text, at = _live_paragraph(doc, quote)
+    except NotOnce as exc:
+        if exc.count < 2 or context == quote:
+            raise
+        text, at = _live_paragraph(doc, context)
     if text.count(quote) == 1:
-        start = text.index(quote)
-    elif text.count(context) == 1 and context != quote:
-        start = text.index(context) + len(prefix)
-    else:
-        raise NotOnce(text.count(quote))
+        return text, at, text.index(quote)
+    if text.count(context) == 1 and context != quote:
+        return text, at, text.index(context) + len(prefix)
+    raise NotOnce(text.count(quote))
+
+
+def _resolve_live(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> str:
+    """The range of ``quote`` in the document open in Word (see ``_live_spot``)."""
+    _text, at, start = _live_spot(doc, quote, prefix, suffix)
     return f"{at}:{start}-{start + len(quote)}"
+
+
+PIN = 40  # characters kept on each side of a change's quote to pin its place
+FIND_MAX = 250  # Word's Find takes at most 255 characters
+
+
+def _resolve_pinned(live: bool) -> Callable[[Path, str, str, str], str]:
+    """A resolver that finds ``before + quote + after`` exactly once, all of it: a place
+    whose words around the quote were edited is not found, rather than another place
+    holding the same quote."""
+    base = _resolve_live if live else _resolve
+
+    def resolve(doc: Path, quote: str, before: str = "", after: str = "") -> str:
+        para, span = base(doc, before + quote + after).rsplit(":", 1)
+        start = int(span.split("-")[0]) + len(before)
+        return f"{para}:{start}-{start + len(quote)}"
+
+    return resolve
+
+
+def _around(text: str, start: int, end: int, wide: int) -> tuple[str, str]:
+    """The words of ``text`` just before ``start`` and just after ``end``: up to ``wide``
+    characters each side, cut at a space and at any control character, and short enough
+    for Word to find the whole phrase."""
+    wide = min(wide, max(0, FIND_MAX - (end - start)) // 2)
+    lo, hi = max(0, start - wide), min(len(text), end + wide)
+    if lo > 0 and not text[lo - 1].isspace() and (cut := text.find(" ", lo, start)) != -1:
+        lo = cut + 1
+    if hi < len(text) and not text[hi].isspace() and (cut := text.rfind(" ", end, hi)) != -1:
+        hi = cut
+    before, after = text[lo:start], text[end:hi]
+    before = re.split(r"[\x00-\x1f]", before)[-1]
+    after = re.split(r"[\x00-\x1f]", after)[0]
+    return before, after
+
+
+def pin(doc: Path, quote: str, prefix: str = "", suffix: str = "") -> tuple[str, str]:
+    """The words around the one place holding ``quote`` (found with the chat's ``prefix``
+    and ``suffix``), kept with a change so that applying it checks that place is still as
+    it was. Read in Word when it has the document open (edits not saved yet count), else
+    in the file. Raises ``NotOnce`` when the place is not once, the words included."""
+    wide = max(PIN, len(prefix), len(suffix))
+    live = word_live.is_open(doc)
+    if live:
+        try:
+            text, _at, start = _live_spot(doc, quote, prefix, suffix)
+        except dc.DocError:
+            live = False
+    if not live:
+        para, span = _resolve(doc, quote, prefix, suffix).rsplit(":", 1)
+        text = str(dc.run("para.get", {"doc": str(doc), "at": para}).get("text") or "")
+        start = int(span.split("-")[0])
+    before, after = _around(text, start, start + len(quote), wide)
+    _resolve_pinned(live)(doc, quote, before, after)  # the pinned words are once too
+    return before, after
+
+
+def confirm(doc: Path, text: str, live: bool) -> bool:
+    """Whether ``text`` is in the document exactly once now: a write read back."""
+    if not text.strip():
+        return True
+    try:
+        (_resolve_live if live else _resolve)(doc, text)
+    except (NotOnce, dc.DocError):
+        return False
+    return True
 
 
 def _sha256(doc: Path) -> str:
@@ -413,12 +491,15 @@ def apply_edits(
     reasons: dict[str, str] | None = None,
     dry_run: bool = False,
     word_only: bool = False,
+    pinned: bool = False,
 ) -> tuple[dict[str, Any], int]:
     """The one write path for approved edits: resolve each quote once, then one plain
     batch with backup, ``expect.sha256`` and verify-and-restore, and a line in
     ``log/edits.jsonl``. Returns the answer and its exit code (0 applied, 1 refused).
     ``word_only`` (the desktop extension) never writes the file: a closed document is
-    opened in Word first, and without Word the edit is refused (``word_needed``)."""
+    opened in Word first, and without Word the edit is refused (``word_needed``).
+    ``pinned``: each edit's prefix and suffix are the words around it that must all
+    still be there (``pin``), not hints that pick among several places."""
     ids = [e[0] for e in edits]
     base = {"document": _shown(root, doc), "author": AUTHOR}
 
@@ -434,7 +515,7 @@ def apply_edits(
         live = word_live.open_if_closed(doc) and word_live.is_open(doc)
         if not live:
             return refused("word_needed", WORD_NEEDED)
-    resolve = _resolve_live if live else _resolve
+    resolve = _resolve_pinned(live) if pinned else _resolve_live if live else _resolve
     # The file as it is now, taken before the quotes are found in it: a save in Word
     # since the tool last read it is the writer's own work, and each quote must still be
     # there once; ``expect`` then guards only against a change during this call.

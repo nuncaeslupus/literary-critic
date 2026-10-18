@@ -72,7 +72,7 @@ let labels = {
   approve: "Approve", dismiss: "Dismiss", approve_all: "Approve all", dismiss_all: "Dismiss all", go: "Show in Word", approved: "✓ Approved",
   typed: "✓ Approved: you type it in", dismissed: "Dismissed", undone: "Undone",
   change: "Change", changes: "Changes", applying: "Applying the change in Word…",
-  dismissing: "Dismissing…",
+  dismissing: "Dismissing…", finding: "Finding it in Word…", not_found: "Could not find that place in Word.",
 };
 const $ = id => document.getElementById(id);
 const send = message => window.parent.postMessage(message, "*");
@@ -217,7 +217,15 @@ function failure(res) {
   } catch (e) { return { code: "", text: "error" }; }
 }
 
-// One change: true when it was done (or turned out already settled).
+// Whether a tool's answer says Word went to the change (no "went": it was not asked to).
+function arrived(res) {
+  try {
+    const went = JSON.parse(res.content[0].text).went;
+    return !went || went.status === "done";
+  } catch (e) { return true; }
+}
+
+// One change: its answer when it was done, null when not (or it turned out already settled).
 async function one(name, row, extra) {
   // Plain words and a spinner while it runs: a bare "…" went unnoticed.
   const busy = name === "change_dismiss" ? labels.dismissing : labels.applying;
@@ -227,15 +235,15 @@ async function one(name, row, extra) {
     if (res.isError) {
       const why = failure(res);
       // Already settled (approved, dismissed or undone elsewhere): say so, not an error.
-      if (why.code === "not_proposed" && settle(row, await liveStatus(row))) return false;
+      if (why.code === "not_proposed" && settle(row, await liveStatus(row))) return null;
       // The change stays actionable after another refusal, so the writer can try again.
       mark(row, "✗ " + why.text, "err");
-      return false;
+      return null;
     }
-    return true;
+    return res;
   } catch (e) {
     mark(row, "✗ " + ((e && e.message) || "error"), "err");
-    return false;
+    return null;
   }
 }
 
@@ -247,15 +255,18 @@ async function act(name, done, status, only) {
   // A single change goes to its place as it is approved; a batch goes once, to the first.
   const extra = name === "change_approve" && todo.length > 1 ? { go: false } : {};
   const ok = [];
+  let lost = false;
   for (const row of todo) {
-    if (await one(name, row, extra)) {
+    const res = await one(name, row, extra);
+    if (res) {
       ok.push(row);
       settle(row, status);
+      lost = lost || !arrived(res);
     }
   }
   if (live().length) hold(false);
   // Each change says what became of it on its own row: no second line repeating it.
-  result("");
+  result(lost ? "✗ " + labels.not_found : "", lost ? "err" : "");
   if (extra.go === false && ok.length) show(ok[0]);
   if (canContext && ok.length) {
     request("ui/update-model-context", {
@@ -267,9 +278,10 @@ async function act(name, done, status, only) {
 // Show in Word: Word opens the document when it is not open and goes to the change.
 async function show(row) {
   row.go.disabled = true;
+  result(labels.finding, "state busy");  // a jump can take seconds: say it is on its way
   try {
     const res = await request("tools/call", { name: "change_go", arguments: { work, change: row.id } });
-    if (res.isError) result("✗ " + failure(res).text, "err");
+    result(res.isError ? "✗ " + failure(res).text : "", res.isError ? "err" : "");
   } catch (e) {
     result("✗ " + ((e && e.message) || "error"), "err");
   }
