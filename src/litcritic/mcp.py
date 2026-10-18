@@ -761,9 +761,12 @@ def change_go(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
     if isinstance(ws, dict):
         return ws
     try:
-        return {"change": cid, "went": _go(grant, work, ws, cid)}
+        went = _go(grant, work, ws, cid)
     except plan.Refused as exc:
         raise ToolError(exc.reason, message=exc.message) from None
+    if went.get("status") != "done":  # the card says so: Word did not move
+        raise ToolError("not_found", message=change.said(ws.root, "not_found"))
+    return {"change": cid, "went": went}
 
 
 def change_status(grant: Any, args: dict[str, Any]) -> dict[str, Any]:

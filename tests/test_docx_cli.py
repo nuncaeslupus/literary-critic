@@ -550,7 +550,8 @@ def test_apply_closed_document_opens_word_no_file_write(
 
     def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
         assert op == "live.select"
-        return {"text": p1, "at": "p1"}
+        written = [o["text"] for b in batches for o in b["ops"]]  # read back after the write
+        return {"text": p1.replace("cold", written[0]) if written else p1, "at": "p1"}
 
     read = dc.run
 

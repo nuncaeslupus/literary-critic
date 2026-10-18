@@ -46,6 +46,8 @@ _BUTTONS = {
         "undone": "Undone",
         "applying": "Applying the change in Word…",
         "dismissing": "Dismissing…",
+        "finding": "Finding it in Word…",
+        "not_found": "Could not find that place in Word.",
         "change": "Change",
         "changes": "Changes",
     },
@@ -61,6 +63,8 @@ _BUTTONS = {
         "undone": "Deshecho",
         "applying": "Aplicando el cambio en Word…",
         "dismissing": "Descartando…",
+        "finding": "Buscando en Word…",
+        "not_found": "No he encontrado ese sitio en Word.",
         "change": "Cambio",
         "changes": "Cambios",
     },
@@ -156,6 +160,37 @@ def card(c: dict[str, Any], lang: str) -> dict[str, Any]:
     }
 
 
+_SAID = {
+    "en": {
+        "moved": "Nothing was written: the text at that place is not as it was when the "
+        "card was shown (it was edited or moved). Ask for the card again.",
+        "unconfirmed": "The change was written, but reading that place back did not find "
+        "it as expected. Check it in Word; Ctrl+Z undoes it.",
+        "not_found": "Could not find that place in Word.",
+    },
+    "es": {
+        "moved": "No se ha cambiado nada: el texto en ese sitio ya no es el que había "
+        "cuando se mostró la tarjeta (se ha editado o movido). Pide la tarjeta de nuevo.",
+        "unconfirmed": "El cambio se ha escrito, pero al releer ese sitio no aparece como "
+        "se esperaba. Revísalo en Word; Ctrl+Z lo deshace.",
+        "not_found": "No he encontrado ese sitio en Word.",
+    },
+}
+
+
+def said(root: Path, key: str) -> str:
+    """A plain message for the writer, in the novel's language."""
+    return _SAID.get(rounds.language(root), _SAID["en"])[key]
+
+
+def _around(c: dict[str, Any]) -> tuple[str, str]:
+    """The words pinned around a change when it was proposed; the chat's prefix and
+    suffix for a proposal made before changes were pinned."""
+    if "before" in c:
+        return str(c["before"]), str(c["after"])
+    return str(c.get("prefix", "")), str(c.get("suffix", ""))
+
+
 def spot(root: Path, cid: str) -> dict[str, Any]:
     """Where a change is in the document, for its card's "Show in Word" button: the text
     to find there now (the new wording once applied, the old one before), with the words
@@ -164,10 +199,11 @@ def spot(root: Path, cid: str) -> dict[str, Any]:
     if c is None:
         raise ChangeRefused("unknown_change", f"no change {cid}")
     text = c["replace"] if c["status"] == "applied" else c["quote"]
+    before, after = _around(c)
     return {
         "change": cid,
         "status": c["status"],
-        "text": f"{c.get('prefix', '')}{text}{c.get('suffix', '')}",
+        "text": f"{before}{text}{after}",
         "document": c.get("document"),
     }
 
@@ -241,6 +277,12 @@ def propose(
             ) from exc
         if not docx_cli.ADDRESS.fullmatch(at):
             raise ChangeRefused("not_once", "the quote must stay inside one paragraph")
+        try:
+            data["before"], data["after"] = docx_cli.pin(doc, quote, prefix, suffix)
+        except docx_cli.NotOnce as exc:
+            raise ChangeRefused(
+                "not_once", f"the quote is {exc}; give more of the text around it"
+            ) from exc
         data["sha256"] = docx_cli._sha256(doc)
         data["document"] = docx_cli._shown(root, doc)
         data["where"] = _where(root, doc, at, quote, lang)
@@ -315,9 +357,14 @@ def approve(
             "locate": _locate_call(c["quote"]),
         }, 0
     plan.record(root, "change.approved", "writer", change=cid, refs=refs)
-    edit = (cid, c["quote"], c["replace"], c.get("prefix", ""), c.get("suffix", ""))
+    # A pinned change is written only where all the words pinned around it still are.
+    pinned = "before" in c
+    before, after = _around(c)
+    edit = (cid, c["quote"], c["replace"], before, after)
     why = {cid: str(c.get("why", ""))}
-    payload, code = docx_cli.apply_edits(root, doc, [edit], why, word_only=word_only)
+    payload, code = docx_cli.apply_edits(root, doc, [edit], why, word_only=word_only, pinned=pinned)
+    if code != 0 and pinned and payload.get("reason") == "edit":
+        payload = {**payload, "reason": "moved", "message": said(root, "moved")}
     if code != 0:
         plan.record(
             root,
@@ -334,23 +381,35 @@ def approve(
             "reason": payload.get("reason"),
             "message": payload.get("message"),
         }, 1
+    # Read the place back: the new wording, between the same words as before.
+    phrase = before + c["replace"] + after
+    live = payload.get("how") == "live"
+    confirmed = not pinned or docx_cli.confirm(doc, phrase, live)
     plan.record(
         root,
         "change.applied",
         "tool",
         change=cid,
-        data={"backup": payload.get("backup"), "edit_id": cid},
+        data={"backup": payload.get("backup"), "edit_id": cid, "confirmed": confirmed},
         refs=refs,
     )
+    if not confirmed:
+        return {
+            "status": "unconfirmed",
+            "change": cid,
+            "reason": "unconfirmed",
+            "message": said(root, "unconfirmed"),
+            "backup": payload.get("backup"),
+        }, 1
     out: dict[str, Any] = {
         "status": "applied",
         "change": cid,
         "backup": payload.get("backup"),
-        "locate": _locate_call(c["replace"]),
+        "locate": _locate_call(phrase),
     }
     if payload.get("how"):
         out["how"] = payload["how"]  # "live": in the open document, the writer saves
-        out["locate"]["live"] = {"doc": str(doc), "find_phrase": c["replace"]}
+        out["locate"]["live"] = {"doc": str(doc), "find_phrase": phrase}
     if closes:
         out["action"] = rounds.mark(root, action, "done")
     return out, 0

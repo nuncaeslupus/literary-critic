@@ -1,3 +1,3 @@
 """literary-critic: index, analyse and give revision feedback on novel manuscripts."""
 
-__version__ = "0.1.17"
+__version__ = "0.1.18"

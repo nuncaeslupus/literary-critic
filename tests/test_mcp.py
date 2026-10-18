@@ -10,6 +10,7 @@ from litcritic import __version__, claude_app, folders, mcp
 from litcritic.cli import build_parser
 
 FIXTURES = Path(__file__).parent / "fixtures" / "mcp"
+COLD = "It was a cold afternoon and nobody left the house."
 
 
 def _crash(args: dict[str, Any]) -> dict[str, Any]:
@@ -293,7 +294,7 @@ def _change_work(
     from litcritic import change
 
     monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
-    p1 = "It was a cold afternoon and nobody left the house."
+    p1 = COLD
     ws, _doc = _workspace(tmp_path, _plain(p1, "The street stayed empty."))
     if propose:
         change.propose(ws, "cold", "bitter", by="writer", why="stronger word")
@@ -368,8 +369,10 @@ def test_change_approve_tool_is_app_only_and_locates(
     res = _call_raw(server, "change_approve", {"work": "mynovel", "change": "C1"})
     out = _text(res)
     assert not res["isError"], out
-    assert out["status"] == "applied" and out["locate"]["target"] == "bitter"
-    assert ran == [["docx", "locate", "--quote", "bitter", "--go"]]
+    # Word goes to the new wording between the words pinned around it (here, all of it).
+    bitter = COLD.replace("cold", "bitter")
+    assert out["status"] == "applied" and out["locate"]["target"] == bitter
+    assert ran == [["docx", "locate", "--quote", bitter, "--go"]]
 
     again = _call_raw(server, "change_approve", {"work": "mynovel", "change": "C1"})
     assert again["isError"] and _text(again)["error"] == "not_proposed"
@@ -427,9 +430,14 @@ def test_change_go_takes_word_to_the_change_before_and_after(
     assert "went" not in _text(_call_raw(server, "change_approve", batch))  # a batch goes once
     _call_raw(server, "change_go", {"work": "mynovel", "change": "C1"})
     assert ran == [
-        ["docx", "locate", "--quote", "cold", "--go"],  # the old wording before approval
-        ["docx", "locate", "--quote", "bitter", "--go"],  # the new one after
+        ["docx", "locate", "--quote", COLD, "--go"],  # the old wording before approval
+        ["docx", "locate", "--quote", COLD.replace("cold", "bitter"), "--go"],  # the new
     ]
+    # Word did not move: the card is told, in the novel's language, not a silent "ok".
+    monkeypatch.setattr(mcp, "_json_run", lambda *a: {"status": "refused"})
+    lost = _call_raw(server, "change_go", {"work": "mynovel", "change": "C1"})
+    assert lost["isError"] and _text(lost)["error"] == "not_found"
+    assert "Word" in _text(lost)["message"]
     unknown = _call_raw(server, "change_go", {"work": "mynovel", "change": "C9"})
     assert unknown["isError"] and _text(unknown)["error"] == "unknown_change"
 
@@ -451,7 +459,7 @@ def test_change_go_finds_an_unsaved_edit_in_the_open_word(
     monkeypatch.setattr(mcp, "_json_run", lambda *a: pytest.fail("the file is not read"))
     out = _text(_call_raw(server, "change_go", {"work": "mynovel", "change": "C1"}))
     assert out["went"]["status"] == "done"
-    assert went[0][1] == "cold" and went[0][0].is_file()
+    assert went[0][1] == COLD and went[0][0].is_file()
 
 
 def test_select_opens_the_document_word_does_not_have_open(

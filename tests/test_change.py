@@ -231,9 +231,34 @@ def test_spot_is_the_old_wording_before_approval_and_the_new_after(
     assert code == 0 and out["card"]["buttons"]["go"] == "Ver en Word"
     assert change.card({"quote": "a", "replace": "b"}, "xx")["buttons"]["go"] == "Show in Word"
     spot = change.spot(ws, "C1")
-    assert spot["text"] == "tarde fria" and spot["status"] == "proposed"
+    # the quote between the words pinned around it: all of this short paragraph
+    assert spot["text"] == P1 and spot["status"] == "proposed"
     assert spot["document"] == "MyNovel_v3.docx"
     assert _lc(capsys, "approve", "C1", "--workspace", str(ws))[0] == 0
-    assert change.spot(ws, "C1")["text"] == "tarde fría"
+    assert change.spot(ws, "C1")["text"] == P1.replace("fria", "fría")
     with pytest.raises(change.ChangeRefused):
         change.spot(ws, "C9")
+
+
+def test_a_change_is_pinned_by_whole_words_around_it() -> None:
+    text = "Uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce."
+    start = text.index("siete")
+    before, after = docx_cli._around(text, start, start + len("siete"), 12)
+    assert (before, after) == ("cinco seis ", " ocho nueve")  # cut at spaces, never mid-word
+    tabbed = "Antes\tuno dos siete tres\vfin"
+    start = tabbed.index("siete")
+    assert docx_cli._around(tabbed, start, start + 5, 40) == ("uno dos ", " tres")
+
+
+def test_change_approve_refuses_when_the_place_was_edited_since_the_card(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The quote is still in the document, but not between the words it had when the card
+    was shown: nothing is written, at that place or any other."""
+    ws, doc = _novel(tmp_path)
+    assert _propose(capsys, ws, "fria", "fría", "--by", "writer")[0] == 0
+    doc.write_bytes(_plain("Era una mañana gris y nadie salía.", "Llegó la noche fria."))
+    edited = doc.read_bytes()
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 1 and out["reason"] == "moved" and "tarjeta" in out["message"]
+    assert doc.read_bytes() == edited

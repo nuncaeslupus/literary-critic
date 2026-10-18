@@ -8,7 +8,7 @@ import pytest
 from doc_control.model.address import Address, fingerprint
 from test_docx_cli import _corpus_docx, _plain, _workspace
 
-from litcritic import dc, word_live
+from litcritic import dc, plan, word_live
 from litcritic.cli import main
 
 LOC = {"chapter": "7", "page": 112, "first_words": "Ya voy", "last_words": "cansada."}
@@ -313,6 +313,11 @@ class _FakeLive:
                 raise self.refuse
             if req.get("tracked", True) is not False:
                 self.revisions.extend(req["ops"])
+            for edit in req["ops"]:  # the write lands in the open document, as in Word
+                para, span = edit["at"].rsplit(":", 1)
+                n, (lo, hi) = int(para[1:].split("#")[0]), map(int, span.split("-"))
+                t = self.texts[n - 1]
+                self.texts[n - 1] = t[:lo] + edit["text"] + t[hi:]
             return {"applied": len(req["ops"]), "engine": "live"}
         return self.real(op, req)
 
@@ -418,11 +423,14 @@ def test_live_approve_finds_the_quote_in_the_open_document(
     unsaved = "Al fin, "
     fake, code, out, _before, doc = _approve_live(tmp_path, monkeypatch, capsys, unsaved=unsaved)
     assert code == 0 and out["how"] == "live"
-    open_text = fake.texts[0]
+    open_text = unsaved + "Era una tarde fria de otoño y nadie salía de casa."
     start = open_text.index("fria")
     at = f"{Address(1, fingerprint(open_text))}:{start}-{start + 4}"
     assert fake.batches[0]["ops"][0]["at"] == at
-    assert out["locate"]["live"] == {"doc": str(doc), "find_phrase": "fría"}
+    # Read back and gone to by the words around it: the whole short paragraph here.
+    assert fake.texts[0] == open_text.replace("fria", "fría")
+    assert out["locate"]["live"] == {"doc": str(doc), "find_phrase": fake.texts[0]}
+    assert fake.selected[-1] == fake.texts[0]
 
 
 def test_live_approve_refuses_a_quote_gone_from_the_open_document(
@@ -430,14 +438,62 @@ def test_live_approve_refuses_a_quote_gone_from_the_open_document(
 ) -> None:
     p1 = "Era una tarde fria de otoño y nadie salía de casa."
     ws, doc = _workspace(tmp_path, _plain(p1, "La calle seguía vacía."))
-    fake = _FakeLive(doc, texts=["Era una tarde gris.", "La calle seguía vacía."])
+    fake = _FakeLive(doc, texts=[p1, "La calle seguía vacía."])
     monkeypatch.setattr(dc, "run", fake.run)
     args = ["change", "propose", "--workspace", str(ws), "--quote", "fria", "--replace", "fría"]
     assert main([*args, "--by", "writer"]) == 0
+    fake.texts[0] = "Era una tarde gris."  # the writer edits it before clicking Approve
     capsys.readouterr()
     assert main(["change", "approve", "C1", "--workspace", str(ws)]) == 1
-    assert json.loads(capsys.readouterr().out)["reason"] == "edit"
+    out = json.loads(capsys.readouterr().out)
+    assert out["reason"] == "moved" and "Pide la tarjeta de nuevo" in out["message"]
     assert fake.batches == []
+
+
+def test_live_approve_never_writes_the_quote_at_another_place(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The words around the quote were edited while the quote is still in the document,
+    once, at another place: nothing is written there."""
+    p1 = "Era una tarde fria de otoño y nadie salía de casa."
+    ws, doc = _workspace(tmp_path, _plain(p1, "La calle seguía vacía."))
+    fake = _FakeLive(doc, texts=[p1, "La calle seguía vacía."])
+    monkeypatch.setattr(dc, "run", fake.run)
+    args = ["change", "propose", "--workspace", str(ws), "--quote", "fria", "--replace", "fría"]
+    assert main([*args, "--by", "writer"]) == 0
+    fake.texts[:] = ["Era una mañana gris.", "La noche fria de otoño."]
+    capsys.readouterr()
+    assert main(["change", "approve", "C1", "--workspace", str(ws)]) == 1
+    assert json.loads(capsys.readouterr().out)["reason"] == "moved"
+    assert fake.batches == []
+
+
+def test_live_approve_says_so_when_the_write_is_not_read_back(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Word took the batch but the place does not read back as the change: the writer is
+    told, and the change is logged as written but not confirmed."""
+    p1 = "Era una tarde fria de otoño y nadie salía de casa."
+    ws, doc = _workspace(tmp_path, _plain(p1, "La calle seguía vacía."))
+    fake = _FakeLive(doc, texts=[p1, "La calle seguía vacía."])
+    monkeypatch.setattr(dc, "run", fake.run)
+    args = ["change", "propose", "--workspace", str(ws), "--quote", "fria", "--replace", "fría"]
+    assert main([*args, "--by", "writer"]) == 0
+    real = fake.run
+
+    def lost(op: str, req: dict[str, Any]) -> dict[str, Any]:
+        out = real(op, req)
+        if op == "doc.batch":
+            fake.texts[0] = p1  # undone at once (an add-in, Ctrl+Z): not as written
+        return out
+
+    monkeypatch.setattr(dc, "run", lost)
+    capsys.readouterr()
+    assert main(["change", "approve", "C1", "--workspace", str(ws)]) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["status"] == "unconfirmed" and "Ctrl+Z" in out["message"]
+    applied = [e for e in plan.read_log(ws) if e["event"] == "change.applied"]
+    assert applied[-1]["data"]["confirmed"] is False
 
 
 def test_go_takes_word_to_the_phrase_in_the_open_document(
