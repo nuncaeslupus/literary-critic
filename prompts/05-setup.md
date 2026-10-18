@@ -9,17 +9,18 @@ messages (a few lines), and do every technical step yourself.
 | Check | How | If missing |
 |---|---|---|
 | You can run code | Run `lc doctor --json` (if the tool is missing, follow "Running the tool" in the litcritic skill) | Basic mode (below) |
-| A folder on the writer's computer is connected | You can list it (Cowork: the folder the writer picked) | Ask the writer to connect the folder that holds the novel (one click in Cowork: "Choose folder") |
+| A folder on the writer's computer is connected | You can list it (the desktop app: the folders shared with Literary Critic) | Ask the writer to connect the folder that holds the novel (the desktop app: `add_folder` opens the picker) |
 | You can see and use the screen (computer use) | Try to take a screenshot | Fine: give the writer plain locations instead of taking them there |
-| Word on the writer's computer can be reached (Cowork) | You have doc-control's tools (`live_status`) and it lists Word as reachable | Fine: computer use takes the writer there, more slowly; the writer can add doc-control's server to Claude's desktop app later |
+| Word on the writer's computer can be reached | You have doc-control's tools (`live_status`) and it lists Word as reachable | Fine: computer use takes the writer there, more slowly; the writer can add doc-control's server to Claude's desktop app later |
 
 Then say in two or three lines what will work, and ask the writer to turn on
 only what is missing and needed. Facts to give when asked:
 
 - The full experience (the novel's folder, Word opened at the right place,
-  changes applied for them) needs Claude's desktop app with Cowork: a paid plan,
-  and a Mac with Apple silicon or Windows (Pro, Enterprise or Education).
-- On Windows Home, an Intel Mac or the free plan: **basic mode**. The writer
+  changes applied for them) needs Claude's desktop app with the Literary
+  Critic extension, in a normal chat. It never needs Cowork: never move the
+  work there or suggest it.
+- Without the desktop app (Claude in a browser or a phone): **basic mode**. The writer
   uploads the manuscript, you analyse it and hand back a commented copy to
   download; they make the changes themselves.
 
@@ -51,9 +52,8 @@ uploaded it as a Skill, give the steps to replace it one at a time. `"no"` or
 **Coming back.** If the connected folder already holds a `literary-critic`
 working folder, the writer has been here before: run `lc setup --folder <dir>`
 as below, skip the questions of step 3, and continue where the log says they
-stopped. In Cowork a new conversation may not see the folder even inside the
-same project: if you cannot list it, ask the writer, in one line, to choose it
-again.
+stopped. If you cannot list the folder, ask the writer, in one line, to
+choose it again.
 
 **Open in Word first.** The writer may have the novel open: run
 `lc setup --from-word` (or, where lc cannot reach Word, doc-control's
