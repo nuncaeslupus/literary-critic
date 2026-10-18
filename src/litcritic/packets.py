@@ -1384,7 +1384,10 @@ def import_answer(ws_root: Path, packet_id: str, raw: str) -> str:
                     " `lc index plan` offers a links packet once every scene is read"
                 )
             if got_s.same_scene:
-                notes.append(f"{got_s.same_scene} payoff(s) in the scene of their setup")
+                notes.append(
+                    f"{got_s.same_scene} payoff(s) in the scene of their setup: kept, "
+                    "nothing to fix"
+                )
             queued = got_s.names
         try:
             cx.add_many(items, by="llm", batch=f"index:{doc['draft']}:{packet_id}")

@@ -211,6 +211,17 @@ def test_run_refuses_commands_outside_allow_list(jekyll: mcp.Server, tmp_path: P
     assert "exit" in json.loads(ok["content"][0]["text"])
 
 
+def test_guide_reads_the_guides_and_the_checklist_only() -> None:
+    """A chat without the repo reads the guides the next steps name, and nothing else."""
+    got = mcp.read_guide("20-codex-items.md")
+    assert got["name"] == "prompts/20-codex-items.md" and got["text"].startswith("# ")
+    assert mcp.read_guide("checklist/traits.toml")["name"] == "checklist/traits.toml"
+    for bad in ("../pyproject.toml", "prompts/../AGENTS.md", "nope.md", ""):
+        with pytest.raises(mcp.ToolError) as err:
+            mcp.read_guide(bad)
+        assert "prompts/40-checks.md" in err.value.payload["guides"], bad
+
+
 def test_show_find_ask_read_the_work(jekyll: mcp.Server) -> None:
     toc = json.loads(_call_raw(jekyll, "show", {"work": "Jekyll"})["content"][0]["text"])
     assert toc["exit"] == 0 and toc["output"].strip()
@@ -809,7 +820,7 @@ def test_tools_list_declares_annotations() -> None:
     """Every tool says whether it only reads, so the app can group it for "Always allow"."""
     listing = [t.listing() for t in mcp.tools(None)]
     read_only = {t["name"] for t in listing if t["annotations"] == {"readOnlyHint": True}}
-    assert read_only == {"works", "resume", "locate", "find", "show", "places", "ask"}
+    assert read_only == {"works", "resume", "locate", "find", "show", "places", "ask", "guide"}
     for tool in listing:
         if tool["name"] not in read_only:
             assert tool["annotations"] == {"readOnlyHint": False, "destructiveHint": False}
