@@ -1,5 +1,14 @@
 # Handover
 
+**Last session (2026-10-18, Windows):** release test run and install T7 on the real PC. Merged: 0.1.4–0.1.8 update fixes (#265 TLS priming for asset downloads, #266 the literal "
+" in requirements, #267 staging failure kept in state.json, #270 the wheel carries prompts/schemas/checklist), #271 setup wording (small fixes recommended; "Both" answer; AGENTS.md rule 5), #272 evidence (`status/evidence/release-test-run.md`, `status/evidence/install-T7-windows.md`).
+
+- **release Test run (t-ca32957d) not closed:** `install_actions_clean_pc` measured 4 (target 3; the fourth is the app's own install confirmation). Defender, Controlled folder access and Word are unmeasured in Sandbox. Owner decides: accept 4 (amend the spec) or keep it open; either way the gate test is still to write.
+- **install T7 (t-d62e7735) not closed:** Windows 10/10, tool-chain p50 4 s; the Mac half is pending (owner postponed it).
+- **Sandbox still open:** verify the in-app 0.1.7 → 0.1.8 update, `resume`, and that "applied" is said once.
+- **Follow-ups filed** as `arsenal:queue` issues #273–#281 (import at next session start).
+- Guard: one local workspace lists a common English word from the install task's label as a guard term; new files that use it are blocked (fix that workspace's guard-terms.txt).
+
 **Last session (2026-10-17, evening, Windows):** release phase 2. Merged: T12 launcher (#260: `extension/launch.py` runs the newest healthy runtime under `%LOCALAPPDATA%\literary-critic\runtime`, marks a version bad after two error exits within 10 s and falls back; two runtimes kept) and T13 self-update (#261: `src/litcritic/staging.py` builds a newer release with the app's `UV`, self-tests it and names it `current`; `update` gains `applied` and `restart_needed`).
 
 - **Only human-gated tasks remain:** Owner switch (t-3898860e: owner installs the `.mcpb`, removes the `literary-critic-dev` entry; docs drop the dev entry), then release Test run (t-ca32957d, T14, clean PC); T7: Walkthrough (t-d62e7735, after the test run; needs a Mac too); workplan walkthrough (t-748f8656).
