@@ -1,9 +1,9 @@
 """Per-writer settings kept in the workspace's ``analysis/profile.toml``.
 
 ``prose_suggestions`` (default off): how much wording the assistant may propose for
-the novel. ``false``: none, the writer writes everything (recommended). ``"minor"``:
-small fixes the writer approves (a word, punctuation, grammar, a sentence trimmed), the
-writer doing the bulk of the writing. ``true``: suggested wording, passages included.
+the novel. ``false``: none, the writer writes everything. ``"minor"`` (recommended):
+small fixes the writer approves (a comma, a synonym, an agreement, a sentence trimmed),
+every new sentence and passage the writer's. ``true``: suggested wording, passages included.
 Anything but ``false`` needs the writer to have read the AI-text notice (D-22); the
 moment they acknowledged it is recorded as ``ai_notice_ack``.
 """
@@ -31,9 +31,10 @@ AI_NOTICE = {
         "AI-written text, or may not accept it; publishing contracts usually make you "
         "guarantee that the work is your own.\n"
         "- Your voice: words chosen by an AI drift toward the usual; yours are the book.\n"
-        "We recommend that you do the writing: the tool shows what to change, where and "
-        "why, and you choose the words. If you still want help with wording, small fixes "
-        "or full suggestions, that is your choice, and you can change it at any time. "
+        "We recommend that the writing stays yours: at most small fixes, where the tool "
+        "gives the exact text for a comma, a synonym or an agreement and you approve each "
+        "one, while every new sentence and passage is yours. Suggested passages are your "
+        "choice too, and you can change it at any time. "
         "This is general information, not legal advice."
     ),
     "es": (
@@ -50,10 +51,12 @@ AI_NOTICE = {
         "a garantizar que la obra es tuya.\n"
         "- Tu voz: las palabras que elige una IA tienden a lo habitual; las tuyas son el "
         "libro.\n"
-        "Te recomendamos escribir tú: la herramienta te muestra qué cambiar, dónde y por "
-        "qué, y tú eliges las palabras. Si aun así quieres ayuda con la redacción, "
-        "retoques pequeños o propuestas completas, es tu decisión, y puedes cambiarla "
-        "cuando quieras. Esto es información general, no asesoramiento legal."
+        "Te recomendamos que la escritura siga siendo tuya: como mucho, retoques "
+        "pequeños, en los que la herramienta te da el texto exacto de una coma, un "
+        "sinónimo o una concordancia y tú apruebas cada uno, mientras que cada frase y "
+        "pasaje nuevos son tuyos. Los pasajes propuestos también son tu decisión, y "
+        "puedes cambiarla cuando quieras. Esto es información general, no asesoramiento "
+        "legal."
     ),
 }
 

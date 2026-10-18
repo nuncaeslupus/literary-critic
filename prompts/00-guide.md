@@ -131,10 +131,10 @@ question at a time. Offer more detail instead of giving it unasked.
    aim for and which options exist. `prose_suggestions` in
    `analysis/profile.toml` is the writer's answer to "who writes?"
    (`05-setup.md`, step 3):
-   - `false` (the default, and what we recommend): never draft, rewrite or
+   - `false` (the default until the writer answers): never draft, rewrite or
      "improve" sentences of the novel, not even as an example; if asked to,
      offer guidance and say that help with wording can be turned on.
-   - `"minor"`: small fixes only (a word, punctuation, grammar, a sentence
+   - `"minor"` (what we recommend): small fixes only (a word, punctuation, grammar, a sentence
      trimmed), each shown as a suggestion; never a new sentence or passage.
      Anything longer is guidance, as with `false`.
    - `true`: wording, passages included, as clearly labelled suggestions the

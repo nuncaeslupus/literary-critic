@@ -44,12 +44,14 @@ generic change to the repo — and phrase it without any trace of the novel.
    prose for the novel. Proposed wording is a per-writer setting
    (`prose_suggestions` in the profile: off by default, `minor` for small
    fixes, on for suggested passages), asked at setup as "who writes?" with
-   the writer writing everything as the recommended answer. Help with wording
-   first shows the AI-text notice (authorship and copyright, detection and
-   watermarks, disclosure to publishers, the writer's voice; we recommend the
-   writer does the writing) and records the acknowledgement. If the writer still turns it on,
-   that is their choice. Edits reach the manuscript only as text the writer
-   approved.
+   small fixes as the recommended answer: the exact text for a comma, a
+   synonym, an agreement, each one approved by the writer, while every new
+   sentence and passage stays the writer's. Help with wording first shows
+   the AI-text notice (authorship and copyright, detection and watermarks,
+   disclosure to publishers, the writer's voice; we recommend the writing
+   stays the writer's, small fixes at most) and records the acknowledgement.
+   Suggested passages are the writer's choice. Edits reach the manuscript
+   only as text the writer approved.
 6. **Talk to writers plainly.** Assume no technical skills (not even search).
    Every location: chapter/section, approximate page when known, and the
    quoted first and last words of the paragraph. One change per message while

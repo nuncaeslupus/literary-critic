@@ -224,12 +224,16 @@ SETUP_HINT = (
 SETUP_NEXT = (
     "Tell the writer which file you will work on and how many earlier versions you found, "
     "and ask them to confirm (another file: setup again with manuscript). Then ask, one at "
-    "a time: what they want (work through aspects together, or a full reader's report); "
-    "who writes the new words, with ai_notice shown in full above the choices (you write "
-    "everything, recommended; small fixes; suggested passages), recorded with setup "
-    "prose_suggestions off, minor or on (minor and on with ack_ai_notice); and whether you may "
-    "type approved changes into their file (setup edit_in_place yes or no). Then call "
-    "resume with the novel's name."
+    "a time, in the words of 05-setup.md step 3 (each answer spoken to the writer: 'you' is "
+    "the writer): what they want (aspect by aspect, a full reader's report, or both: the "
+    "report first, then the parts they choose); who writes the words of the novel, with "
+    "ai_notice shown in full above the choices (small fixes, recommended: the exact text "
+    "for a comma, a synonym, an agreement; you write everything; suggested passages), "
+    "recorded with setup prose_suggestions minor, off or on (minor and on with "
+    "ack_ai_notice); and, only after small fixes or suggested passages, whether you may "
+    "put approved changes into their file (setup edit_in_place yes or no; after you "
+    "write everything, record no without asking). Save each answer in the same turn the "
+    "writer gives it. Then call resume with the novel's name."
 )
 NEXT_STEPS = {
     "setup": "Bring the manuscript in: find the novel's file and set it up (05-setup.md).",
