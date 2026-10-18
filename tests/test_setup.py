@@ -253,7 +253,7 @@ def test_notice_on_a_new_folder_and_new_profile(
 def test_who_writes_has_three_answers_and_help_needs_the_notice(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """ "Who writes?": the writer (off, recommended), small fixes (minor) or suggested
+    """ "Who writes?": small fixes (minor, recommended), the writer (off) or suggested
     wording (on). The notice comes with the question, and both kinds of help need it read."""
     folder = _novel_folder(tmp_path)
     ws = folder / "literary-critic"

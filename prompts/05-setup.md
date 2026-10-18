@@ -79,36 +79,51 @@ If `environment.word_lock` is true, the novel is open in Word: that is fine
 for reading; before any change you will ask them to save and close it (see
 `80-live-word.md`).
 
-## 3. Agree how to work (three short questions, one at a time)
+## 3. Agree how to work (up to three short questions, one at a time)
 
-1. **What they want**, in words like these: "Shall I help you with specific
-   aspects of the novel, one at a time, or write you a full report of what I
-   find, as an agent or a publisher's reader would?" Make the difference
-   plain: the first is a conversation you work through together, issue by
-   issue (`revision`); the second is a document to read (`reader-report`).
-   Add that after the report they can pick any part of it to work on the
-   same way. Either way the work follows a plan the writer steers: parts can
-   be skipped or added at any time (`00-guide.md`, "The plan").
-2. **Who writes the new words.** Ask it with the AI-text notice in full,
-   above the choices (`lc setup` printed it as `ai_notice`, in the novel's
-   language): the writer chooses knowing what is at stake. Then three choices
-   (buttons when you can show them), the first one marked as recommended:
-   1. **You write everything** (recommended). The tool says what to change,
-      where, why and which options there are; you choose every word.
-      Nothing to run: this is the default.
-   2. **You write; I help with small fixes.** A word, punctuation, grammar, a
-      sentence trimmed, each one shown for you to take or leave; anything
-      longer stays yours. `lc setup --folder <dir> --prose-suggestions minor
+Every question and answer below speaks to the writer: "you" is the writer, "I"
+is you, so an answer never reads as if the writer were speaking ("I write
+everything" is ambiguous; "You write everything" is not). Use these words, in
+the writer's language, rather than your own.
+
+1. **What they want**, in words like these: "How shall we go through the
+   novel?" Three answers (buttons when you can show them):
+   1. **Aspect by aspect**: a conversation we work through together, issue by
+      issue (`revision`).
+   2. **A full report**: a document to read, as an agent or a publisher's
+      reader would write it (`reader-report`).
+   3. **Both**: the report first, then we work through the parts you choose,
+      issue by issue (`reader-report`; when the report is delivered, offer its
+      parts as the plan).
+
+   Either way the work follows a plan the writer steers: parts can be skipped
+   or added at any time (`00-guide.md`, "The plan").
+2. **Who writes the words of the novel.** Ask it with the AI-text notice in
+   full, above the choices (`lc setup` printed it as `ai_notice`, in the
+   novel's language): the writer chooses knowing what is at stake. Then three
+   choices (buttons when you can show them), the recommended one first:
+   1. **Small fixes** (recommended). For tiny changes I give you the exact
+      text: a comma, a synonym, an agreement ("los" for "las"), a repeated
+      word removed, each one for you to approve. New sentences and passages
+      are yours. `lc setup --folder <dir> --prose-suggestions minor
       --ack-ai-notice`.
-   3. **I can propose wording**, passages included, labelled as suggestions
-      you take, change or reject. `--prose-suggestions on --ack-ai-notice`.
+   2. **You write everything.** I say what to change, where, why and which
+      options there are, never the text; you choose every word. Nothing to
+      run: this is the default.
+   3. **Suggested passages.** I may propose whole sentences or paragraphs,
+      labelled as suggestions you take, change or reject.
+      `--prose-suggestions on --ack-ai-notice`.
 
-   Pass `--ack-ai-notice` only after they have read the notice and chosen 2
-   or 3. Do not argue with the choice: say once that they can change it any
-   time, and go on.
-3. **Who types the changes into the file.** Ask it in words like these: "When
-   we agree on a small change, shall I make it in your file for you, or do
-   you prefer to type it yourself?" Explain in one line how it works: each
+   Pass `--ack-ai-notice` only after they have read the notice and chosen
+   small fixes or suggested passages. Do not argue with the choice: say once
+   that they can change it any time, and go on.
+3. **Who types the changes into the file.** Only when the answer to 2 lets
+   you give exact text (small fixes or suggested passages): with "You write
+   everything" the writer types every change, so skip this question and record
+   `--edit-in-place no`. Question 2 decides who writes the words; this one, who
+   puts an approved change into the file. Ask it in words like these: "When you
+   approve a change, shall I put it in your file, or do you prefer to type it
+   yourself?" Explain in one line how it works: each
    change is shown here first ("Replace … with …?") and goes into the file
    only when they approve it, with a copy of the file kept every time, and they
    can ask you to take it back. Either answer is fine. Record
