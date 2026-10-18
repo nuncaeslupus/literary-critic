@@ -401,3 +401,42 @@ def test_from_word_is_empty_when_word_cannot_be_reached(
 def test_setup_needs_a_folder_or_word(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["setup"]) == 2
     assert json.loads(capsys.readouterr().out)["status"] == "error"
+
+
+def test_an_answer_on_a_work_set_up_does_not_read_the_novel_again(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = _novel_folder(tmp_path)
+    setup.setup(folder)
+
+    def slow(_: Path) -> None:
+        raise AssertionError("the manuscript was read again")
+
+    monkeypatch.setattr(setup, "discover", slow)
+    out = setup.setup(folder, edit_in_place="yes")
+    assert out["status"] == "saved" and out["settings"]["edit_in_place"] is True
+    out = setup.setup(folder, "minor", True)
+    assert out["settings"]["prose_suggestions"] == "minor"
+    with pytest.raises(AssertionError):
+        setup.setup(folder)  # a plain setup still looks for a newer draft
+
+
+def test_word_s_lock_file_is_never_the_manuscript(tmp_path: Path) -> None:
+    folder = _novel_folder(tmp_path)
+    with pytest.raises(setup.SetupError, match=r"lock file.*MyNovel_v3.docx"):
+        setup.setup(folder, manuscript=folder / "~$MyNovel_v3.docx")
+
+
+def test_a_manuscript_held_open_says_so(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    folder = _novel_folder(tmp_path)
+    tries: list[Path] = []
+
+    def held(path: Path) -> None:
+        tries.append(path)
+        raise ingest.IngestError("not a readable .docx: [Errno 13] Permission denied")
+
+    monkeypatch.setattr(ingest, "read", held)
+    monkeypatch.setattr(setup.time, "sleep", lambda _: None)
+    with pytest.raises(setup.SetupError, match=r"another program has .*MyNovel_v3.docx.* open"):
+        setup.setup(folder)
+    assert tries.count(folder / "MyNovel_v3.docx") == setup.TRIES

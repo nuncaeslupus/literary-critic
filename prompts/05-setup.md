@@ -60,7 +60,7 @@ again.
 `live_status` without `doc`). It lists the documents open in Word, each with
 its `folder` and `set_up` (that folder was set up before: they are coming
 back). If one looks like the novel, ask in one line, "Is <name> your novel?"
-(buttons when you can show them), and on yes run
+(your question tool when you have one, else text), and on yes run
 `lc setup --folder <its folder> --manuscript <its path>`. The file may stay
 open. If nothing is open, or none is the novel, use the connected folder:
 
@@ -87,7 +87,7 @@ everything" is ambiguous; "You write everything" is not). Use these words, in
 the writer's language, rather than your own.
 
 1. **What they want**, in words like these: "How shall we go through the
-   novel?" Three answers (buttons when you can show them):
+   novel?" Three answers (your question tool when you have one, else text):
    1. **Aspect by aspect**: a conversation we work through together, issue by
       issue (`revision`).
    2. **A full report**: a document to read, as an agent or a publisher's
@@ -101,7 +101,7 @@ the writer's language, rather than your own.
 2. **Who writes the words of the novel.** Ask it with the AI-text notice in
    full, above the choices (`lc setup` printed it as `ai_notice`, in the
    novel's language): the writer chooses knowing what is at stake. Then three
-   choices (buttons when you can show them), the recommended one first:
+   choices (your question tool when you have one, else text), the recommended one first:
    1. **Small fixes** (recommended). For tiny changes I give you the exact
       text: a comma, a synonym, an agreement ("los" for "las"), a repeated
       word removed, each one for you to approve. New sentences and passages

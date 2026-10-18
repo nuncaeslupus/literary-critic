@@ -25,7 +25,7 @@ and explain; the writer writes the novel (house rule 1).
    done (from the latest `log/` notes), the issue being worked on if one was
    left open, and what remains (`lc round status --workspace <slug>`:
    `remaining`, in order). End with one question, what to address now, with
-   the next issue as the recommended answer (buttons when you can show them).
+   the next issue as the recommended answer (your question tool when you have one, else text).
 
 ## The plan: the writer decides each step
 
@@ -100,8 +100,8 @@ in the document and can be taken back with undo.
 say which one you are on when you start it. When one is settled (fixed,
 accepted, rejected or put off), say so in one line, then show what remains
 (`lc round status --workspace <slug>`: `remaining`, a short list with each
-issue's place) and ask what to address now, the next one recommended (buttons
-when you can show them). Do this when an issue is settled, not at the end of
+issue's place) and ask what to address now, the next one recommended (your
+question tool when you have one, else text). Do this when an issue is settled, not at the end of
 every reply; if the writer asks about something else, answer it and let the
 conversation flow, and come back to the list when it returns to the issues.
 
