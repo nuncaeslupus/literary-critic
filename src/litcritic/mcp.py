@@ -699,10 +699,10 @@ def places(grant: Any, work: str, targets: list[str]) -> dict[str, Any]:
 
 
 def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
-    """Proposed changes as one card, rendered by the change page: Approve and Dismiss (for
-    all of them) and a "Show in Word" button for each. The changes are named (``change``,
-    or ``changes`` for a batch), or proposed here from ``quote`` and ``replace`` (as
-    ``lc change propose``) and shown in the same call."""
+    """Proposed changes as one card, rendered by the change page: Approve, Dismiss and
+    "Show in Word" for each change, and in a batch Approve all and Dismiss all.
+    The changes are named (``change``, or ``changes`` for a batch), or proposed here from
+    ``quote`` and ``replace`` (as ``lc change propose``) and shown in the same call."""
     work = str(a.get("work") or "")
     ws = _work(grant, work)
     if isinstance(ws, dict):
@@ -1005,9 +1005,9 @@ def tools(grant: Any) -> list[Tool]:
             "with Approve and Dismiss buttons; the writer's click decides and the tool "
             "writes it. Give quote (verbatim, with prefix/suffix when it is not unique), "
             "replace, why and by (writer or assistant) to propose and show it in one call; "
-            "or name proposed changes: change, or changes for a batch (one card, one Show "
-            "in Word button per change). Never edit, open, save or close the document any "
-            "other way (no doc-control writes, no Word by hand).",
+            "or name proposed changes: change, or changes for a batch (one card; each change "
+            "has its own buttons, plus Approve all and Dismiss all). Never edit, open, save "
+            "or close the document any other way (no doc-control writes, no Word by hand).",
             lambda a: change_card(grant, a),
             {
                 "work": WORK_ARG,

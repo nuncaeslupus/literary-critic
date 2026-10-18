@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <!-- The MCP App behind literary-critic's `change_card` tool: one or more proposed changes (a
-     batch is one card) with two buttons for all of them, Approve and Dismiss, and a "Show in
-     Word" button per change. A click calls the extension's app-only `change_approve`,
+     batch is one card). One change has Approve and Dismiss; in a batch each change has its own
+     Approve and Dismiss, and Approve all and Dismiss all act on every change still open. Each
+     change has a "Show in Word" button. A click calls the extension's app-only `change_approve`,
      `change_dismiss` or `change_go` tool through the host with the change id only (the page
      never sends text to write), so approving takes one click and no assistant turn. A batch
      approves each change without moving Word, then takes Word to the first. On load it asks
@@ -66,9 +67,9 @@ let nextId = 0;
 const pending = {};
 let canContext = false;
 let work = null;
-let rows = [];  // {id, status, state (element), go (button)}
+let rows = [];  // {id, status, state (element), go (button), own (its Approve and Dismiss, in a batch)}
 let labels = {
-  approve: "Approve", dismiss: "Dismiss", go: "Show in Word", approved: "✓ Approved",
+  approve: "Approve", dismiss: "Dismiss", approve_all: "Approve all", dismiss_all: "Dismiss all", go: "Show in Word", approved: "✓ Approved",
   typed: "✓ Approved: you type it in", dismissed: "Dismissed", undone: "Undone",
   change: "Change", changes: "Changes", applying: "Applying the change in Word…",
   dismissing: "Dismissing…",
@@ -104,7 +105,7 @@ function mark(row, text, cls) {
   resize();
 }
 
-function add(change) {
+function add(change, batch) {
   const card = change.card || {};
   const box = document.createElement("div");
   box.className = "change";
@@ -122,10 +123,23 @@ function add(change) {
   go.type = "button";
   go.className = "go";
   go.textContent = labels.go;
-  line.append(state, go);
+  const row = { id: change.id, status: change.status, state, go, own: [] };
+  if (batch) {  // in a batch each change is decided on its own too
+    for (const [label, name, done, status] of [
+      [labels.approve, "change_approve", "approve", "applied"],
+      [labels.dismiss, "change_dismiss", "dismiss", "dismissed"],
+    ]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "go";
+      b.textContent = label;
+      b.onclick = () => act(name, done, status, row);
+      row.own.push(b);
+    }
+  }
+  line.append(state, ...row.own, go);
   box.append(text, meta, line);
   $("list").append(box);
-  const row = { id: change.id, status: change.status, state, go };
   go.onclick = () => show(row);
   return row;
 }
@@ -135,10 +149,11 @@ function render(data) {
   const changes = data.changes || [{ id: data.id, status: data.status, card: data.card }];
   const first = (changes[0] || {}).card || {};
   labels = { ...labels, ...(first.buttons || {}) };
-  $("approve").textContent = labels.approve;
-  $("dismiss").textContent = labels.dismiss;
+  const batch = changes.length > 1;
+  $("approve").textContent = batch ? labels.approve_all : labels.approve;
+  $("dismiss").textContent = batch ? labels.dismiss_all : labels.dismiss;
   $("list").textContent = "";
-  rows = changes.map(add);
+  rows = changes.map(change => add(change, batch));
   $("card").hidden = false;
   $("status").textContent = (rows.length > 1 ? labels.changes : labels.change) + " " + rows.map(r => r.id).join(", ");
   resize();
@@ -161,7 +176,10 @@ const SETTLED = () => ({
 
 const live = () => rows.filter(row => !row.settled);
 
-function hold(on) { $("approve").disabled = $("dismiss").disabled = on; }
+function hold(on) {
+  $("approve").disabled = $("dismiss").disabled = on;
+  rows.forEach(row => row.own.forEach(b => { b.disabled = on; }));
+}
 
 // Settle one change; once none is left to decide, take the Approve and Dismiss buttons away
 // (each change keeps its Show in Word button).
@@ -170,6 +188,7 @@ function settle(row, status) {
   if (!words) return false;
   row.settled = true;
   row.status = status;
+  row.own.forEach(b => { b.hidden = true; });
   mark(row, words, words.startsWith("✓") ? "ok" : "settled");
   if (!live().length) {
     hold(true);
@@ -220,8 +239,9 @@ async function one(name, row, extra) {
   }
 }
 
-async function act(name, done, status) {
-  const todo = live();
+// Every change still open, or only ``only`` (a change's own button in a batch).
+async function act(name, done, status, only) {
+  const todo = only ? live().filter(row => row === only) : live();
   if (!todo.length) return;
   hold(true);
   // A single change goes to its place as it is approved; a batch goes once, to the first.

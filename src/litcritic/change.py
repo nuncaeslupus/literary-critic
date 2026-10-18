@@ -37,6 +37,8 @@ _BUTTONS = {
     "en": {
         "approve": "Approve",
         "dismiss": "Dismiss",
+        "approve_all": "Approve all",
+        "dismiss_all": "Dismiss all",
         "go": "Show in Word",
         "approved": "✓ Approved",
         "typed": "✓ Approved: you type it in",
@@ -50,6 +52,8 @@ _BUTTONS = {
     "es": {
         "approve": "Aprobar",
         "dismiss": "Descartar",
+        "approve_all": "Aprobar todos",
+        "dismiss_all": "Descartar todos",
         "go": "Ver en Word",
         "approved": "✓ Aprobado",
         "typed": "✓ Aprobado: lo escribes tú",
