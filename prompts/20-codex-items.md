@@ -38,10 +38,18 @@ strong one on entities, and left fields out on scenes, so it is not used.
      packets in parallel: one subagent per packet, on the standard tier,
      each returning its JSON. Import the answers one at a time from the main
      session.
+   - Through the literary-critic tools, pass the answer as the `run` tool's
+     `input` with `--file -`: no file is saved, so never ask the writer for a
+     folder to put answers in.
    - In a plain chat, do them one after another; the bound per step is the
      same.
    - `lc index import <id> --file <answer.json> --next --workspace <slug>`
      prints the next packet still to do after an ok, saving a call.
+   - Every import prints `progress: <done> of <all> packets, <done> of
+     <all> scenes`. Keep the writer informed with it: one short line now and
+     then ("12 of 23 scenes read"), never a turn of its own; where the app
+     shows a progress list, give each stage its step (people and places,
+     scenes, new names, links) and put the scene count in the scenes step.
 5. Plan again: `lc index plan --workspace <slug>`. If scene answers queued
    new names, this adds the packet `n1` (strong tier). Answer and import it
    like an entity packet. Once every scene is read, payoffs that found no

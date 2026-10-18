@@ -64,8 +64,9 @@ def _packets(args: argparse.Namespace) -> int:
             print(line)
             if not line.startswith("ok "):
                 return 1
+            doc = packets.load_plan(ws.root)
+            print(packets.progress(doc))
             if args.next:
-                doc = packets.load_plan(ws.root)
                 nxt = next((p["id"] for p in doc["packets"] if p["status"] != "done"), None)
                 if nxt is None and doc.get("new_names"):
                     print(
