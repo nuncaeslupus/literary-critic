@@ -32,3 +32,17 @@ def test_release_owner_switch_evidence() -> None:
     assert "**Installed: yes**" in text
     assert re.search(r"^dev_config_entries: 0$", text, re.M)
     assert int(re.search(r"^works_found: (\d+)$", text, re.M).group(1)) >= 1  # type: ignore[union-attr]
+
+
+def test_release_test_run_evidence_meets_gates() -> None:
+    text = (EVIDENCE / "release-test-run.md").read_text(encoding="utf-8")
+    table = text.split("## §1 criteria", 1)[1].split("\n## ", 1)[0]
+    rows = [r.split("|")[1:-1] for r in table.splitlines() if r.startswith("| `")]
+    verdicts = {r[0].strip(): r[3].strip() for r in rows}
+    assert "`install_actions_clean_pc`" in verdicts and len(verdicts) >= 8
+    for name, verdict in verdicts.items():
+        assert verdict.startswith(("met", "unmeasured")), name
+    measured = re.search(r"^install_actions_clean_pc: (\d+)$", text, re.M)
+    assert measured and int(measured.group(1)) <= 4
+    assert int(re.search(r"^auto_update_applied_restarts: (\d+)$", text, re.M).group(1)) <= 1  # type: ignore[union-attr]
+    assert int(re.search(r"^writer_update_actions: (\d+)$", text, re.M).group(1)) <= 3  # type: ignore[union-attr]

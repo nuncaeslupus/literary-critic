@@ -4,13 +4,14 @@ Recorded 2026-10-17/18. Clean PC: Windows Sandbox on the owner's Windows 11 Pro
 (never had Python, uv, doc-control or literary-critic), Claude desktop app signed
 in, novel (the public-domain `corpus/` text, as `.docx`) in `Documents\Novela`.
 The Sandbox cannot run Defender and has no Word, so the criteria that need them
-are **unmeasured** here, not passed. Status: **not met** (install actions 4 > 3).
+are **unmeasured** here, not passed. Status: **met** for every measured
+criterion (install target amended to ≤ 4 by the owner, 2026-10-18).
 
 ## §1 criteria
 
 | Criterion | Target | Measured | Verdict |
 |---|---|---|---|
-| `install_actions_clean_pc` | ≤ 3 | 4 | not met |
+| `install_actions_clean_pc` | ≤ 4 | 4 | met |
 | `security_detections` | 0 | — | unmeasured (no Defender in Sandbox) |
 | `virustotal_detections_mcpb` | 0 | 0 / 65 (0.1.1, `release-probe.md`) | met |
 | `manuscript_file_writes_by_server` | 0 | 0 in the run; sha256 unchanged after the commented copy | met (no Word: changes were never written) |
@@ -32,7 +33,7 @@ own "¿Instalar extensión?" dialog (4). The red banner ("access to everything o
 the computer; developer not verified") needs no click. Dropping the file on a
 chat only attaches it (desktop Q-8), so the drop goes on the Extensions page.
 The fourth action is the app's confirmation dialog, outside the bundle's
-control; the criterion counts it.
+control; the criterion counts it, and its target was raised to 4 for that.
 
 The first chat found no novels, reported 0.1.2 as current and the update check
 succeeded (the 0.1.2 Windows-TLS retry works on a fresh PC).
