@@ -696,7 +696,7 @@ def test_a_failed_call_is_logged_with_its_arguments_and_answer(tmp_path: Path) -
     server = mcp.Server([mcp.Tool("approve", "", fails)], log=log)
     _call_raw(server, "approve", {"card": "C1"})
     line = log.getvalue().strip()
-    assert re.match(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d call approve error ", line)
+    assert re.match(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d call approve error \d+\.\ds ", line)
     assert '"C1"' in line and "read it again first" in line
 
 

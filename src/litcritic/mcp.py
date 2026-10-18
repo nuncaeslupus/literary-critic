@@ -171,6 +171,7 @@ class Server:
         if not isinstance(args, dict):
             return _error(msg_id, -32602, "arguments must be an object")
         missing = [k for k in tool.required if k not in args]
+        began = time.monotonic()
         try:
             if missing:
                 raise ToolError("missing_arguments", missing=missing)
@@ -182,11 +183,12 @@ class Server:
             out, is_error = {"error": "internal", "detail": repr(exc)}, True
             if blocked := winblock.advice(exc):
                 out = {"error": "windows_block", "detail": str(exc), **blocked}
+        took = f"{time.monotonic() - began:.1f}s"  # how long the writer waited on it
         failed = isinstance(out, dict) and (out.get("exit") or out.get("status") == "refused")
         if is_error or failed:  # the arguments and the answer, so it can be traced afterwards
-            self._note("call", name, "error", _brief(args), _brief(out, 2000))
+            self._note("call", name, "error", took, _brief(args), _brief(out, 2000))
         else:
-            self._note("call", name, "ok", _brief(args))
+            self._note("call", name, "ok", took, _brief(args))
         text = json.dumps(out, ensure_ascii=False, indent=1)
         result: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": is_error}
         if tool.ui and not is_error:
