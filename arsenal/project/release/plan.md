@@ -136,7 +136,7 @@ the workspace by measuring every §1 criterion.
 | T11 | Staging assets | `release.yml`, `scripts/` | S | T3 | `release_assets_complete == 1` | `test_release_assets_requirements_hashed` in `tests/test_mcpb.py` — the requirements file pins every package and the wheel by hash, and `release.json` carries the version and `reinstall` |
 | T12 | Launcher | `extension/launch.py` | M | T11 | `rollback_correct == 1.0` | `test_launch_two_failures_roll_back` in `tests/test_launch.py` — a runtime that fails to start twice is marked bad and the previous one runs; with no staged runtime the bundled one runs; two are kept |
 | T13 | Self-update | `src/litcritic/staging.py` (new), `mcp.py`, `prompts/` | L | T4, T12 | `auto_update_applied_restarts <= 1` | `test_staging_ready_after_selftest_applied_next_start` in `tests/test_staging.py` — with fake uv and fake Releases, a newer release is staged, self-tested and run at the next start; `auto_update` off or `reinstall: true` gives the notice instead; `check_update` stages at once |
-| T14 | Test run | owner + Claude, `status/evidence/` | M | T5, T6, T7, T10, T13 | `install_actions_clean_pc <= 3` | `test_release_test_run_evidence_meets_gates` in `tests/test_status.py` — the record meets every §1 criterion measured on the test run |
+| T14 | Test run | owner + Claude, `status/evidence/` | M | T5, T6, T7, T10, T13 | `install_actions_clean_pc <= 4` | `test_release_test_run_evidence_meets_gates` in `tests/test_status.py` — the record meets every §1 criterion measured on the test run |
 
 ### Task details
 

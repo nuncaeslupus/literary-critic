@@ -73,9 +73,10 @@ Controlled folder access turned on, Word, and the Claude desktop app signed in.
 It has never had Python, uv, doc-control or literary-critic on it. Windows
 Sandbox or a fresh user account counts.
 
-- [ ] `install_actions_clean_pc <= 3`: click the download link, drag the
-  `.mcpb` onto the app's window, press Install. Accepting the folder picker's
-  default is inside the third action. A security exception, a config file, a
+- [x] `install_actions_clean_pc <= 4`: click the download link, drop the
+  `.mcpb` on Settings → Extensions, press Install, confirm the app's own
+  "Install extension?" dialog (amended 2026-10-18, owner: that dialog is the
+  app's and outside the bundle's control; measured 4 on the test run). A security exception, a config file, a
   terminal or a separate Python, uv or doc-control install fails the criterion;
   it is not counted as an action. Each install warning the writer must accept
   counts as one more action (desktop Q-8). Counted on a recorded test run.
