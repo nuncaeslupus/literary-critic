@@ -55,8 +55,8 @@ is not `"status": "done"`.
      chapter 7", a click on a place) with one word: "Done." ("Hecho." in
      Spanish). The writer is looking at Word, not at a description of it.
    - `live.error` says the document is not open: open it
-     (`lc word reopen --payload '{"document": "<path>"}'`, or `live_open` in
-     Cowork) and repeat this step.
+     (`lc word reopen --payload '{"document": "<path>"}'`, or doc-control's
+     `live_open`) and repeat this step.
    - Word has another file of the same novel open (an older copy, the
      original of a cleaned file): do not go there in that file, whose
      paragraphs differ. Tell the writer, in one line, which file the tool

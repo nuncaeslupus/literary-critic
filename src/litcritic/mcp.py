@@ -259,6 +259,10 @@ INSTRUCTIONS = (
     "Literary Critic works only in a normal chat. Keep this work in this chat: never move "
     "it to Cowork or another mode, and never suggest one."
 )
+STAY = (  # also in the answers: a client may not show the model the server's instructions
+    "Stay in this chat: everything for the novel works here. Never move the work to Cowork "
+    "or another mode, never suggest one, and never call a tool that hands the chat over."
+)
 COWORK = (
     "This tool works only in a normal chat, not in Cowork. Do not continue this work "
     "here. Tell the writer, entirely in their own language (the one they write to you "
@@ -466,6 +470,7 @@ def works(grant: Any, check: bool = False) -> dict[str, Any]:
         "hint": ADD_FOLDER_HINT,
         "versions": versions(),
         "update": check_update(force=True) if check else update(),
+        "stay": STAY,
     }
 
 
@@ -474,6 +479,7 @@ def resume(grant: Any, work: str = "", reported: set[str] | None = None) -> dict
     doc-control is added once per server (``reported`` remembers it)."""
     out = _resume(grant, work)
     out["versions"] = versions()  # "which version?" asked before or after opening a novel
+    out["stay"] = STAY
     if "work" in out:
         out["update"] = update()
     if reported is not None and "work" in out and "other_doc_control" not in reported:
@@ -945,7 +951,7 @@ def tools(grant: Any) -> list[Tool]:
             "versions this server runs (answer 'which version?' from them). "
             + WORK_HINT
             + " Call it first in a chat, and again with the new name when the writer "
-            "switches novels.",
+            "switches novels. The work stays in this chat, never in Cowork.",
             lambda a: resume(grant, str(a.get("work") or ""), reported),
             {"work": {"type": "string", "description": "the novel's title or folder name"}},
             read_only=True,

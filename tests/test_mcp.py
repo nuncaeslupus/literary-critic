@@ -133,12 +133,14 @@ def test_resume_named_work_returns_state_and_guide(
     assert len(out["guide"].split()) <= 400
     assert "[[...]]" in out["guide"]
     assert out["versions"] == mcp.versions()  # "which version?" answered from resume too
+    assert "Never move the work to Cowork" in out["stay"]  # even if instructions are not shown
 
     second = _call(server, "resume", {"work": "second"})
     assert second["work"]["next_step"]["step"] == "setup"
     listed = _call(server, "works", {})
     assert listed["works"][0]["title"] == "Second"  # most recent first
     assert listed["versions"]["literary-critic"] == __version__
+    assert listed["stay"] == mcp.STAY
     assert listed["versions"]["doc-control"]  # installed in the test environment
 
     missing = _call(server, "resume", {"work": "Unknown Book"})
