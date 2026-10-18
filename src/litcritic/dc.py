@@ -11,6 +11,7 @@ one file. Calls run in-process with doc-control's own request schemas.
 from __future__ import annotations
 
 import re
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -36,6 +37,17 @@ class DocError(Exception):
 
 _checked = False
 
+# Word saving, or OneDrive syncing, holds a document for a moment: a read refused then is
+# tried again a few times before it is reported.
+HELD = re.compile(
+    r"\[Errno 13\]|Permission denied|Permiso denegado|\[WinError (5|32|33)\]|"
+    r"being used by another process|utilizado por otro proceso",
+    re.I,
+)
+TRIES = 5
+WAIT = 1.0
+HELD_SAY = "the file is held by another program"  # winblock reads this: kind "held"
+
 
 def _missing() -> DocError:
     return DocError("NOT_INSTALLED", "doc-control is not installed", INSTALL_HINT)
@@ -49,6 +61,16 @@ def _execute(op: str, request: dict[str, Any]) -> dict[str, Any]:
         raise _missing() from exc
     envelope, _ = execute(load_operations(), op, request)
     return envelope
+
+
+def _reads(op: str) -> bool:
+    """The operation only reads its document (doc-control's ``kind`` is ``read``)."""
+    try:
+        from doc_control.registry import load_operations
+    except ImportError:
+        return False
+    found = load_operations().get(op)
+    return getattr(found, "kind", "") == "read"
 
 
 def fingerprint(text: str) -> str:
@@ -96,12 +118,23 @@ def run(op: str, request: dict[str, Any]) -> dict[str, Any]:
     the cursor of a capped list, when more follows, under ``result["_next"]``.
     """
     check()
-    envelope = _execute(op, request)
+    reads = _reads(op)
+    for attempt in range(TRIES if reads else 1):
+        if attempt:
+            time.sleep(WAIT)
+        envelope = _execute(op, request)
+        if envelope.get("ok") or not HELD.search(
+            str((envelope.get("error") or {}).get("message", ""))
+        ):
+            break
     if not envelope.get("ok"):
         err = envelope.get("error", {})
+        message = str(err.get("message", op))
+        if reads and HELD.search(message):  # a refused read is never ransomware protection
+            message = f"{message}: {HELD_SAY}"
         raise DocError(
             err.get("code", "INTERNAL"),
-            err.get("message", op),
+            message,
             err.get("hint", ""),
             err.get("details") or {},
         )

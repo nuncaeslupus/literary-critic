@@ -9,6 +9,10 @@ Two Windows faults look alike in an error message and need opposite fixes:
 - **open**: a sharing violation (``WinError 32``/``33``): the file is open in another
   program, usually Word. Closing it is enough.
 
+- **held**: a read refused (lc's ``dc`` marks it after trying again for a few seconds).
+  Ransomware protection never stops a read, so it is another program holding the file:
+  Word while it saves, or OneDrive while it syncs.
+
 A bare ``Errno 13`` (what ``open()`` raises on Windows for both) is **blocked_or_open**.
 ``advice`` takes an exception or an error text (doc-control's messages carry the Python
 error text) and returns ``{"windows_block": {...}}`` with a ``say`` for the chat, or ``{}``
@@ -47,6 +51,7 @@ _OPEN = re.compile(
     r"\[WinError 3[23]\]|being used by another process|utilizado por otro proceso", re.I
 )
 _EITHER = re.compile(r"\[Errno 13\]|Permission denied|Permiso denegado", re.I)
+_HELD = re.compile(r"the file is held by another program")
 _PATH = re.compile(r"'([A-Za-z]:\\[^']+|[A-Za-z]:/[^']+)'")
 
 SAY = {
@@ -60,6 +65,11 @@ SAY = {
         "The file is open in another program, usually Word, so it could not be saved. "
         "Close it there, then try again."
     ),
+    "held": (
+        "Another program is holding the file (usually Word while it saves it, or OneDrive "
+        "while it syncs it), so it could not be read. Nothing was changed. Wait a moment "
+        "and try again; if it happens again, save the file in Word and try once more."
+    ),
     "blocked_or_open": (
         "Windows did not let {who} save. If the file is open in Word, close it and try "
         "again. If it is not, Windows Security (ransomware protection) is blocking it: "
@@ -69,7 +79,7 @@ SAY = {
 
 
 def kind(problem: BaseException | str, platform: str = sys.platform) -> str | None:
-    """``blocked``, ``open``, ``blocked_or_open``, or None when it is not a Windows refusal."""
+    """``held``, ``blocked``, ``open``, ``blocked_or_open``; None: not a Windows refusal."""
     if isinstance(problem, BaseException):
         winerror = getattr(problem, "winerror", None)
         if winerror == 5:
@@ -81,6 +91,8 @@ def kind(problem: BaseException | str, platform: str = sys.platform) -> str | No
         if isinstance(problem, OSError):  # its codes said it all; its text is the OS's
             return None
         problem = str(problem)
+    if _HELD.search(problem):
+        return "held"
     if _OPEN.search(problem):
         return "open"
     if _BLOCKED.search(problem):

@@ -290,7 +290,7 @@ def test_guide_prompt_names_channels_rules_and_done() -> None:
         "The writer writes",
         "Never edit the manuscript",
         "Plain language",
-        "Locate everything",
+        "Every passage you name gets a button",
         "One change per message",
     ):
         assert rule in guide, rule
