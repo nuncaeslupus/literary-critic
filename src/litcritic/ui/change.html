@@ -10,8 +10,11 @@
      approves each change without moving Word, then takes Word to the first. On load it asks
      the app-only `change_status` tool for each change's status now (the tool result is from
      when the card was first shown), and a change already approved, dismissed or undone shows
-     as settled; its Show in Word button stays. Afterwards it sends a `ui/message` when the
-     host advertises that capability. Self-contained (no CDN): hosts sandbox app frames. -->
+     as settled; its Show in Word button stays. It never sends a chat message (the host
+     would make the writer press Send under a caution banner, a second action): when the host
+     advertises `updateModelContext` it records the outcome there for the model's next turn,
+     and the model can always ask `change_status`. The words shown come from the card's
+     `buttons` (the novel's language). Self-contained (no CDN): hosts sandbox app frames. -->
 <style>
   :root { color-scheme: light dark; }
   body { font: 14px system-ui, sans-serif; margin: 8px; background: transparent; color: CanvasText; }
@@ -54,10 +57,14 @@
 "use strict";
 let nextId = 0;
 const pending = {};
-let canMessage = false;
+let canContext = false;
 let work = null;
 let rows = [];  // {id, status, state (element), go (button)}
-let labels = { approve: "Approve", dismiss: "Dismiss", go: "Show in Word" };
+let labels = {
+  approve: "Approve", dismiss: "Dismiss", go: "Show in Word", approved: "✓ Approved",
+  typed: "✓ Approved: you type it in", dismissed: "Dismissed", undone: "Undone",
+  change: "Change", changes: "Changes",
+};
 const $ = id => document.getElementById(id);
 const send = message => window.parent.postMessage(message, "*");
 
@@ -125,7 +132,7 @@ function render(data) {
   $("list").textContent = "";
   rows = changes.map(add);
   $("card").hidden = false;
-  $("status").textContent = (rows.length > 1 ? "Changes " : "Change ") + rows.map(r => r.id).join(", ");
+  $("status").textContent = (rows.length > 1 ? labels.changes : labels.change) + " " + rows.map(r => r.id).join(", ");
   resize();
   rows.forEach(row => settle(row, row.status));
   if (live().length) {
@@ -139,10 +146,10 @@ function render(data) {
 
 // A change no longer proposed (or refused, which can be approved again) is settled: say what
 // became of it in plain words. Undefined for a live change.
-const SETTLED = {
-  approved: "✓ Approved", applied: "✓ Approved", typed_by_writer: "✓ Approved: you type it in",
-  dismissed: "Dismissed", undone: "Undone",
-};
+const SETTLED = () => ({
+  approved: labels.approved, applied: labels.approved, typed_by_writer: labels.typed,
+  dismissed: labels.dismissed, undone: labels.undone,
+});
 
 const live = () => rows.filter(row => !row.settled);
 
@@ -151,7 +158,7 @@ function hold(on) { $("approve").disabled = $("dismiss").disabled = on; }
 // Settle one change; once none is left to decide, take the Approve and Dismiss buttons away
 // (each change keeps its Show in Word button).
 function settle(row, status) {
-  const words = SETTLED[status];
+  const words = SETTLED()[status];
   if (!words) return false;
   row.settled = true;
   row.status = status;
@@ -218,11 +225,12 @@ async function act(name, done, status) {
     }
   }
   if (live().length) hold(false);
-  result(ok.length ? "✓ " + done : "", ok.length ? "ok" : "");
+  // Each change says what became of it on its own row: no second line repeating it.
+  result("");
   if (extra.go === false && ok.length) show(ok[0]);
-  if (canMessage && ok.length) {
-    request("ui/message", {
-      role: "user", content: [{ type: "text", text: done + " " + ok.map(r => r.id).join(", ") }],
+  if (canContext && ok.length) {
+    request("ui/update-model-context", {
+      content: [{ type: "text", text: "The writer clicked " + done + ": " + ok.map(r => r.id).join(", ") }],
     }).catch(() => {});
   }
 }
@@ -239,8 +247,8 @@ async function show(row) {
   row.go.disabled = false;
 }
 
-$("approve").onclick = () => act("change_approve", "Approved", "applied");
-$("dismiss").onclick = () => act("change_dismiss", "Dismissed", "dismissed");
+$("approve").onclick = () => act("change_approve", "approve", "applied");
+$("dismiss").onclick = () => act("change_dismiss", "dismiss", "dismissed");
 
 window.addEventListener("message", event => {
   const m = event.data;
@@ -269,8 +277,8 @@ const info = { name: "literary-critic-change", version: "1" };
 request("ui/initialize", {
   protocolVersion: "2026-01-26", appInfo: info, clientInfo: info, appCapabilities: {}, capabilities: {},
 }).then(res => {
-  // ui/message is sent only when the host says it takes it (spec Q-1).
-  canMessage = !!((res || {}).hostCapabilities || {}).message;
+  // The outcome goes to the model's context only when the host takes it; never a chat message.
+  canContext = !!((res || {}).hostCapabilities || {}).updateModelContext;
   markInitialized();
 }, markInitialized);
 setTimeout(markInitialized, 1500);
