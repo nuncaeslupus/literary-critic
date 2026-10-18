@@ -240,6 +240,18 @@ def test_update_check_older_online_says_yes(
     assert forced["latest"] == "9.9.10"
 
 
+def test_update_check_refetches_a_cache_older_than_this_copy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # the day's cache was read by an older copy; this one was updated since: read again
+    monkeypatch.setattr(kit, "CACHE", tmp_path / "update.json")
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: _release("v0.1.2"))
+    assert kit.update_check({"version": "0.1.2", "source": "kit"})["update_available"] == "no"
+    monkeypatch.setattr(kit, "_fetch_release", lambda timeout: _release("v0.1.9"))
+    got = kit.update_check({"version": "0.1.7", "source": "kit"})
+    assert got["latest"] == "0.1.9" and got["update_available"] == "yes"
+
+
 def test_update_check_no_network_and_failures_stay_silent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

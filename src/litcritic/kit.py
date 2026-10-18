@@ -197,6 +197,10 @@ def update_check(info: dict[str, Any], network: bool = True, force: bool = False
     found = _latest(force) if network and info.get("source") != "checkout" else None
     mine = _parse(str(info.get("version", "")))
     newest = _parse(found[0]) if found else None
+    if not force and mine and newest and newest < mine:
+        # read before this copy was installed (an update since): the day's cache is stale
+        found = _latest(force=True)
+        newest = _parse(found[0]) if found else None
     if info.get("source") == "checkout" or mine is None or newest is None:
         state = "unknown"
     else:
