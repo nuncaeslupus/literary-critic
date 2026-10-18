@@ -28,6 +28,13 @@
   .state.ok { color: #2a2; }
   .state.err { color: #c33; }
   .state.settled { opacity: .8; }
+  .state.busy { font-weight: 600; }
+  .state.busy::before {
+    content: ""; display: inline-block; width: .8em; height: .8em; margin-right: .4em;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%;
+    vertical-align: -.1em; animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   #buttons { display: flex; gap: 8px; margin-top: 10px; }
   button {
     padding: 8px 10px; border-radius: 8px; border: 1px solid #8886;
@@ -63,7 +70,8 @@ let rows = [];  // {id, status, state (element), go (button)}
 let labels = {
   approve: "Approve", dismiss: "Dismiss", go: "Show in Word", approved: "✓ Approved",
   typed: "✓ Approved: you type it in", dismissed: "Dismissed", undone: "Undone",
-  change: "Change", changes: "Changes",
+  change: "Change", changes: "Changes", applying: "Applying the change in Word…",
+  dismissing: "Dismissing…",
 };
 const $ = id => document.getElementById(id);
 const send = message => window.parent.postMessage(message, "*");
@@ -192,7 +200,9 @@ function failure(res) {
 
 // One change: true when it was done (or turned out already settled).
 async function one(name, row, extra) {
-  mark(row, "…");
+  // Plain words and a spinner while it runs: a bare "…" went unnoticed.
+  const busy = name === "change_dismiss" ? labels.dismissing : labels.applying;
+  mark(row, busy || "…", "busy");
   try {
     const res = await request("tools/call", { name, arguments: { work, change: row.id, ...extra } });
     if (res.isError) {
@@ -214,7 +224,6 @@ async function act(name, done, status) {
   const todo = live();
   if (!todo.length) return;
   hold(true);
-  result("…");
   // A single change goes to its place as it is approved; a batch goes once, to the first.
   const extra = name === "change_approve" && todo.length > 1 ? { go: false } : {};
   const ok = [];
