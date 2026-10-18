@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from litcritic import dc
+from litcritic import dc, winblock
 
 
 @pytest.fixture(autouse=True)
@@ -59,3 +59,47 @@ def test_dc_open_maps_errors_to_doc_error() -> None:
     with dc.open("/nonexistent/x.docx") as doc, pytest.raises(dc.DocError) as err:
         doc.paragraphs()
     assert err.value.code == "DOC_NOT_FOUND" and err.value.hint
+
+
+def _refusing(times: int) -> tuple[list[str], Any]:
+    """An ``_execute`` that refuses the document ``times`` times, then reads it."""
+    calls: list[str] = []
+    refused = {"code": "INTERNAL", "message": "PermissionError: [Errno 13] Permission denied"}
+
+    def fake(op: str, request: dict[str, Any]) -> dict[str, Any]:
+        if op == "capabilities":
+            return {"api": "1.0", "ok": True, "op": op, "result": {"version": "0.8.4"}}
+        calls.append(op)
+        if len(calls) <= times:
+            return {"ok": False, "error": refused}
+        return {"ok": True, "result": {"at": "p1"}}
+
+    return calls, fake
+
+
+def test_a_read_refused_for_a_moment_is_tried_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls, fake = _refusing(2)  # Word saving, or OneDrive syncing, holds the file briefly
+    monkeypatch.setattr(dc, "_execute", fake)
+    monkeypatch.setattr(dc, "WAIT", 0)
+    assert dc.run("anchor.resolve", {})["at"] == "p1"
+    assert len(calls) == 3
+
+
+def test_a_read_still_refused_says_the_file_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls, fake = _refusing(99)
+    monkeypatch.setattr(dc, "_execute", fake)
+    monkeypatch.setattr(dc, "WAIT", 0)
+    with pytest.raises(dc.DocError) as err:
+        dc.run("anchor.resolve", {})
+    assert len(calls) == dc.TRIES
+    assert winblock.kind(err.value) == "held"  # never the ransomware steps for a read
+    assert "Nothing was changed" in winblock.advice(err.value)["windows_block"]["say"]
+
+
+def test_a_refused_write_is_not_tried_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls, fake = _refusing(99)
+    monkeypatch.setattr(dc, "_execute", fake)
+    with pytest.raises(dc.DocError) as err:
+        dc.run("text.replace", {})
+    assert len(calls) == 1
+    assert winblock.kind(err.value, platform="win32") == "blocked_or_open"
