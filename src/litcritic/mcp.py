@@ -555,8 +555,22 @@ def _parse(argv: list[str]) -> Any:
         raise ToolError("bad_command", detail=err.getvalue().strip()) from None
 
 
-def run_lc(grant: Any, work: str, argv: Any) -> dict[str, Any]:
-    """Run one allow-listed ``lc`` subcommand on a work; argv is a list, never a shell string."""
+@contextlib.contextmanager
+def _stdin(text: str) -> Any:
+    """``sys.stdin`` reads ``text`` meanwhile (never the server's own stdin, the protocol)."""
+    saved, sys.stdin = sys.stdin, io.StringIO(text)
+    try:
+        yield
+    finally:
+        sys.stdin = saved
+
+
+def run_lc(grant: Any, work: str, argv: Any, stdin: str | None = None) -> dict[str, Any]:
+    """Run one allow-listed ``lc`` subcommand on a work; argv is a list, never a shell string.
+
+    ``stdin`` is what the command reads for ``--file -`` (an index answer), so the chat
+    passes it inline instead of saving a file, which would need a folder of its own.
+    """
     if not isinstance(argv, list) or not argv or not all(isinstance(a, str) for a in argv):
         raise ToolError("not_allowed", detail="command must be a list of arguments")
     if argv[0] not in RUN_ALLOWED:
@@ -564,10 +578,12 @@ def run_lc(grant: Any, work: str, argv: Any) -> dict[str, Any]:
     ws = _work(grant, work)
     if isinstance(ws, dict):
         return ws
-    return _run_argv(grant, ws, argv)
+    return _run_argv(grant, ws, argv, stdin)
 
 
-def _run_argv(grant: Any, ws: Workspace, argv: list[str]) -> dict[str, Any]:
+def _run_argv(
+    grant: Any, ws: Workspace, argv: list[str], stdin: str | None = None
+) -> dict[str, Any]:
     """Run ``lc`` in this process on ``ws``: output captured, paths confined."""
     for a in argv[1:]:
         if a.split("=")[0] in ("--workspace", "--home"):
@@ -584,7 +600,11 @@ def _run_argv(grant: Any, ws: Workspace, argv: list[str]) -> dict[str, Any]:
     out, err = io.StringIO(), io.StringIO()
     blocked: dict[str, Any] = {}
     try:
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        with (
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+            _stdin(stdin or ""),
+        ):
             code = args.func(args)
     except SystemExit as exc:
         code = exc.code if isinstance(exc.code, int) else 1
@@ -892,9 +912,19 @@ def tools(grant: Any) -> list[Tool]:
         Tool(
             "run",
             "Run another literary-critic command on the novel (round, codex, index, "
-            "context, locate, metrics, diff, report), as a list of arguments.",
-            lambda a: run_lc(grant, str(a.get("work") or ""), a.get("command")),
-            {"work": WORK_ARG, "command": {"type": "array", "items": {"type": "string"}}},
+            "context, locate, metrics, diff, report), as a list of arguments. `input` is "
+            "what `--file -` reads: pass an index answer there, never in a file.",
+            lambda a: run_lc(
+                grant,
+                str(a.get("work") or ""),
+                a.get("command"),
+                None if a.get("input") is None else str(a.get("input")),
+            ),
+            {
+                "work": WORK_ARG,
+                "command": {"type": "array", "items": {"type": "string"}},
+                "input": {"type": "string"},
+            },
             ("work", "command"),
         ),
         Tool(

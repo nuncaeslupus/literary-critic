@@ -2,6 +2,7 @@ import io
 import itertools
 import json
 import random
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -323,6 +324,18 @@ def test_add_many_is_all_or_nothing(ws: Path) -> None:
 # --- commands ----------------------------------------------------------------------
 
 
+def test_mcp_run_passes_an_answer_inline(ws: Path) -> None:
+    """The `run` tool's `input` is what `--file -` reads: no file, so no folder to ask for."""
+    from litcritic import folders, mcp, workspace
+
+    grant, w = folders.Grant([str(ws.parent)]), workspace.resolve(str(ws), None)
+    answer = json.dumps(_scene_answer(ws, "s001"))
+    run = mcp._run_argv(grant, w, ["index", "import", "s001", "--file", "-"], answer)
+    assert run["exit"] == 0 and run["output"].startswith("ok s001: ")
+    empty = mcp._run_argv(grant, w, ["index", "import", "s002", "--file", "-"])
+    assert empty["exit"] != 0  # no input: nothing read, never the server's own stdin
+
+
 def test_cli_packet_import_from_stdin_and_status(
     ws: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -335,8 +348,9 @@ def test_cli_packet_import_from_stdin_and_status(
     monkeypatch.setattr("sys.stdin", io.StringIO(answer))
     assert main(["index", "import", "s001", "--file", "-", "--next", *w]) == 0
     out = capsys.readouterr().out
-    first, rest = out.split("\n", 1)
+    first, count, rest = out.split("\n", 2)
     assert first.startswith("ok s001: ") and rest.startswith("packet e1 · entities")
+    assert re.fullmatch(r"progress: 1 of \d+ packets, [1-9]\d* of \d+ scenes", count)
     monkeypatch.setattr("sys.stdin", io.StringIO("[]"))
     assert main(["index", "import", "s002", "--file", "-", *w]) == 1
     assert capsys.readouterr().out.startswith("error s002: $: expected object")

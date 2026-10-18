@@ -1,6 +1,6 @@
 [project]
 name = "literary-critic"
-version = "0.1.10"
+version = "0.1.11"
 description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
 license = "Apache-2.0"

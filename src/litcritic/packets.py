@@ -1445,6 +1445,18 @@ def _save_plan(ws_root: Path, doc: dict[str, Any]) -> None:
 # --- status ----------------------------------------------------------------------
 
 
+def progress(doc: dict[str, Any]) -> str:
+    """How far the index is, for the writer: packets and scenes done of all."""
+    ps = doc["packets"]
+    scenes: dict[str, bool] = {}
+    for p in ps:
+        if p["kind"] == "scenes":
+            for u in p["inputs"]["units"]:
+                scenes[u["scene"]] = scenes.get(u["scene"], True) and p["status"] == "done"
+    done = sum(p["status"] == "done" for p in ps)
+    return f"progress: {done} of {len(ps)} packets, {sum(scenes.values())} of {len(scenes)} scenes"
+
+
 def status_lines(doc: dict[str, Any]) -> list[str]:
     out = []
     for p in doc["packets"]:
