@@ -313,11 +313,11 @@ class _FakeLive:
                 raise self.refuse
             if req.get("tracked", True) is not False:
                 self.revisions.extend(req["ops"])
-            for op in req["ops"]:  # the write lands in the open document, as in Word
-                para, span = op["at"].rsplit(":", 1)
+            for edit in req["ops"]:  # the write lands in the open document, as in Word
+                para, span = edit["at"].rsplit(":", 1)
                 n, (lo, hi) = int(para[1:].split("#")[0]), map(int, span.split("-"))
                 t = self.texts[n - 1]
-                self.texts[n - 1] = t[:lo] + op["text"] + t[hi:]
+                self.texts[n - 1] = t[:lo] + edit["text"] + t[hi:]
             return {"applied": len(req["ops"]), "engine": "live"}
         return self.real(op, req)
 
