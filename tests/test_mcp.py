@@ -395,6 +395,7 @@ def test_change_card_proposes_inline_and_shows_a_batch(
     buttons = set(shown["card"]["buttons"])
     assert {"approve", "dismiss", "go", "approved", "dismissed", "undone"} <= buttons
     assert {"applying", "dismissing"} <= buttons  # said in words while a click runs
+    assert {"approve_all", "dismiss_all"} <= buttons  # a batch: each change, or all at once
 
     _call_raw(server, "change_card", {"work": "mynovel", "quote": "street", "replace": "road"})
     both = _call_raw(server, "change_card", {"work": "mynovel", "changes": ["C1", "C2"]})
