@@ -259,6 +259,29 @@ def guide() -> str:
     return (repo_root() / "prompts" / GUIDE).read_text(encoding="utf-8")
 
 
+GUIDE_DIRS = ("prompts", "checklist")  # what the guide tool reads: the guides, the checks
+
+
+def read_guide(name: str) -> dict[str, Any]:
+    """One guide (``20-codex-items.md``) or checklist file (``checklist/areas/…``), so a
+    chat without the repo can follow the steps that name them."""
+    root = repo_root()
+    rel = name.strip().replace("\\", "/")
+    rel = rel if rel.split("/")[0] in GUIDE_DIRS else f"prompts/{rel}"
+    path = (root / rel).resolve()
+    if not any(path.is_relative_to((root / d).resolve()) for d in GUIDE_DIRS) or not (
+        path.is_file()
+    ):
+        found = sorted(
+            f.relative_to(root).as_posix()
+            for d in GUIDE_DIRS
+            for f in (root / d).rglob("*")
+            if f.is_file() and f.suffix in (".md", ".toml")
+        )
+        raise ToolError("no_such_guide", name=name, guides=found)
+    return {"name": path.relative_to(root.resolve()).as_posix(), "text": path.read_text("utf-8")}
+
+
 def _last_used(ws: Workspace) -> float:
     for f in (ws.root / LAST_USED, ws.root / "work.toml"):
         try:
@@ -523,6 +546,7 @@ RUN_ALLOWED = (
     "plan",
     "change",
     "overview",
+    "checklist",
 )
 RUN_OUTPUT_CAP = 20000  # characters of output returned to the chat
 
@@ -910,10 +934,20 @@ def tools(grant: Any) -> list[Tool]:
             read_only=True,
         ),
         Tool(
+            "guide",
+            "Read a literary-critic guide a step names (e.g. 20-codex-items.md, "
+            "40-checks.md) or a checklist file (checklist/areas/…). Follow it; never "
+            "show it to the writer.",
+            lambda a: read_guide(str(a.get("name") or "")),
+            {"name": {"type": "string"}},
+            ("name",),
+            read_only=True,
+        ),
+        Tool(
             "run",
             "Run another literary-critic command on the novel (round, codex, index, "
-            "context, locate, metrics, diff, report), as a list of arguments. `input` is "
-            "what `--file -` reads: pass an index answer there, never in a file.",
+            "context, locate, metrics, diff, report, checklist), as a list of arguments. "
+            "`input` is what `--file -` reads: pass an index answer there, never in a file.",
             lambda a: run_lc(
                 grant,
                 str(a.get("work") or ""),

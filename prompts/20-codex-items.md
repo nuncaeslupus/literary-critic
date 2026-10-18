@@ -85,6 +85,9 @@ names the field to fix, e.g. `error s004: $.scenes[2].setups[0].quote: …`.
 Fix that field in the same file and run the same import again. A packet
 already imported is not imported twice.
 
+Notes after an `ok` (unlinked payoffs, a payoff in its setup's scene) are
+information, not faults: nothing to fix, and nothing to tell the writer.
+
 ### Measuring
 
 - `lc index cost --workspace <slug>`: tokens in and out, calls and time per

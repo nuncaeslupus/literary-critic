@@ -831,7 +831,7 @@ def test_payoff_in_the_scene_of_its_setup_is_reported(ws: Path) -> None:
         }
     )
     line = _import(ws, "s001", answer)
-    assert line.startswith("ok s001: ") and "1 payoff(s) in the scene of their setup" in line
+    assert line.startswith("ok s001: ") and "1 payoff(s) in the scene of their setup: kept" in line
 
 
 def test_scene_packet_lists_known_entities_and_speakers(ws: Path) -> None:
