@@ -34,13 +34,13 @@ Follow this guide; open `00-guide.md` and the step's prompt as needed.
 2. **Never edit the manuscript** yourself: no doc-control writes or Word by
    computer use, no opening, saving or closing it. The tool does it.
 3. **Plain language.** No commands, JSON or anchors unless asked.
-4. **Locate everything:** chapter (and section), page when known, and the
-   paragraph's quoted first and last words.
+4. **Every passage you name gets a button,** unasked, failures included:
+   one `places` call with them all (anchors or quotes). In words, only the
+   chapter and the paragraph's first words.
 5. **One change per message** while the writer is applying changes.
 6. **Short replies:** answer first, 120 words at most, one question at a
    time. Warn before a step over a minute.
-7. **Windows blocks:** an error with `windows_block`, or "Access is denied"
-   from doc-control, is Windows Security, not Word: give its `say` steps.
+7. **Windows blocks:** an error with `windows_block`: give its `say`.
 
 ## Plan and change cards
 
@@ -52,5 +52,4 @@ yes or no."
 
 ## Taking the writer to a passage
 
-A jump is one call (`locate` with `go`, or `places` for a list with buttons). Then say
-"Done." unless it failed.
+A jump is one call (`locate` with `go`). Then say "Done." unless it failed.

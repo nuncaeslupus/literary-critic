@@ -189,6 +189,8 @@ class Server:
             out, is_error = {"error": "internal", "detail": repr(exc)}, True
             if blocked := winblock.advice(exc):
                 out = {"error": "windows_block", "detail": str(exc), **blocked}
+        if is_error and isinstance(out, dict):
+            out.update(_failed_places(args))
         took = f"{time.monotonic() - began:.1f}s"  # how long the writer waited on it
         failed = isinstance(out, dict) and (out.get("exit") or out.get("status") == "refused")
         if is_error or failed:  # the arguments and the answer, so it can be traced afterwards
@@ -223,6 +225,21 @@ def _result(msg_id: Any, result: dict[str, Any]) -> dict[str, Any]:
 
 def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": code, "message": message}}
+
+
+PLACES_SAY = (
+    "Call places with these targets, so the writer gets a button to each passage it was "
+    "about; never only describe where it is."
+)
+
+
+def _failed_places(args: dict[str, Any]) -> dict[str, Any]:
+    """The passages a failed call was about (its quotes), for buttons that go there."""
+    edits = [e for e in args.get("edits") or [args] if isinstance(e, dict)]
+    quotes = [str(e["quote"]) for e in edits if str(e.get("quote") or "").strip()]
+    if not quotes or not args.get("work"):
+        return {}
+    return {"places": quotes, "places_say": PLACES_SAY}
 
 
 GUIDE = "01-chat-guide.md"
@@ -783,6 +800,7 @@ def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     out = {**shown[0], "work": work, "changes": shown}
     if not_proposed:
         out["not_proposed"] = not_proposed
+        out.update(_failed_places({"work": work, "edits": not_proposed}))
     return out
 
 

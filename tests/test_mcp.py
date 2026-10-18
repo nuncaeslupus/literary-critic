@@ -411,6 +411,8 @@ def test_change_card_proposes_inline_and_shows_a_batch(
     assert nothing["isError"] and _text(nothing)["error"] == "missing_arguments"
     refused = _call_raw(server, "change_card", {"work": "mynovel", "quote": "x", "replace": "x"})
     assert refused["isError"] and _text(refused)["error"] == "invalid"
+    assert _text(refused)["places"] == ["x"]  # a button to the passage, not a description
+    assert "places" in _text(refused)["places_say"]
 
 
 def test_change_card_proposes_several_edits_in_one_box(
@@ -429,6 +431,7 @@ def test_change_card_proposes_several_edits_in_one_box(
     shown = res["structuredContent"]
     assert [c["id"] for c in shown["changes"]] == ["C1", "C2"]
     assert [n["quote"] for n in shown["not_proposed"]] == ["no such words"]
+    assert shown["places"] == ["no such words"]
     none = _call_raw(server, "change_card", {"work": "mynovel", "edits": edits[2:] * 2})
     assert none["isError"] and _text(none)["error"] == "not_proposed"
     described = _listed(server)["change_card"]["description"]
