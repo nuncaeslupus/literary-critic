@@ -35,14 +35,26 @@ _CARD = {
 # the card's buttons and settled words, in the novel's language
 _BUTTONS = {
     "en": {
-        "approve": "Approve", "dismiss": "Dismiss", "go": "Show in Word",
-        "approved": "✓ Approved", "typed": "✓ Approved: you type it in",
-        "dismissed": "Dismissed", "undone": "Undone", "change": "Change", "changes": "Changes",
+        "approve": "Approve",
+        "dismiss": "Dismiss",
+        "go": "Show in Word",
+        "approved": "✓ Approved",
+        "typed": "✓ Approved: you type it in",
+        "dismissed": "Dismissed",
+        "undone": "Undone",
+        "change": "Change",
+        "changes": "Changes",
     },
     "es": {
-        "approve": "Aprobar", "dismiss": "Descartar", "go": "Ver en Word",
-        "approved": "✓ Aprobado", "typed": "✓ Aprobado: lo escribes tú",
-        "dismissed": "Descartado", "undone": "Deshecho", "change": "Cambio", "changes": "Cambios",
+        "approve": "Aprobar",
+        "dismiss": "Descartar",
+        "go": "Ver en Word",
+        "approved": "✓ Aprobado",
+        "typed": "✓ Aprobado: lo escribes tú",
+        "dismissed": "Descartado",
+        "undone": "Deshecho",
+        "change": "Cambio",
+        "changes": "Cambios",
     },
 }
 
