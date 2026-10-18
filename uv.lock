@@ -218,11 +218,11 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.8.3"
+version = "0.8.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8a/0c/292dded4c36295c4641b9a32aeb6510777306e55190b317a4c66e846718b/doc_control-0.8.3.tar.gz", hash = "sha256:478ab88818062751080dfdf2bb11e13f09948dc7d8c9a87e93d80ee0d595fc48", size = 795359, upload-time = "2026-10-16T16:03:15.629Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6f/36/851579403becd774c5ed0ec79ff89df15ed6e89033e8363f4f57b18af56c/doc_control-0.8.4.tar.gz", hash = "sha256:6fd3b6d2386f0e77ff30ec4fc9ffbfc9695e4cd476b23ca0a410ad1c84eb8df8", size = 798253, upload-time = "2026-10-18T21:24:13.796Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/43/94c3a270d73d629fc5317be4f78f313cfbcd0e592c6064ed771136854f53/doc_control-0.8.3-py3-none-any.whl", hash = "sha256:46b2c6b72afe1d281412746f8df551c44045077f31198e81c3db8583c7abead0", size = 496355, upload-time = "2026-10-16T16:03:13.653Z" },
+    { url = "https://files.pythonhosted.org/packages/49/b6/0486bc4761491a30cefb007c3a00b29fa950920a6c06713977b7f4967494/doc_control-0.8.4-py3-none-any.whl", hash = "sha256:797bf2a9a9dbd8e31c8107cd8422f1850f2bb9e61855df2118c8436dc40da1be", size = 497489, upload-time = "2026-10-18T21:24:12.083Z" },
 ]
 
 [package.optional-dependencies]
@@ -375,7 +375,7 @@ wheels = [
 
 [[package]]
 name = "literary-critic"
-version = "0.1.19"
+version = "0.1.21"
 source = { editable = "." }
 dependencies = [
     { name = "doc-control", extra = ["live"] },
@@ -397,8 +397,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "doc-control", extras = ["live"], specifier = ">=0.8.3,<0.9" },
-    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.8.3,<0.9" },
+    { name = "doc-control", extras = ["live"], specifier = ">=0.8.4,<0.9" },
+    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.8.4,<0.9" },
 ]
 provides-extras = ["live"]
 

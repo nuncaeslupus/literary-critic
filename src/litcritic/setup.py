@@ -98,11 +98,28 @@ def _documents(folder: Path) -> list[Path]:
     return out
 
 
-def _read(path: Path) -> Found | None:
-    try:
-        draft = ingest.read(path)
-    except (ingest.IngestError, OSError, ValueError):
-        return None
+LOCKED = ("permission denied", "being used by another process", "errno 13", "winerror 32")
+TRIES = 3  # Word may hold the file for a moment while it saves
+
+
+def _locked(exc: BaseException) -> bool:
+    """The file is held open by another program (Word, a sync client), not unreadable."""
+    return isinstance(exc, PermissionError) or any(m in str(exc).lower() for m in LOCKED)
+
+
+def _read(path: Path, problems: dict[Path, str] | None = None) -> Found | None:
+    """The document's words, or None; ``problems`` gets why it could not be read."""
+    for attempt in range(TRIES):
+        try:
+            draft = ingest.read(path)
+            break
+        except (ingest.IngestError, OSError, ValueError) as exc:
+            if _locked(exc) and attempt + 1 < TRIES:
+                time.sleep(0.5)
+                continue
+            if problems is not None:
+                problems[path] = "locked" if _locked(exc) else str(exc)
+            return None
     words = _words(" ".join(p.text for p in draft.paragraphs))
     return Found(
         path,
@@ -154,8 +171,12 @@ def discover(folder: Path) -> Discovery:
     while a real draft exists); a newer export with the same text as a ``.docx``
     leaves the ``.docx`` as the manuscript, since only it is edited in place.
     """
-    found = [f for f in (_read(p) for p in _documents(folder)) if f and f.words]
+    problems: dict[Path, str] = {}
+    found = [f for f in (_read(p, problems) for p in _documents(folder)) if f and f.words]
     if not found:
+        locked = [p.name for p, why in problems.items() if why == "locked"]
+        if locked:
+            raise SetupError(_held(", ".join(locked)))
         raise SetupError(f"no document with text in {folder} (.docx, .odt, .md or .txt)")
     novel = max(_groups(found), key=lambda g: (sum(f.words for f in g), len(g)))
     longest = max(f.words for f in novel)
@@ -221,13 +242,33 @@ def environment(folder: Path, manuscript: Path) -> dict[str, Any]:
 CHOICE = Path("state") / "manuscript.json"
 
 
+def _held(names: str) -> str:
+    return (
+        f"another program has {names} open and is not letting it be read (usually Word "
+        "while it saves, or the sync client): ask the writer to save and close it in "
+        "Word, then call setup again"
+    )
+
+
 def _choose(found: Discovery, path: Path) -> Discovery:
     """The same discovery with the writer's file as the manuscript."""
+    if path.name.startswith("~$"):
+        real = path.with_name(path.name[2:])
+        raise SetupError(
+            f"{path.name} is Word's lock file, not a document: the manuscript is the file "
+            f"beside it whose name ends the same way (like {real.name})"
+        )
     group = [found.manuscript, *(f for f, _ in found.versions)]
     pool = [*group, *found.others]
-    chosen = next((f for f in pool if f.path.resolve() == path.resolve()), None) or _read(path)
+    problems: dict[Path, str] = {}
+    chosen = next((f for f in pool if f.path.resolve() == path.resolve()), None) or _read(
+        path, problems
+    )
+    if problems.get(path) == "locked":
+        raise SetupError(_held(path.name))
     if chosen is None or not chosen.words:
-        raise SetupError(f"{path} has no text this tool can read")
+        why = f" ({problems[path]})" if path in problems else ""
+        raise SetupError(f"{path} has no text this tool can read{why}")
     rest = [f for f in group if f is not chosen]
     versions = sorted(((f, similarity(f, chosen)) for f in rest), key=lambda v: -v[0].modified)
     return Discovery(chosen, versions, [f for f in found.others if f is not chosen])
@@ -265,8 +306,10 @@ def setup(
     if not folder.is_dir():
         raise SetupError(f"{folder} is not a folder")
     settings.check(prose, ack)
-    found = discover(folder)
     root = state_root if state_root is not None else folder / WORKSPACE_DIR
+    if manuscript is None and (prose or edit_in_place) and (root / workspace.MANIFEST).is_file():
+        return _record(folder, workspace.resolve(str(root)).root, prose, ack, edit_in_place)
+    found = discover(folder)
     if manuscript is not None:
         path = manuscript.expanduser()
         path = path if path.is_absolute() else folder / path
@@ -294,15 +337,7 @@ def setup(
     structure_file = ws.root / "index" / result.version / "structure.json"
     if not result.unchanged or not structure_file.is_file():
         structure.build(ws.root, result.version)
-    if prose:
-        settings.set_prose_suggestions(ws.root, prose, ack, _language(ws.root))
-    if edit_in_place:
-        settings.set_edit_in_place(ws.root, edit_in_place == "yes", _language(ws.root))
-    try:
-        now = settings.load(ws.root)
-        current: dict[str, Any] = {k: now[k] for k in ("prose_suggestions", "edit_in_place")}
-    except settings.SettingsError as exc:  # a hand-edited profile: setup still works
-        current = {"prose_suggestions": False, "edit_in_place": None, "profile_error": str(exc)}
+    current = _settings(ws.root, prose, ack, edit_in_place)
     out: dict[str, Any] = {
         "status": "ready",
         "workspace": _rel(folder, ws.root),
@@ -319,6 +354,30 @@ def setup(
         # shown with the "who writes?" question, before the writer chooses
         out["ai_notice"] = settings.notice(out["language"] or "en")
     return out
+
+
+def _settings(root: Path, prose: str, ack: bool, edit_in_place: str) -> dict[str, Any]:
+    """Record the writer's choices; the ones in force now."""
+    if prose:
+        settings.set_prose_suggestions(root, prose, ack, _language(root))
+    if edit_in_place:
+        settings.set_edit_in_place(root, edit_in_place == "yes", _language(root))
+    try:
+        now = settings.load(root)
+        return {k: now[k] for k in ("prose_suggestions", "edit_in_place")}
+    except settings.SettingsError as exc:  # a hand-edited profile: setup still works
+        return {"prose_suggestions": False, "edit_in_place": None, "profile_error": str(exc)}
+
+
+def _record(folder: Path, root: Path, prose: str, ack: bool, edit: str) -> dict[str, Any]:
+    """An answer to a setup question on a work already set up: the manuscript is not
+    read again (that takes a minute on a long novel)."""
+    return {
+        "status": "saved",
+        "workspace": _rel(folder, root),
+        "workspace_path": str(root),
+        "settings": _settings(root, prose, ack, edit),
+    }
 
 
 def open_in_word() -> dict[str, Any]:

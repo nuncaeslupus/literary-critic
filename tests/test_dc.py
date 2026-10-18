@@ -32,7 +32,7 @@ def test_dc_check_rejects_a_release_before_the_minimum(monkeypatch: pytest.Monke
     monkeypatch.setattr(dc, "_execute", fake)
     with pytest.raises(dc.DocError) as err:
         dc.check()
-    assert err.value.code == "API_UNSUPPORTED" and "0.8.3" in err.value.hint
+    assert err.value.code == "API_UNSUPPORTED" and "0.8.4" in err.value.hint
 
 
 def test_dc_source_names_how_a_text_file_was_read(tmp_path: Path) -> None:

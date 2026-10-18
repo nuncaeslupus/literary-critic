@@ -23,7 +23,8 @@ Follow this guide; open `00-guide.md` and the step's prompt as needed.
 
 - Plain messages are about the novel: answer in the writer's language or
   the novel's, and never describe the tool unasked.
-- `[[...]]` marks talk about the tool itself: only then discuss it.
+- `[[...]]`, never written to the writer, marks tool talk: only then
+  discuss it.
 
 ## Writer rules
 

@@ -726,7 +726,7 @@ def test_a_failed_call_is_logged_with_its_arguments_and_answer(tmp_path: Path) -
     server = mcp.Server([mcp.Tool("approve", "", fails)], log=log)
     _call_raw(server, "approve", {"card": "C1"})
     line = log.getvalue().strip()
-    assert re.match(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d call approve error \d+\.\ds ", line)
+    assert re.match(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d call chat approve error \d+\.\ds ", line)
     assert '"C1"' in line and "read it again first" in line
 
 
@@ -743,6 +743,32 @@ def test_the_log_says_whether_the_host_draws_cards_and_fetches_them() -> None:
     assert lines[0].endswith(" ui") and '"host"' in lines[0]
     assert lines[1].endswith(" no-ui")
     assert lines[2].endswith("page " + mcp.PLACES_URI)
+
+
+def test_cowork_gets_only_the_way_back_to_a_normal_chat() -> None:
+    log = io.StringIO()
+    ran: list[str] = []
+
+    def resume(_: dict[str, Any]) -> dict[str, Any]:
+        ran.append("x")
+        return {}
+
+    server = mcp.Server([mcp.Tool("resume", "", resume)], log=log)
+    init = {"clientInfo": {"name": "local-agent-mode-Literary Critic"}}
+    server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": init})
+    out = _call_raw(server, "resume", {"work": "x"})
+    body = json.loads(out["content"][0]["text"])
+    assert not ran and body["reason"] == "cowork"
+    assert "entirely in their own language" in body["say"]
+    assert "call cowork resume" in log.getvalue()
+
+
+def test_a_normal_chat_is_told_to_stay_in_the_chat() -> None:
+    server = mcp.Server([], mcp.INSTRUCTIONS)
+    init = {"clientInfo": {"name": "claude-ai"}}
+    reply = server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": init})
+    assert reply is not None and "never move it to Cowork" in reply["result"]["instructions"]
+    assert server.mode == "chat"
 
 
 def test_the_log_file_keeps_one_old_log_once_too_big(tmp_path: Path) -> None:

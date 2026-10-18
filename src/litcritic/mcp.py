@@ -108,6 +108,7 @@ class Server:
         self.version = version
         self.log = log
         self.client: dict[str, Any] = {}
+        self.mode = "chat"  # "cowork" when Claude's Cowork mode started this server
 
     def _note(self, *parts: object) -> None:
         if self.log is not None:
@@ -128,6 +129,8 @@ class Server:
             ext = caps.get("extensions") if isinstance(caps, dict) else None
             ui = isinstance(ext, dict) and UI_EXTENSION in ext
             info = self.client.get("clientInfo") or {}
+            name = str(info.get("name") or "") if isinstance(info, dict) else ""
+            self.mode = "cowork" if name.startswith("local-agent-mode") else "chat"
             self._note("client", _brief(info), "ui" if ui else "no-ui")  # can it draw cards?
             result: dict[str, Any] = {
                 "protocolVersion": self.client.get("protocolVersion") or PROTOCOL_VERSION,
@@ -173,9 +176,12 @@ class Server:
         missing = [k for k in tool.required if k not in args]
         began = time.monotonic()
         try:
-            if missing:
+            if self.mode == "cowork":  # Cowork moves the work out of the writer's chat
+                out, is_error = {"status": "refused", "reason": "cowork", "say": COWORK}, False
+            elif missing:
                 raise ToolError("missing_arguments", missing=missing)
-            out, is_error = tool.handler(args), False
+            else:
+                out, is_error = tool.handler(args), False
         except ToolError as exc:
             out, is_error = exc.payload, True
         except Exception as exc:
@@ -186,9 +192,9 @@ class Server:
         took = f"{time.monotonic() - began:.1f}s"  # how long the writer waited on it
         failed = isinstance(out, dict) and (out.get("exit") or out.get("status") == "refused")
         if is_error or failed:  # the arguments and the answer, so it can be traced afterwards
-            self._note("call", name, "error", took, _brief(args), _brief(out, 2000))
+            self._note("call", self.mode, name, "error", took, _brief(args), _brief(out, 2000))
         else:
-            self._note("call", name, "ok", took, _brief(args))
+            self._note("call", self.mode, name, "ok", took, _brief(args))
         text = json.dumps(out, ensure_ascii=False, indent=1)
         result: dict[str, Any] = {"content": [{"type": "text", "text": text}], "isError": is_error}
         if tool.ui and not is_error:
@@ -241,7 +247,23 @@ SETUP_NEXT = (
     "ack_ai_notice); and, only after small fixes or suggested passages, whether you may "
     "put approved changes into their file (setup edit_in_place yes or no; after you "
     "write everything, record no without asking). Save each answer in the same turn the "
-    "writer gives it. Then call resume with the novel's name."
+    "writer gives it. Ask each question with your question tool when you have one (its "
+    "options are the answers, the recommended one first), else as text. Then call resume "
+    "with the novel's name."
+)
+SETUP_SAVED = (
+    "Saved. Ask the next setup question (05-setup.md step 3), or call resume with the "
+    "novel's name when all are answered."
+)
+INSTRUCTIONS = (
+    "Literary Critic works only in a normal chat. Keep this work in this chat: never move "
+    "it to Cowork or another mode, and never suggest one."
+)
+COWORK = (
+    "This tool works only in a normal chat, not in Cowork. Do not continue this work "
+    "here. Tell the writer, entirely in their own language (the one they write to you "
+    "in), that this work continues in a normal chat: open a new chat in Claude (not "
+    "Cowork) and say they want to continue with their novel. Nothing was lost."
 )
 NEXT_STEPS = {
     "setup": "Bring the manuscript in: find the novel's file and set it up (05-setup.md).",
@@ -532,7 +554,7 @@ def setup_work(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
         }
     except (setup.SetupError, settings.SettingsError, OSError, ValueError) as exc:
         raise ToolError("setup_failed", message=str(exc), **winblock.advice(exc)) from None
-    out["say"] = SETUP_NEXT
+    out["say"] = SETUP_SAVED if out.get("status") == "saved" else SETUP_NEXT
     return out
 
 
@@ -1187,7 +1209,7 @@ def _cmd(args: Any) -> int:
     log: Any = sys.stderr
     with contextlib.suppress(OSError):  # no log file is no reason not to serve
         log = _Tee(sys.stderr, log_file(state_file()).open("a", encoding="utf-8"))
-    server = Server(tools(Grant(args.folders)), log=log)
+    server = Server(tools(Grant(args.folders)), INSTRUCTIONS, log=log)
     server._note("start", _brief(versions(), 1000), _brief(args.folders, 1000))
     # Which uv the app gave this process (release Q-5: can staging reuse it?)
     server._note("uv", _brief({"UV": os.environ.get("UV"), "path": shutil.which("uv")}, 500))
