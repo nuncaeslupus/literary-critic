@@ -81,11 +81,25 @@ def load(root: Path) -> dict[str, Any]:
     return state if isinstance(state, dict) else {}
 
 
+SAVE_TRIES = 5  # Windows, or an antivirus scan, holds state.json for a moment
+SAVE_WAIT = 0.2
+
+
 def save(root: Path, state: dict[str, Any]) -> None:
+    """Write ``state.json`` through a temporary file of this process's own (the launcher
+    of a second server may be saving too), trying again while Windows holds it."""
     root.mkdir(parents=True, exist_ok=True)
-    tmp = root / "state.json.tmp"
+    tmp = root / f"state.json.{os.getpid()}.tmp"
     tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
-    tmp.replace(root / "state.json")
+    for attempt in range(SAVE_TRIES):
+        try:
+            tmp.replace(root / "state.json")
+            return
+        except PermissionError:
+            if attempt + 1 == SAVE_TRIES:
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(SAVE_WAIT)
 
 
 def _newer(version: object, than: str = __version__) -> bool:
