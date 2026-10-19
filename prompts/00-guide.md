@@ -83,6 +83,17 @@ front of you, and never write to the file before the writer approves:
   the page approves; say nothing more until it is done, and read the plan if
   no message arrives. Never write to the document another way (doc-control's
   tools, Word by computer use); the buttons open Word when it is closed.
+- **A cleanup (one mechanical fix in many places):** doubled spaces, three
+  dots for an ellipsis, spaces before punctuation and the like are ONE change
+  with one Approve, never a change per place: ask the writer whether to fix
+  that kind of thing in the whole novel, then call `change_card` with
+  `cleanup` (the fix's name, e.g. `collapse-spaces`) and `why`
+  (`lc change cleanup --workspace <slug> --recipe collapse-spaces` without
+  the desktop app). The box says how many places and shows a few; approving
+  fixes every place the fix finds then. One kind of fix per box. Word must
+  hold no unsaved changes: when the answer says so, ask the writer to save
+  and click again. Cleanups are typography, not wording, so they are
+  offered whoever writes.
 - **A chat that can show a widget:** a small card with two buttons that send
   "Approve C1" and "Dismiss C1". On that message run
   `lc change approve C1 --workspace <slug>` or

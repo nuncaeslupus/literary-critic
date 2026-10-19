@@ -754,10 +754,19 @@ def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
     if a.get("change"):
         ids.insert(0, str(a["change"]))
     edits = [e for e in a.get("edits") or [] if isinstance(e, dict)]
-    if not ids and not edits and a.get("quote") is not None and a.get("replace") is not None:
+    if (
+        not ids
+        and not edits
+        and not a.get("cleanup")
+        and a.get("quote") is not None
+        and a.get("replace") is not None
+    ):
         edits = [a]
     not_proposed: list[dict[str, Any]] = []
     try:
+        if a.get("cleanup"):
+            made = change.cleanup(ws.root, str(a["cleanup"]), why=str(a.get("why") or ""))
+            ids.append(made["change"])
         for e in edits:
             try:
                 made = change.propose(
@@ -788,6 +797,8 @@ def change_card(grant: Any, a: dict[str, Any]) -> dict[str, Any]:
         rows = [change.status(ws.root, cid)["changes"][0] for cid in dict.fromkeys(ids)]
     except plan.Refused as exc:
         raise ToolError(exc.reason, message=exc.message) from None
+    except dc.DocError as exc:
+        raise ToolError("error", message=exc.message) from None
     except (OSError, ValueError, plan.PlanError) as exc:
         raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
     shown = [{"id": r["id"], "status": r["status"], "card": r["card"]} for r in rows]
@@ -860,7 +871,8 @@ def change_approve(grant: Any, args: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("error", message=str(exc), **winblock.advice(exc)) from None
     if code != 0:
         raise ToolError(str(out.get("reason") or "refused"), message=str(out.get("message") or ""))
-    if args.get("go", True) is not False:
+    # a cleanup goes to its first place, when the words before it can find it
+    if args.get("go", True) is not False and change.spot(ws.root, cid)["text"]:
         out["went"] = _go(grant, work, ws, cid)
     return out
 
@@ -1077,7 +1089,10 @@ def tools(grant: Any) -> list[Tool]:
             "prefix, suffix): one box where each change has its own buttons, plus Approve "
             "all and Dismiss all. Never one call per change and then another for them all. "
             "Or name changes already proposed: change, or changes. To the writer, never say "
-            "card or tarjeta: say the change is below with its buttons. Never edit, open, "
+            "card or tarjeta: say the change is below with its buttons. A mechanical fix "
+            "found in many places (doubled spaces, three dots for an ellipsis...) is ONE "
+            "change: give cleanup (the fix's name) and why; the box says how many places, "
+            "shows a few, and one Approve fixes them all. Never edit, open, "
             "save or close the document any other way (no doc-control writes, no Word by "
             "hand).",
             lambda a: change_card(grant, a),
@@ -1099,6 +1114,10 @@ def tools(grant: Any) -> list[Tool]:
                         },
                         "required": ["quote", "replace"],
                     },
+                },
+                "cleanup": {
+                    "enum": sorted(change.CLEANUPS),
+                    "description": "A fix for every place at once, e.g. collapse-spaces.",
                 },
                 "quote": {"type": "string"},
                 "replace": {"type": "string"},

@@ -262,3 +262,101 @@ def test_change_approve_refuses_when_the_place_was_edited_since_the_card(
     code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
     assert code == 1 and out["reason"] == "moved" and "Pide el cambio de nuevo" in out["message"]
     assert doc.read_bytes() == edited
+
+
+# --- cleanups: one change, one Approve, every place --------------------------
+
+SPACED = ("Era  una tarde  fria de otoño.", "La calle   seguía vacía.")
+
+
+def _cleanup(
+    capsys: pytest.CaptureFixture[str], ws: Path, recipe: str = "collapse-spaces", *more: str
+) -> tuple[int, dict[str, Any]]:
+    return _lc(capsys, "cleanup", "--workspace", str(ws), "--recipe", recipe, *more)
+
+
+def test_a_cleanup_is_one_change_that_fixes_every_place(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, doc = _workspace(tmp_path, _plain(*SPACED))
+    before = doc.read_bytes()
+    code, out = _cleanup(capsys, ws, "collapse-spaces", "--why", "espacios dobles")
+    assert code == 0 and out["change"] == "C1", out
+    card = out["card"]
+    assert card["count"] == 3 and card["text"].startswith("¿Corregir 3 sitios?")
+    assert card["buttons"]["approve"] == "Corregir los 3"
+    assert card["examples"][0] == {
+        "before": "Era··una tarde  fria de otoño.",
+        "after": "Era·una tarde  fria de otoño.",
+    }
+    assert len(card["examples"]) == 2  # one per paragraph
+    assert doc.read_bytes() == before  # a proposal writes nothing
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 0 and out["status"] == "applied" and out["count"] == 3, out
+    xml = _members(doc.read_bytes())["word/document.xml"].decode("utf-8")
+    shown = "".join(re.findall(r"<w:t[^>]*>([^<]*)</w:t>", xml))
+    assert shown == "Era una tarde fria de otoño.La calle seguía vacía."
+    log = [json.loads(x) for x in (ws / "log" / "edits.jsonl").read_text().splitlines()]
+    assert log[-1]["edit_ids"] == ["C1"] and log[-1]["command"] == "cleanup"
+    # one undo takes the whole cleanup back
+    capsys.readouterr()
+    assert main(["docx", "undo", "--workspace", str(ws)]) == 0
+    undone = json.loads(capsys.readouterr().out)
+    assert undone["change"] == "C1", undone
+    assert _members(doc.read_bytes())["word/document.xml"] == _members(before)["word/document.xml"]
+
+
+def test_a_cleanup_needs_a_known_fix_with_places_and_is_offered_once(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, _doc = _workspace(tmp_path, _plain(*SPACED))
+    code, out = _cleanup(capsys, ws, "no-such-fix")
+    assert code == 1 and out["reason"] == "invalid"
+    code, out = _cleanup(capsys, ws, "ellipsis-char")
+    assert code == 1 and out["reason"] == "nothing"
+    assert _cleanup(capsys, ws)[0] == 0
+    code, out = _cleanup(capsys, ws)
+    assert code == 1 and out["reason"] == "repeat"
+    _profile(ws, "false")  # typography, not wording: offered whoever writes
+    assert _cleanup(capsys, ws, "collapse-spaces", "--again")[0] == 0
+
+
+def test_a_cleanup_with_nothing_left_settles_without_writing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    ws, doc = _workspace(tmp_path, _plain(*SPACED))
+    _cleanup(capsys, ws)
+    doc.write_bytes(_plain("Era una tarde.", "La calle."))  # the writer fixed them
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 0 and out["count"] == 0 and "nada" in out["message"]
+    assert not (ws / "log" / "edits.jsonl").exists()
+
+
+def test_a_cleanup_in_word_waits_for_unsaved_changes_then_goes_into_word(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import word_live
+
+    ws, doc = _workspace(tmp_path, _plain(*SPACED))
+    _cleanup(capsys, ws)
+    before = doc.read_bytes()
+    dirty = {"now": True}
+    real = dc.run
+
+    def run(name: str, request: dict[str, Any]) -> dict[str, Any]:
+        if name == "live.status":
+            return {"dirty": dirty["now"], "open_in": {"app": "word"}}
+        return real(name, request)
+
+    written: list[dict[str, Any]] = []
+    monkeypatch.setattr(dc, "run", run)
+    monkeypatch.setattr(word_live, "is_open", lambda d: True)
+    monkeypatch.setattr(word_live, "write", lambda req: written.append(req) or {})
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 1 and out["reason"] == "unsaved" and "Guárdalo" in out["message"]
+    assert not written and doc.read_bytes() == before
+    dirty["now"] = False  # the writer saved: the same click works now
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 0 and out["how"] == "live" and out["count"] == 3, out
+    assert len(written[0]["ops"]) == 3 and written[0]["tracked"] is False
+    assert doc.read_bytes() == before  # in Word, not the file: the writer saves

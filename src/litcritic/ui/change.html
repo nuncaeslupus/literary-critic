@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- The MCP App behind literary-critic's `change_card` tool: one or more proposed changes (a
-     batch is one card). One change has Approve and Dismiss; in a batch each change has its own
+     batch is one card). A cleanup (one fix in many places) also lists a few of its places. One change has Approve and Dismiss; in a batch each change has its own
      Approve and Dismiss, and Approve all and Dismiss all act on every change still open. Each
      change has a "Show in Word" button. A click calls the extension's app-only `change_approve`,
      `change_dismiss` or `change_go` tool through the host with the change id only (the page
@@ -24,6 +24,9 @@
   .change + .change { border-top: 1px solid #8884; margin-top: 8px; padding-top: 8px; }
   .text { margin: 0 0 6px; }
   .meta { font-size: 12px; opacity: .75; margin: 2px 0; }
+  .examples { margin: 4px 0 6px; padding-left: 18px; font-size: 13px; }
+  .examples li { margin: 2px 0; }
+  .examples .old { text-decoration: line-through; opacity: .7; }
   .row { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
   .state { font-size: 13px; flex: 1; }
   .state.ok { color: #2a2; }
@@ -115,6 +118,17 @@ function add(change, batch) {
   const meta = document.createElement("div");
   meta.className = "meta";
   meta.textContent = [card.words_by, card.why].filter(Boolean).join(" · ");
+  // A cleanup (one fix in many places) shows a few of its places, before → after.
+  const examples = document.createElement("ul");
+  examples.className = "examples";
+  for (const ex of card.examples || []) {
+    const li = document.createElement("li");
+    const old = document.createElement("span");
+    old.className = "old";
+    old.textContent = ex.before || "";
+    li.append(old, " → ", ex.after || "");
+    examples.append(li);
+  }
   const line = document.createElement("div");
   line.className = "row";
   const state = document.createElement("span");
@@ -138,7 +152,7 @@ function add(change, batch) {
     }
   }
   line.append(state, ...row.own, go);
-  box.append(text, meta, line);
+  box.append(text, meta, ...(examples.children.length ? [examples] : []), line);
   $("list").append(box);
   go.onclick = () => show(row);
   return row;
