@@ -72,9 +72,18 @@ def changed_since(tag: str | None, path: str = EXTENSION_DIR) -> bool:
     return bool(_run("git", "diff", "--name-only", tag, "HEAD", "--", path).strip())
 
 
-def previous_release_tag(version: str) -> str | None:
+def previous_release_tags(version: str, count: int = 2) -> list[str]:
+    """The ``count`` newest release tags before ``version``, newest first."""
     tags = _run("git", "tag", "--list", "v*", "--sort=-v:refname").split()
-    return next((t for t in tags if t != f"v{version}"), None)
+    return [t for t in tags if t != f"v{version}"][:count]
+
+
+def needs_reinstall(previous: list[str]) -> bool:
+    """The launcher or manifest changed since the last release and the one before it.
+
+    A release that only undoes the last release's launcher change installs itself: the
+    writers who never reinstalled run that older launcher already."""
+    return bool(previous) and all(changed_since(tag) for tag in previous)
 
 
 def release_json(version: str, reinstall: bool) -> str:
@@ -87,7 +96,7 @@ def build(out: Path) -> list[Path]:
     reqs = out / f"requirements-{version}.txt"
     reqs.write_text(requirements_text(export_requirements(), wheel), encoding="utf-8")
     meta = out / "release.json"
-    reinstall = changed_since(previous_release_tag(version))
+    reinstall = needs_reinstall(previous_release_tags(version))
     meta.write_text(release_json(version, reinstall), encoding="utf-8")
     return [wheel, reqs, meta]
 

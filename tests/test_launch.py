@@ -132,28 +132,3 @@ def test_launch_survives_a_corrupt_state(root: Path) -> None:
     server = Server()
     server.start()
     assert server.bundled == [[]]
-
-
-def test_launch_save_waits_for_a_held_state_and_never_fails_the_exit(
-    root: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Windows, or an antivirus scan, holds state.json for a moment (WinError 32)."""
-    real = Path.replace
-    held = {"times": 2}
-
-    def replace(self: Path, target: Path) -> Path:
-        if held["times"]:
-            held["times"] -= 1
-            raise PermissionError(32, "being used by another process")
-        return real(self, target)
-
-    monkeypatch.setattr(Path, "replace", replace)
-    monkeypatch.setattr(launch, "SAVE_WAIT", 0)
-    assert launch.save(root, {"current": "0.1.2"}) is True
-    assert read_state(root) == {"current": "0.1.2"}
-
-    held["times"] = 99  # held for good: the exit still reports the server's own code
-    runtime(root, "0.1.2")
-    write_state(root, current="0.1.2")
-    assert Server(code=3, seconds=60).start() == 3
-    assert not list(root.glob("state.json.*.tmp"))

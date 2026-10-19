@@ -27,8 +27,6 @@ from pathlib import Path
 
 QUICK_EXIT = 10.0  # seconds; an error exit sooner than this is a failed start
 MAX_FAILURES = 2
-SAVE_TRIES = 5  # Windows, or an antivirus scan, holds state.json for a moment
-SAVE_WAIT = 0.2
 HERE = Path(__file__).resolve().parent
 VERSION = re.compile(r"\d+\.\d+\.\d+")
 
@@ -71,24 +69,11 @@ def load(root: Path) -> dict:
     return state if isinstance(state, dict) else {}
 
 
-def save(root: Path, state: dict) -> bool:
-    """Write ``state.json``; False when Windows kept it held. Each process writes its own
-    temporary file: the app starts two servers, and both save as they exit."""
+def save(root: Path, state: dict) -> None:
     root.mkdir(parents=True, exist_ok=True)
-    tmp = root / f"state.json.{os.getpid()}.tmp"
-    try:
-        tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
-        for attempt in range(SAVE_TRIES):
-            try:
-                tmp.replace(root / "state.json")
-                return True
-            except PermissionError:
-                if attempt + 1 < SAVE_TRIES:
-                    time.sleep(SAVE_WAIT)
-    except OSError:
-        pass
-    tmp.unlink(missing_ok=True)
-    return False
+    tmp = root / "state.json.tmp"
+    tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    tmp.replace(root / "state.json")
 
 
 def candidates(state: dict) -> list[str]:
@@ -156,8 +141,7 @@ def main(
     code = call([str(python), "-m", "litcritic", "mcp", *args])
     state = load(root)  # staging may have written while the server ran
     record(state, version, clock() - start, code)
-    if not save(root, state):  # only a failure count is lost; never fail the exit
-        print("launch: state.json held; not saved", file=sys.stderr)
+    save(root, state)
     return code
 
 
