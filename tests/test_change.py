@@ -349,9 +349,14 @@ def test_a_cleanup_in_word_waits_for_unsaved_changes_then_goes_into_word(
         return real(name, request)
 
     written: list[dict[str, Any]] = []
+
+    def write(req: dict[str, Any]) -> dict[str, Any]:
+        written.append(req)
+        return {}
+
     monkeypatch.setattr(dc, "run", run)
     monkeypatch.setattr(word_live, "is_open", lambda d: True)
-    monkeypatch.setattr(word_live, "write", lambda req: written.append(req) or {})
+    monkeypatch.setattr(word_live, "write", write)
     code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
     assert code == 1 and out["reason"] == "unsaved" and "Guárdalo" in out["message"]
     assert not written and doc.read_bytes() == before
