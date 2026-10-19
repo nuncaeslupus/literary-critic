@@ -1,15 +1,15 @@
 [project]
 name = "literary-critic"
-version = "0.1.25"
+version = "0.1.26"
 description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
-dependencies = ["doc-control[live]>=0.8.4,<0.9"]  # stdlib + doc-control only (AGENTS.md rule 9)
+dependencies = ["doc-control[live]>=0.9.0,<0.10"]  # stdlib + doc-control only (AGENTS.md rule 9)
 
 [project.optional-dependencies]
 # kept for older installs: the live engine (pywin32 on Windows) is now a main dependency
-live = ["doc-control[live]>=0.8.4,<0.9"]
+live = ["doc-control[live]>=0.9.0,<0.10"]
 
 [project.scripts]
 lc = "litcritic.cli:main"

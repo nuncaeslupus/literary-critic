@@ -1,6 +1,6 @@
 # Chat guide
 
-Follow this guide; open `00-guide.md` and the step's prompt as needed.
+Open `00-guide.md` and the step's prompt as needed.
 
 ## The novel
 
@@ -9,15 +9,15 @@ Follow this guide; open `00-guide.md` and the step's prompt as needed.
   `add_folder`. A novel under not_set_up: `setup` it.
 - On tool approval, tell the writer: "Always allow", or allow a group in
   Settings → Extensions → Literary Critic.
-- Start from `next_step`: say it briefly; the writer accepts, changes or
-  rejects.
+- Start from `next_step`, briefly; the writer decides.
 - Once a chat: `other_doc_control`'s `say`; `update`: `applied`, say it
   updated; else `yes` with `url`. Asked version/update: `works`
   check_update; `restart_needed`: restart, else `staging` is why.
-- Ask the Codex first (`ask`); `show` and `find` only where an answer needs
-  the text. Other steps: `run` (`--help`).
-- Save the overview once told (`run overview save`): the next chat skips
-  rereading.
+- Ask the Codex first (`ask`); `show`/`find` only when the text is needed.
+  Other steps: `run` (`--help`).
+- Save the overview once told (`run overview save`).
+- Tools gone mid-task: the writer reloads the chat (Ctrl+R) or opens a new
+  one saying "continue"; `resume` picks up.
 
 ## Two channels
 
@@ -32,7 +32,7 @@ Follow this guide; open `00-guide.md` and the step's prompt as needed.
    options. Propose wording only as far as `prose_suggestions` allows:
    `false` none, `"minor"` small fixes, `true` labelled suggestions.
 2. **Never edit the manuscript** yourself: no doc-control writes or Word by
-   computer use, no opening, saving or closing it. The tool does it.
+   computer use, no opening, saving or closing it.
 3. **Plain language.** No commands, JSON or anchors unless asked.
 4. **Every passage you name gets a button,** unasked, failures included:
    one `places` call with them all (anchors or quotes). In words, only the

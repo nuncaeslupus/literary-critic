@@ -116,6 +116,7 @@ def test_notes_are_listed_placed_and_paged(
     comment, edit = first["items"][:2]
     word = paras[long[0]].split()[0]
     assert comment["kind"] == "comment" and comment["text"] == "Remark 0"
+    assert comment["on"] == paras[long[0]].split()[1]  # the words the comment is on
     assert edit["changes"] == [f"{word} → {word.upper()}"]
     assert comment["at"] == edit["at"] and comment["starts"].startswith(word.upper())
 
