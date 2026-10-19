@@ -27,6 +27,7 @@ from litcritic import (
     locate,
     mcp,
     metrics,
+    notes,
     overview,
     pack,
     plan,
@@ -323,6 +324,21 @@ def _cmd_locate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_notes(args: argparse.Namespace) -> int:
+    try:
+        ws = workspace.resolve(args.workspace, args.home)
+        if not args.file:
+            out: dict[str, object] = {"candidates": notes.candidates(ws.root)}
+        else:
+            data = notes.load(ws.root, notes.resolve(ws.root, args.file))
+            out = notes.page(data, args.page, args.kind or "", args.author or "")
+    except (workspace.WorkspaceError, notes.NotesError, OSError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(out, ensure_ascii=False, indent=1))
+    return 0
+
+
 def _cmd_round(args: argparse.Namespace) -> int:
     try:
         ws = workspace.resolve(args.workspace, args.home)
@@ -545,6 +561,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_loc.add_argument("--json", action="store_true", help="machine-readable output")
     p_loc.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
     p_loc.set_defaults(func=_cmd_locate)
+
+    p_notes = sub.add_parser(
+        "notes", help="a reviewer's comments and revision marks, a page at a time"
+    )
+    p_notes.add_argument(
+        "file", nargs="?", help="the reviewer's .docx beside the manuscript; none: list them"
+    )
+    p_notes.add_argument("--workspace", required=True, help="workspace folder or slug")
+    p_notes.add_argument("--page", type=int, default=1)
+    p_notes.add_argument("--kind", choices=notes.KINDS, default=None)
+    p_notes.add_argument("--author", default=None, help="only this author's notes")
+    p_notes.add_argument("--home", type=Path, default=None, help="override $LITCRITIC_HOME")
+    p_notes.set_defaults(func=_cmd_notes)
 
     p_round = sub.add_parser("round", help="revision rounds: build actions, letter, status, mark")
     p_round.add_argument("action", choices=["build", "status", "letter", "mark"])
