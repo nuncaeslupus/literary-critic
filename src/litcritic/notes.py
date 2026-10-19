@@ -1,11 +1,11 @@
 """A reviewer's notes on the novel: the comments and tracked changes of a Word file.
 
 An editor or a reader returns a copy of the manuscript with comments and tracked
-changes. ``lc notes`` reads all of them in one pass (doc-control's ``comment.list`` and
-``revision.list``), saves them under ``notes/`` in the workspace and prints them a page
-at a time, each placed at the paragraph of the current draft it belongs to. The saved
-copy is reused while the file is unchanged, so a conversation that drops halfway picks
-up at the next page without reading the document again.
+changes. ``lc notes`` reads all of them in one pass (doc-control's ``review.list``),
+saves them under ``notes/`` in the workspace and prints them a page at a time, each
+placed at the paragraph of the current draft it belongs to. The saved copy is reused
+while the file is unchanged, so a conversation that drops halfway picks up at the next
+page without reading the document again.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ from litcritic import dc, ingest, query, structure
 from litcritic.textstats import strip_accents
 
 PAGE = 30  # notes per page: enough to work through, small enough for a chat turn
-FORMAT = 1  # bump when the saved shape changes, so old copies are read again
+FORMAT = 2  # bump when the saved shape changes, so old copies are read again
 SHINGLE = 4  # words per shingle when matching a paragraph to the current draft
 MATCH_SHARE = 0.3  # share of a paragraph's shingles the draft paragraph must share
 ENDS = 6  # words quoted at each end of a paragraph
@@ -118,57 +118,47 @@ def _number(at: Any) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def _changes(revs: list[dict[str, Any]]) -> list[str]:
-    """A paragraph's tracked changes as the writer reads them: a deletion followed by an
-    insertion is one replacement, ``old → new``."""
-    out: list[str] = []
-    i = 0
-    while i < len(revs):
-        kind, text = revs[i].get("type"), str(revs[i].get("text") or "")
-        nxt = revs[i + 1] if i + 1 < len(revs) else None
-        if nxt and {kind, nxt.get("type")} == {"delete", "insert"}:
-            old, new = (text, nxt.get("text")) if kind == "delete" else (nxt.get("text"), text)
-            out.append(f"{str(old).strip()} → {str(new or '').strip()}")
-            i += 2
-            continue
-        sign = {"delete": "deleted: ", "insert": "added: "}.get(str(kind), f"{kind}: ")
-        out.append(f"{sign}{text.strip()}")
-        i += 1
-    return out
+def _change(c: dict[str, Any]) -> str:
+    """A tracked change as the writer reads it: ``old → new``, or what was added or deleted."""
+    if c.get("type") == "replace":
+        return f"{str(c.get('old') or '').strip()} → {str(c.get('new') or '').strip()}"
+    sign = {"delete": "deleted: ", "insert": "added: "}.get(str(c.get("type")), "")
+    return f"{sign}{str(c.get('text') or '').strip()}"
+
+
+def _comment(c: dict[str, Any]) -> dict[str, Any]:
+    note: dict[str, Any] = {"kind": "comment", "author": c.get("author") or ""}
+    if c.get("quote"):
+        note["on"] = c["quote"]  # the words the comment is on
+    note["text"] = c.get("text") or ""
+    if c.get("resolved"):
+        note["resolved"] = True
+    replies = [f"{r.get('author') or ''}: {r.get('text') or ''}" for r in c.get("replies") or []]
+    if replies:
+        note["replies"] = replies
+    return note
 
 
 def extract(path: Path, draft: _Draft | None) -> dict[str, Any]:
-    """Every comment and tracked change of ``path``, in document order."""
+    """Every comment and tracked change of ``path``, in document order (doc-control's
+    ``review.list``: comments with their quotes, a deletion and its insertion as one)."""
     try:
         with dc.open(path) as doc:
             paras = {int(p["number"]): str(p.get("text") or "") for p in doc.paragraphs()}
-            comments = doc.run("comment.list").get("comments") or []
-            revisions = doc.run("revision.list").get("revisions") or []
+            groups = doc.run("review.list").get("paragraphs") or []
     except dc.DocError as exc:
         raise NotesError(str(exc)) from exc
-    edits: dict[tuple[int | None, str], list[dict[str, Any]]] = defaultdict(list)
-    for r in revisions:
-        if r.get("type") in ("insert", "delete"):  # formatting and moves are not wording
-            edits[(_number(r.get("at")), str(r.get("author") or ""))].append(r)
-    rows: list[tuple[int, int, dict[str, Any]]] = []
-    for c in comments:
-        note = {"kind": "comment", "author": c.get("author") or "", "text": c.get("text") or ""}
-        if c.get("resolved"):
-            note["resolved"] = True
-        rows.append((_number(c.get("at")) or 0, 0, {"p": _number(c.get("at")), **note}))
-    for (num, author), revs in edits.items():
-        edit = {"p": num, "kind": "edit", "author": author, "changes": _changes(revs)}
-        rows.append((num or 0, 1, edit))
-    rows.sort(key=lambda r: (r[0], r[1]))
-    placed: dict[int, str | None] = {}
     last: str | None = None
     notes: list[dict[str, Any]] = []
-    for _, _, note in rows:
-        num = note.pop("p")
+    for group in groups:
+        num = _number(group.get("at"))
+        found = [_comment(c) for c in group.get("comments") or []]
+        edits: dict[str, list[str]] = {}
+        for c in group.get("changes") or []:
+            edits.setdefault(str(c.get("author") or ""), []).append(_change(c))
+        found += [{"kind": "edit", "author": a, "changes": ch} for a, ch in edits.items()]
         text = paras.get(num, "") if num else ""
-        if num and draft and num not in placed:
-            placed[num] = draft.place(text)
-        anchor = placed.get(num) if num else None
+        anchor = draft.place(text) if num and draft else None
         where: dict[str, Any] = {"at": anchor} if anchor else {"near": last} if last else {}
         last = anchor or last
         words = text.split()
@@ -176,7 +166,7 @@ def extract(path: Path, draft: _Draft | None) -> dict[str, Any]:
             where["starts"] = " ".join(words[:ENDS])
             if len(words) > ENDS:
                 where["ends"] = " ".join(words[-ENDS:])
-        notes.append({"n": len(notes) + 1, **note, **where})
+        notes += [{"n": len(notes) + k + 1, **note, **where} for k, note in enumerate(found)]
     return {"format": FORMAT, "notes": notes}
 
 

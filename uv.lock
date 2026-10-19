@@ -218,11 +218,11 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.8.4"
+version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/6f/36/851579403becd774c5ed0ec79ff89df15ed6e89033e8363f4f57b18af56c/doc_control-0.8.4.tar.gz", hash = "sha256:6fd3b6d2386f0e77ff30ec4fc9ffbfc9695e4cd476b23ca0a410ad1c84eb8df8", size = 798253, upload-time = "2026-10-18T21:24:13.796Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/05/9f/0dd78cb2d0792d5a8d82a5e09e565bdeaae0391e23d94075a05ae9fd4094/doc_control-0.9.0.tar.gz", hash = "sha256:4abb4264c15b55126aef02ffdc8d628d9792a0ed9b7c7148f4de11ac221eb330", size = 805166, upload-time = "2026-10-19T14:46:37.519Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/49/b6/0486bc4761491a30cefb007c3a00b29fa950920a6c06713977b7f4967494/doc_control-0.8.4-py3-none-any.whl", hash = "sha256:797bf2a9a9dbd8e31c8107cd8422f1850f2bb9e61855df2118c8436dc40da1be", size = 497489, upload-time = "2026-10-18T21:24:12.083Z" },
+    { url = "https://files.pythonhosted.org/packages/ef/0c/558c7f154d89f82d30cec30129a57cde965d1308b9a196ef03966bc33a03/doc_control-0.9.0-py3-none-any.whl", hash = "sha256:a6d4e8a669e5b1af85b8272a69e42e4f48262358feb8502eca169dc74241cc47", size = 501406, upload-time = "2026-10-19T14:46:36.131Z" },
 ]
 
 [package.optional-dependencies]
@@ -375,7 +375,7 @@ wheels = [
 
 [[package]]
 name = "literary-critic"
-version = "0.1.25"
+version = "0.1.26"
 source = { editable = "." }
 dependencies = [
     { name = "doc-control", extra = ["live"] },
@@ -397,8 +397,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "doc-control", extras = ["live"], specifier = ">=0.8.4,<0.9" },
-    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.8.4,<0.9" },
+    { name = "doc-control", extras = ["live"], specifier = ">=0.9.0,<0.10" },
+    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.9.0,<0.10" },
 ]
 provides-extras = ["live"]
 
