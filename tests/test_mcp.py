@@ -133,7 +133,7 @@ def test_resume_named_work_returns_state_and_guide(
     assert len(out["guide"].split()) <= 400
     assert "[[...]]" in out["guide"]
     assert out["versions"] == mcp.versions()  # "which version?" answered from resume too
-    assert "Never move the work to Cowork" in out["stay"]  # even if instructions are not shown
+    assert "Never move the work to another mode" in out["stay"]  # instructions may not show
 
     second = _call(server, "resume", {"work": "second"})
     assert second["work"]["next_step"]["step"] == "setup"
@@ -750,30 +750,21 @@ def test_the_log_says_whether_the_host_draws_cards_and_fetches_them() -> None:
     assert lines[2].endswith("page " + mcp.PLACES_URI)
 
 
-def test_cowork_gets_only_the_way_back_to_a_normal_chat() -> None:
+def test_cowork_runs_the_tools_as_a_normal_chat_does() -> None:
     log = io.StringIO()
     ran: list[str] = []
 
     def resume(_: dict[str, Any]) -> dict[str, Any]:
         ran.append("x")
-        return {}
+        return {"status": "ok"}
 
-    server = mcp.Server([mcp.Tool("resume", "", resume)], log=log)
+    server = mcp.Server([mcp.Tool("resume", "", resume)], mcp.INSTRUCTIONS, log=log)
     init = {"clientInfo": {"name": "local-agent-mode-Literary Critic"}}
-    server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": init})
-    out = _call_raw(server, "resume", {"work": "x"})
-    body = json.loads(out["content"][0]["text"])
-    assert not ran and body["reason"] == "cowork"
-    assert "entirely in their own language" in body["say"]
-    assert "call cowork resume" in log.getvalue()
-
-
-def test_a_normal_chat_is_told_to_stay_in_the_chat() -> None:
-    server = mcp.Server([], mcp.INSTRUCTIONS)
-    init = {"clientInfo": {"name": "claude-ai"}}
     reply = server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": init})
-    assert reply is not None and "never move it to Cowork" in reply["result"]["instructions"]
-    assert server.mode == "chat"
+    assert reply is not None and "never move it to another mode" in reply["result"]["instructions"]
+    out = _call_raw(server, "resume", {"work": "x"})
+    assert ran and json.loads(out["content"][0]["text"]) == {"status": "ok"}
+    assert server.mode == "cowork" and "call cowork resume ok" in log.getvalue()
 
 
 def test_the_log_file_keeps_one_old_log_once_too_big(tmp_path: Path) -> None:
