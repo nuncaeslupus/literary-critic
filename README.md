@@ -50,8 +50,8 @@ index, the Codex, the checks, letters and revision rounds. See
 
 **What you need for the full experience** (the novel's folder connected, changes
 written into the file with a backup, Word opened at the right paragraph): Claude's
-desktop app with the Literary Critic extension, used in a normal chat (not
-Cowork). Without the desktop app the tool works in basic mode, where you upload
+desktop app with the Literary Critic extension, in a normal chat or in Cowork.
+Without the desktop app the tool works in basic mode, where you upload
 the manuscript and get back a commented copy.
 
 Your novel and all working files live in a **workspace folder outside this

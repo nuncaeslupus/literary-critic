@@ -18,8 +18,8 @@ only what is missing and needed. Facts to give when asked:
 
 - The full experience (the novel's folder, Word opened at the right place,
   changes applied for them) needs Claude's desktop app with the Literary
-  Critic extension, in a normal chat. It never needs Cowork: never move the
-  work there or suggest it.
+  Critic extension, in a normal chat or in Cowork alike: carry on in the one
+  you are in, and never move the work to the other or suggest it.
 - Without the desktop app (Claude in a browser or a phone): **basic mode**. The writer
   uploads the manuscript, you analyse it and hand back a commented copy to
   download; they make the changes themselves.

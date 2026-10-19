@@ -108,7 +108,7 @@ class Server:
         self.version = version
         self.log = log
         self.client: dict[str, Any] = {}
-        self.mode = "chat"  # "cowork" when Claude's Cowork mode started this server
+        self.mode = "chat"  # "cowork" when Claude's Cowork mode started this server (logged)
 
     def _note(self, *parts: object) -> None:
         if self.log is not None:
@@ -176,9 +176,7 @@ class Server:
         missing = [k for k in tool.required if k not in args]
         began = time.monotonic()
         try:
-            if self.mode == "cowork":  # Cowork moves the work out of the writer's chat
-                out, is_error = {"status": "refused", "reason": "cowork", "say": COWORK}, False
-            elif missing:
+            if missing:
                 raise ToolError("missing_arguments", missing=missing)
             else:
                 out, is_error = tool.handler(args), False
@@ -273,18 +271,14 @@ SETUP_SAVED = (
     "novel's name when all are answered."
 )
 INSTRUCTIONS = (
-    "Literary Critic works only in a normal chat. Keep this work in this chat: never move "
-    "it to Cowork or another mode, and never suggest one."
+    "Literary Critic works in a normal chat and in Cowork alike. Do the novel's work with "
+    "these tools only, and never move it to another mode or suggest one."
 )
 STAY = (  # also in the answers: a client may not show the model the server's instructions
-    "Stay in this chat: everything for the novel works here. Never move the work to Cowork "
-    "or another mode, never suggest one, and never call a tool that hands the chat over."
-)
-COWORK = (
-    "This tool works only in a normal chat, not in Cowork. Do not continue this work "
-    "here. Tell the writer, entirely in their own language (the one they write to you "
-    "in), that this work continues in a normal chat: open a new chat in Claude (not "
-    "Cowork) and say they want to continue with their novel. Nothing was lost."
+    "Everything for the novel works here, in a normal chat or in Cowork: keep going where "
+    "you are. Never move the work to another mode, never suggest one, and never call a tool "
+    "that hands the chat over. Read and change the manuscript only through these tools, "
+    "never with your own shell, files or computer use."
 )
 NEXT_STEPS = {
     "setup": "Bring the manuscript in: find the novel's file and set it up (05-setup.md).",
@@ -969,7 +963,7 @@ def tools(grant: Any) -> list[Tool]:
             "versions this server runs (answer 'which version?' from them). "
             + WORK_HINT
             + " Call it first in a chat, and again with the new name when the writer "
-            "switches novels. The work stays in this chat, never in Cowork.",
+            "switches novels. The work stays where it is: never move it to another mode.",
             lambda a: resume(grant, str(a.get("work") or ""), reported),
             {"work": {"type": "string", "description": "the novel's title or folder name"}},
             read_only=True,
