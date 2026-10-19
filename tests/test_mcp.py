@@ -856,7 +856,9 @@ def test_resume_reports_standalone_doccontrol_once(
         assert "other_doc_control" not in first
     else:
         assert first["other_doc_control"]["kind"] == kind
-        assert "Settings → Extensions" in first["other_doc_control"]["say"]
+        say = first["other_doc_control"]["say"]
+        assert "Settings → Extensions" in say
+        assert "when you finish this conversation" in say  # removing one drops the chat
         assert "other_doc_control" not in second  # standalone_doccontrol_reported: once
     assert "other_doc_control" in first["guide"]
 
