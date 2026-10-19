@@ -598,6 +598,7 @@ RUN_ALLOWED = (
     "change",
     "overview",
     "checklist",
+    "notes",
 )
 RUN_OUTPUT_CAP = 20000  # characters of output returned to the chat
 
@@ -1036,8 +1037,11 @@ def tools(grant: Any) -> list[Tool]:
         Tool(
             "run",
             "Run another literary-critic command on the novel (round, codex, index, "
-            "context, locate, metrics, diff, report, checklist), as a list of arguments. "
-            "`input` is what `--file -` reads: pass an index answer there, never in a file.",
+            "context, locate, metrics, diff, report, checklist, notes), as a list of arguments. "
+            "`input` is what `--file -` reads: pass an index answer there, never in a file. "
+            "A reviewer's copy of the manuscript (comments, revision marks): read it only "
+            "with `notes <file>`, a page at a time; it is saved, so a dropped chat goes on "
+            "at the page it reached.",
             lambda a: run_lc(
                 grant,
                 str(a.get("work") or ""),
