@@ -45,7 +45,8 @@ Follow this guide; open `00-guide.md` and the step's prompt as needed.
 ## Plan and change cards
 
 A plan move needs the writer's word and reason. A change is `change_card`
-(quote, replace, why, by); several are one call (edits). Never say
+(quote, replace, why, by); several are one call (edits); one fix in
+many places (doubled spaces): cleanup. Never say
 "card" to the writer. Only a click approves. Without the card:
 "Approve C1" / "Dismiss C1" buttons, else "Replace «X» with «Y»? Answer
 yes or no."

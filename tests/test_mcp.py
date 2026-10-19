@@ -289,14 +289,13 @@ def test_places_result_carries_ui_resource(tmp_path: Path, monkeypatch: pytest.M
 
 
 def _change_work(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, propose: bool = True
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, propose: bool = True, p1: str = COLD
 ) -> tuple[mcp.Server, Path]:
     from test_docx_cli import _plain, _workspace
 
     from litcritic import change
 
     monkeypatch.setenv(folders.FOLDERS_ENV, str(tmp_path / "folders.json"))
-    p1 = COLD
     ws, _doc = _workspace(tmp_path, _plain(p1, "The street stayed empty."))
     if propose:
         change.propose(ws, "cold", "bitter", by="writer", why="stronger word")
@@ -413,6 +412,26 @@ def test_change_card_proposes_inline_and_shows_a_batch(
     assert refused["isError"] and _text(refused)["error"] == "invalid"
     assert _text(refused)["places"] == ["x"]  # a button to the passage, not a description
     assert "places" in _text(refused)["places_say"]
+
+
+def test_change_card_offers_a_cleanup_as_one_change(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    server, _ws = _change_work(tmp_path, monkeypatch, propose=False, p1="It was  a  cold day.")
+    schema = _listed(server)["change_card"]["inputSchema"]["properties"]["cleanup"]
+    assert "collapse-spaces" in schema["enum"]
+    made = _call_raw(
+        server, "change_card", {"work": "mynovel", "cleanup": "collapse-spaces", "why": "spaces"}
+    )
+    assert not made["isError"], made
+    card = made["structuredContent"]["card"]
+    assert card["count"] == 2 and card["buttons"]["approve"] == "Corregir los 2"
+    assert card["examples"] and "·" in card["examples"][0]["before"]
+    done = _call_raw(server, "change_approve", {"work": "mynovel", "change": "C1"})
+    assert not done["isError"], done
+    assert _text(done)["count"] == 2
+    unknown = _call_raw(server, "change_card", {"work": "mynovel", "cleanup": "nope"})
+    assert unknown["isError"]
 
 
 def test_change_card_proposes_several_edits_in_one_box(

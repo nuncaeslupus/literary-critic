@@ -620,6 +620,43 @@ def apply_edits(
     return done, 0
 
 
+def apply_ops(
+    root: Path,
+    doc: Path,
+    ops: list[dict[str, Any]],
+    eid: str,
+    reason: str,
+    sha256: str,
+    live: bool,
+) -> tuple[dict[str, Any], int]:
+    """Write edits already addressed in the file as it is now (a cleanup recipe's proposal,
+    read just before, guarded by its ``sha256``) as one plain batch: into the open document
+    when ``live`` (the writer saves), else to the file with backup and all-or-nothing. Each
+    goes to ``log/edits.jsonl`` under ``eid``, so undo finds it."""
+    base = {"document": _shown(root, doc), "author": AUTHOR}
+
+    def refused(reason: str, message: str) -> tuple[dict[str, Any], int]:
+        return _refused(base, reason, message, {}, [eid]), 1
+
+    batch: dict[str, Any] = {"doc": str(doc), "ops": ops, "author": AUTHOR, "tracked": False}
+    if live:
+        return _apply_live(root, doc, batch, [eid], {eid: reason}, base, refused)
+    try:
+        result = dc.run("doc.batch", {**batch, "expect": {"sha256": sha256}})
+    except dc.DocError as exc:
+        return refused(*_why(exc, doc))
+    log = {"command": "cleanup", "edit_ids": [eid], "reasons": {eid: reason}}
+    backup = _written(root, doc, sha256, result, log)
+    return {
+        "status": "applied",
+        "applied": [eid],
+        "skipped": [],
+        "backup": _shown(root, backup),
+        "revisions": len(ops),
+        **base,
+    }, 0
+
+
 def _apply_live(
     root: Path,
     doc: Path,
@@ -912,7 +949,7 @@ def _undone_change(root: Path, op_id: str) -> str | None:
             e = json.loads(line)
         except ValueError:
             continue
-        if e.get("command") == "edits" and e.get("op_id") == op_id:
+        if e.get("command") in ("edits", "cleanup") and e.get("op_id") == op_id:
             ids = [str(i) for i in e.get("edit_ids", [])]
     from litcritic import change
 
