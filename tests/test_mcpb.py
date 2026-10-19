@@ -146,6 +146,16 @@ def test_release_assets_requirements_hashed(tmp_path: Path) -> None:
     meta = json.loads(ra.release_json("1.2.3", True))
     assert meta == {"version": "1.2.3", "reinstall": True}
     assert ra.changed_since(None) is False
+    assert ra.needs_reinstall([]) is False
+
+
+def test_release_undoing_a_launcher_change_installs_itself(monkeypatch: pytest.MonkeyPatch) -> None:
+    ra = _script("release_assets")
+    launcher = {"v3": "new", "v2": "old"}  # v3 changed the launcher; HEAD puts back v2's
+    monkeypatch.setattr(ra, "changed_since", lambda tag, path="": launcher[tag] != "old")
+    assert ra.needs_reinstall(["v3", "v2"]) is False
+    launcher["v2"] = "older"  # HEAD differs from both: only a new .mcpb brings it
+    assert ra.needs_reinstall(["v3", "v2"]) is True
 
 
 def test_wheel_alone_reads_the_guide_and_schemas(tmp_path: Path) -> None:
