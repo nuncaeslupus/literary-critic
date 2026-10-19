@@ -5,8 +5,7 @@ Open `00-guide.md` and the step's prompt as needed.
 ## The novel
 
 - Tools take the work by name; switch novels with `resume`.
-- An unknown name lists the known works: ask which, or offer
-  `add_folder`. A novel under not_set_up: `setup` it.
+- Unknown name: ask which known work, or offer `add_folder`. A novel under not_set_up: `setup` it.
 - On tool approval, tell the writer: "Always allow", or allow a group in
   Settings → Extensions → Literary Critic.
 - Start from `next_step`, briefly; the writer decides.
@@ -16,8 +15,8 @@ Open `00-guide.md` and the step's prompt as needed.
 - Ask the Codex first (`ask`); `show`/`find` only when the text is needed.
   Other steps: `run` (`--help`).
 - Save the overview once told (`run overview save`).
-- Tools gone mid-task: the writer reloads the chat (Ctrl+R) or opens a new
-  one saying "continue"; `resume` picks up.
+- Tools gone mid-task: the app restarts them in seconds: retry once,
+  then the writer reloads (Ctrl+R) or opens a new chat saying "continue".
 
 ## Two channels
 
