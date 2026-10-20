@@ -396,11 +396,16 @@ def _held_in_word(monkeypatch: pytest.MonkeyPatch, doc: Path) -> list[dict[str, 
         return hits[0], paras[hits[0]]
 
     written: list[dict[str, Any]] = []
+
+    def write(request: dict[str, Any]) -> dict[str, Any]:
+        written.append(request)
+        return {}
+
     monkeypatch.setattr(dc, "run", run)
     monkeypatch.setattr(Path, "read_bytes", read_bytes)
     monkeypatch.setattr(word_live, "is_open", lambda d: True)
     monkeypatch.setattr(word_live, "run", lambda name, request: {})
-    monkeypatch.setattr(word_live, "write", lambda req: written.append(req) or {})
+    monkeypatch.setattr(word_live, "write", write)
     monkeypatch.setattr(docx_cli, "_live_paragraph", live_paragraph)
     return written
 
