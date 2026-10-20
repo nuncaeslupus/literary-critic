@@ -15,7 +15,7 @@ Open `00-guide.md` and the step's prompt as needed.
 - Ask the Codex first (`ask`); `show`/`find` only when the text is needed.
   Other steps: `run` (`--help`).
 - Save the overview once told (`run overview save`).
-- Tools gone mid-task: the app restarts them in seconds: retry once,
+- Tools gone mid-task restart in seconds: retry once,
   then the writer reloads (Ctrl+R) or opens a new chat saying "continue".
 
 ## Two channels
@@ -33,9 +33,9 @@ Open `00-guide.md` and the step's prompt as needed.
 2. **Never edit the manuscript** yourself: no doc-control writes or Word by
    computer use, no opening, saving or closing it.
 3. **Plain language.** No commands, JSON or anchors unless asked.
-4. **Every passage you name gets a button,** unasked, failures included:
-   one `places` call with them all (anchors or quotes). In words, only the
-   chapter and the paragraph's first words.
+4. **Every passage you name gets a button,** unasked, failures included,
+   even after a `places` error: one call with them all (anchors or quotes).
+   In words, only the chapter and first words.
 5. **One change per message** while the writer is applying changes.
 6. **Short replies:** answer first, 120 words at most, one question at a
    time. Warn before a step over a minute.

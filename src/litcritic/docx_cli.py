@@ -119,6 +119,31 @@ def _read(doc: Path) -> bytes:
     return doc.read_bytes()
 
 
+def _readable(ws_root: Path, doc: Path) -> tuple[Path, bytes]:
+    """The file to find places in, and its bytes: the document itself, or, while Word
+    holds it so nothing else can read it (a document Word opened from OneDrive does),
+    the workspace's copy of the latest draft ingested from it. Places found in the copy
+    are the draft's; the button's search phrase still finds a paragraph edited since."""
+    try:
+        return doc, _read(doc)
+    except PermissionError:
+        copy = _draft_copy(ws_root, doc)
+        if copy is None:
+            raise
+        return copy, copy.read_bytes()
+
+
+def _draft_copy(ws_root: Path, doc: Path) -> Path | None:
+    """The workspace's copy of the latest draft when it was ingested from ``doc``."""
+    try:
+        version = structure.latest_version(ws_root)
+        meta = json.loads((ws_root / "text" / f"{version}.meta.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    copy = ws_root / "manuscript" / f"{version}.docx"
+    return copy if meta.get("source_name") == doc.name and copy.is_file() else None
+
+
 class _Places:
     """Find strings and writer locators for spots in the document, from doc-control's
     ``locate``: one call for the whole document, on the first spot asked for, or,
@@ -135,6 +160,7 @@ class _Places:
         self, ws_root: Path, doc: Path, data: bytes, lang: str = "en", *, few: bool = False
     ) -> None:
         self.ix: query.Index | None = None
+        self.source = doc  # the file read: the document, or the copy `_readable` gave
         self.by_ordinal: dict[int, int] = {}
         self.ordinal_of: dict[int, int] = {}
         self.handle = dc.open(doc)
@@ -827,7 +853,7 @@ def _found(
         k, at, text = places.ordinal_of[i], places.locations.ats[i], ""
     else:
         try:
-            at = _resolve(doc, raw)
+            at = _resolve(places.source, raw)
         except NotOnce as exc:
             if not exc.count and not args.quote and ANCHOR.fullmatch(target) and places.ix is None:
                 why = (
@@ -853,7 +879,7 @@ def _locate(args: argparse.Namespace, root: Path) -> int:
     doc = _document(root, args.document)
     if not doc.is_file():
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
-    places = _Places(root, doc, _read(doc), args.lang, few=True)
+    places = _Places(root, *_readable(root, doc), args.lang, few=True)
     found = _found(args, root, doc, places, args.target)
     if found["status"] != "ok":
         return _out(found, 1)
@@ -872,7 +898,7 @@ def _places(args: argparse.Namespace, root: Path) -> int:
     doc = _document(root, args.document)
     if not doc.is_file():
         return _out({"status": "refused", "reason": "missing", "message": f"{doc} not found"}, 1)
-    places = _Places(root, doc, _read(doc), args.lang, few=len(args.targets) <= 3)
+    places = _Places(root, *_readable(root, doc), args.lang, few=len(args.targets) <= 3)
     shown, missing, lines = [], [], []
     for target in args.targets:
         found = _found(args, root, doc, places, target)
