@@ -22,6 +22,7 @@ typography, not wording, so ``prose_suggestions`` does not limit it.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import difflib
 import json
 import re
@@ -257,6 +258,9 @@ _SAID = {
         "cleanup_off": "Nothing was changed: you asked me not to change the file myself, and "
         "a fix of many places cannot be typed by hand one by one.",
         "nothing_left": "There was nothing left to fix: no place has it any more.",
+        "cleanup_held": "Nothing was changed: Word, which has the novel open from OneDrive, "
+        "keeps its file to itself, so a fix of many places cannot read it now. Changes one "
+        "by one still work with the document open; this fix runs once it is closed in Word.",
     },
     "es": {
         "moved": "No se ha cambiado nada: el texto en ese sitio ya no es el que había "
@@ -271,6 +275,10 @@ _SAID = {
         "cleanup_off": "No se ha cambiado nada: me pediste no cambiar el archivo yo, y una "
         "corrección de muchos sitios no se puede escribir a mano uno por uno.",
         "nothing_left": "No quedaba nada que corregir: ningún sitio lo tiene ya.",
+        "cleanup_held": "No se ha cambiado nada: Word, que tiene la novela abierta desde "
+        "OneDrive, no deja leer su archivo, así que una corrección de muchos sitios no puede "
+        "hacerse ahora. Los cambios uno a uno sí funcionan con el documento abierto; esta "
+        "corrección, cuando lo cierres en Word.",
     },
 }
 
@@ -317,11 +325,32 @@ def spot(root: Path, cid: str) -> dict[str, Any]:
 
 def _where(root: Path, doc: Path, at: str, quote: str, lang: str) -> dict[str, Any] | None:
     try:
-        places = docx_cli._Places(root, doc, docx_cli._read(doc), lang, few=True)
+        places = docx_cli._Places(root, *docx_cli._readable(root, doc), lang, few=True)
         hit = places.hit(at, quote)
     except (dc.DocError, OSError, ValueError, KeyError):
         return None
     return {k: hit.get(k) for k in ("find", "unique", "locator")}
+
+
+def _resolve(doc: Path, quote: str, prefix: str, suffix: str) -> str:
+    """Where ``quote`` is: in the document open in Word when it is (its edits not saved
+    yet count, and Word may hold the file so nothing else can read it), else in the file."""
+    if word_live.is_open(doc):
+        try:
+            return docx_cli._resolve_live(doc, quote, prefix, suffix)
+        except dc.DocError:
+            pass
+    return docx_cli._resolve(doc, quote, prefix, suffix)
+
+
+def _held(doc: Path) -> bool:
+    """Word has the document open and keeps its file to itself (as it does a document
+    opened from OneDrive), so nothing else can read the file until Word closes it."""
+    try:
+        docx_cli._read(doc)
+    except PermissionError:
+        return word_live.is_open(doc)
+    return False
 
 
 def propose(
@@ -377,7 +406,7 @@ def propose(
     }
     if doc is not None and doc.suffix.lower() == ".docx" and doc.is_file():
         try:
-            at = docx_cli._resolve(doc, quote, prefix, suffix)
+            at = _resolve(doc, quote, prefix, suffix)
         except docx_cli.NotOnce as exc:
             raise ChangeRefused(
                 "not_once", f"the quote is {exc}; give more of the text around it"
@@ -390,7 +419,8 @@ def propose(
             raise ChangeRefused(
                 "not_once", f"the quote is {exc}; give more of the text around it"
             ) from exc
-        data["sha256"] = docx_cli._sha256(doc)
+        with contextlib.suppress(OSError):  # Word holds the file it has open from OneDrive
+            data["sha256"] = docx_cli._sha256(doc)
         data["document"] = docx_cli._shown(root, doc)
         data["where"] = _where(root, doc, at, quote, lang)
     refs = {k: v for k, v in (("part", part), ("action", action)) if v}
@@ -459,6 +489,8 @@ def cleanup(
     doc = _document(root, document)
     if doc is None or doc.suffix.lower() != ".docx" or not doc.is_file():
         raise ChangeRefused("invalid", "a cleanup needs the novel's .docx")
+    if _held(doc):
+        raise ChangeRefused("held", said(root, "cleanup_held"))
     run = dc.run("recipe.run", {"doc": str(doc), "recipe": recipe})
     ops = [op for op in run["batch"]["ops"] if op.get("op") == "text.replace"]
     if not ops:
@@ -653,6 +685,8 @@ def _approve_cleanup(
             dirty = True  # cannot tell: as if unsaved, nothing is written
         if dirty:
             return refused("unsaved", said(root, "unsaved"))
+        if _held(doc):
+            return refused("held", said(root, "cleanup_held"))
     try:
         run = dc.run("recipe.run", {"doc": str(doc), "recipe": str(c["recipe"])})
     except dc.DocError as exc:
