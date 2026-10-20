@@ -9,7 +9,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/nuncaeslupus/literary-critic/main/docs/hero.png" width="100%" alt="literary-critic: three panels — a manuscript page cut into paragraph anchors with a word marked in red, a codex card for a character whose eye colour differs between two anchors, and a round of revision advice ordered structure, scene, line">
+  <img src="https://raw.githubusercontent.com/nuncaeslupus/literary-critic/main/docs/hero.png" width="100%" alt="literary-critic: panels — a manuscript page cut into paragraph anchors with a word marked in red, a codex card for a character whose eye colour differs between two anchors, and a round of revision advice ordered structure, scene, line">
 </p>
 
 **Lets an LLM read a full novel manuscript the way a professional editor would, across many chat sessions and drafts.**
@@ -37,7 +37,7 @@ your novels' folder.
 
 ## Example
 
-The CLI on a public-domain text from `corpus/` (Python 3.11+, [uv](https://docs.astral.sh/uv/)):
+The CLI on a public-domain text from `corpus/` (the Python version in `pyproject.toml`, [uv](https://docs.astral.sh/uv/)):
 
 ```console
 $ uv sync
