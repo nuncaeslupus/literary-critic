@@ -218,11 +218,11 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.9.0"
+version = "0.10.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/05/9f/0dd78cb2d0792d5a8d82a5e09e565bdeaae0391e23d94075a05ae9fd4094/doc_control-0.9.0.tar.gz", hash = "sha256:4abb4264c15b55126aef02ffdc8d628d9792a0ed9b7c7148f4de11ac221eb330", size = 805166, upload-time = "2026-10-19T14:46:37.519Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/91/ceb86ab47dcce3c7999a33955cfc9d7bba5fb3e02c6282a61d8885e5a8a5/doc_control-0.10.0.tar.gz", hash = "sha256:1c702af7a9c4820809b6803b49caed0643f4867a0d74ec921697918589239fdd", size = 803304, upload-time = "2026-10-20T15:53:19.741Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ef/0c/558c7f154d89f82d30cec30129a57cde965d1308b9a196ef03966bc33a03/doc_control-0.9.0-py3-none-any.whl", hash = "sha256:a6d4e8a669e5b1af85b8272a69e42e4f48262358feb8502eca169dc74241cc47", size = 501406, upload-time = "2026-10-19T14:46:36.131Z" },
+    { url = "https://files.pythonhosted.org/packages/94/93/8db580b89530009c320b582fa7acfab27865ed8504970a784b36856b36c2/doc_control-0.10.0-py3-none-any.whl", hash = "sha256:12b6f373eb5af6424840984ea622c0970b35b12dbf0a2826be0c5a6b271f835f", size = 498592, upload-time = "2026-10-20T15:53:18.282Z" },
 ]
 
 [package.optional-dependencies]
@@ -375,7 +375,7 @@ wheels = [
 
 [[package]]
 name = "literary-critic"
-version = "0.1.30"
+version = "0.1.31"
 source = { editable = "." }
 dependencies = [
     { name = "doc-control", extra = ["live"] },
@@ -397,8 +397,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "doc-control", extras = ["live"], specifier = ">=0.9.0,<0.10" },
-    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.9.0,<0.10" },
+    { name = "doc-control", extras = ["live"], specifier = ">=0.10.0,<0.11" },
+    { name = "doc-control", extras = ["live"], marker = "extra == 'live'", specifier = ">=0.10.0,<0.11" },
 ]
 provides-extras = ["live"]
 

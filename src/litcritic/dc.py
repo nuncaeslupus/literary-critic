@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any
 
 API_MAJOR = 1  # the doc-control API major version this code was written against
-MIN_VERSION = (0, 9, 0)  # review.list: comments with their quotes, paired replacements
-INSTALL_HINT = "install doc-control 0.9.0 (API 1.x): pip install 'doc-control>=0.9.0,<0.10'"
+MIN_VERSION = (0, 10, 0)  # recipe.run on the document open in Word (engine live)
+INSTALL_HINT = "install doc-control 0.10.0 (API 1.x): pip install 'doc-control>=0.10.0,<0.11'"
 
 
 class DocError(Exception):

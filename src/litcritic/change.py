@@ -15,8 +15,10 @@ a whole paragraph, never more than one.
 
 A *cleanup* (``kind: cleanup``) is one change for a mechanical fix in many places, such as
 doubled spaces: a doc-control recipe from ``CLEANUPS``, approved with one click, which
-runs the recipe again and writes every place it finds (``docx_cli.apply_ops``). It is
-typography, not wording, so ``prose_suggestions`` does not limit it.
+runs the recipe again and writes every place it finds (``docx_cli.apply_ops``). While Word
+holds the file (a document opened from OneDrive), the recipe reads the open document
+instead (``recipe.run`` with the live engine). It is typography, not wording, so
+``prose_suggestions`` does not limit it.
 """
 
 from __future__ import annotations
@@ -259,8 +261,8 @@ _SAID = {
         "a fix of many places cannot be typed by hand one by one.",
         "nothing_left": "There was nothing left to fix: no place has it any more.",
         "cleanup_held": "Nothing was changed: Word, which has the novel open from OneDrive, "
-        "keeps its file to itself, so a fix of many places cannot read it now. Changes one "
-        "by one still work with the document open; this fix runs once it is closed in Word.",
+        "keeps its file to itself, and Word did not answer to run the fix in the open "
+        "document. Try again in a moment, or close the document in Word first.",
     },
     "es": {
         "moved": "No se ha cambiado nada: el texto en ese sitio ya no es el que había "
@@ -276,9 +278,8 @@ _SAID = {
         "corrección de muchos sitios no se puede escribir a mano uno por uno.",
         "nothing_left": "No quedaba nada que corregir: ningún sitio lo tiene ya.",
         "cleanup_held": "No se ha cambiado nada: Word, que tiene la novela abierta desde "
-        "OneDrive, no deja leer su archivo, así que una corrección de muchos sitios no puede "
-        "hacerse ahora. Los cambios uno a uno sí funcionan con el documento abierto; esta "
-        "corrección, cuando lo cierres en Word.",
+        "OneDrive, no deja leer su archivo, y Word no ha respondido para hacer la corrección "
+        "en el documento abierto. Inténtalo de nuevo en un momento, o ciérralo antes en Word.",
     },
 }
 
@@ -351,6 +352,14 @@ def _held(doc: Path) -> bool:
     except PermissionError:
         return word_live.is_open(doc)
     return False
+
+
+def _recipe(doc: Path, recipe: str, held: bool) -> dict[str, Any]:
+    """doc-control's ``recipe.run`` on the file, or, ``held``, on the document open in Word
+    (whose result also carries the text of each paragraph it edits). Raises ``dc.DocError``."""
+    if held:
+        return word_live.run("recipe.run", {"doc": str(doc), "recipe": recipe, "engine": "live"})
+    return dc.run("recipe.run", {"doc": str(doc), "recipe": recipe})
 
 
 def propose(
@@ -489,9 +498,13 @@ def cleanup(
     doc = _document(root, document)
     if doc is None or doc.suffix.lower() != ".docx" or not doc.is_file():
         raise ChangeRefused("invalid", "a cleanup needs the novel's .docx")
-    if _held(doc):
-        raise ChangeRefused("held", said(root, "cleanup_held"))
-    run = dc.run("recipe.run", {"doc": str(doc), "recipe": recipe})
+    held = _held(doc)
+    try:
+        run = _recipe(doc, recipe, held)
+    except dc.DocError:
+        if not held:
+            raise
+        raise ChangeRefused("held", said(root, "cleanup_held")) from None
     ops = [op for op in run["batch"]["ops"] if op.get("op") == "text.replace"]
     if not ops:
         raise ChangeRefused("nothing", f"no place needs it: {recipe} finds nothing to fix")
@@ -506,7 +519,10 @@ def cleanup(
         para = str(op["at"]).split(":", 1)[0]
         if para in texts:  # one example per paragraph
             continue
-        texts[para] = str(dc.run("para.get", {"doc": str(doc), "at": para}).get("text") or "")
+        if held:
+            texts[para] = str((run.get("paragraphs") or {}).get(para) or "")
+        else:
+            texts[para] = str(dc.run("para.get", {"doc": str(doc), "at": para}).get("text") or "")
         examples.append(_example(texts[para], int(m.group(3)), int(m.group(4)), op["text"]))
     lang = rounds.language(root)
     first = str(ops[0]["at"])
@@ -523,7 +539,7 @@ def cleanup(
         "why": why,
         "proposed_by": "assistant",
         "language": lang,
-        "sha256": run["batch"]["expect"]["sha256"],
+        "sha256": str((run["batch"].get("expect") or {}).get("sha256") or ""),
         "document": docx_cli._shown(root, doc),
     }
     cid = _next_id(root)
@@ -652,7 +668,8 @@ def _approve_cleanup(
 ) -> tuple[dict[str, Any], int]:
     """Approve a cleanup: run its recipe on the document as it is now and write every place
     it finds in one batch. Open in Word, it is written there only when Word holds no
-    unsaved changes (the recipe reads the saved file, so its places must be Word's too);
+    unsaved changes (the recipe reads the saved file, so its places must be Word's too),
+    or when Word holds the file to itself (the recipe then reads the open document);
     otherwise to the file, all or nothing, with a backup."""
     refs = _refs(root, cid)
 
@@ -678,18 +695,19 @@ def _approve_cleanup(
         live = word_live.open_if_closed(doc) and word_live.is_open(doc)
         if not live:
             return refused("word_needed", said(root, "cleanup_word"))
-    if live:
+    held = live and _held(doc)
+    if live and not held:
         try:
             dirty = bool(dc.run("live.status", {"doc": str(doc)}).get("dirty"))
         except dc.DocError:
             dirty = True  # cannot tell: as if unsaved, nothing is written
         if dirty:
             return refused("unsaved", said(root, "unsaved"))
-        if _held(doc):
-            return refused("held", said(root, "cleanup_held"))
     try:
-        run = dc.run("recipe.run", {"doc": str(doc), "recipe": str(c["recipe"])})
+        run = _recipe(doc, str(c["recipe"]), held)
     except dc.DocError as exc:
+        if held:
+            return refused("held", said(root, "cleanup_held"))
         return refused("error", exc.message)
     ops = [op for op in run["batch"]["ops"] if op.get("op") == "text.replace"]
     plan.record(root, "change.approved", "writer", change=cid, refs=refs)
@@ -702,7 +720,7 @@ def _approve_cleanup(
             "count": 0,
             "message": said(root, "nothing_left"),
         }, 0
-    sha = str(run["batch"]["expect"]["sha256"])
+    sha = str((run["batch"].get("expect") or {}).get("sha256") or "")
     why = str(c.get("why") or c["recipe"])
     payload, code = docx_cli.apply_ops(root, doc, ops, cid, why, sha, live)
     if code != 0:
