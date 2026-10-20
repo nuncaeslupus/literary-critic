@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/nuncaeslupus/literary-critic/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/nuncaeslupus/literary-critic/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/nuncaeslupus/literary-critic)](https://github.com/nuncaeslupus/literary-critic/releases/latest)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/nuncaeslupus/literary-critic/main/docs/hero.png" width="100%" alt="literary-critic: panels — a manuscript page cut into paragraph anchors with a word marked in red, a codex card for a character whose eye colour differs between two anchors, and a round of revision advice ordered structure, scene, line">
@@ -184,4 +184,4 @@ the `.mcpb`.
 
 ## License
 
-Apache License 2.0 — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+MIT — see [`LICENSE`](LICENSE). Public-domain texts under `corpus/` keep their own status; see [`NOTICE`](NOTICE).
