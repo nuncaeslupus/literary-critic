@@ -1,6 +1,6 @@
 [project]
 name = "literary-critic"
-version = "0.1.28"
+version = "0.1.29"
 description = "LLM-assisted novel indexing, analysis and revision feedback"
 readme = "README.md"
 license = "MIT"

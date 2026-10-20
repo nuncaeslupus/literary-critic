@@ -532,6 +532,34 @@ def test_a_read_refused_for_a_moment_is_tried_again(
         docx_cli._read(doc)
 
 
+def test_places_of_a_document_word_holds_come_from_the_ingested_copy(
+    novel: tuple[Path, Path], capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Word opening a OneDrive document holds it so nothing else can read it: the places
+    come from the workspace's copy of the draft ingested from it, buttons and all."""
+    ws, doc = novel
+    w = ("--workspace", str(ws))
+    quote = _quote(doc)
+    code, free = _lc(capsys, "docx", "places", "c01.s1.p1", quote, *w)
+    assert code == 0
+    monkeypatch.setattr(docx_cli, "READ_PAUSE", 0)
+    real = Path.read_bytes
+
+    def held(self: Path) -> bytes:
+        if self.name in (doc.name, "Other.docx"):
+            raise PermissionError(13, "being used by another process")
+        return real(self)
+
+    monkeypatch.setattr(Path, "read_bytes", held)
+    code, out = _lc(capsys, "docx", "places", "c01.s1.p1", quote, *w)
+    assert code == 0 and out["live"] == free["live"] and out["live"]["arguments"]["doc"] == doc.name
+    code, out = _lc(capsys, "docx", "locate", "c01.s1.p1", *w)
+    assert code == 0 and out["path"] == str(doc.resolve()) and out["locator"] is not None
+    doc.with_name("Other.docx").write_text("")  # held, and not the draft ingested
+    code, out = _lc(capsys, "docx", "places", "c01.s1.p1", "--document", "Other.docx", *w)
+    assert code == 2 and out["status"] == "error"
+
+
 def test_apply_closed_document_opens_word_no_file_write(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
