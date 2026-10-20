@@ -32,7 +32,7 @@ def test_dc_check_rejects_a_release_before_the_minimum(monkeypatch: pytest.Monke
     monkeypatch.setattr(dc, "_execute", fake)
     with pytest.raises(dc.DocError) as err:
         dc.check()
-    assert err.value.code == "API_UNSUPPORTED" and "0.9.0" in err.value.hint
+    assert err.value.code == "API_UNSUPPORTED" and "0.10.0" in err.value.hint
 
 
 def test_dc_source_names_how_a_text_file_was_read(tmp_path: Path) -> None:
@@ -68,7 +68,7 @@ def _refusing(times: int) -> tuple[list[str], Any]:
 
     def fake(op: str, request: dict[str, Any]) -> dict[str, Any]:
         if op == "capabilities":
-            return {"api": "1.0", "ok": True, "op": op, "result": {"version": "0.9.0"}}
+            return {"api": "1.0", "ok": True, "op": op, "result": {"version": "0.10.0"}}
         calls.append(op)
         if len(calls) <= times:
             return {"ok": False, "error": refused}

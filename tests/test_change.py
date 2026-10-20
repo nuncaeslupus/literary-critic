@@ -369,8 +369,12 @@ def test_a_cleanup_in_word_waits_for_unsaved_changes_then_goes_into_word(
 
 def _held_in_word(monkeypatch: pytest.MonkeyPatch, doc: Path) -> list[dict[str, Any]]:
     """Word has ``doc`` open and keeps its file to itself (as a document opened from
-    OneDrive): nothing can read the file, and Word answers for its text. Returns the
-    batches written into Word."""
+    OneDrive): nothing can read the file, and Word answers for its text (a recipe runs
+    on doc-control's fake app holding the same paragraphs). Returns the batches written
+    into Word."""
+    from doc_control.live.dispatch import using
+    from doc_control.live.protocol import FakeAdapter
+
     from litcritic import word_live
 
     paras = {t: docx_cli._resolve(doc, t).rsplit(":", 1)[0] for t in _texts(doc.read_bytes())}
@@ -396,6 +400,15 @@ def _held_in_word(monkeypatch: pytest.MonkeyPatch, doc: Path) -> list[dict[str, 
         return hits[0], paras[hits[0]]
 
     written: list[dict[str, Any]] = []
+    shown = dc.Document(doc).run("para.list")["paragraphs"]
+    word = FakeAdapter({str(doc): [str(p["text"]) for p in shown]})
+    word.open(doc)
+
+    def live_run(name: str, request: dict[str, Any]) -> dict[str, Any]:
+        if name != "recipe.run":
+            return {}
+        with using(word):
+            return real_run(name, request)
 
     def write(request: dict[str, Any]) -> dict[str, Any]:
         written.append(request)
@@ -404,7 +417,7 @@ def _held_in_word(monkeypatch: pytest.MonkeyPatch, doc: Path) -> list[dict[str, 
     monkeypatch.setattr(dc, "run", run)
     monkeypatch.setattr(Path, "read_bytes", read_bytes)
     monkeypatch.setattr(word_live, "is_open", lambda d: True)
-    monkeypatch.setattr(word_live, "run", lambda name, request: {})
+    monkeypatch.setattr(word_live, "run", live_run)
     monkeypatch.setattr(word_live, "write", write)
     monkeypatch.setattr(docx_cli, "_live_paragraph", live_paragraph)
     return written
@@ -422,10 +435,34 @@ def test_a_change_is_proposed_and_applied_while_word_holds_the_file(
     assert [op["text"] for op in written[0]["ops"]] == ["fría"]
 
 
-def test_a_cleanup_says_why_it_waits_while_word_holds_the_file(
+def test_a_cleanup_is_proposed_and_applied_while_word_holds_the_file(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ws, doc = _workspace(tmp_path, _plain(*SPACED))
+    written = _held_in_word(monkeypatch, doc)
+    code, out = _cleanup(capsys, ws)
+    assert code == 0 and out["change"] == "C1", out
+    card = out["card"]
+    assert card["count"] == 3 and len(card["examples"]) == 2
+    assert card["examples"][0]["after"] == "Era·una tarde  fria de otoño."
+    code, out = _lc(capsys, "approve", "C1", "--workspace", str(ws))
+    assert code == 0 and out["how"] == "live" and out["count"] == 3, out
+    batch = written[0]
+    assert len(batch["ops"]) == 3 and batch["tracked"] is False
+    assert "expect" not in batch
+
+
+def test_a_cleanup_says_why_it_waits_when_word_holds_the_file_and_does_not_answer(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from litcritic import word_live
+
+    ws, doc = _workspace(tmp_path, _plain(*SPACED))
     _held_in_word(monkeypatch, doc)
+
+    def silent(name: str, request: dict[str, Any]) -> dict[str, Any]:
+        raise dc.DocError("LIVE_TIMEOUT", "Word did not answer in 20s")
+
+    monkeypatch.setattr(word_live, "run", silent)
     code, out = _cleanup(capsys, ws)
     assert code == 1 and out["reason"] == "held" and "OneDrive" in out["message"], out
