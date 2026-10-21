@@ -218,11 +218,11 @@ wheels = [
 
 [[package]]
 name = "doc-control"
-version = "0.10.0"
+version = "0.10.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ec/91/ceb86ab47dcce3c7999a33955cfc9d7bba5fb3e02c6282a61d8885e5a8a5/doc_control-0.10.0.tar.gz", hash = "sha256:1c702af7a9c4820809b6803b49caed0643f4867a0d74ec921697918589239fdd", size = 803304, upload-time = "2026-10-20T15:53:19.741Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/59/a1/27206bcf00c70b85188eb9cb1e70e5795a3f2c03495e9a83368f94aa3e1f/doc_control-0.10.1.tar.gz", hash = "sha256:41bf8ab43eade88e9cf8dad7470b9d6152dd0eb81db99b9501afc8702aba8e4c", size = 803310, upload-time = "2026-10-20T21:55:47.762Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/94/93/8db580b89530009c320b582fa7acfab27865ed8504970a784b36856b36c2/doc_control-0.10.0-py3-none-any.whl", hash = "sha256:12b6f373eb5af6424840984ea622c0970b35b12dbf0a2826be0c5a6b271f835f", size = 498592, upload-time = "2026-10-20T15:53:18.282Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/a3/5151432d04dfcd5829b5615f455be21ff8cbf433f6300f5c1308f8c7d2b8/doc_control-0.10.1-py3-none-any.whl", hash = "sha256:9e3b58c5be0f6b8790bfd1a73b754e2febfe38149a64b8a1075393c54a865a5d", size = 498611, upload-time = "2026-10-20T21:55:45.901Z" },
 ]
 
 [package.optional-dependencies]
@@ -375,7 +375,7 @@ wheels = [
 
 [[package]]
 name = "literary-critic"
-version = "0.1.31"
+version = "0.1.32"
 source = { editable = "." }
 dependencies = [
     { name = "doc-control", extra = ["live"] },
