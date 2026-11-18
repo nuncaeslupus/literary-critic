@@ -131,12 +131,9 @@ autonomy = "ask-when-blocked"
 attribution = true
 
 branch-protection = "existing"
-
 bot-triggers = ["coderabbitai[bot]=@coderabbitai review"]
-
 review-bots = ["coderabbitai[bot]"]
-
-setup-interview = "2026-11-12"
+setup-interview = "2026-11-18"
 
 [models]
 orchestrator = ""
