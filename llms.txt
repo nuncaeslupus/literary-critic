@@ -1,0 +1,17 @@
+# literary-critic
+
+> Lets an LLM read a full novel manuscript the way a professional editor would, across many chat sessions and drafts.
+
+literary-critic indexes the manuscript into stable anchors and a knowledge base (the Codex), runs a catalogue of editorial checks with evidence tied to the text, and turns the findings into prioritised revision rounds. The writer writes: the tool diagnoses and explains, and changes the manuscript only with the writer's approval for each change.
+
+## Docs
+
+- [README](https://github.com/nuncaeslupus/literary-critic/blob/main/README.md)
+- [Project rules for any LLM](https://github.com/nuncaeslupus/literary-critic/blob/main/AGENTS.md)
+- [Architecture](https://github.com/nuncaeslupus/literary-critic/blob/main/docs/architecture.md)
+- [Workspace format](https://github.com/nuncaeslupus/literary-critic/blob/main/docs/workspace.md)
+
+## Optional
+
+- [Contributing](https://github.com/nuncaeslupus/literary-critic/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/nuncaeslupus/literary-critic/blob/main/SECURITY.md)

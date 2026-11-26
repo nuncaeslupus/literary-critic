@@ -185,3 +185,5 @@ the `.mcpb`.
 ## License
 
 MIT — see [`LICENSE`](LICENSE). Public-domain texts under `corpus/` keep their own status; see [`NOTICE`](NOTICE).
+
+More tools by the same author: [github.com/nuncaeslupus](https://github.com/nuncaeslupus).
